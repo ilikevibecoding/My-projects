@@ -91,6 +91,23 @@
         .spaceship.tie::before {
             background-image: url('tiefighter.svg');
         }
+          .spaceship.tie::after {
+              content: "";
+              position: absolute;
+              top: 50%;
+              left: 10%;
+              width: 30px;
+              height: 2px;
+              background: red;
+              box-shadow: 0 -4px 0 red;
+              transform: translateY(-1px);
+              animation: laser 0.6s linear infinite;
+          }
+
+          @keyframes laser {
+              0% { transform: translateX(0) translateY(-1px); opacity: 1; }
+              100% { transform: translateX(-200px) translateY(-1px); opacity: 0; }
+          }
         
         @keyframes fly {
             0% {
@@ -184,6 +201,18 @@
             font-weight: 300;
             letter-spacing: 0.5px;
         }
+          .agi-line {
+              width: 2px;
+              height: 80px;
+              margin: 1rem auto;
+              background: linear-gradient(to bottom, transparent, #42a5f5, transparent);
+              animation: pulseLine 2s infinite;
+          }
+
+          @keyframes pulseLine {
+              0%, 100% { opacity: 0.6; }
+              50% { opacity: 1; }
+          }
         
         .progress-section {
             background: rgba(255, 255, 255, 0.05);
@@ -397,6 +426,7 @@
             <h1 class="title">AGI COUNTDOWN</h1>
             <p class="subtitle">🚀 Journey Through the Cosmos of Intelligence 🌌</p>
         </div>
+        <div class="agi-line"></div>
         
         <div class="progress-section">
             <div class="progress-label">⭐ Navigating Toward AGI ⭐</div>
@@ -429,15 +459,6 @@
                 <p>Quadratic computational costs limit context windows. Attention mechanisms scale O(n²), creating prohibitive resource requirements for truly long-form reasoning.</p>
             </div>
             
-            <div class="definition-section">
-                <div class="section-header">✨ Emergent Capabilities:</div>
-                <p>Unpredictable emergence of abilities complicates development timelines. We lack precise understanding of when qualitative leaps occur in model performance.</p>
-            </div>
-            
-            <div class="definition-section">
-                <div class="section-header">⚖️ Alignment & Control:</div>
-                <p>Ensuring AGI systems remain beneficial and controllable presents fundamental challenges in goal specification and behavioral constraints at superhuman capability levels.</p>
-            </div>
         </div>
     </div>
     
@@ -463,25 +484,28 @@
         }
         
         // Create flying spaceships
-        function createSpaceship() {
-            const spaceship = document.createElement('div');
-            const isTie = Math.random() > 0.5;
-            spaceship.className = 'spaceship';
+        function createSpaceship(isChase=false, fixedTop) {
+            const spaceship = document.createElement("div");
+            const isTie = !isChase && Math.random() > 0.5;
+            spaceship.className = "spaceship";
             if (isTie) {
-                spaceship.classList.add('tie', 'reverse');
+                spaceship.classList.add("tie", "reverse");
             } else {
-                spaceship.classList.add('xwing');
+                spaceship.classList.add("xwing");
             }
-            spaceship.style.top = Math.random() * 80 + 10 + '%';
-            spaceship.style.animationDelay = Math.random() * 2 + 's';
-            spaceship.style.animationDuration = (Math.random() * 4 + 6) + 's';
+            const top = fixedTop !== undefined ? fixedTop : Math.random() * 80 + 10;
+            const delay = Math.random() * 2;
+            spaceship.style.top = top + "%";
+            spaceship.style.animationDelay = delay + "s";
+            spaceship.style.animationDuration = (Math.random() * 4 + 6) + "s";
             document.body.appendChild(spaceship);
-            
+            if (!isTie && !isChase) {
+                setTimeout(() => createSpaceship(true, top), 500);
+            }
             setTimeout(() => {
                 spaceship.remove();
             }, 12000);
         }
-        
         // Space rivet explosion effect
         function createSpaceRivetEffect(x, y) {
             const container = document.getElementById('rivetContainer');
