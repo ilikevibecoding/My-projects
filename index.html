@@ -68,17 +68,28 @@
             pointer-events: none;
             z-index: -1;
         }
-        
+
         .spaceship::before {
-            content: '🚀';
-            font-size: 24px;
+            content: '';
             position: absolute;
+            display: block;
+            width: 100%;
+            height: 100%;
+            background-size: contain;
+            background-repeat: no-repeat;
             animation: fly 8s linear infinite;
         }
-        
+
         .spaceship.reverse::before {
-            content: '🛸';
-            font-size: 28px;
+            animation: flyReverse 10s linear infinite;
+        }
+
+        .spaceship.xwing::before {
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA1MCA1MCc+CiAgPGcgc3Ryb2tlPSd3aGl0ZScgc3Ryb2tlLXdpZHRoPScyJyBmaWxsPSdub25lJz4KICAgIDxsaW5lIHgxPScwJyB5MT0nMjUnIHgyPScxNScgeTI9JzIwJy8+CiAgICA8bGluZSB4MT0nMCcgeTE9JzI1JyB4Mj0nMTUnIHkyPSczMCcvPgogICAgPGxpbmUgeDE9JzUwJyB5MT0nMjUnIHgyPSczNScgeTI9JzIwJy8+CiAgICA8bGluZSB4MT0nNTAnIHkxPScyNScgeDI9JzM1JyB5Mj0nMzAnLz4KICAgIDxsaW5lIHgxPScyNScgeTE9JzAnIHgyPScyNScgeTI9JzE1Jy8+CiAgICA8bGluZSB4MT0nMjUnIHkxPSc1MCcgeDI9JzI1JyB5Mj0nMzUnLz4KICA8L2c+CiAgPHJlY3QgeD0nMjAnIHk9JzIwJyB3aWR0aD0nMTAnIGhlaWdodD0nMTAnIGZpbGw9J3doaXRlJy8+Cjwvc3ZnPgo=');
+        }
+
+        .spaceship.tie::before {
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA2MCA0MCc+CiAgPHJlY3QgeD0nMCcgeT0nMTAnIHdpZHRoPScxMCcgaGVpZ2h0PScyMCcgc3Ryb2tlPSd3aGl0ZScgZmlsbD0nbm9uZScgc3Ryb2tlLXdpZHRoPScyJy8+CiAgPHJlY3QgeD0nNTAnIHk9JzEwJyB3aWR0aD0nMTAnIGhlaWdodD0nMjAnIHN0cm9rZT0nd2hpdGUnIGZpbGw9J25vbmUnIHN0cm9rZS13aWR0aD0nMicvPgogIDxjaXJjbGUgY3g9JzMwJyBjeT0nMjAnIHI9JzYnIGZpbGw9J3doaXRlJy8+CiAgPGxpbmUgeDE9JzEwJyB5MT0nMjAnIHgyPScyNCcgeTI9JzIwJyBzdHJva2U9J3doaXRlJyBzdHJva2Utd2lkdGg9JzInLz4KICA8bGluZSB4MT0nMzYnIHkxPScyMCcgeDI9JzUwJyB5Mj0nMjAnIHN0cm9rZT0nd2hpdGUnIHN0cm9rZS13aWR0aD0nMicvPgo8L3N2Zz4K');
         }
         
         @keyframes fly {
@@ -457,7 +468,13 @@
         // Create flying spaceships
         function createSpaceship() {
             const spaceship = document.createElement('div');
-            spaceship.className = Math.random() > 0.6 ? 'spaceship reverse' : 'spaceship';
+            const isTie = Math.random() > 0.5;
+            spaceship.className = 'spaceship';
+            if (isTie) {
+                spaceship.classList.add('tie', 'reverse');
+            } else {
+                spaceship.classList.add('xwing');
+            }
             spaceship.style.top = Math.random() * 80 + 10 + '%';
             spaceship.style.animationDelay = Math.random() * 2 + 's';
             spaceship.style.animationDuration = (Math.random() * 4 + 6) + 's';
