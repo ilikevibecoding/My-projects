@@ -8,409 +8,410 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-```
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-    
-    body {
-        font-family: 'Inter', sans-serif;
-        background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
-        background-size: 400% 400%;
-        animation: gradientShift 15s ease infinite;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        overflow: hidden;
-    }
-    
-    @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    
-    .container {
-        text-align: center;
-        padding: 2rem;
-        backdrop-filter: blur(10px);
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
-        max-width: 900px;
-        width: 90%;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-        animation: shimmer 3s infinite;
-    }
-    
-    @keyframes shimmer {
-        0% { left: -100%; }
-        100% { left: 100%; }
-    }
-    
-    .title {
-        font-size: clamp(2rem, 5vw, 4rem);
-        font-weight: 700;
-        margin-bottom: 1rem;
-        background: linear-gradient(45deg, #fff, #e0e7ff, #fff);
-        background-clip: text;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-        animation: glow 2s ease-in-out infinite alternate;
-    }
-    
-    @keyframes glow {
-        from { text-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
-        to { text-shadow: 0 0 40px rgba(255, 255, 255, 0.8); }
-    }
-    
-    .subtitle {
-        font-size: clamp(1rem, 2.5vw, 1.5rem);
-        font-weight: 300;
-        margin-bottom: 3rem;
-        opacity: 0.9;
-        line-height: 1.6;
-    }
-    
-    .countdown {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 2rem;
-        margin-bottom: 3rem;
-    }
-    
-    .time-unit {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 15px;
-        padding: 2rem 1rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(5px);
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .time-unit:hover {
-        transform: translateY(-10px) scale(1.05);
-        background: rgba(255, 255, 255, 0.2);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    }
-    
-    .time-unit::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, transparent, #fff, transparent);
-        animation: scan 2s infinite;
-    }
-    
-    @keyframes scan {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
-    }
-    
-    .number {
-        font-size: clamp(2rem, 4vw, 3.5rem);
-        font-weight: 700;
-        display: block;
-        margin-bottom: 0.5rem;
-        background: linear-gradient(135deg, #fff, #f0f9ff, #e0e7ff);
-        background-clip: text;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-    }
-    
-    .label {
-        font-size: 0.9rem;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        opacity: 0.8;
-    }
-    
-    .quote {
-        font-style: italic;
-        font-size: clamp(0.9rem, 2vw, 1.2rem);
-        opacity: 0.8;
-        margin-bottom: 1rem;
-        line-height: 1.8;
-        position: relative;
-    }
-    
-    .quote::before, .quote::after {
-        content: '"';
-        font-size: 2em;
-        opacity: 0.3;
-        position: absolute;
-    }
-    
-    .quote::before {
-        top: -10px;
-        left: -20px;
-    }
-    
-    .quote::after {
-        bottom: -30px;
-        right: -20px;
-    }
-    
-    .attribution {
-        font-size: 0.9rem;
-        opacity: 0.7;
-        font-weight: 500;
-    }
-    
-    .progress-bar {
-        width: 100%;
-        height: 8px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        margin: 2rem 0;
-        overflow: hidden;
-        position: relative;
-    }
-    
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        border-radius: 10px;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .progress-fill::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-        animation: progressShimmer 2s infinite;
-    }
-    
-    @keyframes progressShimmer {
-        0% { left: -100%; }
-        100% { left: 100%; }
-    }
-    
-    .stats {
-        display: flex;
-        justify-content: space-around;
-        margin-top: 2rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    
-    .stat {
-        text-align: center;
-        min-width: 120px;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #e0e7ff;
-    }
-    
-    .stat-label {
-        font-size: 0.8rem;
-        opacity: 0.7;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    .particles {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        overflow: hidden;
-        top: 0;
-        left: 0;
-    }
-    
-    .particle {
-        position: absolute;
-        background: rgba(255, 255, 255, 0.6);
-        border-radius: 50%;
-        animation: float 6s infinite ease-in-out;
-    }
-    
-    @keyframes float {
-        0%, 100% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-        10% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
-    }
-    
-    @media (max-width: 768px) {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            overflow: hidden;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .container {
+            text-align: center;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+            max-width: 900px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .title {
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #fff, #e0e7ff, #fff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
+            to { text-shadow: 0 0 40px rgba(255, 255, 255, 0.8); }
+        }
+        
+        .subtitle {
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
+            font-weight: 300;
+            margin-bottom: 3rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
         .countdown {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
         }
         
         .time-unit {
-            padding: 1.5rem 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 2rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .time-unit:hover {
+            transform: translateY(-10px) scale(1.05);
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .time-unit::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #fff, transparent);
+            animation: scan 2s infinite;
+        }
+        
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .number {
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            font-weight: 700;
+            display: block;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #fff, #f0f9ff, #e0e7ff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        
+        .label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.8;
+        }
+        
+        .quote {
+            font-style: italic;
+            font-size: clamp(0.9rem, 2vw, 1.2rem);
+            opacity: 0.8;
+            margin-bottom: 1rem;
+            line-height: 1.8;
+            position: relative;
+            padding: 0 2rem;
+        }
+        
+        .quote::before, .quote::after {
+            content: '"';
+            font-size: 1.5em;
+            opacity: 0.4;
+            position: absolute;
+            font-style: normal;
+            font-weight: bold;
+        }
+        
+        .quote::before {
+            top: 0;
+            left: 0;
+        }
+        
+        .quote::after {
+            bottom: 0;
+            right: 0;
+        }
+        
+        .attribution {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            font-weight: 500;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 2rem 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-fill::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            animation: progressShimmer 2s infinite;
+        }
+        
+        @keyframes progressShimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
         }
         
         .stats {
-            flex-direction: column;
-            align-items: center;
+            display: flex;
+            justify-content: space-around;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
-    }
-</style>
-```
-
+        
+        .stat {
+            text-align: center;
+            min-width: 120px;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #e0e7ff;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            top: 0;
+            left: 0;
+        }
+        
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: float 6s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+        }
+        
+        @media (max-width: 768px) {
+            .countdown {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+            
+            .time-unit {
+                padding: 1.5rem 0.5rem;
+            }
+            
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .quote {
+                padding: 0 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="particles" id="particles"></div>
 
-```
-<div class="container">
-    <h1 class="title">The Intelligence Age</h1>
-    <p class="subtitle">Countdown to Superintelligence</p>
-    
-    <div class="countdown" id="countdown">
-        <div class="time-unit">
-            <span class="number" id="days">0</span>
-            <span class="label">Days</span>
-        </div>
-        <div class="time-unit">
-            <span class="number" id="hours">0</span>
-            <span class="label">Hours</span>
-        </div>
-        <div class="time-unit">
-            <span class="number" id="minutes">0</span>
-            <span class="label">Minutes</span>
-        </div>
-        <div class="time-unit">
-            <span class="number" id="seconds">0</span>
-            <span class="label">Seconds</span>
-        </div>
-    </div>
-    
-    <div class="progress-bar">
-        <div class="progress-fill" id="progressFill"></div>
-    </div>
-    
-    <div class="stats">
-        <div class="stat">
-            <div class="stat-value" id="totalDays">3000</div>
-            <div class="stat-label">Total Days</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value" id="elapsed">0</div>
-            <div class="stat-label">Days Elapsed</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value" id="percentage">0%</div>
-            <div class="stat-label">Progress</div>
-        </div>
-    </div>
-    
-    <p class="quote">
-        It is possible that we will have superintelligence in a few thousand days (!); it may take longer, but I'm confident we'll get there.
-    </p>
-    <p class="attribution">— Sam Altman, "The Intelligence Age" (September 23, 2024)</p>
-</div>
-
-<script>
-    // Target date: September 24, 2024 + 3000 days
-    const startDate = new Date('2024-09-24T00:00:00');
-    const totalDays = 3000;
-    const targetDate = new Date(startDate.getTime() + (totalDays * 24 * 60 * 60 * 1000));
-    
-    function updateCountdown() {
-        const now = new Date();
-        const timeRemaining = targetDate - now;
-        const timeElapsed = now - startDate;
+    <div class="container">
+        <h1 class="title">The Intelligence Age</h1>
+        <p class="subtitle">Countdown to Superintelligence</p>
         
-        if (timeRemaining <= 0) {
-            document.getElementById('days').textContent = '0';
-            document.getElementById('hours').textContent = '0';
-            document.getElementById('minutes').textContent = '0';
-            document.getElementById('seconds').textContent = '0';
-            return;
+        <div class="countdown" id="countdown">
+            <div class="time-unit">
+                <span class="number" id="days">0</span>
+                <span class="label">Days</span>
+            </div>
+            <div class="time-unit">
+                <span class="number" id="hours">0</span>
+                <span class="label">Hours</span>
+            </div>
+            <div class="time-unit">
+                <span class="number" id="minutes">0</span>
+                <span class="label">Minutes</span>
+            </div>
+            <div class="time-unit">
+                <span class="number" id="seconds">0</span>
+                <span class="label">Seconds</span>
+            </div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="totalDays">3000</div>
+                <div class="stat-label">Total Days</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="elapsed">0</div>
+                <div class="stat-label">Days Elapsed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="percentage">0%</div>
+                <div class="stat-label">Progress</div>
+            </div>
+        </div>
+        
+        <p class="quote">
+            It is possible that we will have superintelligence in a few thousand days (!); it may take longer, but I'm confident we'll get there.
+        </p>
+        <p class="attribution">— Sam Altman, "The Intelligence Age" (September 23, 2024)</p>
+    </div>
+
+    <script>
+        // Target date: September 24, 2024 + 3000 days
+        const startDate = new Date('2024-09-24T00:00:00');
+        const totalDays = 3000;
+        const targetDate = new Date(startDate.getTime() + (totalDays * 24 * 60 * 60 * 1000));
+        
+        function updateCountdown() {
+            const now = new Date();
+            const timeRemaining = targetDate - now;
+            const timeElapsed = now - startDate;
+            
+            if (timeRemaining <= 0) {
+                document.getElementById('days').textContent = '0';
+                document.getElementById('hours').textContent = '0';
+                document.getElementById('minutes').textContent = '0';
+                document.getElementById('seconds').textContent = '0';
+                return;
+            }
+            
+            const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+            
+            document.getElementById('days').textContent = days.toLocaleString();
+            document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+            document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+            document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+            
+            // Update progress
+            const elapsedDays = Math.floor(timeElapsed / (1000 * 60 * 60 * 24));
+            const progressPercentage = Math.max(0, Math.min(100, (elapsedDays / totalDays) * 100));
+            
+            document.getElementById('elapsed').textContent = Math.max(0, elapsedDays).toLocaleString();
+            document.getElementById('percentage').textContent = progressPercentage.toFixed(1) + '%';
+            document.getElementById('progressFill').style.width = progressPercentage + '%';
         }
         
-        const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            
+            const size = Math.random() * 4 + 2;
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+            particle.style.animationDelay = Math.random() * 2 + 's';
+            
+            document.getElementById('particles').appendChild(particle);
+            
+            setTimeout(() => {
+                particle.remove();
+            }, 6000);
+        }
         
-        document.getElementById('days').textContent = days.toLocaleString();
-        document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
-        document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
-        document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+        // Create floating particles
+        setInterval(createParticle, 300);
         
-        // Update progress
-        const elapsedDays = Math.floor(timeElapsed / (1000 * 60 * 60 * 24));
-        const progressPercentage = Math.max(0, Math.min(100, (elapsedDays / totalDays) * 100));
+        // Update countdown every second
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
         
-        document.getElementById('elapsed').textContent = Math.max(0, elapsedDays).toLocaleString();
-        document.getElementById('percentage').textContent = progressPercentage.toFixed(1) + '%';
-        document.getElementById('progressFill').style.width = progressPercentage + '%';
-    }
-    
-    function createParticle() {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        
-        const size = Math.random() * 4 + 2;
-        particle.style.width = size + 'px';
-        particle.style.height = size + 'px';
-        particle.style.left = Math.random() * 100 + '%';
-        particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
-        particle.style.animationDelay = Math.random() * 2 + 's';
-        
-        document.getElementById('particles').appendChild(particle);
-        
-        setTimeout(() => {
-            particle.remove();
-        }, 6000);
-    }
-    
-    // Create floating particles
-    setInterval(createParticle, 300);
-    
-    // Update countdown every second
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
-    
-    // Add some interactive effects
-    document.querySelectorAll('.time-unit').forEach(unit => {
-        unit.addEventListener('mouseenter', () => {
-            unit.style.transform = 'translateY(-10px) scale(1.05)';
+        // Add some interactive effects
+        document.querySelectorAll('.time-unit').forEach(unit => {
+            unit.addEventListener('mouseenter', () => {
+                unit.style.transform = 'translateY(-10px) scale(1.05)';
+            });
+            
+            unit.addEventListener('mouseleave', () => {
+                unit.style.transform = 'translateY(0) scale(1)';
+            });
         });
-        
-        unit.addEventListener('mouseleave', () => {
-            unit.style.transform = 'translateY(0) scale(1)';
-        });
-    });
-</script>
-```
-
+    </script>
 </body>
 </html>
