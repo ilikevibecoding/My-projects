@@ -154,28 +154,9 @@
             opacity: 0.8;
             margin-bottom: 1rem;
             line-height: 1.8;
-            position: relative;
-            padding: 0 2rem;
         }
         
-        .quote::before, .quote::after {
-            content: '"';
-            font-size: 1.5em;
-            opacity: 0.4;
-            position: absolute;
-            font-style: normal;
-            font-weight: bold;
-        }
-        
-        .quote::before {
-            top: 0;
-            left: 0;
-        }
-        
-        .quote::after {
-            bottom: 0;
-            right: 0;
-        }
+
         
         .attribution {
             font-size: 0.9rem;
@@ -283,7 +264,7 @@
             }
             
             .quote {
-                padding: 0 1rem;
+                padding: 0;
             }
         }
     </style>
