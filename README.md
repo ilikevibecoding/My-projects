@@ -1,42 +1,44 @@
-# Bombsite Breach
+# Relay
 
-Bombsite Breach is a self-contained browser tactical shooter inspired by the CS:GO retake loop.
-The whole prototype lives in `index.html` with no dependencies or build step.
+Relay is a polished, dependency-free static website concept for a **continuous learning benchmark**.
+It is designed as a research-style launch page for a benchmark that measures how well agents retain,
+recover, transfer, and remain robust as tasks and environments shift over time.
 
-## What is included
+## What changed
 
-- Top-down tactical shooter gameplay
-- Bombsite A retake scenario with a live bomb timer
-- Enemy bots with patrol, sightlines, and combat behavior
-- Weapon switching between USP-S, M4A1-S, and AWP
-- Reloading, armor, round transitions, score tracking, and HUD updates
-- Defuse mechanic with a hold-to-complete progress bar
+This repo now ships a complete static benchmark website rather than a game or prototype UI.
+The current site includes:
 
-## How to run
+- a new benchmark brand and homepage
+- a hero section with benchmark summary metrics
+- a benchmark loop section explaining the evaluation cycle
+- interactive evaluation-track tabs
+- a rendered scoreboard with illustrative submissions
+- an FAQ and launch-ready CTA/footer
 
-Open `index.html` in a desktop browser.
+## File structure
 
-If you want to serve it locally instead of opening the file directly:
+- `index.html` — semantic page structure and site copy
+- `styles.css` — layout, visual system, and responsive behavior
+- `script.js` — lightweight interactions and data-driven content
+
+## Run locally
+
+Open `index.html` directly in a browser, or serve the repo locally:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then visit `http://localhost:8000`.
+Then open `http://localhost:8000`.
 
-## Controls
+## Customization
 
-- `WASD` - move
-- `Shift` - slow walk for tighter spread
-- `Mouse` - aim
-- `Left Click` - fire
-- `R` - reload
-- `1` - USP-S
-- `2` - M4A1-S
-- `3` - AWP
-- `E` - hold to defuse when near the bomb
-- `Enter` or `Space` - start the match from the intro screen
+- Update copy and section structure in `index.html`
+- Change colors, spacing, and component styling in `styles.css`
+- Replace track and scoreboard data in `script.js`
 
-## Objective
+## Notes
 
-You play as the counter-terrorist on a solo retake. Eliminate defenders if needed, but the round is only won once the bomb is defused before the timer expires.
+The benchmark copy and scores are illustrative, but the site is intentionally structured so it can be
+adapted into a real benchmark launch page with minimal effort.
