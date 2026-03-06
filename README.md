@@ -1,22 +1,28 @@
-# Bombsite Breach
+# Pelagia Depths
 
-Bombsite Breach is a self-contained browser tactical shooter inspired by the CS:GO retake loop.
-The whole prototype lives in `index.html` with no dependencies or build step.
+Pelagia Depths is a graphics-first underwater exploration prototype inspired by the feel of Subnautica.
+The repository is still a lightweight browser project, so the clone is delivered as a no-build canvas experience
+instead of a Unity scene.
 
 ## What is included
 
-- Top-down tactical shooter gameplay
-- Bombsite A retake scenario with a live bomb timer
-- Enemy bots with patrol, sightlines, and combat behavior
-- Weapon switching between USP-S, M4A1-S, and AWP
-- Reloading, armor, round transitions, score tracking, and HUD updates
-- Defuse mechanic with a hold-to-complete progress bar
+- Fullscreen underwater exploration with a cinematic HUD
+- Large layered seascape with reefs, kelp forests, coral fields, vents, and deep-biome lighting
+- Animated caustics, volumetric light shafts, bubbles, plankton, glowing flora, and ambient fauna
+- Scanner-driven objective loop with four alien fragments to recover
+- Oxygen, health, power, sonar, predator patrols, and lifepod return objective
+
+## Project files
+
+- `index.html` - page shell and HUD markup
+- `styles.css` - interface styling and glass HUD treatment
+- `game.js` - world generation, rendering, movement, scanning, predators, and effects
 
 ## How to run
 
 Open `index.html` in a desktop browser.
 
-If you want to serve it locally instead of opening the file directly:
+To serve it locally:
 
 ```bash
 python3 -m http.server 8000
@@ -26,17 +32,15 @@ Then visit `http://localhost:8000`.
 
 ## Controls
 
-- `WASD` - move
-- `Shift` - slow walk for tighter spread
-- `Mouse` - aim
-- `Left Click` - fire
-- `R` - reload
-- `1` - USP-S
-- `2` - M4A1-S
-- `3` - AWP
-- `E` - hold to defuse when near the bomb
-- `Enter` or `Space` - start the match from the intro screen
+- `WASD` or arrow keys - swim
+- `Shift` - short burst swim
+- `Mouse` - aim the scanner
+- `Left Click` - hold to scan nearby fragments
+- `Space` - sonar pulse
+- `Enter` or `Space` - start from the intro screen
+- `Enter` - restart after success or failure
 
 ## Objective
 
-You play as the counter-terrorist on a solo retake. Eliminate defenders if needed, but the round is only won once the bomb is defused before the timer expires.
+Scan all four alien fragments, keep your oxygen topped up with bubble vents or the lifepod,
+avoid predators in the deeper biomes, and return to the lifepod to uplink the recovered data.
