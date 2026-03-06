@@ -1,22 +1,27 @@
-# Bombsite Breach
+# Continuum
 
-Bombsite Breach is a self-contained browser tactical shooter inspired by the CS:GO retake loop.
-The whole prototype lives in `index.html` with no dependencies or build step.
+Continuum is a polished, dependency-free static website concept for a **continuous learning benchmark**.
+It presents a fictional benchmark brand, methodology, task suite, and illustrative leaderboard in a
+single-page experience designed for research launches, benchmark announcements, or demo microsites.
 
 ## What is included
 
-- Top-down tactical shooter gameplay
-- Bombsite A retake scenario with a live bomb timer
-- Enemy bots with patrol, sightlines, and combat behavior
-- Weapon switching between USP-S, M4A1-S, and AWP
-- Reloading, armor, round transitions, score tracking, and HUD updates
-- Defuse mechanic with a hold-to-complete progress bar
+- A premium dark-mode landing page with a strong hero section
+- Benchmark positioning focused on retention, adaptation, transfer, and robustness
+- Task-suite tabs with domain-specific benchmark descriptions
+- An illustrative leaderboard rendered from lightweight client-side data
+- FAQ interactions, animated counters, scroll reveals, and section-aware nav highlighting
+- Fully static hosting with no framework, no bundler, and no runtime dependencies
+
+## File structure
+
+- `index.html` — semantic page structure and content
+- `styles.css` — design system, layout, responsiveness, and visual effects
+- `script.js` — lightweight interactions and data-driven rendering
 
 ## How to run
 
-Open `index.html` in a desktop browser.
-
-If you want to serve it locally instead of opening the file directly:
+Open `index.html` directly in a browser, or serve the directory locally:
 
 ```bash
 python3 -m http.server 8000
@@ -24,19 +29,13 @@ python3 -m http.server 8000
 
 Then visit `http://localhost:8000`.
 
-## Controls
+## Customization notes
 
-- `WASD` - move
-- `Shift` - slow walk for tighter spread
-- `Mouse` - aim
-- `Left Click` - fire
-- `R` - reload
-- `1` - USP-S
-- `2` - M4A1-S
-- `3` - AWP
-- `E` - hold to defuse when near the bomb
-- `Enter` or `Space` - start the match from the intro screen
+- Update the benchmark name, copy, and CTA language in `index.html`
+- Replace the illustrative task-suite and leaderboard data in `script.js`
+- Adjust colors, spacing, and visual style tokens in `styles.css`
 
-## Objective
+## Notes
 
-You play as the counter-terrorist on a solo retake. Eliminate defenders if needed, but the round is only won once the bomb is defused before the timer expires.
+The benchmark content and scores are intentionally fictional, but the site structure is designed to be a
+practical starting point for a real benchmark launch page.
