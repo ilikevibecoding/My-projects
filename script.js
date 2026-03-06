@@ -234,6 +234,17 @@ function initCounters() {
 function initRevealAnimations() {
     const items = document.querySelectorAll(".reveal");
 
+    const revealInViewport = () => {
+        items.forEach((item) => {
+            const rect = item.getBoundingClientRect();
+            const isNearViewport = rect.top < window.innerHeight * 0.92 && rect.bottom > 0;
+
+            if (isNearViewport) {
+                item.classList.add("is-visible");
+            }
+        });
+    };
+
     if (!("IntersectionObserver" in window)) {
         items.forEach((item) => item.classList.add("is-visible"));
         return;
@@ -252,6 +263,12 @@ function initRevealAnimations() {
     );
 
     items.forEach((item) => observer.observe(item));
+    revealInViewport();
+    window.addEventListener("hashchange", revealInViewport);
+
+    setTimeout(() => {
+        revealInViewport();
+    }, 250);
 }
 
 function initTabs() {
