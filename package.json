@@ -1,0 +1,28 @@
+{
+  "name": "neon-forecourt",
+  "version": "1.0.0",
+  "description": "A browser-based 3D arcade gas station simulator built with Three.js.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ilikevibecoding/My-projects.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ilikevibecoding/My-projects/issues"
+  },
+  "homepage": "https://github.com/ilikevibecoding/My-projects#readme",
+  "dependencies": {
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}
