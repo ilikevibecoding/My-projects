@@ -1,652 +1,1606 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Countdown to Superintelligence</title>
+    <title>Star Wars Lightsaber Battle</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        :root {
+            color-scheme: dark;
+            --bg-top: #050914;
+            --bg-bottom: #090f1f;
+            --panel-bg: rgba(8, 13, 27, 0.78);
+            --panel-border: rgba(255, 255, 255, 0.12);
+            --text-primary: #f4f7ff;
+            --text-secondary: rgba(226, 232, 255, 0.78);
+            --track: rgba(255, 255, 255, 0.12);
+            --success: #7dffb6;
+            --danger: #ff6d7f;
+            --warning: #ffd36d;
+            --player-blade: #69dfff;
+            --player-glow: rgba(105, 223, 255, 0.55);
+            --enemy-blade: #ff587f;
+            --enemy-glow: rgba(255, 88, 127, 0.55);
+            --player-panel-border: rgba(105, 223, 255, 0.22);
+            --enemy-panel-border: rgba(255, 88, 127, 0.22);
+            --accent: #8fc7ff;
+            --accent-soft: rgba(143, 199, 255, 0.18);
+        }
+
+        body.theme-dark {
+            --player-blade: #ff587f;
+            --player-glow: rgba(255, 88, 127, 0.58);
+            --enemy-blade: #69dfff;
+            --enemy-glow: rgba(105, 223, 255, 0.55);
+            --player-panel-border: rgba(255, 88, 127, 0.22);
+            --enemy-panel-border: rgba(105, 223, 255, 0.22);
+            --accent: #ff9cb6;
+            --accent-soft: rgba(255, 156, 182, 0.18);
+        }
 
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #f5576c);
-            background-size: 400% 400%;
-            animation: gradientShift 15s ease infinite;
+            margin: 0;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            overflow: hidden;
-        }
-        
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        
-        .container {
-            text-align: center;
-            padding: 2rem;
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
-            max-width: 900px;
-            width: 90%;
+            font-family: Arial, Helvetica, sans-serif;
+            color: var(--text-primary);
+            background:
+                radial-gradient(circle at top left, rgba(76, 125, 255, 0.14), transparent 28%),
+                radial-gradient(circle at top right, rgba(255, 65, 114, 0.14), transparent 24%),
+                linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+            overflow-x: hidden;
             position: relative;
-            overflow: hidden;
         }
-        
-        .container::before {
-            content: '';
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            inset: auto;
+            width: 32rem;
+            height: 32rem;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::before {
+            top: -10rem;
+            left: -8rem;
+            background: var(--player-glow);
+            opacity: 0.22;
+        }
+
+        body::after {
+            right: -8rem;
+            bottom: -10rem;
+            background: var(--enemy-glow);
+            opacity: 0.2;
+        }
+
+        .starfield,
+        .starfield::before,
+        .starfield::after {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .starfield::before,
+        .starfield::after {
+            content: "";
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.9) 0 1px, transparent 1.2px),
+                radial-gradient(circle at 72% 18%, rgba(255, 255, 255, 0.8) 0 1.1px, transparent 1.3px),
+                radial-gradient(circle at 84% 64%, rgba(255, 255, 255, 0.75) 0 1px, transparent 1.3px),
+                radial-gradient(circle at 38% 76%, rgba(255, 255, 255, 0.65) 0 0.9px, transparent 1.2px),
+                radial-gradient(circle at 58% 48%, rgba(255, 255, 255, 0.7) 0 1.1px, transparent 1.3px);
+            background-size: 24rem 24rem;
+            animation: drift 80s linear infinite;
+            opacity: 0.45;
+        }
+
+        .starfield::after {
+            background-size: 36rem 36rem;
+            animation-duration: 120s;
+            opacity: 0.28;
+        }
+
+        .star {
             position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-            animation: shimmer 3s infinite;
+            border-radius: 50%;
+            background: white;
+            opacity: 0.65;
+            animation: twinkle ease-in-out infinite;
         }
-        
-        @keyframes shimmer {
-            0% { left: -100%; }
-            100% { left: 100%; }
+
+        @keyframes drift {
+            from { transform: translate3d(0, 0, 0); }
+            to { transform: translate3d(-6rem, 3rem, 0); }
         }
-        
-        .title {
-            font-size: clamp(2rem, 5vw, 4rem);
-            font-weight: 700;
-            margin-bottom: 1rem;
-            background: linear-gradient(45deg, #fff, #e0e7ff, #fff);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
-            animation: glow 2s ease-in-out infinite alternate;
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.15; transform: scale(0.85); }
+            50% { opacity: 0.95; transform: scale(1.25); }
         }
-        
-        @keyframes glow {
-            from { text-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
-            to { text-shadow: 0 0 40px rgba(255, 255, 255, 0.8); }
+
+        @keyframes saberPulse {
+            0%, 100% { box-shadow: 0 0 10px currentColor, 0 0 24px currentColor; }
+            50% { box-shadow: 0 0 18px currentColor, 0 0 42px currentColor; }
         }
-        
-        .subtitle {
-            font-size: clamp(1rem, 2.5vw, 1.5rem);
-            font-weight: 300;
-            margin-bottom: 3rem;
-            opacity: 0.9;
+
+        @keyframes bannerPulse {
+            0%, 100% { transform: scale(1); opacity: 0.95; }
+            50% { transform: scale(1.02); opacity: 1; }
+        }
+
+        @keyframes attackLeft {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            40% { transform: translateX(1.9rem) rotate(-6deg); }
+            70% { transform: translateX(0.6rem) rotate(2deg); }
+        }
+
+        @keyframes attackRight {
+            0%, 100% { transform: scaleX(-1) translateX(0) rotate(0deg); }
+            40% { transform: scaleX(-1) translateX(1.9rem) rotate(-6deg); }
+            70% { transform: scaleX(-1) translateX(0.6rem) rotate(2deg); }
+        }
+
+        @keyframes hitFlash {
+            0%, 100% { filter: none; }
+            30% { filter: brightness(1.9); }
+        }
+
+        @keyframes guardFlash {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-0.2rem); }
+        }
+
+        .app {
+            position: relative;
+            z-index: 1;
+            width: min(1180px, calc(100% - 2rem));
+            margin: 0 auto;
+            padding: 2rem 0 3rem;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(16px);
+        }
+
+        .hero {
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            display: grid;
+            gap: 1.25rem;
+        }
+
+        .eyebrow {
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.28rem;
+            font-size: 0.82rem;
+            color: var(--accent);
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(2.4rem, 5vw, 4.4rem);
+            line-height: 0.96;
+        }
+
+        .hero p {
+            margin: 0;
+            color: var(--text-secondary);
+            max-width: 50rem;
             line-height: 1.6;
         }
-        
-        .countdown {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 2rem;
-            margin-bottom: 3rem;
-        }
-        
-        .time-unit {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            padding: 2rem 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(5px);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .time-unit:hover {
-            transform: translateY(-10px) scale(1.05);
-            background: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        }
-        
-        .time-unit::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #fff, transparent);
-            animation: scan 2s infinite;
-        }
-        
-        @keyframes scan {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-        
-        .number {
-            font-size: clamp(2rem, 4vw, 3.5rem);
-            font-weight: 700;
-            display: block;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #fff, #f0f9ff, #e0e7ff);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-        }
-        
-        .label {
-            font-size: 0.9rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            opacity: 0.8;
-        }
-        
-        .quote {
-            font-style: italic;
-            font-size: clamp(0.9rem, 2vw, 1.2rem);
-            opacity: 0.8;
-            margin-bottom: 1rem;
-            line-height: 1.8;
-        }
-        
 
-        
-        .attribution {
-            font-size: 0.9rem;
-            opacity: 0.7;
-            font-weight: 500;
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 1.25rem;
+            align-items: end;
         }
-        
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            margin: 2rem 0;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            border-radius: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .progress-fill::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-            animation: progressShimmer 2s infinite;
-        }
-        
-        @keyframes progressShimmer {
-            0% { left: -100%; }
-            100% { left: 100%; }
-        }
-        
-        .stats {
+
+        .side-picker {
             display: flex;
-            justify-content: space-around;
-            margin-top: 2rem;
             flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        button {
+            font: inherit;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .faction-button,
+        .secondary-button,
+        .action-button {
+            border-radius: 16px;
+        }
+
+        .faction-button {
+            padding: 0.9rem 1.2rem;
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .faction-button.active {
+            background: linear-gradient(135deg, var(--accent-soft), rgba(255, 255, 255, 0.08));
+            border-color: rgba(255, 255, 255, 0.22);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 14px 28px rgba(0, 0, 0, 0.22);
+        }
+
+        .secondary-button {
+            padding: 0.9rem 1.1rem;
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.11);
+        }
+
+        .shortcut-note {
+            justify-self: end;
+            padding: 1rem 1.2rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .shortcut-note strong {
+            color: var(--text-primary);
+        }
+
+        .arena-layout {
+            display: grid;
+            grid-template-columns: 280px minmax(0, 1fr) 280px;
+            gap: 1rem;
+            align-items: stretch;
+        }
+
+        .status-card {
+            padding: 1.25rem;
+            display: grid;
+            gap: 1rem;
+            align-content: start;
+        }
+
+        .status-card[data-role="player"] {
+            border-color: var(--player-panel-border);
+        }
+
+        .status-card[data-role="enemy"] {
+            border-color: var(--enemy-panel-border);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 0.75rem;
+        }
+
+        .role-label {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18rem;
+            color: var(--text-secondary);
+        }
+
+        .stance-badge {
+            padding: 0.35rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08rem;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+        }
+
+        .status-card h2 {
+            margin: 0;
+            font-size: 1.45rem;
+        }
+
+        .flavor-text {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            min-height: 3rem;
+        }
+
+        .meter-group {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .meter-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+            font-size: 0.92rem;
+        }
+
+        .meter-track {
+            width: 100%;
+            height: 0.78rem;
+            border-radius: 999px;
+            overflow: hidden;
+            background: var(--track);
+        }
+
+        .meter-fill {
+            height: 100%;
+            border-radius: inherit;
+            transition: width 0.22s ease;
+        }
+
+        .meter-fill.health {
+            background: linear-gradient(90deg, #ffd36d, var(--danger));
+        }
+
+        .meter-fill.force {
+            background: linear-gradient(90deg, #85d5ff, #687cff);
+        }
+
+        .detail-grid {
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.8rem 0.9rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        .detail-row strong {
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .arena {
+            padding: 1rem;
+            display: grid;
             gap: 1rem;
         }
-        
-        .stat {
-            text-align: center;
-            min-width: 120px;
+
+        .round-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            padding: 0.35rem 0.35rem 0 0.35rem;
         }
-        
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #e0e7ff;
-        }
-        
-        .stat-label {
-            font-size: 0.8rem;
-            opacity: 0.7;
+
+        .round-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.55rem 0.85rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            letter-spacing: 0.08rem;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            font-size: 0.78rem;
         }
-        
-        .particles {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+
+        .duel-stage {
+            position: relative;
+            min-height: 24rem;
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+                radial-gradient(circle at center, rgba(255, 255, 255, 0.07), transparent 55%);
             overflow: hidden;
-            top: 0;
-            left: 0;
+            display: grid;
+            grid-template-columns: 1fr 180px 1fr;
+            align-items: end;
+            padding: 1.25rem 1rem;
         }
-        
-        .particle {
+
+        .duel-stage::before {
+            content: "";
             position: absolute;
-            background: rgba(255, 255, 255, 0.6);
+            inset: auto 0 0 0;
+            height: 4rem;
+            background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55));
+        }
+
+        .fighter {
+            position: relative;
+            display: grid;
+            justify-items: center;
+            gap: 0.8rem;
+            z-index: 1;
+        }
+
+        .fighter-name {
+            padding: 0.45rem 0.8rem;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.28);
+            backdrop-filter: blur(8px);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12rem;
+        }
+
+        .fighter-model {
+            position: relative;
+            width: 8.5rem;
+            height: 16rem;
+        }
+
+        .enemy-fighter .fighter-model {
+            transform: scaleX(-1);
+        }
+
+        .fighter-head,
+        .fighter-body,
+        .fighter-arm,
+        .fighter-leg {
+            position: absolute;
+            background: linear-gradient(180deg, #e7ecff, #6d7ba4);
+        }
+
+        .fighter-head {
+            top: 0.3rem;
+            left: 3.15rem;
+            width: 2.15rem;
+            height: 2.15rem;
             border-radius: 50%;
-            animation: float 6s infinite ease-in-out;
+            box-shadow: 0 0 18px rgba(255, 255, 255, 0.12);
         }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+
+        .fighter-body {
+            top: 2.35rem;
+            left: 2.8rem;
+            width: 2.8rem;
+            height: 5rem;
+            border-radius: 1rem 1rem 0.75rem 0.75rem;
         }
-        
-        .quote-bubble {
+
+        .fighter-arm {
+            top: 2.9rem;
+            width: 0.9rem;
+            height: 4.6rem;
+            border-radius: 999px;
+            transform-origin: top center;
+        }
+
+        .fighter-arm.back {
+            left: 2rem;
+            transform: rotate(22deg);
+        }
+
+        .fighter-arm.front {
+            left: 5.25rem;
+            transform: rotate(-18deg);
+        }
+
+        .fighter-leg {
+            top: 7rem;
+            width: 1rem;
+            height: 6rem;
+            border-radius: 999px;
+            transform-origin: top center;
+        }
+
+        .fighter-leg.left {
+            left: 3rem;
+            transform: rotate(8deg);
+        }
+
+        .fighter-leg.right {
+            left: 4.6rem;
+            transform: rotate(-8deg);
+        }
+
+        .lightsaber {
             position: absolute;
-            padding: 1.5rem 2rem;
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(15px);
-            border-radius: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            max-width: 350px;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.95);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            z-index: 10;
+            top: 4.6rem;
+            left: 0.9rem;
+            width: 7rem;
+            height: 1rem;
+            transform: rotate(-26deg);
+            transform-origin: 90% 50%;
         }
-        
-        .quote-bubble:hover {
-            transform: scale(1.05);
-            background: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
-        }
-        
-        .quote-bubble::before {
-            content: '"';
+
+        .blade {
             position: absolute;
-            top: -10px;
-            left: 20px;
-            font-size: 3rem;
-            opacity: 0.3;
-            font-family: Georgia, serif;
+            top: 0.16rem;
+            left: 0;
+            width: 5.1rem;
+            height: 0.42rem;
+            border-radius: 999px;
+            background: currentColor;
+            animation: saberPulse 2s ease-in-out infinite;
         }
-        
-        @keyframes floatBubble1 {
-            0% {
-                transform: translate(0, 0) rotate(0deg);
+
+        .hilt {
+            position: absolute;
+            top: 0;
+            right: 0.25rem;
+            width: 1.45rem;
+            height: 0.72rem;
+            border-radius: 0.35rem;
+            background: linear-gradient(180deg, #d9dde8, #646d84);
+        }
+
+        .player-fighter .blade {
+            color: var(--player-blade);
+        }
+
+        .enemy-fighter .blade {
+            color: var(--enemy-blade);
+        }
+
+        .player-fighter.attack .fighter-model {
+            animation: attackLeft 0.6s ease;
+        }
+
+        .enemy-fighter.attack .fighter-model {
+            animation: attackRight 0.6s ease;
+        }
+
+        .fighter.hit {
+            animation: hitFlash 0.5s ease;
+        }
+
+        .fighter.guarded {
+            animation: guardFlash 0.35s ease 2;
+        }
+
+        .center-column {
+            display: grid;
+            justify-items: center;
+            align-self: center;
+            gap: 1rem;
+            z-index: 1;
+        }
+
+        .status-banner {
+            width: min(16rem, 100%);
+            padding: 0.9rem 1rem;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.34);
+            text-align: center;
+            line-height: 1.5;
+            color: var(--text-primary);
+            animation: bannerPulse 2.8s ease-in-out infinite;
+        }
+
+        .clash-core {
+            width: 4.3rem;
+            height: 4.3rem;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.12) 55%, transparent 70%);
+            opacity: 0.2;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .clash-core.active {
+            opacity: 1;
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.45);
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        .action-button {
+            padding: 0.95rem;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            min-height: 7.25rem;
+            display: grid;
+            gap: 0.35rem;
+            align-content: start;
+        }
+
+        .action-button .hotkey {
+            display: inline-flex;
+            width: 1.5rem;
+            height: 1.5rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.11);
+            font-size: 0.76rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .action-button strong {
+            font-size: 1rem;
+        }
+
+        .action-button span,
+        .action-button small {
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .action-button.available {
+            border-color: rgba(255, 255, 255, 0.16);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        }
+
+        .action-button.available:hover:not(:disabled) {
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.04);
+        }
+
+        .log-layout {
+            margin-top: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 1rem;
+        }
+
+        .info-panel,
+        .log-panel {
+            padding: 1.25rem;
+            display: grid;
+            gap: 1rem;
+        }
+
+        .info-list {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .info-item {
+            padding: 0.9rem 1rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .info-item strong {
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+
+        .info-item p {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .log-panel h3,
+        .info-panel h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            letter-spacing: 0.08rem;
+            text-transform: uppercase;
+        }
+
+        .battle-log {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 0.75rem;
+            max-height: 19rem;
+            overflow: auto;
+        }
+
+        .battle-log li {
+            padding: 0.85rem 1rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+
+        .footer-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .primary-button {
+            padding: 0.95rem 1.2rem;
+            border-radius: 16px;
+            color: #04111f;
+            background: linear-gradient(135deg, #fefefe, var(--accent));
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 1100px) {
+            .arena-layout {
+                grid-template-columns: 1fr;
             }
-            33% {
-                transform: translate(100px, -50px) rotate(120deg);
+
+            .log-layout,
+            .hero-grid {
+                grid-template-columns: 1fr;
             }
-            66% {
-                transform: translate(-50px, -100px) rotate(240deg);
-            }
-            100% {
-                transform: translate(0, 0) rotate(360deg);
+
+            .shortcut-note {
+                justify-self: start;
             }
         }
-        
-        @keyframes floatBubble2 {
-            0% {
-                transform: translate(0, 0) rotate(0deg);
+
+        @media (max-width: 780px) {
+            .app {
+                width: min(100% - 1rem, 100%);
+                padding-top: 1rem;
             }
-            25% {
-                transform: translate(-80px, 60px) rotate(90deg);
+
+            .hero,
+            .status-card,
+            .arena,
+            .info-panel,
+            .log-panel {
+                border-radius: 20px;
             }
-            50% {
-                transform: translate(-120px, -20px) rotate(180deg);
-            }
-            75% {
-                transform: translate(-40px, -80px) rotate(270deg);
-            }
-            100% {
-                transform: translate(0, 0) rotate(360deg);
-            }
-        }
-        
-        @keyframes floatBubble3 {
-            0% {
-                transform: translate(0, 0) scale(1);
-            }
-            20% {
-                transform: translate(60px, 40px) scale(1.1);
-            }
-            40% {
-                transform: translate(80px, -60px) scale(0.95);
-            }
-            60% {
-                transform: translate(-40px, -40px) scale(1.05);
-            }
-            80% {
-                transform: translate(-60px, 20px) scale(0.98);
-            }
-            100% {
-                transform: translate(0, 0) scale(1);
-            }
-        }
-        
-        @keyframes floatBubble4 {
-            0%, 100% {
-                transform: translate(0, 0) rotate(0deg);
-            }
-            50% {
-                transform: translate(-100px, 50px) rotate(180deg);
-            }
-        }
-        
-        @keyframes floatBubble5 {
-            0% {
-                transform: translate(0, 0);
-            }
-            25% {
-                transform: translate(70px, -70px);
-            }
-            50% {
-                transform: translate(-70px, -70px);
-            }
-            75% {
-                transform: translate(-70px, 70px);
-            }
-            100% {
-                transform: translate(0, 0);
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .countdown {
-                grid-template-columns: repeat(2, 1fr);
+
+            .duel-stage {
+                grid-template-columns: 1fr;
+                justify-items: center;
                 gap: 1rem;
+                min-height: auto;
+                padding-top: 1.4rem;
             }
-            
-            .time-unit {
-                padding: 1.5rem 0.5rem;
+
+            .center-column {
+                order: -1;
             }
-            
-            .stats {
-                flex-direction: column;
-                align-items: center;
+
+            .control-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
-            
-            .quote {
-                padding: 0;
+        }
+
+        @media (max-width: 520px) {
+            .control-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
-<body>
-    <div class="particles" id="particles"></div>
+<body class="theme-light">
+    <div class="starfield" id="starfield" aria-hidden="true"></div>
 
-    <div class="container">
-        <h1 class="title">The Intelligence Age</h1>
-        <p class="subtitle">Countdown to Superintelligence</p>
-        
-        <div class="countdown" id="countdown">
-            <div class="time-unit">
-                <span class="number" id="days">0</span>
-                <span class="label">Days</span>
+    <main class="app">
+        <section class="hero panel">
+            <p class="eyebrow">A galaxy duel awaits</p>
+            <div class="hero-grid">
+                <div>
+                    <h1>Star Wars Lightsaber Battle</h1>
+                    <p>
+                        Enter a cinematic saber duel, choose the light or dark side,
+                        manage your Force reserves, and outplay a rival in fast turn-based combat.
+                    </p>
+                </div>
+                <div class="shortcut-note">
+                    <strong>Keyboard:</strong> 1-5 attack, N next round, R rematch, J choose Jedi, S choose Sith
+                </div>
             </div>
-            <div class="time-unit">
-                <span class="number" id="hours">0</span>
-                <span class="label">Hours</span>
+            <div class="side-picker">
+                <button class="faction-button active" data-side="light" type="button">Fight for the Jedi</button>
+                <button class="faction-button" data-side="dark" type="button">Rule as the Sith</button>
+                <button class="secondary-button" id="resetScoreButton" type="button">Reset Scoreboard</button>
             </div>
-            <div class="time-unit">
-                <span class="number" id="minutes">0</span>
-                <span class="label">Minutes</span>
-            </div>
-            <div class="time-unit">
-                <span class="number" id="seconds">0</span>
-                <span class="label">Seconds</span>
-            </div>
-        </div>
-        
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-        
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-value" id="totalDays">3000</div>
-                <div class="stat-label">Total Days</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value" id="elapsed">0</div>
-                <div class="stat-label">Days Elapsed</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value" id="percentage">0%</div>
-                <div class="stat-label">Progress</div>
-            </div>
-        </div>
-        
-        <p class="quote">
-            It is possible that we will have superintelligence in a few thousand days (!); it may take longer, but I'm confident we'll get there.
-        </p>
-        <p class="attribution">— Sam Altman, "The Intelligence Age" (September 23, 2024)</p>
-    </div>
+        </section>
+
+        <section class="arena-layout">
+            <aside class="status-card panel" data-role="player">
+                <div class="card-header">
+                    <div>
+                        <div class="role-label">You</div>
+                        <h2 id="playerName">Knight Solen</h2>
+                    </div>
+                    <div class="stance-badge" id="playerBadge">Jedi Knight</div>
+                </div>
+                <p class="flavor-text" id="playerFlavor">Steady breathing. Blade up. Wait for the opening.</p>
+
+                <div class="meter-group">
+                    <div>
+                        <div class="meter-label">
+                            <span>Health</span>
+                            <strong id="playerHealthText">100 / 100</strong>
+                        </div>
+                        <div class="meter-track">
+                            <div class="meter-fill health" id="playerHealthBar"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="meter-label">
+                            <span>Force</span>
+                            <strong id="playerForceText">35 / 50</strong>
+                        </div>
+                        <div class="meter-track">
+                            <div class="meter-fill force" id="playerForceBar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-grid">
+                    <div class="detail-row"><span>Guard</span><strong id="playerGuard">Offline</strong></div>
+                    <div class="detail-row"><span>Next strike</span><strong id="playerFocus">Calm</strong></div>
+                    <div class="detail-row"><span>Score</span><strong id="playerScore">0</strong></div>
+                </div>
+            </aside>
+
+            <section class="arena panel">
+                <div class="round-bar">
+                    <div class="round-chip" id="roundLabel">Round 1</div>
+                    <div class="round-chip" id="scoreLabel">Score 0 - 0</div>
+                </div>
+
+                <div class="duel-stage">
+                    <div class="fighter player-fighter" id="playerFighter">
+                        <div class="fighter-name" id="playerArenaName">Knight Solen</div>
+                        <div class="fighter-model">
+                            <div class="fighter-head"></div>
+                            <div class="fighter-body"></div>
+                            <div class="fighter-arm back"></div>
+                            <div class="fighter-arm front"></div>
+                            <div class="fighter-leg left"></div>
+                            <div class="fighter-leg right"></div>
+                            <div class="lightsaber">
+                                <div class="blade"></div>
+                                <div class="hilt"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="center-column">
+                        <div class="status-banner" id="announcer" aria-live="polite">
+                            Choose your side and strike first.
+                        </div>
+                        <div class="clash-core" id="clashCore"></div>
+                    </div>
+
+                    <div class="fighter enemy-fighter" id="enemyFighter">
+                        <div class="fighter-name" id="enemyArenaName">Darth Vexis</div>
+                        <div class="fighter-model">
+                            <div class="fighter-head"></div>
+                            <div class="fighter-body"></div>
+                            <div class="fighter-arm back"></div>
+                            <div class="fighter-arm front"></div>
+                            <div class="fighter-leg left"></div>
+                            <div class="fighter-leg right"></div>
+                            <div class="lightsaber">
+                                <div class="blade"></div>
+                                <div class="hilt"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-grid">
+                    <button class="action-button available" data-action="quickStrike" type="button">
+                        <span class="hotkey">1</span>
+                        <strong>Quick Strike</strong>
+                        <span>Fast lightsaber slash with reliable damage.</span>
+                        <small>Cost: 0 Force</small>
+                    </button>
+                    <button class="action-button available" data-action="heavySlash" type="button">
+                        <span class="hotkey">2</span>
+                        <strong>Heavy Slash</strong>
+                        <span>Harder hit with a chance to break momentum.</span>
+                        <small>Cost: 12 Force</small>
+                    </button>
+                    <button class="action-button available" data-action="parryStance" type="button">
+                        <span class="hotkey">3</span>
+                        <strong>Parry Stance</strong>
+                        <span>Reduce the next enemy attack and reflect damage.</span>
+                        <small>Cost: 0 Force</small>
+                    </button>
+                    <button class="action-button available" data-action="forceSurge" type="button">
+                        <span class="hotkey">4</span>
+                        <strong>Force Surge</strong>
+                        <span>Recover Force, heal slightly, and empower your next blow.</span>
+                        <small>Cost: 0 Force</small>
+                    </button>
+                    <button class="action-button available" data-action="saberThrow" type="button">
+                        <span class="hotkey">5</span>
+                        <strong>Saber Throw</strong>
+                        <span>High-risk finisher that can swing the duel.</span>
+                        <small>Cost: 28 Force</small>
+                    </button>
+                </div>
+            </section>
+
+            <aside class="status-card panel" data-role="enemy">
+                <div class="card-header">
+                    <div>
+                        <div class="role-label">Rival</div>
+                        <h2 id="enemyName">Darth Vexis</h2>
+                    </div>
+                    <div class="stance-badge" id="enemyBadge">Sith Marauder</div>
+                </div>
+                <p class="flavor-text" id="enemyFlavor">An angry blade hums across the arena floor.</p>
+
+                <div class="meter-group">
+                    <div>
+                        <div class="meter-label">
+                            <span>Health</span>
+                            <strong id="enemyHealthText">100 / 100</strong>
+                        </div>
+                        <div class="meter-track">
+                            <div class="meter-fill health" id="enemyHealthBar"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="meter-label">
+                            <span>Force</span>
+                            <strong id="enemyForceText">35 / 50</strong>
+                        </div>
+                        <div class="meter-track">
+                            <div class="meter-fill force" id="enemyForceBar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-grid">
+                    <div class="detail-row"><span>Guard</span><strong id="enemyGuard">Offline</strong></div>
+                    <div class="detail-row"><span>Next strike</span><strong id="enemyFocus">Calm</strong></div>
+                    <div class="detail-row"><span>Score</span><strong id="enemyScore">0</strong></div>
+                </div>
+            </aside>
+        </section>
+
+        <section class="log-layout">
+            <section class="info-panel panel">
+                <h3>How to win the duel</h3>
+                <div class="info-list">
+                    <div class="info-item">
+                        <strong>Read the opponent</strong>
+                        <p>Quick Strike is safe, Heavy Slash hits harder, and Parry Stance punishes overaggression.</p>
+                    </div>
+                    <div class="info-item">
+                        <strong>Manage the Force</strong>
+                        <p>Force Surge restores reserves and empowers your next attack. Save Saber Throw for a finishing window.</p>
+                    </div>
+                    <div class="info-item">
+                        <strong>Keep the pressure on</strong>
+                        <p>Rounds chain together into a running scoreboard, so keep dueling and stack wins.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="log-panel panel">
+                <h3>Battle log</h3>
+                <ul class="battle-log" id="battleLog" aria-live="polite"></ul>
+                <div class="footer-actions">
+                    <button class="primary-button hidden" id="nextRoundButton" type="button">Start Next Round</button>
+                    <button class="secondary-button" id="rematchButton" type="button">Full Rematch</button>
+                </div>
+            </section>
+        </section>
+    </main>
 
     <script>
-        // Target date: September 24, 2024 + 3000 days
-        const startDate = new Date('2024-09-24T00:00:00');
-        const totalDays = 3000;
-        const targetDate = new Date(startDate.getTime() + (totalDays * 24 * 60 * 60 * 1000));
-        
-        function updateCountdown() {
-            const now = new Date();
-            const timeRemaining = targetDate - now;
-            const timeElapsed = now - startDate;
-            
-            if (timeRemaining <= 0) {
-                document.getElementById('days').textContent = '0';
-                document.getElementById('hours').textContent = '0';
-                document.getElementById('minutes').textContent = '0';
-                document.getElementById('seconds').textContent = '0';
+        const archetypes = {
+            light: {
+                playerTitle: "Jedi Knight",
+                enemyTitle: "Sith Marauder",
+                playerNames: ["Knight Solen", "Guardian Rynn", "Sentinel Vale"],
+                enemyNames: ["Darth Vexis", "Lady Malora", "Inquisitor Korr"],
+                intro: "The Jedi path favors patience, timing, and control."
+            },
+            dark: {
+                playerTitle: "Sith Warrior",
+                enemyTitle: "Jedi Sentinel",
+                playerNames: ["Darth Varyn", "Lady Nyra", "Lord Kael"],
+                enemyNames: ["Master Talan", "Warden Seris", "Knight Orrin"],
+                intro: "The Sith path thrives on pressure, fear, and relentless strikes."
+            }
+        };
+
+        const actionDefinitions = {
+            quickStrike: {
+                label: "Quick Strike",
+                cost: 0,
+                accuracy: 0.94,
+                minDamage: 10,
+                maxDamage: 16,
+                critChance: 0.18,
+                critBonus: 6,
+                forceGain: 5
+            },
+            heavySlash: {
+                label: "Heavy Slash",
+                cost: 12,
+                accuracy: 0.78,
+                minDamage: 18,
+                maxDamage: 28,
+                critChance: 0.32,
+                critBonus: 10,
+                forceGain: 2
+            },
+            parryStance: {
+                label: "Parry Stance",
+                cost: 0
+            },
+            forceSurge: {
+                label: "Force Surge",
+                cost: 0
+            },
+            saberThrow: {
+                label: "Saber Throw",
+                cost: 28,
+                accuracy: 0.84,
+                minDamage: 24,
+                maxDamage: 38,
+                critChance: 0.22,
+                critBonus: 10,
+                forceGain: 0,
+                forceBurn: 6
+            }
+        };
+
+        const state = {
+            selectedSide: "light",
+            round: 1,
+            scores: { player: 0, enemy: 0 },
+            player: null,
+            enemy: null,
+            duelOver: false,
+            locked: false,
+            logEntries: [],
+            turnToken: 0
+        };
+
+        const elements = {
+            body: document.body,
+            starfield: document.getElementById("starfield"),
+            playerName: document.getElementById("playerName"),
+            playerBadge: document.getElementById("playerBadge"),
+            playerFlavor: document.getElementById("playerFlavor"),
+            playerHealthBar: document.getElementById("playerHealthBar"),
+            playerHealthText: document.getElementById("playerHealthText"),
+            playerForceBar: document.getElementById("playerForceBar"),
+            playerForceText: document.getElementById("playerForceText"),
+            playerGuard: document.getElementById("playerGuard"),
+            playerFocus: document.getElementById("playerFocus"),
+            playerScore: document.getElementById("playerScore"),
+            enemyName: document.getElementById("enemyName"),
+            enemyBadge: document.getElementById("enemyBadge"),
+            enemyFlavor: document.getElementById("enemyFlavor"),
+            enemyHealthBar: document.getElementById("enemyHealthBar"),
+            enemyHealthText: document.getElementById("enemyHealthText"),
+            enemyForceBar: document.getElementById("enemyForceBar"),
+            enemyForceText: document.getElementById("enemyForceText"),
+            enemyGuard: document.getElementById("enemyGuard"),
+            enemyFocus: document.getElementById("enemyFocus"),
+            enemyScore: document.getElementById("enemyScore"),
+            playerArenaName: document.getElementById("playerArenaName"),
+            enemyArenaName: document.getElementById("enemyArenaName"),
+            playerFighter: document.getElementById("playerFighter"),
+            enemyFighter: document.getElementById("enemyFighter"),
+            roundLabel: document.getElementById("roundLabel"),
+            scoreLabel: document.getElementById("scoreLabel"),
+            announcer: document.getElementById("announcer"),
+            clashCore: document.getElementById("clashCore"),
+            battleLog: document.getElementById("battleLog"),
+            nextRoundButton: document.getElementById("nextRoundButton"),
+            rematchButton: document.getElementById("rematchButton"),
+            resetScoreButton: document.getElementById("resetScoreButton"),
+            actionButtons: Array.from(document.querySelectorAll(".action-button")),
+            factionButtons: Array.from(document.querySelectorAll(".faction-button"))
+        };
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function randomItem(items) {
+            return items[Math.floor(Math.random() * items.length)];
+        }
+
+        function opposingSide(side) {
+            return side === "light" ? "dark" : "light";
+        }
+
+        function createCombatant(side, isPlayer) {
+            const profile = archetypes[side];
+            const namePool = isPlayer ? profile.playerNames : profile.enemyNames;
+
+            return {
+                side,
+                title: isPlayer ? profile.playerTitle : profile.enemyTitle,
+                name: randomItem(namePool),
+                maxHealth: 100,
+                health: 100,
+                maxForce: 50,
+                force: 35,
+                guard: false,
+                empowered: false
+            };
+        }
+
+        function createStars() {
+            const fragment = document.createDocumentFragment();
+
+            for (let index = 0; index < 120; index += 1) {
+                const star = document.createElement("span");
+                const size = Math.random() * 2.4 + 0.6;
+                star.className = "star";
+                star.style.width = size + "px";
+                star.style.height = size + "px";
+                star.style.left = Math.random() * 100 + "%";
+                star.style.top = Math.random() * 100 + "%";
+                star.style.animationDuration = randomInt(3, 9) + "s";
+                star.style.animationDelay = (Math.random() * 6).toFixed(2) + "s";
+                fragment.appendChild(star);
+            }
+
+            elements.starfield.appendChild(fragment);
+        }
+
+        function addLog(message) {
+            state.logEntries.push(message);
+            if (state.logEntries.length > 10) {
+                state.logEntries = state.logEntries.slice(-10);
+            }
+            renderLog();
+        }
+
+        function renderLog() {
+            elements.battleLog.innerHTML = "";
+
+            state.logEntries.forEach(entry => {
+                const item = document.createElement("li");
+                item.textContent = entry;
+                elements.battleLog.appendChild(item);
+            });
+
+            elements.battleLog.scrollTop = elements.battleLog.scrollHeight;
+        }
+
+        function describeFighter(fighter, isPlayer) {
+            if (fighter.health <= 20) {
+                return isPlayer ? "You are one clean hit away from defeat." : "The rival is staggering and exposed.";
+            }
+            if (fighter.guard) {
+                return isPlayer ? "Parry stance is active. Punish the next reckless swing." : "The rival has raised a guarded blade.";
+            }
+            if (fighter.empowered) {
+                return isPlayer ? "Your next attack is charged with the Force." : "A dangerous strike is building.";
+            }
+            if (fighter.force <= 10) {
+                return isPlayer ? "Force reserves are low. Consider a Surge." : "The rival is burning through their reserves.";
+            }
+            return isPlayer ? "Steady breathing. Blade up. Wait for the opening." : "An angry blade hums across the arena floor.";
+        }
+
+        function setAnnouncer(message) {
+            elements.announcer.textContent = message;
+        }
+
+        function flashClash() {
+            elements.clashCore.classList.add("active");
+            window.setTimeout(() => {
+                elements.clashCore.classList.remove("active");
+            }, 220);
+        }
+
+        function animateAttack(attackerKey, defenderKey, wasGuarded) {
+            const attackerEl = attackerKey === "player" ? elements.playerFighter : elements.enemyFighter;
+            const defenderEl = defenderKey === "player" ? elements.playerFighter : elements.enemyFighter;
+
+            attackerEl.classList.remove("attack");
+            defenderEl.classList.remove("hit", "guarded");
+            void attackerEl.offsetWidth;
+
+            attackerEl.classList.add("attack");
+            defenderEl.classList.add(wasGuarded ? "guarded" : "hit");
+            flashClash();
+
+            window.setTimeout(() => {
+                attackerEl.classList.remove("attack");
+                defenderEl.classList.remove("hit", "guarded");
+            }, 620);
+        }
+
+        function updateMeters(prefix, fighter) {
+            const healthPercent = (fighter.health / fighter.maxHealth) * 100;
+            const forcePercent = (fighter.force / fighter.maxForce) * 100;
+
+            elements[prefix + "HealthBar"].style.width = healthPercent + "%";
+            elements[prefix + "HealthText"].textContent = fighter.health + " / " + fighter.maxHealth;
+            elements[prefix + "ForceBar"].style.width = forcePercent + "%";
+            elements[prefix + "ForceText"].textContent = fighter.force + " / " + fighter.maxForce;
+            elements[prefix + "Guard"].textContent = fighter.guard ? "Ready" : "Offline";
+            elements[prefix + "Focus"].textContent = fighter.empowered ? "Empowered" : "Calm";
+        }
+
+        function updateActionButtons() {
+            elements.actionButtons.forEach(button => {
+                const action = actionDefinitions[button.dataset.action];
+                const affordable = state.player.force >= action.cost;
+                button.disabled = state.locked || state.duelOver || !affordable;
+                button.classList.toggle("available", affordable);
+            });
+        }
+
+        function render() {
+            const playerSide = archetypes[state.selectedSide];
+            const enemySide = archetypes[opposingSide(state.selectedSide)];
+
+            elements.body.classList.toggle("theme-light", state.selectedSide === "light");
+            elements.body.classList.toggle("theme-dark", state.selectedSide === "dark");
+            elements.factionButtons.forEach(button => {
+                button.classList.toggle("active", button.dataset.side === state.selectedSide);
+            });
+
+            elements.playerName.textContent = state.player.name;
+            elements.playerBadge.textContent = playerSide.playerTitle;
+            elements.playerFlavor.textContent = describeFighter(state.player, true);
+            elements.playerArenaName.textContent = state.player.name;
+            elements.playerScore.textContent = state.scores.player;
+
+            elements.enemyName.textContent = state.enemy.name;
+            elements.enemyBadge.textContent = enemySide.enemyTitle;
+            elements.enemyFlavor.textContent = describeFighter(state.enemy, false);
+            elements.enemyArenaName.textContent = state.enemy.name;
+            elements.enemyScore.textContent = state.scores.enemy;
+
+            elements.roundLabel.textContent = "Round " + state.round;
+            elements.scoreLabel.textContent = "Score " + state.scores.player + " - " + state.scores.enemy;
+
+            updateMeters("player", state.player);
+            updateMeters("enemy", state.enemy);
+            updateActionButtons();
+            elements.nextRoundButton.classList.toggle("hidden", !state.duelOver);
+        }
+
+        function finishRound(message, winner) {
+            state.duelOver = true;
+            state.locked = false;
+
+            if (winner === "player") {
+                state.scores.player += 1;
+            } else if (winner === "enemy") {
+                state.scores.enemy += 1;
+            }
+
+            addLog(message);
+            setAnnouncer(message + " Press N for the next round or R for a rematch.");
+            render();
+        }
+
+        function evaluateRoundEnd() {
+            if (state.player.health <= 0 && state.enemy.health <= 0) {
+                finishRound("Both duelists fall in a double knockout.", "draw");
+                return true;
+            }
+            if (state.enemy.health <= 0) {
+                finishRound(state.player.name + " wins the round.", "player");
+                return true;
+            }
+            if (state.player.health <= 0) {
+                finishRound(state.enemy.name + " wins the round.", "enemy");
+                return true;
+            }
+            return false;
+        }
+
+        function resolveAttack(attackerKey, defenderKey, actionKey) {
+            const action = actionDefinitions[actionKey];
+            const attacker = state[attackerKey];
+            const defender = state[defenderKey];
+
+            attacker.force = clamp(attacker.force - action.cost, 0, attacker.maxForce);
+
+            if (Math.random() > action.accuracy) {
+                const whiffText = attacker.name + " tries " + action.label + " but the strike misses cleanly.";
+                if (attacker.empowered) {
+                    attacker.empowered = false;
+                }
+                addLog(whiffText);
+                setAnnouncer(whiffText);
                 return;
             }
-            
-            const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
-            
-            document.getElementById('days').textContent = days.toLocaleString();
-            document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
-            document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
-            document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
-            
-            // Update progress
-            const elapsedDays = Math.floor(timeElapsed / (1000 * 60 * 60 * 24));
-            const progressPercentage = Math.max(0, Math.min(100, (elapsedDays / totalDays) * 100));
-            
-            document.getElementById('elapsed').textContent = Math.max(0, elapsedDays).toLocaleString();
-            document.getElementById('percentage').textContent = progressPercentage.toFixed(1) + '%';
-            document.getElementById('progressFill').style.width = progressPercentage + '%';
+
+            let damage = randomInt(action.minDamage, action.maxDamage);
+            let critText = "";
+
+            if (attacker.empowered) {
+                damage += 8;
+                attacker.empowered = false;
+                critText += " Empowered strike.";
+            }
+
+            if (Math.random() < action.critChance) {
+                damage += action.critBonus;
+                critText += " Critical hit.";
+            }
+
+            let reflected = 0;
+            let guarded = false;
+
+            if (defender.guard) {
+                guarded = true;
+                defender.guard = false;
+                damage = Math.max(3, Math.floor(damage * 0.35));
+                reflected = randomInt(6, 10);
+                attacker.health = clamp(attacker.health - reflected, 0, attacker.maxHealth);
+            }
+
+            defender.health = clamp(defender.health - damage, 0, defender.maxHealth);
+            defender.force = clamp(defender.force - (action.forceBurn || 0), 0, defender.maxForce);
+            attacker.force = clamp(attacker.force + action.forceGain, 0, attacker.maxForce);
+
+            animateAttack(attackerKey, defenderKey, guarded);
+
+            let summary = attacker.name + " lands " + action.label + " for " + damage + " damage.";
+            if (guarded) {
+                summary = attacker.name + " crashes into a parry. " + defender.name + " blocks most of it and reflects " + reflected + " damage.";
+            }
+            if (action.forceBurn && damage > 0) {
+                summary += " Force reserves drop by " + action.forceBurn + ".";
+            }
+
+            addLog(summary + critText);
+            setAnnouncer(summary + critText);
         }
-        
-        function createParticle() {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            
-            const size = Math.random() * 4 + 2;
-            particle.style.width = size + 'px';
-            particle.style.height = size + 'px';
-            particle.style.left = Math.random() * 100 + '%';
-            particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
-            particle.style.animationDelay = Math.random() * 2 + 's';
-            
-            document.getElementById('particles').appendChild(particle);
-            
-            setTimeout(() => {
-                particle.remove();
-            }, 6000);
+
+        function resolveSupportMove(actorKey, actionKey) {
+            const actor = state[actorKey];
+
+            if (actionKey === "parryStance") {
+                actor.guard = true;
+                actor.force = clamp(actor.force + 8, 0, actor.maxForce);
+                const text = actor.name + " raises a parry stance and gains 8 Force.";
+                addLog(text);
+                setAnnouncer(text);
+                return;
+            }
+
+            if (actionKey === "forceSurge") {
+                const heal = randomInt(8, 14);
+                const restore = randomInt(16, 22);
+                actor.health = clamp(actor.health + heal, 0, actor.maxHealth);
+                actor.force = clamp(actor.force + restore, 0, actor.maxForce);
+                actor.empowered = true;
+                const text = actor.name + " channels a Force Surge, restoring " + heal + " health and " + restore + " Force.";
+                addLog(text);
+                setAnnouncer(text);
+            }
         }
-        
-        // Create floating particles
-        setInterval(createParticle, 300);
-        
-        // Update countdown every second
-        updateCountdown();
-        setInterval(updateCountdown, 1000);
-        
-        // Add some interactive effects
-        document.querySelectorAll('.time-unit').forEach(unit => {
-            unit.addEventListener('mouseenter', () => {
-                unit.style.transform = 'translateY(-10px) scale(1.05)';
-            });
-            
-            unit.addEventListener('mouseleave', () => {
-                unit.style.transform = 'translateY(0) scale(1)';
+
+        function executeAction(actorKey, defenderKey, actionKey) {
+            const action = actionDefinitions[actionKey];
+            const actor = state[actorKey];
+
+            if (actor.force < action.cost) {
+                const text = actor.name + " reaches for power but does not have enough Force.";
+                addLog(text);
+                setAnnouncer(text);
+                return false;
+            }
+
+            state.locked = true;
+            render();
+
+            if (actionKey === "quickStrike" || actionKey === "heavySlash" || actionKey === "saberThrow") {
+                resolveAttack(actorKey, defenderKey, actionKey);
+            } else {
+                resolveSupportMove(actorKey, actionKey);
+            }
+
+            render();
+
+            if (evaluateRoundEnd()) {
+                return true;
+            }
+
+            const token = state.turnToken;
+            window.setTimeout(() => {
+                if (token !== state.turnToken) {
+                    return;
+                }
+                if (actorKey === "player") {
+                    enemyTurn();
+                } else {
+                    state.locked = false;
+                    setAnnouncer("Your move. Choose an action.");
+                    render();
+                }
+            }, actorKey === "player" ? 850 : 320);
+
+            return true;
+        }
+
+        function chooseEnemyAction() {
+            const enemy = state.enemy;
+            const player = state.player;
+
+            if (enemy.health <= 28 && !enemy.empowered && Math.random() < 0.55) {
+                return "forceSurge";
+            }
+            if (!enemy.guard && player.empowered && Math.random() < 0.5) {
+                return "parryStance";
+            }
+            if (enemy.force >= 28 && player.health <= 42) {
+                return "saberThrow";
+            }
+            if (enemy.force < 12 && Math.random() < 0.6) {
+                return "forceSurge";
+            }
+            if (player.guard && Math.random() < 0.55) {
+                return "forceSurge";
+            }
+
+            const weightedActions = [
+                "quickStrike",
+                "quickStrike",
+                "heavySlash",
+                "parryStance",
+                "forceSurge",
+                enemy.force >= 28 ? "saberThrow" : "quickStrike"
+            ];
+
+            let choice = randomItem(weightedActions);
+
+            while (enemy.force < actionDefinitions[choice].cost) {
+                choice = randomItem(["quickStrike", "parryStance", "forceSurge"]);
+            }
+
+            return choice;
+        }
+
+        function enemyTurn() {
+            if (state.duelOver) {
+                return;
+            }
+
+            const choice = chooseEnemyAction();
+            setAnnouncer(state.enemy.name + " steps in...");
+            const token = state.turnToken;
+            window.setTimeout(() => {
+                if (token !== state.turnToken || state.duelOver) {
+                    return;
+                }
+                executeAction("enemy", "player", choice);
+            }, 260);
+        }
+
+        function startRound(options = {}) {
+            const { resetScore = false, advanceRound = false } = options;
+
+            if (resetScore) {
+                state.scores.player = 0;
+                state.scores.enemy = 0;
+                state.round = 1;
+            } else if (advanceRound) {
+                state.round += 1;
+            }
+
+            state.player = createCombatant(state.selectedSide, true);
+            state.enemy = createCombatant(opposingSide(state.selectedSide), false);
+            state.duelOver = false;
+            state.locked = false;
+            state.logEntries = [];
+            state.turnToken += 1;
+
+            addLog("Round " + state.round + " begins. " + archetypes[state.selectedSide].intro);
+            setAnnouncer("Round " + state.round + " begins. Your move.");
+            render();
+        }
+
+        function setSide(side) {
+            state.selectedSide = side;
+            startRound({ resetScore: true });
+        }
+
+        elements.actionButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                if (!state.duelOver) {
+                    executeAction("player", "enemy", button.dataset.action);
+                }
             });
         });
-        
-        // Sam Altman AGI Quotes
-        const quotes = [
-            "We are now confident we know how to build AGI as we have traditionally understood it",
-            "My guess is we will hit AGI sooner than most people in the world think and it will matter much less",
-            "In a decade, perhaps everyone on earth will be capable of accomplishing more than the most impactful person can today",
-            "I think compute is going to be the currency of the future. I think it will be maybe the most precious commodity in the world",
-            "95% of what marketers use agencies, strategists, and creative professionals for today will easily, nearly instantly and at almost no cost be handled by the AI",
-            "We are beginning to turn our aim beyond [AGI], to superintelligence in the true sense of the word. We love our current products, but we are here for the glorious future",
-            "Superintelligent tools could massively accelerate scientific discovery and innovation well beyond what we are capable of doing on our own, and in turn massively increase abundance and prosperity",
-            "I don't think any one person should [be in control of an AGI], and I don't think any one person will",
-            "Does the global economy feel any different to you now or materially different to you now than it did before we launched GPT-4? I think you would say no",
-            "A system that can either autonomously discover new science or be such an incredible tool to people that our rate of scientific discovery in the world like quadruples or something: that would satisfy any test I could imagine for an AGI"
-        ];
-        
-        function getValidPosition() {
-            const container = document.querySelector('.container');
-            const containerRect = container.getBoundingClientRect();
-            const padding = 50; // Minimum distance from container
-            
-            let x, y;
-            let attempts = 0;
-            
-            do {
-                x = Math.random() * (window.innerWidth - 400);
-                y = Math.random() * (window.innerHeight - 200);
-                attempts++;
-                
-                // Check if position overlaps with container (with padding)
-                const overlapsX = x + 400 > containerRect.left - padding && x < containerRect.right + padding;
-                const overlapsY = y + 150 > containerRect.top - padding && y < containerRect.bottom + padding;
-                
-                if (!overlapsX || !overlapsY) {
-                    return { x, y };
-                }
-            } while (attempts < 50);
-            
-            // Fallback: position to the side of container
-            if (Math.random() > 0.5) {
-                x = containerRect.right + padding + 20;
-                y = Math.random() * (window.innerHeight - 200);
-            } else {
-                x = containerRect.left - 400 - padding - 20;
-                y = Math.random() * (window.innerHeight - 200);
-            }
-            
-            return { x: Math.max(0, Math.min(x, window.innerWidth - 400)), y: Math.max(0, y) };
-        }
-        
-        function createQuoteBubble(quote, index) {
-            const bubble = document.createElement('div');
-            bubble.className = 'quote-bubble';
-            bubble.textContent = quote + " - Sam Altman";
-            
-            // Start from edge of screen
-            const side = Math.floor(Math.random() * 4);
-            const margin = 100;
-            
-            switch(side) {
-                case 0: // top
-                    bubble.style.left = Math.random() * (window.innerWidth - 400) + 'px';
-                    bubble.style.top = -margin + 'px';
-                    break;
-                case 1: // right
-                    bubble.style.left = window.innerWidth + margin + 'px';
-                    bubble.style.top = Math.random() * (window.innerHeight - 200) + 'px';
-                    break;
-                case 2: // bottom
-                    bubble.style.left = Math.random() * (window.innerWidth - 400) + 'px';
-                    bubble.style.top = window.innerHeight + margin + 'px';
-                    break;
-                case 3: // left
-                    bubble.style.left = -400 - margin + 'px';
-                    bubble.style.top = Math.random() * (window.innerHeight - 200) + 'px';
-                    break;
-            }
-            
-            // Apply random animation
-            const animations = ['floatBubble1', 'floatBubble2', 'floatBubble3', 'floatBubble4', 'floatBubble5'];
-            const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
-            const duration = 15 + Math.random() * 20; // 15-35 seconds
-            const delay = Math.random() * 5; // 0-5 seconds delay
-            
-            bubble.style.animation = `${randomAnimation} ${duration}s ${delay}s infinite ease-in-out`;
-            
-            // Make bubble slightly transparent and add interaction
-            bubble.style.opacity = '0.8';
-            
-            bubble.addEventListener('mouseenter', () => {
-                bubble.style.opacity = '1';
-                bubble.style.animationPlayState = 'paused';
+
+        elements.factionButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                setSide(button.dataset.side);
             });
-            
-            bubble.addEventListener('mouseleave', () => {
-                bubble.style.opacity = '0.8';
-                bubble.style.animationPlayState = 'running';
-            });
-            
-            document.body.appendChild(bubble);
-            
-            // Position bubble avoiding the container after a short delay
-            setTimeout(() => {
-                const pos = getValidPosition();
-                bubble.style.left = pos.x + 'px';
-                bubble.style.top = pos.y + 'px';
-            }, 100);
-        }
-        
-        // Create initial quote bubbles
-        function initQuoteBubbles() {
-            // Create 5 random quote bubbles initially
-            const shuffled = [...quotes].sort(() => 0.5 - Math.random());
-            for (let i = 0; i < 5; i++) {
-                setTimeout(() => {
-                    createQuoteBubble(shuffled[i], i);
-                }, i * 2000); // Stagger creation
+        });
+
+        elements.nextRoundButton.addEventListener("click", () => {
+            if (state.duelOver) {
+                startRound({ advanceRound: true });
             }
-        }
-        
-        // Initialize quote bubbles after page load
-        setTimeout(initQuoteBubbles, 1000);
-        
-        // Occasionally add new bubbles
-        setInterval(() => {
-            if (document.querySelectorAll('.quote-bubble').length < 6) {
-                const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-                createQuoteBubble(randomQuote, Date.now());
+        });
+
+        elements.rematchButton.addEventListener("click", () => {
+            startRound({ resetScore: true });
+        });
+
+        elements.resetScoreButton.addEventListener("click", () => {
+            startRound({ resetScore: true });
+        });
+
+        document.addEventListener("keydown", event => {
+            if (event.repeat) {
+                return;
             }
-        }, 8000);
-        
-        // Clean up bubbles that might get stuck
-        setInterval(() => {
-            document.querySelectorAll('.quote-bubble').forEach(bubble => {
-                const rect = bubble.getBoundingClientRect();
-                if (rect.bottom < -200 || rect.top > window.innerHeight + 200 || 
-                    rect.right < -400 || rect.left > window.innerWidth + 400) {
-                    bubble.remove();
-                }
-            });
-        }, 5000);
+
+            const key = event.key.toLowerCase();
+            const keyMap = {
+                "1": "quickStrike",
+                "2": "heavySlash",
+                "3": "parryStance",
+                "4": "forceSurge",
+                "5": "saberThrow"
+            };
+
+            if (keyMap[key] && !state.duelOver && !state.locked) {
+                executeAction("player", "enemy", keyMap[key]);
+                return;
+            }
+
+            if (key === "n" && state.duelOver) {
+                startRound({ advanceRound: true });
+                return;
+            }
+
+            if (key === "r") {
+                startRound({ resetScore: true });
+                return;
+            }
+
+            if (key === "j") {
+                setSide("light");
+                return;
+            }
+
+            if (key === "s") {
+                setSide("dark");
+            }
+        });
+
+        createStars();
+        startRound({ resetScore: true });
     </script>
 </body>
 </html>
