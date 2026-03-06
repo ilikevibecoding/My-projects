@@ -3,20 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bombsite Breach</title>
+    <title>Owolingo | Duolingo parody</title>
     <style>
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
         :root {
-            color-scheme: dark;
-            --bg: #07111a;
-            --panel: rgba(8, 17, 28, 0.74);
-            --panel-border: rgba(132, 164, 196, 0.22);
-            --text: #eaf3ff;
-            --muted: #92a6bd;
-            --ct: #5dd7ff;
-            --t: #ff9966;
-            --danger: #ff5c5c;
-            --ok: #77f7b3;
-            --warn: #ffd671;
+            color-scheme: light;
+            --bg: #d7f4ff;
+            --bg-deep: #6fc8f4;
+            --green: #58cc02;
+            --green-dark: #45a400;
+            --green-soft: #dff6c7;
+            --blue: #1cb0f6;
+            --blue-dark: #1383bb;
+            --blue-soft: #dff3ff;
+            --pink: #ff78c8;
+            --pink-dark: #d85aac;
+            --pink-soft: #ffe0f4;
+            --yellow: #ffd900;
+            --yellow-soft: #fff5b7;
+            --text: #3c3c3c;
+            --muted: #7f8794;
+            --panel: rgba(255, 255, 255, 0.92);
+            --panel-border: rgba(28, 176, 246, 0.12);
+            --shadow: 0 28px 80px rgba(26, 109, 158, 0.18);
+            --navy: #20334d;
+            --danger: #ff4b4b;
         }
 
         * {
@@ -26,1847 +38,1875 @@
         html,
         body {
             margin: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+            min-height: 100%;
             font-family: Inter, "Segoe UI", Roboto, sans-serif;
-            background:
-                radial-gradient(circle at top, rgba(44, 76, 115, 0.35), transparent 40%),
-                linear-gradient(180deg, #08121c 0%, #03070c 100%);
             color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.65), transparent 28%),
+                radial-gradient(circle at top right, rgba(255, 255, 255, 0.28), transparent 25%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
         }
 
         body {
+            overflow-x: hidden;
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 28px;
             position: relative;
+            isolation: isolate;
         }
 
-        canvas {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            display: block;
-            cursor: none;
-        }
-
-        .hud {
+        .burst,
+        .burst::before,
+        .burst::after {
             position: absolute;
             inset: 0;
             pointer-events: none;
+            content: "";
+            z-index: -1;
         }
 
-        .hud-row {
-            position: absolute;
-            left: 24px;
-            right: 24px;
-            display: flex;
-            gap: 18px;
-            justify-content: space-between;
-            align-items: flex-start;
+        .burst {
+            background:
+                radial-gradient(circle at center, rgba(255, 255, 255, 0.22), transparent 36%),
+                linear-gradient(90deg, transparent 48%, rgba(255, 255, 255, 0.09) 50%, transparent 52%),
+                linear-gradient(0deg, transparent 48%, rgba(255, 255, 255, 0.07) 50%, transparent 52%);
+            opacity: 0.9;
         }
 
-        .hud-top {
-            top: 24px;
+        .burst::before {
+            transform: rotate(28deg);
+            background: linear-gradient(90deg, transparent 48%, rgba(255, 255, 255, 0.06) 50%, transparent 52%);
         }
 
-        .hud-bottom {
-            bottom: 24px;
-            align-items: flex-end;
+        .burst::after {
+            transform: rotate(-26deg);
+            background: linear-gradient(90deg, transparent 48%, rgba(255, 255, 255, 0.05) 50%, transparent 52%);
         }
 
-        .panel {
-            min-width: 220px;
-            max-width: min(360px, 40vw);
-            padding: 14px 16px;
+        .layout {
+            max-width: 1340px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: minmax(320px, 480px) minmax(360px, 460px) minmax(280px, 340px);
+            gap: 24px;
+            align-items: stretch;
+        }
+
+        .card {
             background: var(--panel);
             border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            backdrop-filter: blur(14px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
-        }
-
-        .panel.center {
-            text-align: center;
-            min-width: 260px;
-        }
-
-        .eyebrow {
-            display: block;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.18em;
-            color: var(--muted);
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .value {
-            font-size: clamp(24px, 3vw, 38px);
-            font-weight: 800;
-            letter-spacing: 0.03em;
-        }
-
-        .subvalue {
-            margin-top: 6px;
-            font-size: 13px;
-            color: var(--muted);
-            line-height: 1.5;
-        }
-
-        .scoreline {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 14px;
-            font-size: 28px;
-            font-weight: 800;
-        }
-
-        .scoreline .ct {
-            color: var(--ct);
-        }
-
-        .scoreline .t {
-            color: var(--t);
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px 14px;
-            margin-top: 8px;
-        }
-
-        .status-item {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .status-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.16em;
-            color: var(--muted);
-            text-transform: uppercase;
-        }
-
-        .status-value {
-            font-size: 20px;
-            font-weight: 750;
-        }
-
-        .weapon-strip {
-            display: flex;
-            gap: 10px;
-            margin-top: 14px;
-        }
-
-        .weapon-card {
-            flex: 1;
-            min-width: 100px;
-            padding: 10px 12px;
-            border-radius: 14px;
-            border: 1px solid rgba(132, 164, 196, 0.18);
-            background: rgba(255, 255, 255, 0.04);
-            transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
-        }
-
-        .weapon-card.active {
-            border-color: rgba(255, 214, 113, 0.75);
-            background: rgba(255, 214, 113, 0.12);
-            transform: translateY(-3px);
-        }
-
-        .weapon-title {
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .weapon-ammo {
-            margin-top: 6px;
-            font-size: 12px;
-            color: var(--muted);
-        }
-
-        .feed {
-            position: absolute;
-            right: 24px;
-            top: 160px;
-            width: min(360px, calc(100vw - 48px));
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            pointer-events: none;
-        }
-
-        .feed-entry {
-            padding: 10px 14px;
-            border-radius: 12px;
-            background: rgba(9, 16, 26, 0.76);
-            border: 1px solid rgba(132, 164, 196, 0.16);
-            color: var(--text);
-            font-size: 13px;
-            line-height: 1.45;
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
-        }
-
-        .feed-entry.ct {
-            border-color: rgba(93, 215, 255, 0.28);
-        }
-
-        .feed-entry.t {
-            border-color: rgba(255, 153, 102, 0.28);
-        }
-
-        .feed-entry.warn {
-            border-color: rgba(255, 214, 113, 0.3);
-        }
-
-        .defuse-wrap {
-            position: absolute;
-            left: 50%;
-            bottom: 120px;
-            width: min(420px, calc(100vw - 48px));
-            transform: translateX(-50%);
-            padding: 14px 16px;
-            border-radius: 16px;
-            background: rgba(9, 16, 26, 0.84);
-            border: 1px solid rgba(132, 164, 196, 0.18);
-            box-shadow: 0 16px 28px rgba(0, 0, 0, 0.25);
-            pointer-events: none;
-        }
-
-        .defuse-title {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            font-size: 13px;
-            color: var(--muted);
-            margin-bottom: 10px;
-        }
-
-        .bar {
-            width: 100%;
-            height: 12px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.08);
-            overflow: hidden;
-        }
-
-        .bar-fill {
-            width: 0;
-            height: 100%;
-            border-radius: inherit;
-            background: linear-gradient(90deg, #4ed9ff 0%, #7cf7b5 100%);
-            box-shadow: 0 0 16px rgba(76, 220, 255, 0.5);
-        }
-
-        .crosshair {
-            position: absolute;
-            width: 26px;
-            height: 26px;
-            pointer-events: none;
-            transform: translate(-50%, -50%);
-        }
-
-        .crosshair::before,
-        .crosshair::after {
-            content: "";
-            position: absolute;
-            background: rgba(255, 255, 255, 0.94);
-            border-radius: 999px;
-            box-shadow: 0 0 12px rgba(255, 255, 255, 0.45);
-        }
-
-        .crosshair::before {
-            left: 50%;
-            top: 4px;
-            bottom: 4px;
-            width: 2px;
-            transform: translateX(-50%);
-        }
-
-        .crosshair::after {
-            top: 50%;
-            left: 4px;
-            right: 4px;
-            height: 2px;
-            transform: translateY(-50%);
-        }
-
-        .overlay {
-            position: absolute;
-            inset: 0;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-            background: rgba(2, 5, 9, 0.58);
-            backdrop-filter: blur(10px);
-            z-index: 5;
-            transition: opacity 180ms ease, visibility 180ms ease;
-        }
-
-        .overlay.hidden,
-        .hidden {
-            opacity: 0;
-            visibility: hidden;
-        }
-
-        .modal {
-            width: min(780px, 100%);
-            padding: 28px;
             border-radius: 28px;
-            background:
-                linear-gradient(180deg, rgba(14, 25, 39, 0.98) 0%, rgba(7, 12, 18, 0.98) 100%);
-            border: 1px solid rgba(132, 164, 196, 0.22);
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
         }
 
-        .modal h1 {
+        .side-panel,
+        .meta-panel {
+            padding: 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .badge.green {
+            color: white;
+            background: linear-gradient(180deg, var(--green) 0%, var(--green-dark) 100%);
+        }
+
+        .badge.blue {
+            color: white;
+            background: linear-gradient(180deg, var(--blue) 0%, var(--blue-dark) 100%);
+        }
+
+        .badge.pink {
+            color: white;
+            background: linear-gradient(180deg, var(--pink) 0%, var(--pink-dark) 100%);
+        }
+
+        .badge.soft {
+            color: var(--navy);
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(60, 60, 60, 0.08);
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
             margin: 0;
-            font-size: clamp(38px, 6vw, 64px);
-            line-height: 0.95;
+        }
+
+        .title {
+            font-size: clamp(36px, 5vw, 58px);
+            line-height: 0.96;
+            color: var(--navy);
         }
 
         .lead {
-            margin: 14px 0 24px;
-            max-width: 640px;
-            color: var(--muted);
-            font-size: 18px;
-            line-height: 1.6;
-        }
-
-        .controls-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 14px;
-            margin: 22px 0 26px;
-        }
-
-        .control-card {
-            padding: 16px;
-            border-radius: 18px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(132, 164, 196, 0.14);
-        }
-
-        .control-card h2 {
-            margin: 0 0 8px;
             font-size: 16px;
+            line-height: 1.65;
+            color: var(--muted);
         }
 
-        .control-card p {
-            margin: 0;
+        .hero-art {
+            position: relative;
+            min-height: 250px;
+            overflow: hidden;
+            border-radius: 26px;
+            background:
+                radial-gradient(circle at top right, rgba(255, 255, 255, 0.55), transparent 32%),
+                linear-gradient(180deg, #9fe1ff 0%, #49b9ec 100%);
+            padding: 18px;
+        }
+
+        .hero-banner {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 20px;
+            display: block;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+        }
+
+        .hero-sprite {
+            position: absolute;
+            right: 14px;
+            bottom: 0;
+            width: 142px;
+            filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.18));
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .feature {
+            padding: 16px;
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(28, 176, 246, 0.12);
+        }
+
+        .feature strong {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--navy);
+        }
+
+        .feature span {
+            display: block;
             color: var(--muted);
             font-size: 14px;
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
-        .start-row {
+        .phone-wrap {
             display: flex;
+            justify-content: center;
             align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
         }
 
-        button {
-            appearance: none;
-            border: 0;
+        .phone {
+            width: min(100%, 430px);
+            min-height: 860px;
+            max-height: calc(100vh - 56px);
+            padding: 18px 18px 14px;
+            border-radius: 42px;
+            border: 5px solid #424242;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 252, 255, 0.98) 100%);
+            position: relative;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+        }
+
+        .phone::before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 12px;
+            width: 164px;
+            height: 24px;
+            transform: translateX(-50%);
             border-radius: 999px;
-            padding: 16px 24px;
+            background: #4a4a4a;
+            box-shadow: inset 0 -2px 4px rgba(255, 255, 255, 0.08);
+        }
+
+        .phone-header {
+            display: grid;
+            grid-template-columns: 40px minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            padding-top: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .icon-button {
+            width: 40px;
+            height: 40px;
+            border: 0;
+            border-radius: 50%;
+            background: #eef3f6;
+            color: var(--muted);
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        .icon-button:disabled {
+            opacity: 0;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .top-progress {
+            height: 16px;
+            border-radius: 999px;
+            background: #e8edf1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .top-progress-fill {
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(180deg, #6cd62a 0%, var(--green-dark) 100%);
+            transition: width 220ms ease;
+        }
+
+        .top-stats {
+            display: flex;
+            gap: 8px;
+        }
+
+        .stat-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            background: #f6f9fb;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            color: var(--navy);
+            white-space: nowrap;
+        }
+
+        .screen {
+            position: relative;
+            overflow: auto;
+            padding: 18px 2px 14px;
+            scrollbar-width: none;
+        }
+
+        .screen::-webkit-scrollbar {
+            display: none;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 800;
+            color: #8ea0b2;
+        }
+
+        .map-screen,
+        .lesson-screen,
+        .reward-screen,
+        .quests-screen,
+        .profile-screen,
+        .gameover-screen {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .hero-card,
+        .exercise-card,
+        .reward-card,
+        .quest-card,
+        .profile-card,
+        .gameover-card {
+            border-radius: 28px;
+            background: white;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 18px 30px rgba(71, 120, 145, 0.08);
+            padding: 22px;
+        }
+
+        .hero-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 108px;
+            gap: 14px;
+            align-items: center;
+            background: linear-gradient(180deg, #ffffff 0%, #f4fbff 100%);
+        }
+
+        .hero-card img {
+            width: 100%;
+            max-width: 108px;
+            justify-self: end;
+        }
+
+        .hero-card p,
+        .quest-card p,
+        .profile-card p,
+        .gameover-card p {
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .path-map {
+            position: relative;
+            padding: 10px 0 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .path-map::before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 14px;
+            bottom: 24px;
+            width: 12px;
+            transform: translateX(-50%);
+            border-radius: 999px;
+            background:
+                repeating-linear-gradient(
+                    180deg,
+                    #bce9ff 0,
+                    #bce9ff 30px,
+                    rgba(188, 233, 255, 0) 30px,
+                    rgba(188, 233, 255, 0) 54px
+                );
+        }
+
+        .lesson-node {
+            position: relative;
+            width: 110px;
+            height: 110px;
+            border: 0;
+            border-radius: 50%;
+            color: white;
             font: inherit;
             font-weight: 800;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: #061019;
-            background: linear-gradient(90deg, #78f7ff 0%, #ffd671 100%);
             cursor: pointer;
-            box-shadow: 0 14px 30px rgba(120, 247, 255, 0.22);
+            justify-self: center;
+            box-shadow: 0 14px 24px rgba(0, 0, 0, 0.12);
+            transition: transform 120ms ease, filter 120ms ease;
         }
 
-        .disclaimer {
+        .lesson-node:hover {
+            transform: translateY(-3px);
+        }
+
+        .lesson-node.current {
+            background: linear-gradient(180deg, var(--blue) 0%, var(--blue-dark) 100%);
+        }
+
+        .lesson-node.done {
+            background: linear-gradient(180deg, var(--green) 0%, var(--green-dark) 100%);
+        }
+
+        .lesson-node.locked {
+            background: linear-gradient(180deg, #c8d2db 0%, #aeb8c1 100%);
+            cursor: not-allowed;
+        }
+
+        .lesson-node.bonus {
+            background: linear-gradient(180deg, var(--pink) 0%, var(--pink-dark) 100%);
+        }
+
+        .node-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            justify-items: center;
+            gap: 8px;
+        }
+
+        .node-row.left {
+            justify-items: start;
+            padding-left: 26px;
+        }
+
+        .node-row.right {
+            justify-items: end;
+            padding-right: 26px;
+        }
+
+        .node-label {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.85);
+            color: var(--navy);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 18px;
+            padding: 10px 14px;
+            width: min(230px, 100%);
+            box-shadow: 0 12px 20px rgba(80, 124, 147, 0.08);
+        }
+
+        .node-label strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 15px;
+        }
+
+        .node-label span {
             color: var(--muted);
             font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .stack {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .mini-card {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 14px;
+            align-items: center;
+            padding: 16px;
+            border-radius: 22px;
+            background: white;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 14px 24px rgba(80, 124, 147, 0.08);
+        }
+
+        .mini-card .icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            font-size: 22px;
+            font-weight: 800;
+            color: white;
+        }
+
+        .mini-card .icon.green {
+            background: linear-gradient(180deg, var(--green) 0%, var(--green-dark) 100%);
+        }
+
+        .mini-card .icon.pink {
+            background: linear-gradient(180deg, var(--pink) 0%, var(--pink-dark) 100%);
+        }
+
+        .mini-card .icon.blue {
+            background: linear-gradient(180deg, var(--blue) 0%, var(--blue-dark) 100%);
+        }
+
+        .mini-card strong {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--navy);
+        }
+
+        .mini-card span {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .mini-card .value {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--pink-dark);
+        }
+
+        .exercise-card {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .exercise-top {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+        }
+
+        .exercise-top img {
+            width: 86px;
+            height: 86px;
+            object-fit: contain;
+            flex: 0 0 auto;
+        }
+
+        .prompt {
+            padding: 18px;
+            border-radius: 22px;
+            background: #f5f9fc;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .prompt h2 {
+            margin-top: 8px;
+            color: var(--navy);
+            font-size: 28px;
+            line-height: 1.15;
+        }
+
+        .prompt p {
+            margin-top: 10px;
+            color: var(--muted);
             line-height: 1.6;
         }
 
-        @media (max-width: 960px) {
-            .hud-row {
-                left: 14px;
-                right: 14px;
-                gap: 12px;
+        .audio-button,
+        .primary-button,
+        .secondary-button,
+        .ghost-button,
+        .chip-button {
+            appearance: none;
+            border: 0;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .audio-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            background: var(--blue-soft);
+            color: var(--blue-dark);
+            font-weight: 800;
+        }
+
+        .choices {
+            display: grid;
+            gap: 12px;
+        }
+
+        .choice {
+            width: 100%;
+            text-align: left;
+            padding: 16px 18px;
+            border-radius: 18px;
+            border: 2px solid #e8eef3;
+            background: white;
+            color: var(--text);
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
+        }
+
+        .choice:hover {
+            transform: translateY(-2px);
+            border-color: #c7d5e0;
+        }
+
+        .choice.selected {
+            border-color: var(--blue);
+            background: var(--blue-soft);
+            color: var(--navy);
+        }
+
+        .answer-well {
+            min-height: 78px;
+            padding: 14px;
+            border: 2px dashed #d7e1e8;
+            border-radius: 20px;
+            background: #fbfdfe;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-content: flex-start;
+        }
+
+        .token-bank {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .token {
+            padding: 12px 16px;
+            border-radius: 18px;
+            background: white;
+            border: 2px solid #e6eef4;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .token.selected {
+            background: var(--green-soft);
+            border-color: var(--green);
+            color: var(--green-dark);
+        }
+
+        .feedback {
+            padding: 16px 18px;
+            border-radius: 22px;
+            font-size: 14px;
+            line-height: 1.6;
+            border: 1px solid transparent;
+            min-height: 78px;
+        }
+
+        .feedback.idle {
+            background: #f6f9fb;
+            border-color: rgba(0, 0, 0, 0.05);
+            color: var(--muted);
+        }
+
+        .feedback.correct {
+            background: var(--green-soft);
+            border-color: rgba(88, 204, 2, 0.22);
+            color: #326e09;
+        }
+
+        .feedback.wrong {
+            background: #ffe7e7;
+            border-color: rgba(255, 75, 75, 0.22);
+            color: #9f2525;
+        }
+
+        .action-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+        }
+
+        .primary-button,
+        .secondary-button,
+        .ghost-button {
+            border-radius: 18px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            padding: 16px 18px;
+        }
+
+        .primary-button {
+            color: white;
+            background: linear-gradient(180deg, var(--green) 0%, var(--green-dark) 100%);
+            box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12);
+        }
+
+        .secondary-button {
+            color: white;
+            background: linear-gradient(180deg, var(--blue) 0%, var(--blue-dark) 100%);
+            box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12);
+        }
+
+        .ghost-button {
+            color: var(--blue-dark);
+            background: #eef7fc;
+        }
+
+        .reward-card,
+        .gameover-card {
+            text-align: center;
+            align-items: center;
+        }
+
+        .reward-card img,
+        .gameover-card img {
+            width: min(190px, 72%);
+            margin: 4px auto;
+            filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.12));
+        }
+
+        .reward-kicker {
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: var(--pink-soft);
+            color: var(--pink-dark);
+            font-weight: 800;
+        }
+
+        .reward-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            width: 100%;
+        }
+
+        .reward-stat {
+            padding: 16px 10px;
+            border-radius: 22px;
+            background: #f7fafc;
+        }
+
+        .reward-stat strong {
+            display: block;
+            font-size: 24px;
+            color: var(--navy);
+        }
+
+        .reward-stat span {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .quest-row,
+        .profile-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .quest-card {
+            display: grid;
+            gap: 12px;
+        }
+
+        .meter {
+            height: 14px;
+            border-radius: 999px;
+            background: #eaf0f4;
+            overflow: hidden;
+        }
+
+        .meter > span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(180deg, var(--green) 0%, var(--green-dark) 100%);
+        }
+
+        .profile-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .profile-stat {
+            padding: 18px;
+            border-radius: 24px;
+            background: #f6fbfe;
+        }
+
+        .profile-stat strong {
+            display: block;
+            margin-top: 6px;
+            font-size: 28px;
+            color: var(--navy);
+        }
+
+        .profile-stat span {
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .meta-panel .sprite-card {
+            padding: 18px;
+            border-radius: 24px;
+            background: white;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 18px 30px rgba(71, 120, 145, 0.08);
+        }
+
+        .sprite-strip {
+            display: grid;
+            gap: 12px;
+        }
+
+        .sprite-strip img {
+            width: 100%;
+            border-radius: 22px;
+            display: block;
+            background: #eef7fc;
+        }
+
+        .meta-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .meta-stat {
+            padding: 14px 12px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.74);
+            text-align: center;
+        }
+
+        .meta-stat strong {
+            display: block;
+            color: var(--navy);
+            font-size: 24px;
+        }
+
+        .meta-stat span {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+        }
+
+        .bottom-nav {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            padding: 12px 0 4px;
+            z-index: 1;
+        }
+
+        .nav-button {
+            padding: 12px 10px;
+            border-radius: 18px;
+            border: 0;
+            background: #f2f6f9;
+            color: #9ca5b2;
+            font: inherit;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-button.active {
+            background: var(--blue-soft);
+            color: var(--blue-dark);
+        }
+
+        .small-note {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+
+        @media (max-width: 1180px) {
+            .layout {
+                grid-template-columns: minmax(300px, 1fr) minmax(360px, 460px);
             }
 
-            .panel {
-                min-width: 0;
-                max-width: none;
-                width: calc(33.333% - 8px);
-                padding: 12px;
-            }
-
-            .hud-bottom {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .hud-bottom .panel {
-                width: 100%;
-            }
-
-            .feed {
-                top: auto;
-                bottom: 220px;
-                right: 14px;
-                left: 14px;
-                width: auto;
+            .meta-panel {
+                grid-column: 1 / -1;
+                order: 3;
             }
         }
 
-        @media (max-width: 720px) {
-            .hud-top {
-                flex-direction: column;
+        @media (max-width: 900px) {
+            .page {
+                padding: 16px;
             }
 
-            .panel {
-                width: 100%;
+            .layout {
+                grid-template-columns: 1fr;
             }
 
-            .defuse-wrap {
-                bottom: 160px;
+            .phone {
+                max-height: none;
+                min-height: 780px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .page {
+                padding: 10px;
             }
 
-            .modal {
-                padding: 22px;
-                border-radius: 22px;
+            .side-panel,
+            .meta-panel {
+                padding: 20px;
             }
 
-            .lead {
-                font-size: 16px;
+            .phone {
+                border-width: 4px;
+                border-radius: 30px;
+                min-height: calc(100vh - 20px);
+            }
+
+            .hero-card {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-card img {
+                justify-self: start;
+            }
+
+            .action-row,
+            .reward-stats,
+            .profile-grid,
+            .meta-row,
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .phone-header {
+                grid-template-columns: 34px minmax(0, 1fr);
+            }
+
+            .top-stats {
+                grid-column: 1 / -1;
+                justify-content: flex-end;
+                flex-wrap: wrap;
             }
         }
     </style>
 </head>
 <body>
-    <canvas id="game" aria-label="Bombsite Breach game canvas"></canvas>
+    <div class="page">
+        <div class="burst" aria-hidden="true"></div>
 
-    <div class="hud">
-        <div class="hud-row hud-top">
-            <div class="panel">
-                <span class="eyebrow">Objective</span>
-                <div class="value" id="objectiveValue">Retake site A</div>
-                <div class="subvalue" id="objectiveSubvalue">Move through cover, clear defenders, and hold E on the bomb.</div>
-            </div>
-
-            <div class="panel center">
-                <span class="eyebrow">Round State</span>
-                <div class="value" id="timerValue">00:00</div>
-                <div class="scoreline">
-                    <span class="ct" id="ctScore">0</span>
-                    <span>-</span>
-                    <span class="t" id="tScore">0</span>
+        <main class="layout">
+            <aside class="side-panel card">
+                <div class="badge-row">
+                    <span class="badge green">Parody</span>
+                    <span class="badge soft">Unofficial fan experience</span>
                 </div>
-                <div class="subvalue" id="roundLabel">Round 1</div>
-            </div>
 
-            <div class="panel">
-                <span class="eyebrow">Intel</span>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <span class="status-label">Enemies</span>
-                        <span class="status-value" id="enemyCountValue">0</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Bomb</span>
-                        <span class="status-value" id="bombStateValue">Armed</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Loadout</span>
-                        <span class="status-value" id="weaponNameValue">M4A1-S</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Ammo</span>
-                        <span class="status-value" id="ammoValue">30 / 90</span>
-                    </div>
+                <div>
+                    <h1 class="title">Owolingo</h1>
+                    <p class="lead">
+                        A bright Duolingo-style parody app with a lesson path, hearts, streaks, and
+                        reward popups. The artwork below is imported from Duolingo-owned public URLs and
+                        used here with permission, while the page clearly stays labeled as a parody.
+                    </p>
                 </div>
-            </div>
-        </div>
 
-        <div class="hud-row hud-bottom">
-            <div class="panel">
-                <span class="eyebrow">Player Status</span>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <span class="status-label">Health</span>
-                        <span class="status-value" id="healthValue">100</span>
+                <div class="hero-art">
+                    <img
+                        class="hero-banner"
+                        src="https://blog.duolingo.com/content/images/2024/06/cover_Reshaping-Duo.png"
+                        alt="Imported Duolingo artwork banner"
+                    >
+                    <img
+                        class="hero-sprite"
+                        src="https://blog.duolingo.com/content/images/2020/07/reshaping-duo-3.png"
+                        alt="Imported Duolingo owl artwork"
+                    >
+                </div>
+
+                <div class="feature-grid">
+                    <div class="feature">
+                        <strong>3 playable lesson types</strong>
+                        <span>Multiple choice, tap-to-build, and listen-and-pick challenges.</span>
                     </div>
-                    <div class="status-item">
-                        <span class="status-label">Armor</span>
-                        <span class="status-value" id="armorValue">100</span>
+                    <div class="feature">
+                        <strong>Parody progression</strong>
+                        <span>Path nodes, XP, gems, friend energy, and streak boosts.</span>
                     </div>
-                    <div class="status-item">
-                        <span class="status-label">Position</span>
-                        <span class="status-value" id="positionValue">Spawn</span>
+                    <div class="feature">
+                        <strong>No build step</strong>
+                        <span>Everything stays in one static HTML file with plain CSS and JS.</span>
                     </div>
-                    <div class="status-item">
-                        <span class="status-label">Hint</span>
-                        <span class="status-value" id="hintValue">Hold angles</span>
+                    <div class="feature">
+                        <strong>Clearly labeled</strong>
+                        <span>Every screen calls out that the experience is an unofficial parody.</span>
                     </div>
                 </div>
-            </div>
 
-            <div class="panel">
-                <span class="eyebrow">Weapons</span>
-                <div class="weapon-strip">
-                    <div class="weapon-card" id="weapon-pistol">
-                        <div class="weapon-title">1 - USP-S</div>
-                        <div class="weapon-ammo" id="weaponAmmo-pistol">12 / 48</div>
+                <div class="stack">
+                    <div class="mini-card">
+                        <div class="icon green">5</div>
+                        <div>
+                            <strong>Hearts stay visible</strong>
+                            <span>Wrong answers cost a heart, just like the inspiration.</span>
+                        </div>
+                        <div class="value" id="sidebarHearts">5</div>
                     </div>
-                    <div class="weapon-card active" id="weapon-rifle">
-                        <div class="weapon-title">2 - M4A1-S</div>
-                        <div class="weapon-ammo" id="weaponAmmo-rifle">30 / 90</div>
+                    <div class="mini-card">
+                        <div class="icon pink">+15</div>
+                        <div>
+                            <strong>Friend bonus energy</strong>
+                            <span>Finish a lesson to trigger a goofy reward card.</span>
+                        </div>
+                        <div class="value" id="sidebarEnergy">15</div>
                     </div>
-                    <div class="weapon-card" id="weapon-sniper">
-                        <div class="weapon-title">3 - AWP</div>
-                        <div class="weapon-ammo" id="weaponAmmo-sniper">5 / 20</div>
+                    <div class="mini-card">
+                        <div class="icon blue">7</div>
+                        <div>
+                            <strong>Streak pressure</strong>
+                            <span>Keep practicing and the parody streak keeps climbing.</span>
+                        </div>
+                        <div class="value" id="sidebarStreak">12</div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </aside>
 
-        <div class="feed" id="feed"></div>
+            <section class="phone-wrap">
+                <div class="phone card" role="application" aria-label="Owolingo parody lesson app">
+                    <header class="phone-header">
+                        <button class="icon-button" id="backButton" type="button" aria-label="Go back">x</button>
 
-        <div class="defuse-wrap hidden" id="defuseWrap">
-            <div class="defuse-title">
-                <span id="defuseLabel">Hold E to defuse</span>
-                <span id="defuseTimeValue">0.0s</span>
-            </div>
-            <div class="bar">
-                <div class="bar-fill" id="defuseFill"></div>
-            </div>
-        </div>
-    </div>
+                        <div class="top-progress" aria-label="Lesson progress">
+                            <div class="top-progress-fill" id="progressFill"></div>
+                        </div>
 
-    <div class="crosshair" id="crosshair"></div>
+                        <div class="top-stats">
+                            <div class="stat-pill" aria-label="Hearts">
+                                <span>HP</span>
+                                <span id="heartsValue">5</span>
+                            </div>
+                            <div class="stat-pill" aria-label="Streak">
+                                <span>ST</span>
+                                <span id="streakValue">12</span>
+                            </div>
+                            <div class="stat-pill" aria-label="Gems">
+                                <span>GM</span>
+                                <span id="gemsValue">500</span>
+                            </div>
+                        </div>
+                    </header>
 
-    <div class="overlay" id="overlay">
-        <div class="modal">
-            <span class="eyebrow">Counter-Strike inspired browser prototype</span>
-            <h1>Bombsite Breach</h1>
-            <p class="lead">
-                A compact, no-dependency CS-style clone built in one file. You play the lone
-                counter-terrorist on a retake: clear site A, outduel the defenders, and defuse the bomb
-                before the round timer hits zero.
-            </p>
+                    <section class="screen" id="screen" aria-live="polite"></section>
 
-            <div class="controls-grid">
-                <div class="control-card">
-                    <h2>Move and peek</h2>
-                    <p>WASD to move. Hold Shift to slow-walk and tighten your spread when slicing corners.</p>
+                    <nav class="bottom-nav" aria-label="App sections">
+                        <button class="nav-button active" data-view="path" type="button">Path</button>
+                        <button class="nav-button" data-view="quests" type="button">Quests</button>
+                        <button class="nav-button" data-view="profile" type="button">Profile</button>
+                    </nav>
                 </div>
-                <div class="control-card">
-                    <h2>Aim and shoot</h2>
-                    <p>Mouse to aim. Left click to fire. Press R to reload and manage magazines between fights.</p>
-                </div>
-                <div class="control-card">
-                    <h2>Swap weapons</h2>
-                    <p>Press 1 for USP-S, 2 for M4A1-S, and 3 for the AWP depending on the angle you want.</p>
-                </div>
-                <div class="control-card">
-                    <h2>Win the round</h2>
-                    <p>Eliminate defenders if you must, but the bomb stays live. Reach it and hold E to complete the defuse.</p>
-                </div>
-            </div>
+            </section>
 
-            <div class="start-row">
-                <button id="startButton" type="button">Deploy Counter-Terrorist</button>
-                <div class="disclaimer">
-                    Best played on desktop in a full browser tab. Rounds restart automatically, and enemy pressure ramps up as the score climbs.
+            <aside class="meta-panel card">
+                <div class="badge-row">
+                    <span class="badge blue">Imported sprites</span>
+                    <span class="badge pink">Public Duolingo URLs</span>
                 </div>
-            </div>
-        </div>
+
+                <div class="meta-row">
+                    <div class="meta-stat">
+                        <strong id="metaLessons">0</strong>
+                        <span>Lessons done</span>
+                    </div>
+                    <div class="meta-stat">
+                        <strong id="metaXp">0</strong>
+                        <span>Total XP</span>
+                    </div>
+                    <div class="meta-stat">
+                        <strong id="metaGoal">18</strong>
+                        <span>XP today</span>
+                    </div>
+                </div>
+
+                <div class="sprite-card">
+                    <h2>What the parody includes</h2>
+                    <p class="small-note">
+                        The lesson path stays clone-adjacent, but the page says outright that it is not an
+                        official Duolingo product. The imported art is referenced directly from Duolingo
+                        domains instead of being recreated.
+                    </p>
+                </div>
+
+                <div class="sprite-strip">
+                    <img
+                        src="https://blog.duolingo.com/content/images/size/w256h256/2020/03/duolingo-touch-icon2-1.png"
+                        alt="Imported Duolingo icon art"
+                    >
+                    <img
+                        src="https://blog.duolingo.com/content/images/2020/07/reshaping-duo-3.png"
+                        alt="Imported Duolingo owl art"
+                    >
+                </div>
+
+                <div class="sprite-card">
+                    <h3>Parody note</h3>
+                    <p class="small-note">
+                        Owolingo is an unofficial parody app inspired by Duolingo. It is here to mimic the
+                        look and feel for fun, not to impersonate the official product.
+                    </p>
+                </div>
+            </aside>
+        </main>
     </div>
 
     <script>
         (() => {
-            const canvas = document.getElementById("game");
-            const ctx = canvas.getContext("2d");
-            const overlay = document.getElementById("overlay");
-            const crosshair = document.getElementById("crosshair");
-            const startButton = document.getElementById("startButton");
-
-            const ui = {
-                objectiveValue: document.getElementById("objectiveValue"),
-                objectiveSubvalue: document.getElementById("objectiveSubvalue"),
-                timerValue: document.getElementById("timerValue"),
-                ctScore: document.getElementById("ctScore"),
-                tScore: document.getElementById("tScore"),
-                roundLabel: document.getElementById("roundLabel"),
-                enemyCountValue: document.getElementById("enemyCountValue"),
-                bombStateValue: document.getElementById("bombStateValue"),
-                weaponNameValue: document.getElementById("weaponNameValue"),
-                ammoValue: document.getElementById("ammoValue"),
-                healthValue: document.getElementById("healthValue"),
-                armorValue: document.getElementById("armorValue"),
-                positionValue: document.getElementById("positionValue"),
-                hintValue: document.getElementById("hintValue"),
-                feed: document.getElementById("feed"),
-                defuseWrap: document.getElementById("defuseWrap"),
-                defuseFill: document.getElementById("defuseFill"),
-                defuseLabel: document.getElementById("defuseLabel"),
-                defuseTimeValue: document.getElementById("defuseTimeValue")
+            const SPRITES = {
+                icon: "https://blog.duolingo.com/content/images/size/w256h256/2020/03/duolingo-touch-icon2-1.png",
+                pose: "https://blog.duolingo.com/content/images/2020/07/reshaping-duo-3.png",
+                banner: "https://blog.duolingo.com/content/images/2024/06/cover_Reshaping-Duo.png"
             };
 
-            const WORLD = { width: 2200, height: 1400 };
-            const WEAPON_ORDER = ["pistol", "rifle", "sniper"];
-            const WEAPONS = {
-                pistol: {
-                    label: "USP-S",
-                    magSize: 12,
-                    reserve: 48,
-                    fireRate: 4.2,
-                    damage: 24,
-                    spread: 0.05,
-                    moveSpeed: 290,
-                    reloadTime: 1.4,
-                    range: 780,
-                    tracer: "#8be5ff",
-                    impact: "#b8f3ff",
-                    preferredRange: 320
-                },
-                smg: {
-                    label: "MP9",
-                    magSize: 30,
-                    reserve: 120,
-                    fireRate: 12,
-                    damage: 18,
-                    spread: 0.08,
-                    moveSpeed: 310,
-                    reloadTime: 1.8,
-                    range: 680,
-                    tracer: "#7cf7b5",
-                    impact: "#c3ffe0",
-                    preferredRange: 220
-                },
-                rifle: {
-                    label: "M4A1-S",
-                    magSize: 30,
-                    reserve: 90,
-                    fireRate: 8.6,
-                    damage: 31,
-                    spread: 0.04,
-                    moveSpeed: 265,
-                    reloadTime: 2.1,
-                    range: 980,
-                    tracer: "#ffd671",
-                    impact: "#ffe39e",
-                    preferredRange: 360
-                },
-                sniper: {
-                    label: "AWP",
-                    magSize: 5,
-                    reserve: 20,
-                    fireRate: 1,
-                    damage: 110,
-                    spread: 0.006,
-                    moveSpeed: 215,
-                    reloadTime: 2.9,
-                    range: 1400,
-                    tracer: "#ff8f8f",
-                    impact: "#ffc3c3",
-                    preferredRange: 560
-                }
-            };
-
-            const state = {
-                started: false,
-                round: 1,
-                score: { ct: 0, t: 0 },
-                roundState: "idle",
-                endTimer: 0,
-                outcome: "",
-                outcomeDetail: "",
-                message: "",
-                mouse: {
-                    x: window.innerWidth / 2,
-                    y: window.innerHeight / 2,
-                    down: false
-                },
-                keys: {},
-                camera: { x: 0, y: 0 },
-                feed: [],
-                shake: 0,
-                lastTime: 0,
-                selectedWeapon: "rifle"
-            };
-
-            const map = createMap();
-            let player = null;
-            let enemies = [];
-            let bomb = null;
-            let traces = [];
-            let sparks = [];
-
-            function createMap() {
-                return {
-                    spawn: { x: 220, y: 1130 },
-                    bomb: { x: 1760, y: 430 },
-                    site: { x: 1490, y: 250, w: 430, h: 380 },
-                    walls: [
-                        { x: 0, y: 0, w: WORLD.width, h: 40 },
-                        { x: 0, y: WORLD.height - 40, w: WORLD.width, h: 40 },
-                        { x: 0, y: 0, w: 40, h: WORLD.height },
-                        { x: WORLD.width - 40, y: 0, w: 40, h: WORLD.height },
-                        { x: 220, y: 910, w: 460, h: 70 },
-                        { x: 360, y: 630, w: 110, h: 190 },
-                        { x: 680, y: 450, w: 260, h: 80 },
-                        { x: 820, y: 820, w: 120, h: 260 },
-                        { x: 1010, y: 210, w: 90, h: 260 },
-                        { x: 1110, y: 640, w: 300, h: 90 },
-                        { x: 1260, y: 1080, w: 90, h: 220 },
-                        { x: 1420, y: 500, w: 110, h: 310 },
-                        { x: 1465, y: 260, w: 140, h: 120 },
-                        { x: 1600, y: 160, w: 240, h: 70 },
-                        { x: 1710, y: 680, w: 260, h: 100 },
-                        { x: 1880, y: 320, w: 90, h: 260 },
-                        { x: 1460, y: 920, w: 380, h: 90 }
-                    ],
-                    enemyConfigs: [
+            const lessons = [
+                {
+                    id: "basics-1",
+                    title: "Basics 1",
+                    unit: "Section 4, Unit 4",
+                    shortLabel: "Greet people",
+                    summary: "Translate easy phrases and warm up the parody path.",
+                    xp: 15,
+                    theme: "current",
+                    challenges: [
                         {
-                            name: "Ramp",
-                            x: 1350,
-                            y: 1120,
-                            weapon: "rifle",
-                            speed: 185,
-                            patrol: [
-                                { x: 1350, y: 1120 },
-                                { x: 1540, y: 1090 },
-                                { x: 1490, y: 880 }
-                            ]
+                            type: "choice",
+                            instruction: "Translate this sentence",
+                            prompt: "Soy una nina.",
+                            note: "Pick the closest English translation.",
+                            options: ["I am a girl", "I drink milk", "You are a girl"],
+                            answer: "I am a girl",
+                            explanation: "'Soy' means 'I am' and 'una nina' means 'a girl'."
                         },
                         {
-                            name: "Default",
-                            x: 1730,
-                            y: 430,
-                            weapon: "smg",
-                            speed: 210,
-                            patrol: [
-                                { x: 1730, y: 430 },
-                                { x: 1610, y: 520 },
-                                { x: 1840, y: 520 }
-                            ]
+                            type: "tap",
+                            instruction: "Build the phrase",
+                            prompt: "The milk",
+                            note: "Tap the words in order.",
+                            bank: ["la", "leche", "yo", "gracias", "come"],
+                            answer: ["la", "leche"],
+                            explanation: "'La leche' is the direct translation."
                         },
                         {
-                            name: "Heaven",
-                            x: 1530,
-                            y: 180,
-                            weapon: "sniper",
-                            speed: 165,
-                            patrol: [
-                                { x: 1530, y: 180 },
-                                { x: 1795, y: 180 }
-                            ]
-                        },
-                        {
-                            name: "Market",
-                            x: 1940,
-                            y: 880,
-                            weapon: "rifle",
-                            speed: 190,
-                            patrol: [
-                                { x: 1940, y: 880 },
-                                { x: 1780, y: 900 },
-                                { x: 1870, y: 1120 }
-                            ]
-                        },
-                        {
-                            name: "Rotator",
-                            x: 980,
-                            y: 220,
-                            weapon: "smg",
-                            speed: 220,
-                            patrol: [
-                                { x: 980, y: 220 },
-                                { x: 1180, y: 320 },
-                                { x: 1320, y: 250 }
-                            ]
+                            type: "listen",
+                            instruction: "Listen and choose",
+                            prompt: "Tap the matching translation after you hear the phrase.",
+                            note: "This uses your browser speech engine when available.",
+                            spokenText: "Bonjour",
+                            spokenLang: "fr-FR",
+                            options: ["Hello", "Good night", "Please"],
+                            answer: "Hello",
+                            explanation: "'Bonjour' is a daytime greeting, so 'Hello' is right."
                         }
                     ]
-                };
+                },
+                {
+                    id: "travel-talk",
+                    title: "Travel talk",
+                    unit: "Section 4, Unit 4",
+                    shortLabel: "Ask where things are",
+                    summary: "A few more useful phrases before the next unit unlocks.",
+                    xp: 15,
+                    theme: "bonus",
+                    challenges: [
+                        {
+                            type: "choice",
+                            instruction: "Translate this sentence",
+                            prompt: "Donde esta el hotel?",
+                            note: "Look for the location question.",
+                            options: ["Where is the hotel?", "How is the hotel?", "The hotel is here."],
+                            answer: "Where is the hotel?",
+                            explanation: "'Donde esta' means 'where is'."
+                        },
+                        {
+                            type: "tap",
+                            instruction: "Build the phrase",
+                            prompt: "Thank you very much",
+                            note: "Assemble the phrase from the word bank.",
+                            bank: ["muchas", "gracias", "por", "favor", "hola"],
+                            answer: ["muchas", "gracias"],
+                            explanation: "'Muchas gracias' means 'thank you very much'."
+                        },
+                        {
+                            type: "listen",
+                            instruction: "Listen and choose",
+                            prompt: "Hear the phrase, then choose the translation.",
+                            note: "Another browser-spoken challenge.",
+                            spokenText: "Merci",
+                            spokenLang: "fr-FR",
+                            options: ["Thanks", "Milk", "Friend"],
+                            answer: "Thanks",
+                            explanation: "'Merci' is 'Thanks'."
+                        }
+                    ]
+                },
+                {
+                    id: "friend-bonus",
+                    title: "Friend bonus",
+                    unit: "Section 4, Unit 5",
+                    shortLabel: "Parody rewards",
+                    summary: "Lean into the joke with a fake social reward round.",
+                    xp: 20,
+                    theme: "current",
+                    challenges: [
+                        {
+                            type: "choice",
+                            instruction: "Translate this sentence",
+                            prompt: "Mi amiga aprende ingles.",
+                            note: "Focus on who is learning.",
+                            options: ["My friend learns English.", "My teacher learns French.", "Your friend speaks English."],
+                            answer: "My friend learns English.",
+                            explanation: "'Mi amiga' means 'my friend' and 'aprende ingles' means 'learns English'."
+                        },
+                        {
+                            type: "tap",
+                            instruction: "Build the phrase",
+                            prompt: "Add a friend",
+                            note: "A tiny parody nod to the reward screen.",
+                            bank: ["agrega", "un", "amigo", "grande", "verde"],
+                            answer: ["agrega", "un", "amigo"],
+                            explanation: "'Agrega un amigo' is 'add a friend'."
+                        },
+                        {
+                            type: "listen",
+                            instruction: "Listen and choose",
+                            prompt: "Hear the phrase, then pick the closest meaning.",
+                            note: "The browser may use any installed voice.",
+                            spokenText: "Amici",
+                            spokenLang: "it-IT",
+                            options: ["Friends", "School", "Question"],
+                            answer: "Friends",
+                            explanation: "'Amici' is Italian for 'friends'."
+                        }
+                    ]
+                }
+            ];
+
+            const state = {
+                view: "path",
+                hearts: 5,
+                streak: 12,
+                gems: 500,
+                xp: 0,
+                xpToday: 18,
+                dailyGoal: 40,
+                energy: 15,
+                unlockedCount: 1,
+                completedLessonIds: [],
+                currentLessonIndex: 0,
+                currentChallengeIndex: 0,
+                selectedChoice: "",
+                selectedWords: [],
+                feedbackTone: "idle",
+                feedbackText: "Answer a challenge to see feedback here.",
+                lastReward: null
+            };
+
+            const screen = document.getElementById("screen");
+            const backButton = document.getElementById("backButton");
+            const progressFill = document.getElementById("progressFill");
+            const heartsValue = document.getElementById("heartsValue");
+            const streakValue = document.getElementById("streakValue");
+            const gemsValue = document.getElementById("gemsValue");
+            const metaLessons = document.getElementById("metaLessons");
+            const metaXp = document.getElementById("metaXp");
+            const metaGoal = document.getElementById("metaGoal");
+            const sidebarHearts = document.getElementById("sidebarHearts");
+            const sidebarEnergy = document.getElementById("sidebarEnergy");
+            const sidebarStreak = document.getElementById("sidebarStreak");
+            const navButtons = Array.from(document.querySelectorAll(".nav-button"));
+
+            function escapeHtml(value) {
+                return String(value)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
             }
 
-            function createWeaponState(type) {
-                const weapon = WEAPONS[type];
-                return {
-                    type,
-                    clip: weapon.magSize,
-                    reserve: weapon.reserve,
-                    reloadTimer: 0,
-                    fireCooldown: 0,
-                    muzzleFlash: 0
-                };
+            function getCurrentLesson() {
+                return lessons[state.currentLessonIndex];
             }
 
-            function createPlayer() {
-                return {
-                    team: "ct",
-                    label: "CT-01",
-                    x: map.spawn.x,
-                    y: map.spawn.y,
-                    radius: 18,
-                    hp: 100,
-                    armor: 100,
-                    alive: true,
-                    angle: 0,
-                    hurtFlash: 0,
-                    isMoving: false,
-                    inventory: {
-                        pistol: createWeaponState("pistol"),
-                        rifle: createWeaponState("rifle"),
-                        sniper: createWeaponState("sniper")
-                    },
-                    activeWeapon: state.selectedWeapon
-                };
+            function getCurrentChallenge() {
+                return getCurrentLesson().challenges[state.currentChallengeIndex];
             }
 
-            function createEnemy(config, difficulty) {
-                return {
-                    team: "t",
-                    label: config.name,
-                    x: config.x,
-                    y: config.y,
-                    radius: 18,
-                    hp: 100,
-                    armor: 70,
-                    alive: true,
-                    angle: Math.PI,
-                    speed: config.speed + difficulty * 5,
-                    skill: clamp(0.65 + difficulty * 0.04, 0.65, 0.92),
-                    patrol: config.patrol.map((point) => ({ ...point })),
-                    patrolIndex: 0,
-                    strafeDir: Math.random() > 0.5 ? 1 : -1,
-                    strafeClock: randomRange(0.5, 1.3),
-                    aggro: 0,
-                    focusX: config.x,
-                    focusY: config.y,
-                    hurtFlash: 0,
-                    isMoving: false,
-                    inventory: {
-                        [config.weapon]: createWeaponState(config.weapon)
-                    },
-                    activeWeapon: config.weapon
-                };
+            function getNextLessonIndex() {
+                const nextIncomplete = lessons.findIndex(
+                    (lesson, index) => index < state.unlockedCount && !state.completedLessonIds.includes(lesson.id)
+                );
+                return nextIncomplete >= 0 ? nextIncomplete : lessons.length - 1;
             }
 
-            function createBomb() {
-                return {
-                    x: map.bomb.x,
-                    y: map.bomb.y,
-                    timer: clamp(47 - (state.round - 1) * 0.8, 32, 47),
-                    defuseProgress: 0,
-                    defuseDuration: 4,
-                    pulse: 0
-                };
+            function resetChallengeState() {
+                state.selectedChoice = "";
+                state.selectedWords = [];
+                state.feedbackTone = "idle";
+                state.feedbackText = "Answer a challenge to see feedback here.";
             }
 
-            function initRound() {
-                const difficulty = state.round - 1;
-                const defenderCount = clamp(3 + Math.floor(difficulty / 2), 3, map.enemyConfigs.length);
-
-                player = createPlayer();
-                enemies = map.enemyConfigs.slice(0, defenderCount).map((config) => createEnemy(config, difficulty));
-                bomb = createBomb();
-                traces = [];
-                sparks = [];
-                state.roundState = "playing";
-                state.endTimer = 0;
-                state.outcome = "";
-                state.outcomeDetail = "";
-                state.message = "Retake A before the clock hits zero.";
-                pushFeed("Round " + state.round + " live. Bomb planted on A.", "warn");
-                updateHud();
-            }
-
-            function startMatch() {
-                if (state.started) {
+            function startLesson(index) {
+                if (index >= state.unlockedCount) {
                     return;
                 }
-                state.started = true;
-                state.round = 1;
-                state.score.ct = 0;
-                state.score.t = 0;
-                state.feed = [];
-                renderFeed();
-                overlay.classList.add("hidden");
-                initRound();
+
+                state.currentLessonIndex = index;
+                state.currentChallengeIndex = 0;
+                state.view = "lesson";
+                resetChallengeState();
+                render();
             }
 
-            function clamp(value, min, max) {
-                return Math.max(min, Math.min(max, value));
+            function goHome() {
+                state.view = "path";
+                resetChallengeState();
+                render();
             }
 
-            function randomRange(min, max) {
-                return min + Math.random() * (max - min);
+            function updateChrome() {
+                heartsValue.textContent = String(state.hearts);
+                streakValue.textContent = String(state.streak);
+                gemsValue.textContent = String(state.gems);
+                metaLessons.textContent = String(state.completedLessonIds.length);
+                metaXp.textContent = String(state.xp);
+                metaGoal.textContent = String(state.xpToday);
+                sidebarHearts.textContent = String(state.hearts);
+                sidebarEnergy.textContent = String(state.energy);
+                sidebarStreak.textContent = String(state.streak);
+
+                const inLesson = state.view === "lesson";
+                const totalChallenges = getCurrentLesson().challenges.length;
+                const progress = inLesson ? (state.currentChallengeIndex / totalChallenges) * 100 : state.view === "reward" ? 100 : 28;
+                progressFill.style.width = progress + "%";
+                backButton.disabled = state.view === "path";
+
+                navButtons.forEach((button) => {
+                    const target = button.dataset.view;
+                    const isPathMode = ["path", "lesson", "reward", "gameover"].includes(state.view);
+                    button.classList.toggle("active", target === "path" ? isPathMode : state.view === target);
+                });
             }
 
-            function distance(a, b) {
-                return Math.hypot(a.x - b.x, a.y - b.y);
+            function renderPath() {
+                const nextLessonIndex = getNextLessonIndex();
+
+                screen.innerHTML = `
+                    <div class="map-screen">
+                        <section class="hero-card">
+                            <div>
+                                <span class="eyebrow">Duolingo parody path</span>
+                                <h2>Use basic phrases and greet people</h2>
+                                <p>
+                                    This is an unofficial parody screen with imported Duolingo artwork and a
+                                    simplified lesson path. Finish a node to unlock the next one.
+                                </p>
+                            </div>
+                            <img src="${SPRITES.icon}" alt="Imported Duolingo icon art">
+                        </section>
+
+                        <div class="path-map">
+                            ${lessons
+                                .map((lesson, index) => {
+                                    const isDone = state.completedLessonIds.includes(lesson.id);
+                                    const isUnlocked = index < state.unlockedCount;
+                                    const isCurrent = !isDone && index === nextLessonIndex;
+                                    const rowClass = index % 2 === 0 ? "left" : "right";
+                                    const tone = isDone ? "done" : isUnlocked ? lesson.theme : "locked";
+                                    const icon = isDone ? "OK" : isUnlocked ? String(index + 1) : "LOCK";
+
+                                    return `
+                                        <div class="node-row ${rowClass}">
+                                            <button
+                                                class="lesson-node ${tone}"
+                                                type="button"
+                                                data-lesson-index="${index}"
+                                                ${isUnlocked ? "" : "disabled"}
+                                                aria-label="${escapeHtml(lesson.title)}"
+                                            >
+                                                <span>${icon}</span>
+                                            </button>
+                                            <div class="node-label">
+                                                <strong>${escapeHtml(lesson.title)}${isCurrent ? " - next" : ""}</strong>
+                                                <span>${escapeHtml(lesson.shortLabel)}. ${escapeHtml(lesson.summary)}</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                })
+                                .join("")}
+                        </div>
+
+                        <div class="stack">
+                            <div class="mini-card">
+                                <div class="icon green">GO</div>
+                                <div>
+                                    <strong>Start the next lesson</strong>
+                                    <span>${escapeHtml(lessons[nextLessonIndex].title)} is ready to play.</span>
+                                </div>
+                                <button class="secondary-button" id="startNextButton" type="button">Start</button>
+                            </div>
+
+                            <div class="mini-card">
+                                <div class="icon pink">+15</div>
+                                <div>
+                                    <strong>You gained energy for adding a friend</strong>
+                                    <span>A tiny parody callback to the reward popups from the screenshots.</span>
+                                </div>
+                                <div class="value">${state.energy}</div>
+                            </div>
+
+                            <div class="mini-card">
+                                <div class="icon blue">REM</div>
+                                <div>
+                                    <strong>Your energy is full</strong>
+                                    <span>Next time, get reminded the second it is recharged. Still parody, still unofficial.</span>
+                                </div>
+                                <button class="ghost-button" id="notifyButton" type="button">Not now</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                screen.querySelectorAll("[data-lesson-index]").forEach((button) => {
+                    button.addEventListener("click", () => {
+                        const index = Number(button.dataset.lessonIndex);
+                        startLesson(index);
+                    });
+                });
+
+                screen.querySelector("#startNextButton").addEventListener("click", () => {
+                    startLesson(nextLessonIndex);
+                });
+
+                screen.querySelector("#notifyButton").addEventListener("click", () => {
+                    state.feedbackTone = "idle";
+                    state.feedbackText = "No notification sent. The parody owl respects boundaries.";
+                    render();
+                });
             }
 
-            function angleTo(a, b) {
-                return Math.atan2(b.y - a.y, b.x - a.x);
-            }
+            function renderLesson() {
+                const lesson = getCurrentLesson();
+                const challenge = getCurrentChallenge();
 
-            function lerp(start, end, alpha) {
-                return start + (end - start) * alpha;
-            }
+                const body = challenge.type === "choice" || challenge.type === "listen"
+                    ? `
+                        ${challenge.type === "listen" ? `
+                            <button class="audio-button" id="playAudioButton" type="button">
+                                <span>PLAY</span>
+                                <span>Play phrase</span>
+                            </button>
+                        ` : ""}
+                        <div class="choices">
+                            ${challenge.options
+                                .map((option) => `
+                                    <button
+                                        class="choice ${state.selectedChoice === option ? "selected" : ""}"
+                                        type="button"
+                                        data-choice="${escapeHtml(option)}"
+                                    >
+                                        ${escapeHtml(option)}
+                                    </button>
+                                `)
+                                .join("")}
+                        </div>
+                    `
+                    : `
+                        <div>
+                            <div class="eyebrow">Tap the tiles in order</div>
+                            <div class="answer-well">
+                                ${state.selectedWords.length
+                                    ? state.selectedWords.map((word) => `<span class="token selected">${escapeHtml(word)}</span>`).join("")
+                                    : "<span class=\"small-note\">Your answer will appear here.</span>"}
+                            </div>
+                        </div>
+                        <div class="token-bank">
+                            ${challenge.bank
+                                .map((word) => `
+                                    <button
+                                        class="token ${state.selectedWords.includes(word) ? "selected" : ""}"
+                                        type="button"
+                                        data-word="${escapeHtml(word)}"
+                                    >
+                                        ${escapeHtml(word)}
+                                    </button>
+                                `)
+                                .join("")}
+                        </div>
+                    `;
 
-            function formatTime(seconds) {
-                const clamped = Math.max(0, seconds);
-                const whole = Math.ceil(clamped);
-                const minutes = String(Math.floor(whole / 60)).padStart(2, "0");
-                const remaining = String(whole % 60).padStart(2, "0");
-                return minutes + ":" + remaining;
-            }
+                screen.innerHTML = `
+                    <div class="lesson-screen">
+                        <section class="exercise-card">
+                            <div class="exercise-top">
+                                <div class="prompt">
+                                    <span class="eyebrow">${escapeHtml(lesson.unit)} - ${escapeHtml(lesson.title)}</span>
+                                    <h2>${escapeHtml(challenge.instruction)}</h2>
+                                    <p><strong>${escapeHtml(challenge.prompt)}</strong></p>
+                                    <p>${escapeHtml(challenge.note)}</p>
+                                </div>
+                                <img src="${SPRITES.pose}" alt="Imported Duolingo owl art">
+                            </div>
 
-            function getWeaponState(entity) {
-                return entity.inventory[entity.activeWeapon];
-            }
+                            ${body}
 
-            function circleIntersectsRect(circleX, circleY, radius, rect) {
-                const nearestX = clamp(circleX, rect.x, rect.x + rect.w);
-                const nearestY = clamp(circleY, rect.y, rect.y + rect.h);
-                const dx = circleX - nearestX;
-                const dy = circleY - nearestY;
-                return dx * dx + dy * dy < radius * radius;
-            }
+                            <div class="feedback ${state.feedbackTone}" id="feedbackBox">
+                                ${escapeHtml(state.feedbackText)}
+                            </div>
 
-            function moveEntity(entity, dx, dy) {
-                if (!entity.alive) {
-                    return;
-                }
+                            <div class="action-row">
+                                <button class="primary-button" id="checkButton" type="button">
+                                    ${state.feedbackTone === "correct" ? "Continue" : "Check"}
+                                </button>
+                                <button class="ghost-button" id="hintButton" type="button">Hint</button>
+                            </div>
+                        </section>
+                    </div>
+                `;
 
-                if (dx !== 0) {
-                    entity.x += dx;
-                    for (const wall of map.walls) {
-                        if (circleIntersectsRect(entity.x, entity.y, entity.radius, wall)) {
-                            entity.x = dx > 0 ? wall.x - entity.radius : wall.x + wall.w + entity.radius;
-                        }
-                    }
-                }
-
-                if (dy !== 0) {
-                    entity.y += dy;
-                    for (const wall of map.walls) {
-                        if (circleIntersectsRect(entity.x, entity.y, entity.radius, wall)) {
-                            entity.y = dy > 0 ? wall.y - entity.radius : wall.y + wall.h + entity.radius;
-                        }
-                    }
-                }
-
-                entity.x = clamp(entity.x, entity.radius + 44, WORLD.width - entity.radius - 44);
-                entity.y = clamp(entity.y, entity.radius + 44, WORLD.height - entity.radius - 44);
-            }
-
-            function segmentRectHitT(x1, y1, x2, y2, rect) {
-                const dx = x2 - x1;
-                const dy = y2 - y1;
-                let tMin = 0;
-                let tMax = 1;
-
-                if (Math.abs(dx) < 0.000001) {
-                    if (x1 < rect.x || x1 > rect.x + rect.w) {
-                        return Infinity;
-                    }
-                } else {
-                    const tx1 = (rect.x - x1) / dx;
-                    const tx2 = (rect.x + rect.w - x1) / dx;
-                    tMin = Math.max(tMin, Math.min(tx1, tx2));
-                    tMax = Math.min(tMax, Math.max(tx1, tx2));
-                    if (tMin > tMax) {
-                        return Infinity;
-                    }
-                }
-
-                if (Math.abs(dy) < 0.000001) {
-                    if (y1 < rect.y || y1 > rect.y + rect.h) {
-                        return Infinity;
-                    }
-                } else {
-                    const ty1 = (rect.y - y1) / dy;
-                    const ty2 = (rect.y + rect.h - y1) / dy;
-                    tMin = Math.max(tMin, Math.min(ty1, ty2));
-                    tMax = Math.min(tMax, Math.max(ty1, ty2));
-                    if (tMin > tMax) {
-                        return Infinity;
-                    }
-                }
-
-                return tMin >= 0 && tMin <= 1 ? tMin : Infinity;
-            }
-
-            function segmentCircleHitT(x1, y1, x2, y2, entity) {
-                const dx = x2 - x1;
-                const dy = y2 - y1;
-                const fx = x1 - entity.x;
-                const fy = y1 - entity.y;
-                const a = dx * dx + dy * dy;
-                const b = 2 * (fx * dx + fy * dy);
-                const c = fx * fx + fy * fy - entity.radius * entity.radius;
-                const discriminant = b * b - 4 * a * c;
-
-                if (discriminant < 0) {
-                    return Infinity;
-                }
-
-                const root = Math.sqrt(discriminant);
-                const t1 = (-b - root) / (2 * a);
-                const t2 = (-b + root) / (2 * a);
-
-                if (t1 >= 0 && t1 <= 1) {
-                    return t1;
-                }
-
-                if (t2 >= 0 && t2 <= 1) {
-                    return t2;
-                }
-
-                return Infinity;
-            }
-
-            function nearestWallHitT(x1, y1, x2, y2) {
-                let nearest = Infinity;
-                for (const wall of map.walls) {
-                    const hit = segmentRectHitT(x1, y1, x2, y2, wall);
-                    if (hit < nearest) {
-                        nearest = hit;
-                    }
-                }
-                return nearest;
-            }
-
-            function canSee(shooter, target) {
-                if (!shooter.alive || !target.alive) {
-                    return false;
-                }
-
-                const weapon = WEAPONS[shooter.activeWeapon];
-                if (distance(shooter, target) > weapon.range * 0.85) {
-                    return false;
-                }
-
-                return nearestWallHitT(shooter.x, shooter.y, target.x, target.y) === Infinity;
-            }
-
-            function pushFeed(text, tone) {
-                state.feed.unshift({ text, tone, ttl: 3.8 });
-                state.feed = state.feed.slice(0, 5);
-                renderFeed();
-            }
-
-            function renderFeed() {
-                ui.feed.innerHTML = state.feed
-                    .map(
-                        (entry) =>
-                            '<div class="feed-entry ' +
-                            entry.tone +
-                            '">' +
-                            entry.text +
-                            "</div>"
-                    )
-                    .join("");
-            }
-
-            function spawnImpact(x, y, color, count) {
-                for (let i = 0; i < count; i += 1) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = randomRange(35, 125);
-                    sparks.push({
-                        x,
-                        y,
-                        vx: Math.cos(angle) * speed,
-                        vy: Math.sin(angle) * speed,
-                        radius: randomRange(1.6, 3.4),
-                        ttl: randomRange(0.14, 0.34),
-                        color
+                if (challenge.type === "listen") {
+                    screen.querySelector("#playAudioButton").addEventListener("click", () => {
+                        speakChallenge(challenge);
                     });
                 }
-            }
 
-            function completeReload(entity, weaponState) {
-                const weapon = WEAPONS[weaponState.type];
-                const missing = weapon.magSize - weaponState.clip;
-                const transferred = Math.min(missing, weaponState.reserve);
-                weaponState.clip += transferred;
-                weaponState.reserve -= transferred;
-            }
+                screen.querySelectorAll("[data-choice]").forEach((button) => {
+                    button.addEventListener("click", () => {
+                        state.selectedChoice = button.dataset.choice || "";
+                        render();
+                    });
+                });
 
-            function updateWeaponTimers(entity, dt) {
-                Object.values(entity.inventory).forEach((weaponState) => {
-                    weaponState.fireCooldown = Math.max(0, weaponState.fireCooldown - dt);
-                    weaponState.muzzleFlash = Math.max(0, weaponState.muzzleFlash - dt * 9);
+                screen.querySelectorAll("[data-word]").forEach((button) => {
+                    button.addEventListener("click", () => {
+                        const word = button.dataset.word || "";
+                        toggleWord(word);
+                    });
+                });
 
-                    if (weaponState.reloadTimer > 0) {
-                        weaponState.reloadTimer -= dt;
-                        if (weaponState.reloadTimer <= 0) {
-                            weaponState.reloadTimer = 0;
-                            completeReload(entity, weaponState);
-                        }
+                screen.querySelector("#checkButton").addEventListener("click", () => {
+                    if (state.feedbackTone === "correct") {
+                        advanceChallenge();
+                        return;
                     }
+
+                    evaluateChallenge();
+                });
+
+                screen.querySelector("#hintButton").addEventListener("click", () => {
+                    state.feedbackTone = "idle";
+                    state.feedbackText = challenge.explanation;
+                    render();
                 });
             }
 
-            function startReload(entity) {
-                const weapon = getWeaponState(entity);
-                const weaponInfo = WEAPONS[weapon.type];
+            function renderReward() {
+                const reward = state.lastReward || { xp: 15, gems: 25, energy: 15 };
+                const finishedAll = state.completedLessonIds.length === lessons.length;
 
-                if (weapon.reloadTimer > 0 || weapon.reserve <= 0 || weapon.clip >= weaponInfo.magSize) {
-                    return false;
-                }
+                screen.innerHTML = `
+                    <div class="reward-screen">
+                        <section class="reward-card">
+                            <span class="eyebrow">Lesson complete</span>
+                            <img src="${SPRITES.pose}" alt="Imported Duolingo owl art">
+                            <div class="reward-kicker">Energy +${reward.energy}</div>
+                            <h2>${finishedAll ? "You cleared the whole parody path!" : "Nice work. The owl is thrilled."}</h2>
+                            <p class="small-note">
+                                You gained +${reward.xp} XP, +${reward.gems} gems, and a fake friend bonus.
+                                This remains an unofficial Duolingo parody screen.
+                            </p>
 
-                weapon.reloadTimer = weaponInfo.reloadTime;
-                if (entity === player) {
-                    pushFeed("Reloading " + weaponInfo.label + ".", "warn");
-                }
-                return true;
-            }
+                            <div class="reward-stats">
+                                <div class="reward-stat">
+                                    <strong>+${reward.xp}</strong>
+                                    <span>XP</span>
+                                </div>
+                                <div class="reward-stat">
+                                    <strong>+${reward.gems}</strong>
+                                    <span>Gems</span>
+                                </div>
+                                <div class="reward-stat">
+                                    <strong>+${reward.energy}</strong>
+                                    <span>Energy</span>
+                                </div>
+                            </div>
 
-            function alertEnemies(intensity) {
-                if (!player) {
-                    return;
-                }
+                            <button class="secondary-button" id="backToPathButton" type="button">Back to path</button>
+                        </section>
+                    </div>
+                `;
 
-                for (const enemy of enemies) {
-                    if (!enemy.alive) {
-                        continue;
-                    }
-                    if (distance(enemy, player) < 920) {
-                        enemy.aggro = Math.max(enemy.aggro, intensity);
-                        enemy.focusX = player.x;
-                        enemy.focusY = player.y;
-                    }
-                }
-            }
-
-            function applyDamage(target, amount, sourceLabel) {
-                if (!target.alive) {
-                    return;
-                }
-
-                let damage = amount;
-                if (target.armor > 0) {
-                    const absorbed = Math.min(target.armor, amount * 0.45);
-                    target.armor -= absorbed;
-                    damage -= absorbed * 0.55;
-                }
-
-                target.hp -= damage;
-                target.hurtFlash = 0.3;
-
-                if (target === player) {
-                    state.shake = Math.max(state.shake, 8);
-                }
-
-                if (target.hp <= 0) {
-                    target.hp = 0;
-                    target.alive = false;
-                    pushFeed(sourceLabel + " eliminated " + target.label + ".", player && sourceLabel === player.label ? "ct" : "t");
-
-                    if (target === player) {
-                        endRound("t", "You were traded before the defuse.");
-                    } else if (enemies.every((enemy) => !enemy.alive)) {
-                        pushFeed("Site clear. Get to the bomb.", "ct");
-                    }
-                }
-            }
-
-            function fireWeapon(entity, isEnemy) {
-                const weaponState = getWeaponState(entity);
-                const weapon = WEAPONS[weaponState.type];
-
-                if (!entity.alive || weaponState.reloadTimer > 0 || weaponState.fireCooldown > 0) {
-                    return;
-                }
-
-                if (weaponState.clip <= 0) {
-                    startReload(entity);
-                    return;
-                }
-
-                weaponState.clip -= 1;
-                weaponState.fireCooldown = 1 / weapon.fireRate;
-                weaponState.muzzleFlash = 1;
-
-                const spread = weapon.spread + (entity.isMoving ? weapon.spread * 0.9 : 0);
-                const accuracy = isEnemy ? Math.max(0.45, 1.18 - entity.skill) : state.keys.shift ? 0.7 : 1;
-                const shotAngle = entity.angle + randomRange(-spread, spread) * accuracy;
-                const startX = entity.x + Math.cos(shotAngle) * (entity.radius + 14);
-                const startY = entity.y + Math.sin(shotAngle) * (entity.radius + 14);
-                const endX = startX + Math.cos(shotAngle) * weapon.range;
-                const endY = startY + Math.sin(shotAngle) * weapon.range;
-
-                let nearestWall = nearestWallHitT(startX, startY, endX, endY);
-                let nearestTarget = { entity: null, t: Infinity };
-                const targets = isEnemy ? [player] : enemies.filter((enemy) => enemy.alive);
-
-                for (const target of targets) {
-                    const hit = segmentCircleHitT(startX, startY, endX, endY, target);
-                    if (hit < nearestTarget.t) {
-                        nearestTarget = { entity: target, t: hit };
-                    }
-                }
-
-                const hitsTarget = nearestTarget.entity && nearestTarget.t < nearestWall;
-                const impactT = hitsTarget ? nearestTarget.t : nearestWall !== Infinity ? nearestWall : 1;
-                const impactX = lerp(startX, endX, impactT);
-                const impactY = lerp(startY, endY, impactT);
-
-                traces.push({
-                    x1: startX,
-                    y1: startY,
-                    x2: impactX,
-                    y2: impactY,
-                    width: isEnemy ? 2 : 3,
-                    ttl: 0.08,
-                    color: weapon.tracer
+                screen.querySelector("#backToPathButton").addEventListener("click", () => {
+                    goHome();
                 });
+            }
 
-                if (hitsTarget) {
-                    const scaledDamage = weapon.damage * randomRange(0.92, 1.08);
-                    applyDamage(nearestTarget.entity, scaledDamage, entity.label);
-                    spawnImpact(impactX, impactY, weapon.impact, 8);
+            function renderQuests() {
+                const goalPercent = Math.min(100, (state.xpToday / state.dailyGoal) * 100);
+
+                screen.innerHTML = `
+                    <div class="quests-screen">
+                        <section class="quest-card">
+                            <span class="eyebrow">Daily quest</span>
+                            <h2>Earn ${state.dailyGoal} XP today</h2>
+                            <p>You are ${state.xpToday} XP into the goal. Keep the parody treadmill moving.</p>
+                            <div class="meter"><span style="width: ${goalPercent}%"></span></div>
+                        </section>
+
+                        <section class="quest-card">
+                            <span class="eyebrow">Social reward</span>
+                            <h2>Add a friend, gain fake energy</h2>
+                            <p>
+                                This mirrors the screenshot vibe with a playful bonus card. It does not connect to
+                                anything real, because the app is just a parody shell.
+                            </p>
+                            <button class="secondary-button" id="questRewardButton" type="button">Claim +15 energy</button>
+                        </section>
+
+                        <section class="quest-card">
+                            <span class="eyebrow">Reminder</span>
+                            <h2>Keep your streak glowing</h2>
+                            <p>
+                                Practice one lesson a day and your streak climbs. Miss one, and the owl will judge you
+                                silently from an imported PNG.
+                            </p>
+                        </section>
+                    </div>
+                `;
+
+                screen.querySelector("#questRewardButton").addEventListener("click", () => {
+                    state.energy += 15;
+                    state.feedbackTone = "correct";
+                    state.feedbackText = "Bonus claimed. You have even more fake energy now.";
+                    render();
+                });
+            }
+
+            function renderProfile() {
+                const accuracy = state.completedLessonIds.length ? 96 : 100;
+
+                screen.innerHTML = `
+                    <div class="profile-screen">
+                        <section class="profile-card">
+                            <span class="eyebrow">Profile</span>
+                            <h2>Parody learner summary</h2>
+                            <p>
+                                A fake Duolingo-style profile card with imported art, public metrics, and an explicit
+                                note that this is an unofficial parody app.
+                            </p>
+                        </section>
+
+                        <section class="profile-card">
+                            <div class="exercise-top">
+                                <div>
+                                    <h3>owl_fan_01</h3>
+                                    <p>Studying enough to keep the streak hot and the parody alive.</p>
+                                </div>
+                                <img src="${SPRITES.icon}" alt="Imported Duolingo icon art">
+                            </div>
+                        </section>
+
+                        <div class="profile-grid">
+                            <div class="profile-stat">
+                                <span>Total XP</span>
+                                <strong>${state.xp}</strong>
+                            </div>
+                            <div class="profile-stat">
+                                <span>Accuracy</span>
+                                <strong>${accuracy}%</strong>
+                            </div>
+                            <div class="profile-stat">
+                                <span>Streak</span>
+                                <strong>${state.streak}</strong>
+                            </div>
+                            <div class="profile-stat">
+                                <span>Lessons done</span>
+                                <strong>${state.completedLessonIds.length}</strong>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function renderGameOver() {
+                screen.innerHTML = `
+                    <div class="gameover-screen">
+                        <section class="gameover-card">
+                            <span class="eyebrow">Out of hearts</span>
+                            <img src="${SPRITES.icon}" alt="Imported Duolingo icon art">
+                            <h2>The parody owl wants you to try again.</h2>
+                            <p class="small-note">
+                                You ran out of hearts during the lesson. Refill them and jump back in.
+                            </p>
+                            <button class="primary-button" id="refillButton" type="button">Refill hearts</button>
+                        </section>
+                    </div>
+                `;
+
+                screen.querySelector("#refillButton").addEventListener("click", () => {
+                    state.hearts = 5;
+                    startLesson(state.currentLessonIndex);
+                });
+            }
+
+            function toggleWord(word) {
+                const index = state.selectedWords.indexOf(word);
+                if (index >= 0) {
+                    state.selectedWords.splice(index, 1);
                 } else {
-                    spawnImpact(impactX, impactY, "#dbe9ff", 4);
+                    state.selectedWords.push(word);
                 }
+                render();
+            }
 
-                if (entity === player) {
-                    state.shake = Math.max(state.shake, weaponState.type === "sniper" ? 7 : 4);
-                    alertEnemies(1.45);
-                    if (weaponState.clip === 0 && weaponState.reserve > 0) {
-                        startReload(entity);
+            function evaluateChallenge() {
+                const challenge = getCurrentChallenge();
+                let isCorrect = false;
+
+                if (challenge.type === "tap") {
+                    if (!state.selectedWords.length) {
+                        state.feedbackTone = "idle";
+                        state.feedbackText = "Tap at least one tile before checking.";
+                        render();
+                        return;
                     }
-                }
-            }
 
-            function switchWeapon(type) {
-                if (!player || !player.inventory[type]) {
-                    return;
-                }
-                player.activeWeapon = type;
-                state.selectedWeapon = type;
-            }
-
-            function isNearBomb(entity) {
-                if (!bomb) {
-                    return false;
-                }
-                return Math.hypot(entity.x - bomb.x, entity.y - bomb.y) < 96;
-            }
-
-            function updatePlayer(dt) {
-                if (!player || !player.alive) {
-                    return;
-                }
-
-                updateWeaponTimers(player, dt);
-                player.hurtFlash = Math.max(0, player.hurtFlash - dt);
-
-                const moveX = (state.keys.d ? 1 : 0) - (state.keys.a ? 1 : 0);
-                const moveY = (state.keys.s ? 1 : 0) - (state.keys.w ? 1 : 0);
-                const length = Math.hypot(moveX, moveY) || 1;
-                const activeWeapon = WEAPONS[player.activeWeapon];
-                let speed = activeWeapon.moveSpeed;
-
-                if (state.keys.shift) {
-                    speed *= 0.6;
-                }
-
-                player.isMoving = moveX !== 0 || moveY !== 0;
-                moveEntity(player, (moveX / length) * speed * dt, (moveY / length) * speed * dt);
-
-                const worldMouseX = state.mouse.x + state.camera.x;
-                const worldMouseY = state.mouse.y + state.camera.y;
-                player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
-
-                if (state.mouse.down) {
-                    fireWeapon(player, false);
-                }
-
-                if (isNearBomb(player) && state.keys.e) {
-                    bomb.defuseProgress = Math.min(bomb.defuseDuration, bomb.defuseProgress + dt);
-                    if (bomb.defuseProgress >= bomb.defuseDuration) {
-                        endRound("ct", "Bomb defused with " + formatTime(bomb.timer) + " remaining.");
-                    }
+                    isCorrect = JSON.stringify(state.selectedWords) === JSON.stringify(challenge.answer);
                 } else {
-                    bomb.defuseProgress = Math.max(0, bomb.defuseProgress - dt * 1.8);
-                }
-            }
-
-            function updateEnemies(dt) {
-                if (!player || !bomb) {
-                    return;
-                }
-
-                for (const enemy of enemies) {
-                    if (!enemy.alive) {
-                        continue;
+                    if (!state.selectedChoice) {
+                        state.feedbackTone = "idle";
+                        state.feedbackText = "Pick an answer before checking.";
+                        render();
+                        return;
                     }
 
-                    updateWeaponTimers(enemy, dt);
-                    enemy.hurtFlash = Math.max(0, enemy.hurtFlash - dt);
-
-                    const seesPlayer = player.alive && canSee(enemy, player);
-                    enemy.isMoving = false;
-
-                    if (seesPlayer) {
-                        enemy.aggro = Math.max(enemy.aggro, 1.9);
-                        enemy.focusX = player.x;
-                        enemy.focusY = player.y;
-                    } else {
-                        enemy.aggro = Math.max(0, enemy.aggro - dt);
-                    }
-
-                    if (enemy.aggro > 0 && player.alive) {
-                        const targetPoint = { x: enemy.focusX, y: enemy.focusY };
-                        const preferredRange = WEAPONS[enemy.activeWeapon].preferredRange;
-                        const rangeToPlayer = distance(enemy, player);
-                        let moveAngle = angleTo(enemy, targetPoint);
-                        let moveSpeed = enemy.speed;
-
-                        if (rangeToPlayer > preferredRange + 40) {
-                            moveAngle = angleTo(enemy, player);
-                        } else if (rangeToPlayer < preferredRange - 70) {
-                            moveAngle = angleTo(player, enemy);
-                            moveSpeed *= 0.9;
-                        } else {
-                            enemy.strafeClock -= dt;
-                            if (enemy.strafeClock <= 0) {
-                                enemy.strafeClock = randomRange(0.4, 1.1);
-                                enemy.strafeDir *= -1;
-                            }
-                            moveAngle = angleTo(enemy, player) + (Math.PI / 2) * enemy.strafeDir;
-                            moveSpeed *= 0.75;
-                        }
-
-                        moveEntity(enemy, Math.cos(moveAngle) * moveSpeed * dt, Math.sin(moveAngle) * moveSpeed * dt);
-                        enemy.isMoving = true;
-                        enemy.angle = angleTo(enemy, player);
-
-                        if (seesPlayer) {
-                            fireWeapon(enemy, true);
-                        }
-                    } else {
-                        const nextPoint = enemy.patrol[enemy.patrolIndex];
-                        const toPoint = distance(enemy, nextPoint);
-
-                        if (toPoint < 22) {
-                            enemy.patrolIndex = (enemy.patrolIndex + 1) % enemy.patrol.length;
-                        } else {
-                            const patrolAngle = angleTo(enemy, nextPoint);
-                            moveEntity(enemy, Math.cos(patrolAngle) * enemy.speed * 0.62 * dt, Math.sin(patrolAngle) * enemy.speed * 0.62 * dt);
-                            enemy.isMoving = true;
-                            enemy.angle = patrolAngle;
-                        }
-                    }
-                }
-            }
-
-            function updateProjectiles(dt) {
-                traces = traces.filter((trace) => {
-                    trace.ttl -= dt;
-                    return trace.ttl > 0;
-                });
-
-                sparks = sparks.filter((spark) => {
-                    spark.ttl -= dt;
-                    spark.x += spark.vx * dt;
-                    spark.y += spark.vy * dt;
-                    spark.vx *= 0.94;
-                    spark.vy *= 0.94;
-                    return spark.ttl > 0;
-                });
-            }
-
-            function updateBomb(dt) {
-                if (!bomb) {
-                    return;
+                    isCorrect = state.selectedChoice === challenge.answer;
                 }
 
-                bomb.timer -= dt;
-                bomb.pulse += dt * (bomb.timer < 12 ? 7 : 4);
-                if (bomb.timer <= 0) {
-                    bomb.timer = 0;
-                    endRound("t", "Bomb exploded.");
-                }
-            }
-
-            function endRound(winner, detail) {
-                if (state.roundState !== "playing") {
-                    return;
-                }
-
-                state.roundState = "roundEnd";
-                state.endTimer = 3.5;
-                state.outcome = winner === "ct" ? "Counter-Terrorists Win" : "Terrorists Win";
-                state.outcomeDetail = detail;
-                state.score[winner] += 1;
-                pushFeed(state.outcome + ": " + detail, winner === "ct" ? "ct" : "t");
-            }
-
-            function updateRoundTransition(dt) {
-                if (player) {
-                    updateWeaponTimers(player, dt);
-                    player.hurtFlash = Math.max(0, player.hurtFlash - dt);
-                }
-
-                for (const enemy of enemies) {
-                    updateWeaponTimers(enemy, dt);
-                    enemy.hurtFlash = Math.max(0, enemy.hurtFlash - dt);
-                }
-
-                updateProjectiles(dt);
-                state.endTimer -= dt;
-                if (state.endTimer <= 0) {
-                    state.round += 1;
-                    initRound();
-                }
-            }
-
-            function updateCamera() {
-                const focus = player || { x: map.site.x + map.site.w / 2, y: map.site.y + map.site.h / 2 };
-                const maxX = Math.max(0, WORLD.width - canvas.width);
-                const maxY = Math.max(0, WORLD.height - canvas.height);
-                const targetX = clamp(focus.x - canvas.width / 2, 0, maxX);
-                const targetY = clamp(focus.y - canvas.height / 2, 0, maxY);
-                state.camera.x = lerp(state.camera.x, targetX, 0.1);
-                state.camera.y = lerp(state.camera.y, targetY, 0.1);
-            }
-
-            function updateHud() {
-                const enemiesAlive = enemies.filter((enemy) => enemy.alive).length;
-                ui.ctScore.textContent = state.score.ct;
-                ui.tScore.textContent = state.score.t;
-                ui.roundLabel.textContent = "Round " + state.round;
-                ui.timerValue.textContent = bomb ? formatTime(bomb.timer) : "00:00";
-                ui.enemyCountValue.textContent = String(enemiesAlive);
-                ui.bombStateValue.textContent = bomb && bomb.defuseProgress >= bomb.defuseDuration ? "Defused" : bomb ? "Armed" : "Idle";
-
-                if (player) {
-                    const activeWeapon = getWeaponState(player);
-                    ui.weaponNameValue.textContent = WEAPONS[player.activeWeapon].label + (activeWeapon.reloadTimer > 0 ? " (Reloading)" : "");
-                    ui.ammoValue.textContent = activeWeapon.clip + " / " + activeWeapon.reserve;
-                    ui.healthValue.textContent = String(Math.max(0, Math.ceil(player.hp)));
-                    ui.armorValue.textContent = String(Math.max(0, Math.ceil(player.armor)));
-                    ui.positionValue.textContent = player.x > 1450 ? "A Site" : player.x > 850 ? "Mid Lanes" : "CT Spawn";
-                    ui.hintValue.textContent = !player.alive
-                        ? "Respawn next round"
-                        : isNearBomb(player)
-                            ? "Hold E to defuse"
-                            : enemiesAlive > 0
-                                ? "Use cover and isolate duels"
-                                : "Path to the bomb";
-                }
-
-                if (bomb && player && player.alive) {
-                    if (isNearBomb(player)) {
-                        ui.objectiveValue.textContent = bomb.defuseProgress > 0 ? "Defusing..." : "Bomb in reach";
-                        ui.objectiveSubvalue.textContent = enemiesAlive > 0
-                            ? "You can stick the defuse or clear the last angles."
-                            : "Site is clear. Hold E to finish the round.";
-                    } else if (enemiesAlive > 0) {
-                        ui.objectiveValue.textContent = "Retake site A";
-                        ui.objectiveSubvalue.textContent = "Defenders still up. Use the long lane, ramp, and default box cover.";
-                    } else {
-                        ui.objectiveValue.textContent = "Recover the bomb";
-                        ui.objectiveSubvalue.textContent = "All defenders are down. Reach the site and hold E to defuse.";
-                    }
-                }
-
-                WEAPON_ORDER.forEach((weaponType) => {
-                    const card = document.getElementById("weapon-" + weaponType);
-                    const ammo = document.getElementById("weaponAmmo-" + weaponType);
-                    const stateForWeapon = player ? player.inventory[weaponType] : createWeaponState(weaponType);
-                    card.classList.toggle("active", player && player.activeWeapon === weaponType);
-                    ammo.textContent = stateForWeapon.clip + " / " + stateForWeapon.reserve;
-                });
-
-                if (bomb && player && player.alive && (isNearBomb(player) || bomb.defuseProgress > 0)) {
-                    ui.defuseWrap.classList.remove("hidden");
-                    ui.defuseLabel.textContent = bomb.defuseProgress > 0 ? "Defusing..." : "Hold E to defuse";
-                    ui.defuseTimeValue.textContent = (bomb.defuseDuration - bomb.defuseProgress).toFixed(1) + "s";
-                    ui.defuseFill.style.width = (bomb.defuseProgress / bomb.defuseDuration) * 100 + "%";
+                if (isCorrect) {
+                    state.feedbackTone = "correct";
+                    state.feedbackText = "Correct! " + challenge.explanation;
                 } else {
-                    ui.defuseWrap.classList.add("hidden");
-                }
-            }
-
-            function update(dt) {
-                state.feed = state.feed.filter((entry) => {
-                    entry.ttl -= dt;
-                    return entry.ttl > 0;
-                });
-                renderFeed();
-
-                state.shake = Math.max(0, state.shake - dt * 18);
-
-                if (!state.started) {
-                    updateCamera();
-                    updateHud();
-                    return;
-                }
-
-                if (state.roundState === "playing") {
-                    updatePlayer(dt);
-                    updateEnemies(dt);
-                    updateProjectiles(dt);
-                    updateBomb(dt);
-                } else if (state.roundState === "roundEnd") {
-                    updateRoundTransition(dt);
-                }
-
-                updateCamera();
-                updateHud();
-            }
-
-            function drawFloor() {
-                ctx.fillStyle = "#0a1723";
-                ctx.fillRect(0, 0, WORLD.width, WORLD.height);
-
-                const gridSize = 100;
-                const startX = Math.floor(state.camera.x / gridSize) * gridSize - gridSize;
-                const startY = Math.floor(state.camera.y / gridSize) * gridSize - gridSize;
-                const endX = state.camera.x + canvas.width + gridSize;
-                const endY = state.camera.y + canvas.height + gridSize;
-
-                ctx.strokeStyle = "rgba(138, 171, 204, 0.09)";
-                ctx.lineWidth = 1;
-
-                for (let x = startX; x <= endX; x += gridSize) {
-                    ctx.beginPath();
-                    ctx.moveTo(x, startY);
-                    ctx.lineTo(x, endY);
-                    ctx.stroke();
-                }
-
-                for (let y = startY; y <= endY; y += gridSize) {
-                    ctx.beginPath();
-                    ctx.moveTo(startX, y);
-                    ctx.lineTo(endX, y);
-                    ctx.stroke();
-                }
-
-                ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
-                ctx.fillRect(80, 1060, 380, 180);
-                ctx.fillStyle = "rgba(255, 90, 90, 0.08)";
-                ctx.fillRect(map.site.x, map.site.y, map.site.w, map.site.h);
-            }
-
-            function drawWalls() {
-                for (const wall of map.walls) {
-                    ctx.fillStyle = "#132232";
-                    ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-                    ctx.strokeStyle = "rgba(196, 219, 242, 0.12)";
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(wall.x + 1, wall.y + 1, wall.w - 2, wall.h - 2);
-
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-                    const stripes = wall.w > wall.h ? Math.floor(wall.w / 38) : Math.floor(wall.h / 38);
-                    for (let i = 0; i < stripes; i += 1) {
-                        if (wall.w > wall.h) {
-                            ctx.fillRect(wall.x + i * 38, wall.y, 10, wall.h);
-                        } else {
-                            ctx.fillRect(wall.x, wall.y + i * 38, wall.w, 10);
-                        }
+                    state.hearts = Math.max(0, state.hearts - 1);
+                    state.feedbackTone = "wrong";
+                    state.feedbackText = "Not quite. " + challenge.explanation + " Hearts left: " + state.hearts + ".";
+                    if (state.hearts === 0) {
+                        state.view = "gameover";
                     }
                 }
+
+                render();
             }
 
-            function drawSiteDetails() {
-                const siteBomb = bomb || map.bomb;
-                ctx.strokeStyle = "rgba(255, 140, 110, 0.32)";
-                ctx.lineWidth = 3;
-                ctx.strokeRect(map.site.x, map.site.y, map.site.w, map.site.h);
+            function advanceChallenge() {
+                const lesson = getCurrentLesson();
 
-                ctx.fillStyle = "rgba(255, 170, 120, 0.12)";
-                ctx.beginPath();
-                ctx.arc(siteBomb.x, siteBomb.y, 82, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = "rgba(255, 214, 113, 0.8)";
-                ctx.font = "700 54px Inter, sans-serif";
-                ctx.fillText("A", map.site.x + 24, map.site.y + 62);
-
-                ctx.fillStyle = "rgba(185, 205, 226, 0.25)";
-                ctx.font = "700 18px Inter, sans-serif";
-                ctx.fillText("CT Spawn", 90, 1260);
-                ctx.fillText("Mid Lanes", 890, 140);
-                ctx.fillText("Default", 1650, 235);
-            }
-
-            function drawBomb() {
-                if (!bomb) {
+                if (state.currentChallengeIndex < lesson.challenges.length - 1) {
+                    state.currentChallengeIndex += 1;
+                    resetChallengeState();
+                    render();
                     return;
                 }
 
-                const pulse = 16 + Math.sin(bomb.pulse) * 5;
-                ctx.beginPath();
-                ctx.arc(bomb.x, bomb.y, pulse + 18, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(255, 92, 92, 0.12)";
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.arc(bomb.x, bomb.y, pulse, 0, Math.PI * 2);
-                ctx.fillStyle = "#be2d2d";
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.arc(bomb.x, bomb.y, 14, 0, Math.PI * 2);
-                ctx.fillStyle = "#ffd671";
-                ctx.fill();
-
-                ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-                ctx.font = "700 14px Inter, sans-serif";
-                ctx.fillText(formatTime(bomb.timer), bomb.x - 28, bomb.y - 34);
+                completeLesson();
             }
 
-            function drawTraces() {
-                for (const trace of traces) {
-                    ctx.strokeStyle = trace.color;
-                    ctx.lineWidth = trace.width;
-                    ctx.globalAlpha = clamp(trace.ttl / 0.08, 0, 1);
-                    ctx.beginPath();
-                    ctx.moveTo(trace.x1, trace.y1);
-                    ctx.lineTo(trace.x2, trace.y2);
-                    ctx.stroke();
+            function completeLesson() {
+                const lesson = getCurrentLesson();
+
+                if (!state.completedLessonIds.includes(lesson.id)) {
+                    state.completedLessonIds.push(lesson.id);
+                    state.xp += lesson.xp;
+                    state.xpToday += lesson.xp;
+                    state.gems += 25;
+                    state.streak += 1;
+                    state.energy += 15;
+                    state.unlockedCount = Math.min(lessons.length, Math.max(state.unlockedCount, state.currentLessonIndex + 2));
                 }
-                ctx.globalAlpha = 1;
+
+                state.lastReward = {
+                    xp: lesson.xp,
+                    gems: 25,
+                    energy: 15
+                };
+                state.view = "reward";
+                resetChallengeState();
+                render();
             }
 
-            function drawSparks() {
-                for (const spark of sparks) {
-                    ctx.globalAlpha = clamp(spark.ttl / 0.34, 0, 1);
-                    ctx.beginPath();
-                    ctx.arc(spark.x, spark.y, spark.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = spark.color;
-                    ctx.fill();
-                }
-                ctx.globalAlpha = 1;
-            }
-
-            function drawEntity(entity, isPlayer) {
-                ctx.save();
-                ctx.translate(entity.x, entity.y);
-
-                ctx.beginPath();
-                ctx.ellipse(0, 0, entity.radius + 4, entity.radius - 2, 0, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(0, 0, 0, 0.24)";
-                ctx.fill();
-
-                if (!entity.alive) {
-                    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
-                    ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.moveTo(-12, -12);
-                    ctx.lineTo(12, 12);
-                    ctx.moveTo(-12, 12);
-                    ctx.lineTo(12, -12);
-                    ctx.stroke();
-                    ctx.restore();
+            function speakChallenge(challenge) {
+                if (!("speechSynthesis" in window)) {
+                    state.feedbackTone = "idle";
+                    state.feedbackText = "Speech playback is not available in this browser.";
+                    render();
                     return;
                 }
 
-                const flash = entity.hurtFlash > 0 ? 90 : 0;
-                const bodyColor = isPlayer
-                    ? "rgb(" + (93 + flash) + ", " + (215 + flash / 3) + ", 255)"
-                    : "rgb(255, " + (153 - flash / 3) + ", " + (102 - flash / 4) + ")";
-                const weaponState = getWeaponState(entity);
-                const muzzleScale = weaponState ? weaponState.muzzleFlash : 0;
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(challenge.spokenText);
+                utterance.lang = challenge.spokenLang;
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
 
-                ctx.beginPath();
-                ctx.arc(0, 0, entity.radius, 0, Math.PI * 2);
-                ctx.fillStyle = bodyColor;
-                ctx.fill();
-
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = isPlayer ? "rgba(180, 245, 255, 0.9)" : "rgba(255, 205, 168, 0.9)";
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(Math.cos(entity.angle) * 26, Math.sin(entity.angle) * 26);
-                ctx.stroke();
-
-                if (muzzleScale > 0) {
-                    ctx.beginPath();
-                    ctx.arc(Math.cos(entity.angle) * 28, Math.sin(entity.angle) * 28, 6 * muzzleScale, 0, Math.PI * 2);
-                    ctx.fillStyle = isPlayer ? "rgba(255, 248, 180, 0.95)" : "rgba(255, 186, 110, 0.95)";
-                    ctx.fill();
-                }
-
-                ctx.fillStyle = "rgba(4, 10, 16, 0.85)";
-                ctx.fillRect(-26, -34, 52, 7);
-                ctx.fillStyle = isPlayer ? "#77f7b3" : "#ff8f8f";
-                ctx.fillRect(-26, -34, Math.max(0, entity.hp / 100) * 52, 7);
-
-                ctx.fillStyle = "rgba(235, 242, 255, 0.85)";
-                ctx.font = "700 12px Inter, sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText(entity.label, 0, -42);
-
-                ctx.restore();
-            }
-
-            function drawPlayerAimline() {
-                if (!player || !player.alive) {
-                    return;
-                }
-
-                ctx.strokeStyle = "rgba(138, 229, 255, 0.16)";
-                ctx.lineWidth = 2;
-                ctx.setLineDash([8, 10]);
-                ctx.beginPath();
-                ctx.moveTo(player.x, player.y);
-                ctx.lineTo(player.x + Math.cos(player.angle) * 220, player.y + Math.sin(player.angle) * 220);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
-
-            function drawRoundBanner() {
-                if (state.roundState !== "roundEnd") {
-                    return;
-                }
-
-                const width = Math.min(canvas.width - 40, 520);
-                const height = 140;
-                const x = (canvas.width - width) / 2;
-                const y = Math.max(130, canvas.height * 0.14);
-
-                ctx.fillStyle = "rgba(5, 10, 16, 0.8)";
-                ctx.fillRect(x, y, width, height);
-                ctx.strokeStyle = "rgba(132, 164, 196, 0.24)";
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x, y, width, height);
-
-                ctx.fillStyle = state.outcome.indexOf("Counter") === 0 ? "#77f7b3" : "#ff9a83";
-                ctx.font = "800 30px Inter, sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText(state.outcome, x + width / 2, y + 48);
-
-                ctx.fillStyle = "rgba(234, 243, 255, 0.92)";
-                ctx.font = "500 18px Inter, sans-serif";
-                ctx.fillText(state.outcomeDetail, x + width / 2, y + 82);
-
-                ctx.fillStyle = "rgba(146, 166, 189, 0.95)";
-                ctx.font = "700 14px Inter, sans-serif";
-                ctx.fillText("Next round in " + state.endTimer.toFixed(1) + "s", x + width / 2, y + 112);
+                state.feedbackTone = "idle";
+                state.feedbackText = "Played: " + challenge.spokenText;
+                render();
             }
 
             function render() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                updateChrome();
 
-                const shakeX = state.shake > 0 ? randomRange(-state.shake, state.shake) : 0;
-                const shakeY = state.shake > 0 ? randomRange(-state.shake, state.shake) : 0;
-
-                ctx.save();
-                ctx.translate(-(state.camera.x + shakeX), -(state.camera.y + shakeY));
-
-                drawFloor();
-                drawSiteDetails();
-                drawWalls();
-                drawBomb();
-                drawPlayerAimline();
-                drawTraces();
-                drawSparks();
-
-                enemies.forEach((enemy) => drawEntity(enemy, false));
-                if (player) {
-                    drawEntity(player, true);
+                if (state.view === "path") {
+                    renderPath();
+                    return;
                 }
 
-                ctx.restore();
-                drawRoundBanner();
+                if (state.view === "lesson") {
+                    renderLesson();
+                    return;
+                }
+
+                if (state.view === "reward") {
+                    renderReward();
+                    return;
+                }
+
+                if (state.view === "quests") {
+                    renderQuests();
+                    return;
+                }
+
+                if (state.view === "profile") {
+                    renderProfile();
+                    return;
+                }
+
+                renderGameOver();
             }
 
-            function resizeCanvas() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                moveCrosshair(state.mouse.x, state.mouse.y);
-            }
+            backButton.addEventListener("click", () => {
+                if (state.view === "lesson" || state.view === "reward" || state.view === "gameover") {
+                    goHome();
+                    return;
+                }
 
-            function moveCrosshair(x, y) {
-                crosshair.style.left = x + "px";
-                crosshair.style.top = y + "px";
-            }
-
-            function animate(timestamp) {
-                const dt = Math.min(0.033, (timestamp - state.lastTime) / 1000 || 0.016);
-                state.lastTime = timestamp;
-
-                update(dt);
+                state.view = "path";
                 render();
-                requestAnimationFrame(animate);
-            }
-
-            window.addEventListener("resize", resizeCanvas);
-
-            window.addEventListener("mousemove", (event) => {
-                state.mouse.x = event.clientX;
-                state.mouse.y = event.clientY;
-                moveCrosshair(event.clientX, event.clientY);
             });
 
-            window.addEventListener("mousedown", (event) => {
-                if (event.button === 0 && state.started) {
-                    state.mouse.down = true;
-                }
+            navButtons.forEach((button) => {
+                button.addEventListener("click", () => {
+                    state.view = button.dataset.view;
+                    render();
+                });
             });
 
-            window.addEventListener("mouseup", (event) => {
-                if (event.button === 0) {
-                    state.mouse.down = false;
-                }
-            });
-
-            window.addEventListener("contextmenu", (event) => event.preventDefault());
-
-            window.addEventListener("blur", () => {
-                state.mouse.down = false;
-                state.keys = {};
-            });
-
-            window.addEventListener("keydown", (event) => {
-                const key = event.key.toLowerCase();
-
-                if (!state.started && (key === "enter" || key === " ")) {
-                    event.preventDefault();
-                    startMatch();
-                    return;
-                }
-
-                state.keys[key] = true;
-
-                if (!player) {
-                    return;
-                }
-
-                if (key === "1") {
-                    switchWeapon("pistol");
-                } else if (key === "2") {
-                    switchWeapon("rifle");
-                } else if (key === "3") {
-                    switchWeapon("sniper");
-                } else if (key === "r") {
-                    startReload(player);
-                }
-            });
-
-            window.addEventListener("keyup", (event) => {
-                state.keys[event.key.toLowerCase()] = false;
-            });
-
-            startButton.addEventListener("click", startMatch);
-
-            resizeCanvas();
-            updateHud();
-            requestAnimationFrame(animate);
+            render();
         })();
     </script>
 </body>
