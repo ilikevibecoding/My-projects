@@ -1,22 +1,20 @@
-# Bombsite Breach
+# Abyssal Bloom
 
-Bombsite Breach is a self-contained browser tactical shooter inspired by the CS:GO retake loop.
-The whole prototype lives in `index.html` with no dependencies or build step.
+Abyssal Bloom is a graphics-first, Subnautica-inspired underwater exploration prototype built as a single self-contained HTML file.
 
-## What is included
+The original repository was not a Unity project, so the implementation was created directly in the existing browser-based codebase instead of inside Unity. The focus is on atmosphere and presentation:
 
-- Top-down tactical shooter gameplay
-- Bombsite A retake scenario with a live bomb timer
-- Enemy bots with patrol, sightlines, and combat behavior
-- Weapon switching between USP-S, M4A1-S, and AWP
-- Reloading, armor, round transitions, score tracking, and HUD updates
-- Defuse mechanic with a hold-to-complete progress bar
+- layered underwater gradients and depth fog
+- animated caustics and sun shafts
+- coral reefs, kelp forests, vents, and landmarks
+- glowing fauna with a scan-to-catalog loop
+- sonar pulse effects and a cinematic HUD
 
 ## How to run
 
 Open `index.html` in a desktop browser.
 
-If you want to serve it locally instead of opening the file directly:
+If you want to serve it locally:
 
 ```bash
 python3 -m http.server 8000
@@ -26,17 +24,14 @@ Then visit `http://localhost:8000`.
 
 ## Controls
 
-- `WASD` - move
-- `Shift` - slow walk for tighter spread
-- `Mouse` - aim
-- `Left Click` - fire
-- `R` - reload
-- `1` - USP-S
-- `2` - M4A1-S
-- `3` - AWP
-- `E` - hold to defuse when near the bomb
-- `Enter` or `Space` - start the match from the intro screen
+- `WASD` - swim
+- `Shift` - boost using seaglide energy
+- `Mouse` - aim the scanner
+- `Space` - emit sonar pulse
+- `E` - hold to scan nearby fauna
+- `Enter` or `Space` - start the dive
+- `Enter` - restart after a completed run
 
 ## Objective
 
-You play as the counter-terrorist on a solo retake. Eliminate defenders if needed, but the round is only won once the bomb is defused before the timer expires.
+Scan four unique species, then return to Life Pod 5 to complete the databank uplink.

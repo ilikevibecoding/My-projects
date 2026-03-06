@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bombsite Breach</title>
+    <title>Abyssal Bloom</title>
     <style>
         :root {
             color-scheme: dark;
-            --bg: #07111a;
-            --panel: rgba(8, 17, 28, 0.74);
-            --panel-border: rgba(132, 164, 196, 0.22);
-            --text: #eaf3ff;
-            --muted: #92a6bd;
-            --ct: #5dd7ff;
-            --t: #ff9966;
-            --danger: #ff5c5c;
-            --ok: #77f7b3;
-            --warn: #ffd671;
+            --bg: #03111d;
+            --panel: rgba(5, 18, 29, 0.68);
+            --panel-border: rgba(133, 214, 236, 0.18);
+            --text: #ebfbff;
+            --muted: #8caec2;
+            --accent: #7ef4ff;
+            --accent-2: #9fffb1;
+            --warn: #ffd88e;
+            --danger: #ff8c8c;
+            --good: #7ef7c2;
         }
 
         * {
@@ -31,8 +31,8 @@
             overflow: hidden;
             font-family: Inter, "Segoe UI", Roboto, sans-serif;
             background:
-                radial-gradient(circle at top, rgba(44, 76, 115, 0.35), transparent 40%),
-                linear-gradient(180deg, #08121c 0%, #03070c 100%);
+                radial-gradient(circle at top, rgba(100, 214, 255, 0.22), transparent 32%),
+                linear-gradient(180deg, #092538 0%, #03111d 100%);
             color: var(--text);
         }
 
@@ -75,26 +75,26 @@
         }
 
         .panel {
-            min-width: 220px;
-            max-width: min(360px, 40vw);
+            min-width: 230px;
+            max-width: min(360px, 38vw);
             padding: 14px 16px;
             background: var(--panel);
             border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            backdrop-filter: blur(14px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+            border-radius: 18px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
         }
 
         .panel.center {
             text-align: center;
-            min-width: 260px;
+            min-width: 280px;
         }
 
         .eyebrow {
             display: block;
             font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.18em;
+            font-weight: 800;
+            letter-spacing: 0.2em;
             color: var(--muted);
             text-transform: uppercase;
             margin-bottom: 8px;
@@ -108,28 +108,12 @@
 
         .subvalue {
             margin-top: 6px;
-            font-size: 13px;
             color: var(--muted);
-            line-height: 1.5;
+            font-size: 13px;
+            line-height: 1.6;
         }
 
-        .scoreline {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 14px;
-            font-size: 28px;
-            font-weight: 800;
-        }
-
-        .scoreline .ct {
-            color: var(--ct);
-        }
-
-        .scoreline .t {
-            color: var(--t);
-        }
-
+        .telemetry-grid,
         .status-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -137,12 +121,14 @@
             margin-top: 8px;
         }
 
+        .telemetry-item,
         .status-item {
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
 
+        .metric-label,
         .status-label {
             font-size: 11px;
             font-weight: 700;
@@ -151,93 +137,83 @@
             text-transform: uppercase;
         }
 
+        .metric-value,
         .status-value {
             font-size: 20px;
-            font-weight: 750;
+            font-weight: 760;
         }
 
-        .weapon-strip {
+        .location {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .databank {
             display: flex;
-            gap: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
             margin-top: 14px;
         }
 
-        .weapon-card {
-            flex: 1;
-            min-width: 100px;
-            padding: 10px 12px;
-            border-radius: 14px;
-            border: 1px solid rgba(132, 164, 196, 0.18);
+        .tag {
+            padding: 7px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(126, 244, 255, 0.18);
             background: rgba(255, 255, 255, 0.04);
-            transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
-        }
-
-        .weapon-card.active {
-            border-color: rgba(255, 214, 113, 0.75);
-            background: rgba(255, 214, 113, 0.12);
-            transform: translateY(-3px);
-        }
-
-        .weapon-title {
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .weapon-ammo {
-            margin-top: 6px;
             font-size: 12px;
             color: var(--muted);
         }
 
-        .feed {
-            position: absolute;
-            right: 24px;
-            top: 160px;
-            width: min(360px, calc(100vw - 48px));
+        .tag.scanned {
+            border-color: rgba(159, 255, 177, 0.38);
+            background: rgba(159, 255, 177, 0.08);
+            color: var(--text);
+        }
+
+        .log-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            pointer-events: none;
+            margin-top: 8px;
         }
 
-        .feed-entry {
-            padding: 10px 14px;
+        .log-entry {
+            padding: 10px 12px;
             border-radius: 12px;
-            background: rgba(9, 16, 26, 0.76);
-            border: 1px solid rgba(132, 164, 196, 0.16);
-            color: var(--text);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(133, 214, 236, 0.12);
             font-size: 13px;
             line-height: 1.45;
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
         }
 
-        .feed-entry.ct {
-            border-color: rgba(93, 215, 255, 0.28);
+        .log-entry.warn {
+            border-color: rgba(255, 216, 142, 0.28);
         }
 
-        .feed-entry.t {
-            border-color: rgba(255, 153, 102, 0.28);
+        .log-entry.danger {
+            border-color: rgba(255, 140, 140, 0.28);
         }
 
-        .feed-entry.warn {
-            border-color: rgba(255, 214, 113, 0.3);
+        .log-entry.ok {
+            border-color: rgba(126, 247, 194, 0.24);
         }
 
-        .defuse-wrap {
+        .scan-wrap {
             position: absolute;
             left: 50%;
-            bottom: 120px;
+            bottom: 128px;
             width: min(420px, calc(100vw - 48px));
             transform: translateX(-50%);
             padding: 14px 16px;
-            border-radius: 16px;
-            background: rgba(9, 16, 26, 0.84);
-            border: 1px solid rgba(132, 164, 196, 0.18);
-            box-shadow: 0 16px 28px rgba(0, 0, 0, 0.25);
+            border-radius: 18px;
+            background: rgba(5, 18, 29, 0.84);
+            border: 1px solid rgba(133, 214, 236, 0.18);
+            box-shadow: 0 16px 28px rgba(0, 0, 0, 0.24);
             pointer-events: none;
         }
 
-        .defuse-title {
+        .scan-title {
             display: flex;
             justify-content: space-between;
             gap: 12px;
@@ -258,41 +234,43 @@
             width: 0;
             height: 100%;
             border-radius: inherit;
-            background: linear-gradient(90deg, #4ed9ff 0%, #7cf7b5 100%);
-            box-shadow: 0 0 16px rgba(76, 220, 255, 0.5);
+            background: linear-gradient(90deg, #66f1ff 0%, #b8ff9e 100%);
+            box-shadow: 0 0 16px rgba(102, 241, 255, 0.45);
         }
 
-        .crosshair {
+        .reticle {
             position: absolute;
-            width: 26px;
-            height: 26px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid rgba(126, 244, 255, 0.8);
+            box-shadow:
+                0 0 14px rgba(126, 244, 255, 0.5),
+                inset 0 0 12px rgba(126, 244, 255, 0.18);
+            transform: translate(-50%, -50%);
             pointer-events: none;
+        }
+
+        .reticle::before,
+        .reticle::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            background: rgba(126, 244, 255, 0.95);
+            border-radius: 999px;
+        }
+
+        .reticle::before {
+            width: 2px;
+            height: 18px;
             transform: translate(-50%, -50%);
         }
 
-        .crosshair::before,
-        .crosshair::after {
-            content: "";
-            position: absolute;
-            background: rgba(255, 255, 255, 0.94);
-            border-radius: 999px;
-            box-shadow: 0 0 12px rgba(255, 255, 255, 0.45);
-        }
-
-        .crosshair::before {
-            left: 50%;
-            top: 4px;
-            bottom: 4px;
-            width: 2px;
-            transform: translateX(-50%);
-        }
-
-        .crosshair::after {
-            top: 50%;
-            left: 4px;
-            right: 4px;
+        .reticle::after {
+            width: 18px;
             height: 2px;
-            transform: translateY(-50%);
+            transform: translate(-50%, -50%);
         }
 
         .overlay {
@@ -301,8 +279,8 @@
             display: grid;
             place-items: center;
             padding: 24px;
-            background: rgba(2, 5, 9, 0.58);
-            backdrop-filter: blur(10px);
+            background: rgba(1, 7, 14, 0.56);
+            backdrop-filter: blur(12px);
             z-index: 5;
             transition: opacity 180ms ease, visibility 180ms ease;
         }
@@ -314,27 +292,28 @@
         }
 
         .modal {
-            width: min(780px, 100%);
-            padding: 28px;
+            width: min(860px, 100%);
+            padding: 30px;
             border-radius: 28px;
             background:
-                linear-gradient(180deg, rgba(14, 25, 39, 0.98) 0%, rgba(7, 12, 18, 0.98) 100%);
-            border: 1px solid rgba(132, 164, 196, 0.22);
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+                radial-gradient(circle at top, rgba(112, 229, 255, 0.12), transparent 42%),
+                linear-gradient(180deg, rgba(9, 29, 43, 0.98) 0%, rgba(2, 10, 18, 0.98) 100%);
+            border: 1px solid rgba(133, 214, 236, 0.22);
+            box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
         }
 
         .modal h1 {
             margin: 0;
-            font-size: clamp(38px, 6vw, 64px);
+            font-size: clamp(38px, 6vw, 70px);
             line-height: 0.95;
         }
 
         .lead {
-            margin: 14px 0 24px;
-            max-width: 640px;
+            margin: 16px 0 24px;
+            max-width: 680px;
             color: var(--muted);
             font-size: 18px;
-            line-height: 1.6;
+            line-height: 1.7;
         }
 
         .controls-grid {
@@ -348,7 +327,7 @@
             padding: 16px;
             border-radius: 18px;
             background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(132, 164, 196, 0.14);
+            border: 1px solid rgba(133, 214, 236, 0.14);
         }
 
         .control-card h2 {
@@ -379,10 +358,10 @@
             font-weight: 800;
             letter-spacing: 0.04em;
             text-transform: uppercase;
-            color: #061019;
-            background: linear-gradient(90deg, #78f7ff 0%, #ffd671 100%);
+            color: #04131f;
+            background: linear-gradient(90deg, #7ef4ff 0%, #cfff9f 100%);
             cursor: pointer;
-            box-shadow: 0 14px 30px rgba(120, 247, 255, 0.22);
+            box-shadow: 0 14px 30px rgba(126, 244, 255, 0.22);
         }
 
         .disclaimer {
@@ -391,7 +370,7 @@
             line-height: 1.6;
         }
 
-        @media (max-width: 960px) {
+        @media (max-width: 980px) {
             .hud-row {
                 left: 14px;
                 right: 14px;
@@ -413,17 +392,9 @@
             .hud-bottom .panel {
                 width: 100%;
             }
-
-            .feed {
-                top: auto;
-                bottom: 220px;
-                right: 14px;
-                left: 14px;
-                width: auto;
-            }
         }
 
-        @media (max-width: 720px) {
+        @media (max-width: 760px) {
             .hud-top {
                 flex-direction: column;
             }
@@ -432,8 +403,8 @@
                 width: 100%;
             }
 
-            .defuse-wrap {
-                bottom: 160px;
+            .scan-wrap {
+                bottom: 150px;
             }
 
             .modal {
@@ -448,140 +419,126 @@
     </style>
 </head>
 <body>
-    <canvas id="game" aria-label="Bombsite Breach game canvas"></canvas>
+    <canvas id="game" aria-label="Abyssal Bloom game canvas"></canvas>
 
     <div class="hud">
         <div class="hud-row hud-top">
             <div class="panel">
                 <span class="eyebrow">Objective</span>
-                <div class="value" id="objectiveValue">Retake site A</div>
-                <div class="subvalue" id="objectiveSubvalue">Move through cover, clear defenders, and hold E on the bomb.</div>
+                <div class="value" id="objectiveValue">Boot scanner array</div>
+                <div class="subvalue" id="objectiveSubvalue">Map the reef, scan unfamiliar life, and return to the pod.</div>
             </div>
 
             <div class="panel center">
-                <span class="eyebrow">Round State</span>
-                <div class="value" id="timerValue">00:00</div>
-                <div class="scoreline">
-                    <span class="ct" id="ctScore">0</span>
-                    <span>-</span>
-                    <span class="t" id="tScore">0</span>
+                <span class="eyebrow">Dive Telemetry</span>
+                <div class="telemetry-grid">
+                    <div class="telemetry-item">
+                        <span class="metric-label">Depth</span>
+                        <span class="metric-value" id="depthValue">0m</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="metric-label">Oxygen</span>
+                        <span class="metric-value" id="oxygenValue">100%</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="metric-label">Energy</span>
+                        <span class="metric-value" id="energyValue">100%</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="metric-label">Integrity</span>
+                        <span class="metric-value" id="healthValue">100%</span>
+                    </div>
                 </div>
-                <div class="subvalue" id="roundLabel">Round 1</div>
+                <div class="location" id="locationValue">Safe Shallows</div>
             </div>
 
             <div class="panel">
-                <span class="eyebrow">Intel</span>
+                <span class="eyebrow">Scanner</span>
                 <div class="status-grid">
                     <div class="status-item">
-                        <span class="status-label">Enemies</span>
-                        <span class="status-value" id="enemyCountValue">0</span>
+                        <span class="status-label">Target</span>
+                        <span class="status-value" id="targetValue">Sweep the reef</span>
                     </div>
                     <div class="status-item">
-                        <span class="status-label">Bomb</span>
-                        <span class="status-value" id="bombStateValue">Armed</span>
+                        <span class="status-label">Signal</span>
+                        <span class="status-value" id="signalValue">Passive</span>
                     </div>
                     <div class="status-item">
-                        <span class="status-label">Loadout</span>
-                        <span class="status-value" id="weaponNameValue">M4A1-S</span>
+                        <span class="status-label">Scans</span>
+                        <span class="status-value" id="scanValue">0 / 4</span>
                     </div>
                     <div class="status-item">
-                        <span class="status-label">Ammo</span>
-                        <span class="status-value" id="ammoValue">30 / 90</span>
+                        <span class="status-label">Hint</span>
+                        <span class="status-value" id="hintValue">Press Space</span>
                     </div>
                 </div>
+                <div class="databank" id="databank"></div>
             </div>
         </div>
 
         <div class="hud-row hud-bottom">
             <div class="panel">
-                <span class="eyebrow">Player Status</span>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <span class="status-label">Health</span>
-                        <span class="status-value" id="healthValue">100</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Armor</span>
-                        <span class="status-value" id="armorValue">100</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Position</span>
-                        <span class="status-value" id="positionValue">Spawn</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Hint</span>
-                        <span class="status-value" id="hintValue">Hold angles</span>
-                    </div>
+                <span class="eyebrow">Mission Profile</span>
+                <div class="subvalue">
+                    Rebuild the scanner databank by cataloging native fauna. Graphics and atmosphere are the
+                    focus here: chase the glowing schools, drift through kelp forests, and use sonar to cut
+                    through the fog.
                 </div>
             </div>
 
             <div class="panel">
-                <span class="eyebrow">Weapons</span>
-                <div class="weapon-strip">
-                    <div class="weapon-card" id="weapon-pistol">
-                        <div class="weapon-title">1 - USP-S</div>
-                        <div class="weapon-ammo" id="weaponAmmo-pistol">12 / 48</div>
-                    </div>
-                    <div class="weapon-card active" id="weapon-rifle">
-                        <div class="weapon-title">2 - M4A1-S</div>
-                        <div class="weapon-ammo" id="weaponAmmo-rifle">30 / 90</div>
-                    </div>
-                    <div class="weapon-card" id="weapon-sniper">
-                        <div class="weapon-title">3 - AWP</div>
-                        <div class="weapon-ammo" id="weaponAmmo-sniper">5 / 20</div>
-                    </div>
-                </div>
+                <span class="eyebrow">Dive Log</span>
+                <div class="log-list" id="logList"></div>
             </div>
         </div>
 
-        <div class="feed" id="feed"></div>
-
-        <div class="defuse-wrap hidden" id="defuseWrap">
-            <div class="defuse-title">
-                <span id="defuseLabel">Hold E to defuse</span>
-                <span id="defuseTimeValue">0.0s</span>
+        <div class="scan-wrap hidden" id="scanWrap">
+            <div class="scan-title">
+                <span id="scanLabel">Hold E to scan</span>
+                <span id="scanTimeValue">0.0s</span>
             </div>
             <div class="bar">
-                <div class="bar-fill" id="defuseFill"></div>
+                <div class="bar-fill" id="scanFill"></div>
             </div>
         </div>
     </div>
 
-    <div class="crosshair" id="crosshair"></div>
+    <div class="reticle" id="reticle"></div>
 
     <div class="overlay" id="overlay">
         <div class="modal">
-            <span class="eyebrow">Counter-Strike inspired browser prototype</span>
-            <h1>Bombsite Breach</h1>
+            <span class="eyebrow">Subnautica-inspired browser prototype</span>
+            <h1>Abyssal Bloom</h1>
             <p class="lead">
-                A compact, no-dependency CS-style clone built in one file. You play the lone
-                counter-terrorist on a retake: clear site A, outduel the defenders, and defuse the bomb
-                before the round timer hits zero.
+                Descend into a stylized alien reef built entirely with canvas rendering. Swim the shallows,
+                scan glowing fauna, pulse sonar through the haze, and surface back at Life Pod 5 once your
+                databank is full.
             </p>
 
             <div class="controls-grid">
                 <div class="control-card">
-                    <h2>Move and peek</h2>
-                    <p>WASD to move. Hold Shift to slow-walk and tighten your spread when slicing corners.</p>
+                    <h2>Swim</h2>
+                    <p>Use WASD to glide through the water column. The diver has gentle inertia to keep the movement buoyant.</p>
                 </div>
                 <div class="control-card">
-                    <h2>Aim and shoot</h2>
-                    <p>Mouse to aim. Left click to fire. Press R to reload and manage magazines between fights.</p>
+                    <h2>Boost</h2>
+                    <p>Hold Shift for a seaglide-style burst. It drains energy, but it is the fastest way to cross the reef.</p>
                 </div>
                 <div class="control-card">
-                    <h2>Swap weapons</h2>
-                    <p>Press 1 for USP-S, 2 for M4A1-S, and 3 for the AWP depending on the angle you want.</p>
+                    <h2>Ping</h2>
+                    <p>Press Space to send out a sonar pulse. It highlights lifeforms and lets the scene bloom with luminous rings.</p>
                 </div>
                 <div class="control-card">
-                    <h2>Win the round</h2>
-                    <p>Eliminate defenders if you must, but the bomb stays live. Reach it and hold E to complete the defuse.</p>
+                    <h2>Scan</h2>
+                    <p>Face a creature and hold E when it is in range. Fill the databank with four unique species, then return to the pod.</p>
                 </div>
             </div>
 
             <div class="start-row">
-                <button id="startButton" type="button">Deploy Counter-Terrorist</button>
+                <button id="startButton" type="button">Begin Dive</button>
                 <div class="disclaimer">
-                    Best played on desktop in a full browser tab. Rounds restart automatically, and enemy pressure ramps up as the score climbs.
+                    This repository was not a Unity project, so the clone has been implemented as a single-file,
+                    graphics-first HTML5 canvas experience inside the existing codebase.
                 </div>
             </div>
         </div>
@@ -592,313 +549,298 @@
             const canvas = document.getElementById("game");
             const ctx = canvas.getContext("2d");
             const overlay = document.getElementById("overlay");
-            const crosshair = document.getElementById("crosshair");
+            const reticle = document.getElementById("reticle");
             const startButton = document.getElementById("startButton");
 
             const ui = {
                 objectiveValue: document.getElementById("objectiveValue"),
                 objectiveSubvalue: document.getElementById("objectiveSubvalue"),
-                timerValue: document.getElementById("timerValue"),
-                ctScore: document.getElementById("ctScore"),
-                tScore: document.getElementById("tScore"),
-                roundLabel: document.getElementById("roundLabel"),
-                enemyCountValue: document.getElementById("enemyCountValue"),
-                bombStateValue: document.getElementById("bombStateValue"),
-                weaponNameValue: document.getElementById("weaponNameValue"),
-                ammoValue: document.getElementById("ammoValue"),
+                depthValue: document.getElementById("depthValue"),
+                oxygenValue: document.getElementById("oxygenValue"),
+                energyValue: document.getElementById("energyValue"),
                 healthValue: document.getElementById("healthValue"),
-                armorValue: document.getElementById("armorValue"),
-                positionValue: document.getElementById("positionValue"),
+                locationValue: document.getElementById("locationValue"),
+                targetValue: document.getElementById("targetValue"),
+                signalValue: document.getElementById("signalValue"),
+                scanValue: document.getElementById("scanValue"),
                 hintValue: document.getElementById("hintValue"),
-                feed: document.getElementById("feed"),
-                defuseWrap: document.getElementById("defuseWrap"),
-                defuseFill: document.getElementById("defuseFill"),
-                defuseLabel: document.getElementById("defuseLabel"),
-                defuseTimeValue: document.getElementById("defuseTimeValue")
+                databank: document.getElementById("databank"),
+                logList: document.getElementById("logList"),
+                scanWrap: document.getElementById("scanWrap"),
+                scanLabel: document.getElementById("scanLabel"),
+                scanTimeValue: document.getElementById("scanTimeValue"),
+                scanFill: document.getElementById("scanFill")
             };
 
-            const WORLD = { width: 2200, height: 1400 };
-            const WEAPON_ORDER = ["pistol", "rifle", "sniper"];
-            const WEAPONS = {
-                pistol: {
-                    label: "USP-S",
-                    magSize: 12,
-                    reserve: 48,
-                    fireRate: 4.2,
-                    damage: 24,
-                    spread: 0.05,
-                    moveSpeed: 290,
-                    reloadTime: 1.4,
-                    range: 780,
-                    tracer: "#8be5ff",
-                    impact: "#b8f3ff",
-                    preferredRange: 320
+            const WORLD = { width: 3600, height: 2400, surface: 110 };
+            const REQUIRED_SCANS = 4;
+            const SPECIES_ORDER = ["peeper", "bladderfish", "glowray", "stalker", "reefback"];
+            const SPECIES = {
+                peeper: {
+                    label: "Peeper",
+                    radius: 18,
+                    speed: 92,
+                    scanTime: 1.5,
+                    body: "#ffb24c",
+                    accent: "#63e9ff",
+                    glow: 0.18
                 },
-                smg: {
-                    label: "MP9",
-                    magSize: 30,
-                    reserve: 120,
-                    fireRate: 12,
-                    damage: 18,
-                    spread: 0.08,
-                    moveSpeed: 310,
-                    reloadTime: 1.8,
-                    range: 680,
-                    tracer: "#7cf7b5",
-                    impact: "#c3ffe0",
-                    preferredRange: 220
+                bladderfish: {
+                    label: "Bladderfish",
+                    radius: 20,
+                    speed: 74,
+                    scanTime: 1.8,
+                    body: "#bf7eff",
+                    accent: "#ffe785",
+                    glow: 0.22
                 },
-                rifle: {
-                    label: "M4A1-S",
-                    magSize: 30,
-                    reserve: 90,
-                    fireRate: 8.6,
-                    damage: 31,
-                    spread: 0.04,
-                    moveSpeed: 265,
-                    reloadTime: 2.1,
-                    range: 980,
-                    tracer: "#ffd671",
-                    impact: "#ffe39e",
-                    preferredRange: 360
+                glowray: {
+                    label: "Glow Ray",
+                    radius: 34,
+                    speed: 48,
+                    scanTime: 2.2,
+                    body: "#75dfff",
+                    accent: "#e9ffff",
+                    glow: 0.36
                 },
-                sniper: {
-                    label: "AWP",
-                    magSize: 5,
-                    reserve: 20,
-                    fireRate: 1,
-                    damage: 110,
-                    spread: 0.006,
-                    moveSpeed: 215,
-                    reloadTime: 2.9,
-                    range: 1400,
-                    tracer: "#ff8f8f",
-                    impact: "#ffc3c3",
-                    preferredRange: 560
+                stalker: {
+                    label: "Stalker",
+                    radius: 30,
+                    speed: 86,
+                    scanTime: 2.6,
+                    body: "#6b98bb",
+                    accent: "#ff9762",
+                    glow: 0.16
+                },
+                reefback: {
+                    label: "Reefback",
+                    radius: 92,
+                    speed: 26,
+                    scanTime: 3.4,
+                    body: "#5c7f7b",
+                    accent: "#96ffd1",
+                    glow: 0.28
                 }
             };
 
             const state = {
                 started: false,
-                round: 1,
-                score: { ct: 0, t: 0 },
-                roundState: "idle",
-                endTimer: 0,
-                outcome: "",
-                outcomeDetail: "",
-                message: "",
+                missionComplete: false,
+                worldTime: 0,
+                lastTime: 0,
+                keys: {},
                 mouse: {
                     x: window.innerWidth / 2,
-                    y: window.innerHeight / 2,
-                    down: false
+                    y: window.innerHeight / 2
                 },
-                keys: {},
                 camera: { x: 0, y: 0 },
                 feed: [],
+                pings: [],
                 shake: 0,
-                lastTime: 0,
-                selectedWeapon: "rifle"
+                scannedSpecies: new Set(),
+                bannerTimer: 0,
+                pingCooldown: 0
             };
 
-            const map = createMap();
+            const world = createWorld();
             let player = null;
-            let enemies = [];
-            let bomb = null;
-            let traces = [];
-            let sparks = [];
+            let fauna = [];
+            let bubbles = [];
+            let scanCandidate = null;
 
-            function createMap() {
+            function createRock(x, y, radius, baseColor) {
+                const lobes = [];
+                const count = 4 + Math.floor(Math.random() * 3);
+                for (let index = 0; index < count; index += 1) {
+                    const angle = (index / count) * Math.PI * 2 + Math.random() * 0.35;
+                    const distance = radius * randomRange(0.18, 0.45);
+                    lobes.push({
+                        x: Math.cos(angle) * distance,
+                        y: Math.sin(angle) * distance,
+                        radius: radius * randomRange(0.52, 0.84)
+                    });
+                }
+                return { x, y, radius, baseColor, lobes };
+            }
+
+            function createWorld() {
+                const rocks = [
+                    createRock(440, 760, 160, "#234f67"),
+                    createRock(770, 560, 150, "#2a5367"),
+                    createRock(1040, 910, 180, "#21455d"),
+                    createRock(1450, 720, 150, "#264c61"),
+                    createRock(1780, 1180, 210, "#21465b"),
+                    createRock(2240, 910, 180, "#23455d"),
+                    createRock(2670, 1480, 220, "#203d52"),
+                    createRock(2960, 1100, 200, "#1f374b"),
+                    createRock(3040, 1820, 260, "#1e3244"),
+                    createRock(1220, 1650, 190, "#22455c"),
+                    createRock(700, 1860, 220, "#26485e"),
+                    createRock(2000, 1980, 240, "#1c3346")
+                ];
+
+                const kelpClusters = [
+                    createKelpCluster(610, 820, 20, 220, 190, "back"),
+                    createKelpCluster(880, 970, 18, 250, 170, "front"),
+                    createKelpCluster(1320, 980, 24, 280, 220, "back"),
+                    createKelpCluster(2070, 1380, 20, 310, 180, "front"),
+                    createKelpCluster(2570, 1680, 16, 360, 180, "front"),
+                    createKelpCluster(3140, 1960, 18, 320, 190, "back")
+                ];
+
+                const coralFields = [
+                    createCoralField(430, 940, 28, 160, ["#ffb671", "#ff6b66", "#8ff6ff", "#ffd95c"]),
+                    createCoralField(980, 1260, 34, 190, ["#ff6a8f", "#7ef4ff", "#ffc35f", "#ac86ff"]),
+                    createCoralField(1520, 920, 26, 150, ["#ffe17f", "#ff8b6a", "#6de4ff", "#7ef7c2"]),
+                    createCoralField(2260, 1160, 32, 180, ["#ffd05a", "#ff8d68", "#8dfbff", "#ff75c4"]),
+                    createCoralField(2810, 1680, 30, 170, ["#ff8e74", "#84f1ff", "#d7ff83", "#ba8fff"]),
+                    createCoralField(980, 1920, 24, 170, ["#ffbb7c", "#7ff7d3", "#ffc24d", "#76e8ff"])
+                ];
+
+                const vents = [
+                    { x: 1220, y: 1880, radius: 110, glow: "#ffbe5d" },
+                    { x: 2420, y: 2010, radius: 120, glow: "#ff9c5b" }
+                ];
+
+                const landmarks = [
+                    { type: "pod", label: "Life Pod 5", x: 340, y: 300, radius: 120, glow: "#7ef4ff" },
+                    { type: "wreck", label: "Aurora Debris", x: 1320, y: 840, radius: 120, glow: "#ffb083" },
+                    { type: "arch", label: "Architect Arch", x: 2760, y: 1420, radius: 140, glow: "#89f7ff" }
+                ];
+
+                const schools = [
+                    createSchool(760, 450, 22, 180, 20, "#96eaff", 0.85),
+                    createSchool(1660, 610, 18, 170, 16, "#ffd882", 0.65),
+                    createSchool(2500, 1040, 26, 220, 24, "#84f6ff", 0.72),
+                    createSchool(3090, 640, 20, 180, 18, "#c1b9ff", 0.58)
+                ];
+
+                const motes = Array.from({ length: 240 }, () => ({
+                    x: Math.random() * WORLD.width,
+                    y: Math.random() * WORLD.height,
+                    radius: randomRange(0.8, 2.6),
+                    alpha: randomRange(0.08, 0.24),
+                    speed: randomRange(6, 18)
+                }));
+
                 return {
-                    spawn: { x: 220, y: 1130 },
-                    bomb: { x: 1760, y: 430 },
-                    site: { x: 1490, y: 250, w: 430, h: 380 },
-                    walls: [
-                        { x: 0, y: 0, w: WORLD.width, h: 40 },
-                        { x: 0, y: WORLD.height - 40, w: WORLD.width, h: 40 },
-                        { x: 0, y: 0, w: 40, h: WORLD.height },
-                        { x: WORLD.width - 40, y: 0, w: 40, h: WORLD.height },
-                        { x: 220, y: 910, w: 460, h: 70 },
-                        { x: 360, y: 630, w: 110, h: 190 },
-                        { x: 680, y: 450, w: 260, h: 80 },
-                        { x: 820, y: 820, w: 120, h: 260 },
-                        { x: 1010, y: 210, w: 90, h: 260 },
-                        { x: 1110, y: 640, w: 300, h: 90 },
-                        { x: 1260, y: 1080, w: 90, h: 220 },
-                        { x: 1420, y: 500, w: 110, h: 310 },
-                        { x: 1465, y: 260, w: 140, h: 120 },
-                        { x: 1600, y: 160, w: 240, h: 70 },
-                        { x: 1710, y: 680, w: 260, h: 100 },
-                        { x: 1880, y: 320, w: 90, h: 260 },
-                        { x: 1460, y: 920, w: 380, h: 90 }
-                    ],
-                    enemyConfigs: [
-                        {
-                            name: "Ramp",
-                            x: 1350,
-                            y: 1120,
-                            weapon: "rifle",
-                            speed: 185,
-                            patrol: [
-                                { x: 1350, y: 1120 },
-                                { x: 1540, y: 1090 },
-                                { x: 1490, y: 880 }
-                            ]
-                        },
-                        {
-                            name: "Default",
-                            x: 1730,
-                            y: 430,
-                            weapon: "smg",
-                            speed: 210,
-                            patrol: [
-                                { x: 1730, y: 430 },
-                                { x: 1610, y: 520 },
-                                { x: 1840, y: 520 }
-                            ]
-                        },
-                        {
-                            name: "Heaven",
-                            x: 1530,
-                            y: 180,
-                            weapon: "sniper",
-                            speed: 165,
-                            patrol: [
-                                { x: 1530, y: 180 },
-                                { x: 1795, y: 180 }
-                            ]
-                        },
-                        {
-                            name: "Market",
-                            x: 1940,
-                            y: 880,
-                            weapon: "rifle",
-                            speed: 190,
-                            patrol: [
-                                { x: 1940, y: 880 },
-                                { x: 1780, y: 900 },
-                                { x: 1870, y: 1120 }
-                            ]
-                        },
-                        {
-                            name: "Rotator",
-                            x: 980,
-                            y: 220,
-                            weapon: "smg",
-                            speed: 220,
-                            patrol: [
-                                { x: 980, y: 220 },
-                                { x: 1180, y: 320 },
-                                { x: 1320, y: 250 }
-                            ]
-                        }
-                    ]
+                    spawn: { x: 360, y: 320 },
+                    rocks,
+                    kelpClusters,
+                    coralFields,
+                    vents,
+                    landmarks,
+                    schools,
+                    motes
                 };
             }
 
-            function createWeaponState(type) {
-                const weapon = WEAPONS[type];
+            function createKelpCluster(x, y, count, height, spread, layer) {
+                const stalks = [];
+                for (let index = 0; index < count; index += 1) {
+                    stalks.push({
+                        offsetX: randomRange(-spread / 2, spread / 2),
+                        offsetY: randomRange(-20, 24),
+                        height: height * randomRange(0.7, 1.15),
+                        width: randomRange(12, 18),
+                        swayOffset: Math.random() * Math.PI * 2
+                    });
+                }
+                return { x, y, stalks, layer };
+            }
+
+            function createCoralField(x, y, count, spread, palette) {
+                const pieces = [];
+                for (let index = 0; index < count; index += 1) {
+                    pieces.push({
+                        x: x + randomRange(-spread / 2, spread / 2),
+                        y: y + randomRange(-spread / 2, spread / 2),
+                        size: randomRange(14, 34),
+                        type: Math.floor(Math.random() * 3),
+                        color: palette[Math.floor(Math.random() * palette.length)]
+                    });
+                }
+                return { pieces };
+            }
+
+            function createSchool(x, y, count, spread, size, color, speed) {
+                const fish = [];
+                for (let index = 0; index < count; index += 1) {
+                    fish.push({
+                        x: randomRange(-spread / 2, spread / 2),
+                        y: randomRange(-spread / 2, spread / 2),
+                        size: randomRange(size * 0.4, size),
+                        phase: Math.random() * Math.PI * 2
+                    });
+                }
+                return { x, y, fish, color, speed, spread };
+            }
+
+            function createFauna() {
+                return [
+                    createCreature("peeper", 640, 430, 140),
+                    createCreature("peeper", 920, 520, 160),
+                    createCreature("peeper", 1820, 760, 180),
+                    createCreature("bladderfish", 520, 980, 120),
+                    createCreature("bladderfish", 1450, 1140, 150),
+                    createCreature("glowray", 2080, 980, 180),
+                    createCreature("glowray", 2840, 1320, 210),
+                    createCreature("stalker", 1170, 1020, 180),
+                    createCreature("stalker", 2550, 1710, 220),
+                    createCreature("reefback", 3190, 1760, 260)
+                ];
+            }
+
+            function createCreature(species, x, y, roamRadius) {
                 return {
-                    type,
-                    clip: weapon.magSize,
-                    reserve: weapon.reserve,
-                    reloadTimer: 0,
-                    fireCooldown: 0,
-                    muzzleFlash: 0
+                    species,
+                    x,
+                    y,
+                    homeX: x,
+                    homeY: y,
+                    vx: 0,
+                    vy: 0,
+                    angle: Math.random() * Math.PI * 2,
+                    radius: SPECIES[species].radius,
+                    roamRadius,
+                    t: Math.random() * Math.PI * 2,
+                    biteCooldown: 0
                 };
             }
 
             function createPlayer() {
                 return {
-                    team: "ct",
-                    label: "CT-01",
-                    x: map.spawn.x,
-                    y: map.spawn.y,
-                    radius: 18,
-                    hp: 100,
-                    armor: 100,
-                    alive: true,
+                    x: world.spawn.x,
+                    y: world.spawn.y,
+                    vx: 0,
+                    vy: 0,
                     angle: 0,
-                    hurtFlash: 0,
-                    isMoving: false,
-                    inventory: {
-                        pistol: createWeaponState("pistol"),
-                        rifle: createWeaponState("rifle"),
-                        sniper: createWeaponState("sniper")
-                    },
-                    activeWeapon: state.selectedWeapon
-                };
-            }
-
-            function createEnemy(config, difficulty) {
-                return {
-                    team: "t",
-                    label: config.name,
-                    x: config.x,
-                    y: config.y,
                     radius: 18,
-                    hp: 100,
-                    armor: 70,
-                    alive: true,
-                    angle: Math.PI,
-                    speed: config.speed + difficulty * 5,
-                    skill: clamp(0.65 + difficulty * 0.04, 0.65, 0.92),
-                    patrol: config.patrol.map((point) => ({ ...point })),
-                    patrolIndex: 0,
-                    strafeDir: Math.random() > 0.5 ? 1 : -1,
-                    strafeClock: randomRange(0.5, 1.3),
-                    aggro: 0,
-                    focusX: config.x,
-                    focusY: config.y,
-                    hurtFlash: 0,
-                    isMoving: false,
-                    inventory: {
-                        [config.weapon]: createWeaponState(config.weapon)
-                    },
-                    activeWeapon: config.weapon
+                    oxygen: 100,
+                    health: 100,
+                    energy: 100,
+                    scanProgress: 0,
+                    scanSpecies: "",
+                    trailClock: 0,
+                    damageFlash: 0
                 };
             }
 
-            function createBomb() {
-                return {
-                    x: map.bomb.x,
-                    y: map.bomb.y,
-                    timer: clamp(47 - (state.round - 1) * 0.8, 32, 47),
-                    defuseProgress: 0,
-                    defuseDuration: 4,
-                    pulse: 0
-                };
-            }
-
-            function initRound() {
-                const difficulty = state.round - 1;
-                const defenderCount = clamp(3 + Math.floor(difficulty / 2), 3, map.enemyConfigs.length);
-
-                player = createPlayer();
-                enemies = map.enemyConfigs.slice(0, defenderCount).map((config) => createEnemy(config, difficulty));
-                bomb = createBomb();
-                traces = [];
-                sparks = [];
-                state.roundState = "playing";
-                state.endTimer = 0;
-                state.outcome = "";
-                state.outcomeDetail = "";
-                state.message = "Retake A before the clock hits zero.";
-                pushFeed("Round " + state.round + " live. Bomb planted on A.", "warn");
-                updateHud();
-            }
-
-            function startMatch() {
-                if (state.started) {
-                    return;
-                }
+            function startDive() {
                 state.started = true;
-                state.round = 1;
-                state.score.ct = 0;
-                state.score.t = 0;
+                state.missionComplete = false;
+                state.scannedSpecies = new Set();
                 state.feed = [];
-                renderFeed();
+                state.pings = [];
+                state.bannerTimer = 0;
+                state.worldTime = 0;
                 overlay.classList.add("hidden");
-                initRound();
+                player = createPlayer();
+                fauna = createFauna();
+                bubbles = [];
+                pushFeed("Lifepod systems online. Begin fauna cataloging.", "ok");
+                pushFeed("Press Space to pulse sonar through the water column.", "warn");
+                updateHud();
             }
 
             function clamp(value, min, max) {
@@ -909,6 +851,10 @@
                 return min + Math.random() * (max - min);
             }
 
+            function lerp(start, end, alpha) {
+                return start + (end - start) * alpha;
+            }
+
             function distance(a, b) {
                 return Math.hypot(a.x - b.x, a.y - b.y);
             }
@@ -917,846 +863,1001 @@
                 return Math.atan2(b.y - a.y, b.x - a.x);
             }
 
-            function lerp(start, end, alpha) {
-                return start + (end - start) * alpha;
-            }
-
-            function formatTime(seconds) {
-                const clamped = Math.max(0, seconds);
-                const whole = Math.ceil(clamped);
-                const minutes = String(Math.floor(whole / 60)).padStart(2, "0");
-                const remaining = String(whole % 60).padStart(2, "0");
-                return minutes + ":" + remaining;
-            }
-
-            function getWeaponState(entity) {
-                return entity.inventory[entity.activeWeapon];
-            }
-
-            function circleIntersectsRect(circleX, circleY, radius, rect) {
-                const nearestX = clamp(circleX, rect.x, rect.x + rect.w);
-                const nearestY = clamp(circleY, rect.y, rect.y + rect.h);
-                const dx = circleX - nearestX;
-                const dy = circleY - nearestY;
-                return dx * dx + dy * dy < radius * radius;
-            }
-
-            function moveEntity(entity, dx, dy) {
-                if (!entity.alive) {
-                    return;
+            function shortestAngleDelta(from, to) {
+                let delta = to - from;
+                while (delta > Math.PI) {
+                    delta -= Math.PI * 2;
                 }
+                while (delta < -Math.PI) {
+                    delta += Math.PI * 2;
+                }
+                return delta;
+            }
 
-                if (dx !== 0) {
-                    entity.x += dx;
-                    for (const wall of map.walls) {
-                        if (circleIntersectsRect(entity.x, entity.y, entity.radius, wall)) {
-                            entity.x = dx > 0 ? wall.x - entity.radius : wall.x + wall.w + entity.radius;
-                        }
+            function expLerpFactor(speed, dt) {
+                return 1 - Math.exp(-speed * dt);
+            }
+
+            function moveWithRockCollision(entity, dt) {
+                entity.x += entity.vx * dt;
+                entity.y += entity.vy * dt;
+
+                entity.x = clamp(entity.x, entity.radius + 32, WORLD.width - entity.radius - 32);
+                entity.y = clamp(entity.y, entity.radius + 48, WORLD.height - entity.radius - 32);
+
+                for (const rock of world.rocks) {
+                    const dx = entity.x - rock.x;
+                    const dy = entity.y - rock.y;
+                    const distanceToRock = Math.hypot(dx, dy);
+                    const minimum = rock.radius * 0.72 + entity.radius;
+                    if (distanceToRock > 0 && distanceToRock < minimum) {
+                        const normalX = dx / distanceToRock;
+                        const normalY = dy / distanceToRock;
+                        entity.x = rock.x + normalX * minimum;
+                        entity.y = rock.y + normalY * minimum;
+                        entity.vx *= 0.82;
+                        entity.vy *= 0.82;
                     }
                 }
-
-                if (dy !== 0) {
-                    entity.y += dy;
-                    for (const wall of map.walls) {
-                        if (circleIntersectsRect(entity.x, entity.y, entity.radius, wall)) {
-                            entity.y = dy > 0 ? wall.y - entity.radius : wall.y + wall.h + entity.radius;
-                        }
-                    }
-                }
-
-                entity.x = clamp(entity.x, entity.radius + 44, WORLD.width - entity.radius - 44);
-                entity.y = clamp(entity.y, entity.radius + 44, WORLD.height - entity.radius - 44);
-            }
-
-            function segmentRectHitT(x1, y1, x2, y2, rect) {
-                const dx = x2 - x1;
-                const dy = y2 - y1;
-                let tMin = 0;
-                let tMax = 1;
-
-                if (Math.abs(dx) < 0.000001) {
-                    if (x1 < rect.x || x1 > rect.x + rect.w) {
-                        return Infinity;
-                    }
-                } else {
-                    const tx1 = (rect.x - x1) / dx;
-                    const tx2 = (rect.x + rect.w - x1) / dx;
-                    tMin = Math.max(tMin, Math.min(tx1, tx2));
-                    tMax = Math.min(tMax, Math.max(tx1, tx2));
-                    if (tMin > tMax) {
-                        return Infinity;
-                    }
-                }
-
-                if (Math.abs(dy) < 0.000001) {
-                    if (y1 < rect.y || y1 > rect.y + rect.h) {
-                        return Infinity;
-                    }
-                } else {
-                    const ty1 = (rect.y - y1) / dy;
-                    const ty2 = (rect.y + rect.h - y1) / dy;
-                    tMin = Math.max(tMin, Math.min(ty1, ty2));
-                    tMax = Math.min(tMax, Math.max(ty1, ty2));
-                    if (tMin > tMax) {
-                        return Infinity;
-                    }
-                }
-
-                return tMin >= 0 && tMin <= 1 ? tMin : Infinity;
-            }
-
-            function segmentCircleHitT(x1, y1, x2, y2, entity) {
-                const dx = x2 - x1;
-                const dy = y2 - y1;
-                const fx = x1 - entity.x;
-                const fy = y1 - entity.y;
-                const a = dx * dx + dy * dy;
-                const b = 2 * (fx * dx + fy * dy);
-                const c = fx * fx + fy * fy - entity.radius * entity.radius;
-                const discriminant = b * b - 4 * a * c;
-
-                if (discriminant < 0) {
-                    return Infinity;
-                }
-
-                const root = Math.sqrt(discriminant);
-                const t1 = (-b - root) / (2 * a);
-                const t2 = (-b + root) / (2 * a);
-
-                if (t1 >= 0 && t1 <= 1) {
-                    return t1;
-                }
-
-                if (t2 >= 0 && t2 <= 1) {
-                    return t2;
-                }
-
-                return Infinity;
-            }
-
-            function nearestWallHitT(x1, y1, x2, y2) {
-                let nearest = Infinity;
-                for (const wall of map.walls) {
-                    const hit = segmentRectHitT(x1, y1, x2, y2, wall);
-                    if (hit < nearest) {
-                        nearest = hit;
-                    }
-                }
-                return nearest;
-            }
-
-            function canSee(shooter, target) {
-                if (!shooter.alive || !target.alive) {
-                    return false;
-                }
-
-                const weapon = WEAPONS[shooter.activeWeapon];
-                if (distance(shooter, target) > weapon.range * 0.85) {
-                    return false;
-                }
-
-                return nearestWallHitT(shooter.x, shooter.y, target.x, target.y) === Infinity;
             }
 
             function pushFeed(text, tone) {
-                state.feed.unshift({ text, tone, ttl: 3.8 });
+                state.feed.unshift({ text, tone, ttl: 6 });
                 state.feed = state.feed.slice(0, 5);
                 renderFeed();
             }
 
             function renderFeed() {
-                ui.feed.innerHTML = state.feed
-                    .map(
-                        (entry) =>
-                            '<div class="feed-entry ' +
-                            entry.tone +
-                            '">' +
-                            entry.text +
-                            "</div>"
-                    )
+                ui.logList.innerHTML = state.feed
+                    .map((entry) => '<div class="log-entry ' + entry.tone + '">' + entry.text + "</div>")
                     .join("");
             }
 
-            function spawnImpact(x, y, color, count) {
-                for (let i = 0; i < count; i += 1) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = randomRange(35, 125);
-                    sparks.push({
-                        x,
-                        y,
-                        vx: Math.cos(angle) * speed,
-                        vy: Math.sin(angle) * speed,
-                        radius: randomRange(1.6, 3.4),
-                        ttl: randomRange(0.14, 0.34),
-                        color
-                    });
+            function findLandmark(type) {
+                return world.landmarks.find((landmark) => landmark.type === type);
+            }
+
+            function isNearLandmark(type, range) {
+                const landmark = findLandmark(type);
+                return landmark && player ? distance(player, landmark) < range : false;
+            }
+
+            function isNearVent(range) {
+                return player && world.vents.some((vent) => distance(player, vent) < range);
+            }
+
+            function emitPing() {
+                if (!player || state.pingCooldown > 0 || player.energy < 8) {
+                    return;
                 }
-            }
 
-            function completeReload(entity, weaponState) {
-                const weapon = WEAPONS[weaponState.type];
-                const missing = weapon.magSize - weaponState.clip;
-                const transferred = Math.min(missing, weaponState.reserve);
-                weaponState.clip += transferred;
-                weaponState.reserve -= transferred;
-            }
-
-            function updateWeaponTimers(entity, dt) {
-                Object.values(entity.inventory).forEach((weaponState) => {
-                    weaponState.fireCooldown = Math.max(0, weaponState.fireCooldown - dt);
-                    weaponState.muzzleFlash = Math.max(0, weaponState.muzzleFlash - dt * 9);
-
-                    if (weaponState.reloadTimer > 0) {
-                        weaponState.reloadTimer -= dt;
-                        if (weaponState.reloadTimer <= 0) {
-                            weaponState.reloadTimer = 0;
-                            completeReload(entity, weaponState);
-                        }
-                    }
+                state.pings.push({
+                    x: player.x,
+                    y: player.y,
+                    radius: 12,
+                    alpha: 0.9
                 });
+                player.energy = Math.max(0, player.energy - 8);
+                state.pingCooldown = 0.65;
+                state.shake = Math.max(state.shake, 2.5);
             }
 
-            function startReload(entity) {
-                const weapon = getWeaponState(entity);
-                const weaponInfo = WEAPONS[weapon.type];
-
-                if (weapon.reloadTimer > 0 || weapon.reserve <= 0 || weapon.clip >= weaponInfo.magSize) {
-                    return false;
-                }
-
-                weapon.reloadTimer = weaponInfo.reloadTime;
-                if (entity === player) {
-                    pushFeed("Reloading " + weaponInfo.label + ".", "warn");
-                }
-                return true;
+            function respawnPlayer(reason) {
+                const pod = findLandmark("pod");
+                player.x = pod.x + 80;
+                player.y = pod.y + 50;
+                player.vx = 0;
+                player.vy = 0;
+                player.oxygen = 100;
+                player.energy = 100;
+                player.health = 100;
+                player.scanProgress = 0;
+                player.scanSpecies = "";
+                pushFeed(reason, "danger");
             }
 
-            function alertEnemies(intensity) {
+            function getDepthMeters() {
+                if (!player) {
+                    return 0;
+                }
+                return Math.max(0, Math.round((player.y - WORLD.surface) * 0.12));
+            }
+
+            function getLocationName() {
+                if (!player) {
+                    return "Safe Shallows";
+                }
+                if (player.x < 900 && player.y < 900) {
+                    return "Safe Shallows";
+                }
+                if (player.x < 1700 && player.y < 1500) {
+                    return "Kelp Forest";
+                }
+                if (player.y > 1700) {
+                    return "Thermal Shelf";
+                }
+                if (player.x > 2500) {
+                    return "Grand Reef";
+                }
+                return "Twisty Bridges";
+            }
+
+            function getScanCandidate() {
+                if (!player) {
+                    return null;
+                }
+
+                let best = null;
+                for (const creature of fauna) {
+                    if (state.scannedSpecies.has(creature.species)) {
+                        continue;
+                    }
+
+                    const dist = distance(player, creature);
+                    if (dist > 170) {
+                        continue;
+                    }
+
+                    const angle = Math.atan2(creature.y - player.y, creature.x - player.x);
+                    const diff = Math.abs(shortestAngleDelta(player.angle, angle));
+                    if (diff > 0.9) {
+                        continue;
+                    }
+
+                    if (!best || dist < best.distance) {
+                        best = { creature, distance: dist };
+                    }
+                }
+
+                return best;
+            }
+
+            function completeScan(species) {
+                if (state.scannedSpecies.has(species)) {
+                    return;
+                }
+
+                state.scannedSpecies.add(species);
+                pushFeed(SPECIES[species].label + " added to databank.", "ok");
+                state.shake = Math.max(state.shake, 1.5);
+
+                if (state.scannedSpecies.size >= REQUIRED_SCANS) {
+                    pushFeed("Databank full. Return to Life Pod 5.", "warn");
+                }
+            }
+
+            function updatePlayer(dt) {
                 if (!player) {
                     return;
                 }
 
-                for (const enemy of enemies) {
-                    if (!enemy.alive) {
-                        continue;
-                    }
-                    if (distance(enemy, player) < 920) {
-                        enemy.aggro = Math.max(enemy.aggro, intensity);
-                        enemy.focusX = player.x;
-                        enemy.focusY = player.y;
-                    }
-                }
-            }
-
-            function applyDamage(target, amount, sourceLabel) {
-                if (!target.alive) {
-                    return;
-                }
-
-                let damage = amount;
-                if (target.armor > 0) {
-                    const absorbed = Math.min(target.armor, amount * 0.45);
-                    target.armor -= absorbed;
-                    damage -= absorbed * 0.55;
-                }
-
-                target.hp -= damage;
-                target.hurtFlash = 0.3;
-
-                if (target === player) {
-                    state.shake = Math.max(state.shake, 8);
-                }
-
-                if (target.hp <= 0) {
-                    target.hp = 0;
-                    target.alive = false;
-                    pushFeed(sourceLabel + " eliminated " + target.label + ".", player && sourceLabel === player.label ? "ct" : "t");
-
-                    if (target === player) {
-                        endRound("t", "You were traded before the defuse.");
-                    } else if (enemies.every((enemy) => !enemy.alive)) {
-                        pushFeed("Site clear. Get to the bomb.", "ct");
-                    }
-                }
-            }
-
-            function fireWeapon(entity, isEnemy) {
-                const weaponState = getWeaponState(entity);
-                const weapon = WEAPONS[weaponState.type];
-
-                if (!entity.alive || weaponState.reloadTimer > 0 || weaponState.fireCooldown > 0) {
-                    return;
-                }
-
-                if (weaponState.clip <= 0) {
-                    startReload(entity);
-                    return;
-                }
-
-                weaponState.clip -= 1;
-                weaponState.fireCooldown = 1 / weapon.fireRate;
-                weaponState.muzzleFlash = 1;
-
-                const spread = weapon.spread + (entity.isMoving ? weapon.spread * 0.9 : 0);
-                const accuracy = isEnemy ? Math.max(0.45, 1.18 - entity.skill) : state.keys.shift ? 0.7 : 1;
-                const shotAngle = entity.angle + randomRange(-spread, spread) * accuracy;
-                const startX = entity.x + Math.cos(shotAngle) * (entity.radius + 14);
-                const startY = entity.y + Math.sin(shotAngle) * (entity.radius + 14);
-                const endX = startX + Math.cos(shotAngle) * weapon.range;
-                const endY = startY + Math.sin(shotAngle) * weapon.range;
-
-                let nearestWall = nearestWallHitT(startX, startY, endX, endY);
-                let nearestTarget = { entity: null, t: Infinity };
-                const targets = isEnemy ? [player] : enemies.filter((enemy) => enemy.alive);
-
-                for (const target of targets) {
-                    const hit = segmentCircleHitT(startX, startY, endX, endY, target);
-                    if (hit < nearestTarget.t) {
-                        nearestTarget = { entity: target, t: hit };
-                    }
-                }
-
-                const hitsTarget = nearestTarget.entity && nearestTarget.t < nearestWall;
-                const impactT = hitsTarget ? nearestTarget.t : nearestWall !== Infinity ? nearestWall : 1;
-                const impactX = lerp(startX, endX, impactT);
-                const impactY = lerp(startY, endY, impactT);
-
-                traces.push({
-                    x1: startX,
-                    y1: startY,
-                    x2: impactX,
-                    y2: impactY,
-                    width: isEnemy ? 2 : 3,
-                    ttl: 0.08,
-                    color: weapon.tracer
-                });
-
-                if (hitsTarget) {
-                    const scaledDamage = weapon.damage * randomRange(0.92, 1.08);
-                    applyDamage(nearestTarget.entity, scaledDamage, entity.label);
-                    spawnImpact(impactX, impactY, weapon.impact, 8);
-                } else {
-                    spawnImpact(impactX, impactY, "#dbe9ff", 4);
-                }
-
-                if (entity === player) {
-                    state.shake = Math.max(state.shake, weaponState.type === "sniper" ? 7 : 4);
-                    alertEnemies(1.45);
-                    if (weaponState.clip === 0 && weaponState.reserve > 0) {
-                        startReload(entity);
-                    }
-                }
-            }
-
-            function switchWeapon(type) {
-                if (!player || !player.inventory[type]) {
-                    return;
-                }
-                player.activeWeapon = type;
-                state.selectedWeapon = type;
-            }
-
-            function isNearBomb(entity) {
-                if (!bomb) {
-                    return false;
-                }
-                return Math.hypot(entity.x - bomb.x, entity.y - bomb.y) < 96;
-            }
-
-            function updatePlayer(dt) {
-                if (!player || !player.alive) {
-                    return;
-                }
-
-                updateWeaponTimers(player, dt);
-                player.hurtFlash = Math.max(0, player.hurtFlash - dt);
+                player.damageFlash = Math.max(0, player.damageFlash - dt * 2.5);
+                state.pingCooldown = Math.max(0, state.pingCooldown - dt);
 
                 const moveX = (state.keys.d ? 1 : 0) - (state.keys.a ? 1 : 0);
                 const moveY = (state.keys.s ? 1 : 0) - (state.keys.w ? 1 : 0);
                 const length = Math.hypot(moveX, moveY) || 1;
-                const activeWeapon = WEAPONS[player.activeWeapon];
-                let speed = activeWeapon.moveSpeed;
+                const boosting = state.keys.shift && player.energy > 0;
+                const speed = boosting ? 280 : 190;
+                const factor = expLerpFactor(boosting ? 5.4 : 4.4, dt);
+                const targetVX = (moveX / length) * speed * (moveX || moveY ? 1 : 0);
+                const targetVY = (moveY / length) * speed * (moveX || moveY ? 1 : 0);
 
-                if (state.keys.shift) {
-                    speed *= 0.6;
+                player.vx = lerp(player.vx, targetVX, factor);
+                player.vy = lerp(player.vy, targetVY, factor);
+                player.vx *= moveX || moveY ? 0.992 : 0.95;
+                player.vy *= moveX || moveY ? 0.992 : 0.95;
+
+                if (boosting && (moveX || moveY)) {
+                    player.energy = Math.max(0, player.energy - dt * 18);
+                } else {
+                    player.energy = Math.min(100, player.energy + dt * (isNearVent(150) ? 18 : 10));
                 }
 
-                player.isMoving = moveX !== 0 || moveY !== 0;
-                moveEntity(player, (moveX / length) * speed * dt, (moveY / length) * speed * dt);
+                moveWithRockCollision(player, dt);
 
                 const worldMouseX = state.mouse.x + state.camera.x;
                 const worldMouseY = state.mouse.y + state.camera.y;
                 player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
 
-                if (state.mouse.down) {
-                    fireWeapon(player, false);
+                const nearSurface = player.y < WORLD.surface + 80;
+                if (nearSurface || isNearLandmark("pod", 160) || isNearVent(130)) {
+                    player.oxygen = Math.min(100, player.oxygen + dt * 34);
+                } else {
+                    player.oxygen = Math.max(0, player.oxygen - dt * 4.8);
                 }
 
-                if (isNearBomb(player) && state.keys.e) {
-                    bomb.defuseProgress = Math.min(bomb.defuseDuration, bomb.defuseProgress + dt);
-                    if (bomb.defuseProgress >= bomb.defuseDuration) {
-                        endRound("ct", "Bomb defused with " + formatTime(bomb.timer) + " remaining.");
+                if (player.oxygen <= 0) {
+                    player.health = Math.max(0, player.health - dt * 16);
+                    player.damageFlash = 1;
+                }
+
+                scanCandidate = getScanCandidate();
+                if (!state.missionComplete && state.keys.e && scanCandidate) {
+                    const species = scanCandidate.creature.species;
+                    const scanTime = SPECIES[species].scanTime;
+                    if (player.scanSpecies !== species) {
+                        player.scanProgress = 0;
+                        player.scanSpecies = species;
                     }
-                } else {
-                    bomb.defuseProgress = Math.max(0, bomb.defuseProgress - dt * 1.8);
+
+                    player.scanProgress = Math.min(scanTime, player.scanProgress + dt);
+                    if (Math.random() < 0.3) {
+                        spawnBubble(scanCandidate.creature.x, scanCandidate.creature.y, "#7ef4ff", 2.5);
+                    }
+
+                    if (player.scanProgress >= scanTime) {
+                        completeScan(species);
+                        player.scanProgress = 0;
+                        player.scanSpecies = "";
+                    }
+                } else if (player.scanProgress > 0) {
+                    player.scanProgress = Math.max(0, player.scanProgress - dt * 1.8);
+                    if (player.scanProgress === 0) {
+                        player.scanSpecies = "";
+                    }
+                }
+
+                if (!state.missionComplete && state.scannedSpecies.size >= REQUIRED_SCANS && isNearLandmark("pod", 170)) {
+                    state.missionComplete = true;
+                    state.bannerTimer = 5;
+                    pushFeed("Dive complete. Databank uplink successful.", "ok");
+                }
+
+                if (player.health <= 0) {
+                    respawnPlayer("Emergency ascent triggered. Diver recovered at pod.");
+                }
+
+                player.trailClock += dt;
+                if ((Math.abs(player.vx) + Math.abs(player.vy) > 90 || boosting) && player.trailClock > 0.05) {
+                    player.trailClock = 0;
+                    spawnBubble(
+                        player.x - Math.cos(player.angle) * 18 + randomRange(-6, 6),
+                        player.y - Math.sin(player.angle) * 18 + randomRange(-6, 6),
+                        "#d8ffff",
+                        randomRange(1.5, 4.4)
+                    );
                 }
             }
 
-            function updateEnemies(dt) {
-                if (!player || !bomb) {
+            function updateFauna(dt) {
+                if (!player) {
                     return;
                 }
 
-                for (const enemy of enemies) {
-                    if (!enemy.alive) {
-                        continue;
-                    }
+                for (const creature of fauna) {
+                    const meta = SPECIES[creature.species];
+                    creature.t += dt;
+                    creature.biteCooldown = Math.max(0, creature.biteCooldown - dt);
 
-                    updateWeaponTimers(enemy, dt);
-                    enemy.hurtFlash = Math.max(0, enemy.hurtFlash - dt);
+                    const toPlayer = distance(creature, player);
+                    let targetX = creature.homeX + Math.cos(creature.t * 0.8 + creature.homeX * 0.01) * creature.roamRadius;
+                    let targetY = creature.homeY + Math.sin(creature.t * 0.6 + creature.homeY * 0.01) * creature.roamRadius * 0.6;
+                    let desiredSpeed = meta.speed;
 
-                    const seesPlayer = player.alive && canSee(enemy, player);
-                    enemy.isMoving = false;
-
-                    if (seesPlayer) {
-                        enemy.aggro = Math.max(enemy.aggro, 1.9);
-                        enemy.focusX = player.x;
-                        enemy.focusY = player.y;
-                    } else {
-                        enemy.aggro = Math.max(0, enemy.aggro - dt);
-                    }
-
-                    if (enemy.aggro > 0 && player.alive) {
-                        const targetPoint = { x: enemy.focusX, y: enemy.focusY };
-                        const preferredRange = WEAPONS[enemy.activeWeapon].preferredRange;
-                        const rangeToPlayer = distance(enemy, player);
-                        let moveAngle = angleTo(enemy, targetPoint);
-                        let moveSpeed = enemy.speed;
-
-                        if (rangeToPlayer > preferredRange + 40) {
-                            moveAngle = angleTo(enemy, player);
-                        } else if (rangeToPlayer < preferredRange - 70) {
-                            moveAngle = angleTo(player, enemy);
-                            moveSpeed *= 0.9;
-                        } else {
-                            enemy.strafeClock -= dt;
-                            if (enemy.strafeClock <= 0) {
-                                enemy.strafeClock = randomRange(0.4, 1.1);
-                                enemy.strafeDir *= -1;
+                    if (creature.species === "reefback") {
+                        targetX = creature.homeX + Math.cos(creature.t * 0.22) * 240;
+                        targetY = creature.homeY + Math.sin(creature.t * 0.18) * 150;
+                        desiredSpeed = meta.speed;
+                    } else if (creature.species === "stalker" && toPlayer < 300) {
+                        targetX = player.x;
+                        targetY = player.y;
+                        desiredSpeed = meta.speed * 1.2;
+                        if (toPlayer < creature.radius + player.radius + 18 && creature.biteCooldown <= 0) {
+                            creature.biteCooldown = 2.2;
+                            player.health = Math.max(0, player.health - 12);
+                            player.damageFlash = 1;
+                            state.shake = Math.max(state.shake, 6);
+                            pushFeed("Stalker strike detected.", "warn");
+                            for (let index = 0; index < 10; index += 1) {
+                                spawnBubble(player.x, player.y, "#9ceaff", randomRange(1.5, 5.2));
                             }
-                            moveAngle = angleTo(enemy, player) + (Math.PI / 2) * enemy.strafeDir;
-                            moveSpeed *= 0.75;
                         }
-
-                        moveEntity(enemy, Math.cos(moveAngle) * moveSpeed * dt, Math.sin(moveAngle) * moveSpeed * dt);
-                        enemy.isMoving = true;
-                        enemy.angle = angleTo(enemy, player);
-
-                        if (seesPlayer) {
-                            fireWeapon(enemy, true);
-                        }
-                    } else {
-                        const nextPoint = enemy.patrol[enemy.patrolIndex];
-                        const toPoint = distance(enemy, nextPoint);
-
-                        if (toPoint < 22) {
-                            enemy.patrolIndex = (enemy.patrolIndex + 1) % enemy.patrol.length;
-                        } else {
-                            const patrolAngle = angleTo(enemy, nextPoint);
-                            moveEntity(enemy, Math.cos(patrolAngle) * enemy.speed * 0.62 * dt, Math.sin(patrolAngle) * enemy.speed * 0.62 * dt);
-                            enemy.isMoving = true;
-                            enemy.angle = patrolAngle;
-                        }
+                    } else if (toPlayer < 130) {
+                        const fleeAngle = angleTo(player, creature);
+                        targetX = creature.x + Math.cos(fleeAngle) * 220;
+                        targetY = creature.y + Math.sin(fleeAngle) * 220;
+                        desiredSpeed = meta.speed * 1.35;
                     }
+
+                    const targetAngle = Math.atan2(targetY - creature.y, targetX - creature.x);
+                    creature.angle = lerp(creature.angle, targetAngle, expLerpFactor(3.2, dt));
+                    creature.vx = lerp(creature.vx, Math.cos(targetAngle) * desiredSpeed, expLerpFactor(2.2, dt));
+                    creature.vy = lerp(creature.vy, Math.sin(targetAngle) * desiredSpeed, expLerpFactor(2.2, dt));
+                    creature.vx *= 0.992;
+                    creature.vy *= 0.992;
+
+                    moveWithRockCollision(creature, dt);
                 }
             }
 
-            function updateProjectiles(dt) {
-                traces = traces.filter((trace) => {
-                    trace.ttl -= dt;
-                    return trace.ttl > 0;
+            function spawnBubble(x, y, color, radius) {
+                bubbles.push({
+                    x,
+                    y,
+                    radius,
+                    color,
+                    ttl: randomRange(0.9, 2.2),
+                    speed: randomRange(18, 54),
+                    wobble: Math.random() * Math.PI * 2
                 });
-
-                sparks = sparks.filter((spark) => {
-                    spark.ttl -= dt;
-                    spark.x += spark.vx * dt;
-                    spark.y += spark.vy * dt;
-                    spark.vx *= 0.94;
-                    spark.vy *= 0.94;
-                    return spark.ttl > 0;
-                });
             }
 
-            function updateBomb(dt) {
-                if (!bomb) {
-                    return;
-                }
+            function updateAmbient(dt) {
+                state.worldTime += dt;
+                state.shake = Math.max(0, state.shake - dt * 14);
+                state.bannerTimer = Math.max(0, state.bannerTimer - dt);
 
-                bomb.timer -= dt;
-                bomb.pulse += dt * (bomb.timer < 12 ? 7 : 4);
-                if (bomb.timer <= 0) {
-                    bomb.timer = 0;
-                    endRound("t", "Bomb exploded.");
-                }
-            }
-
-            function endRound(winner, detail) {
-                if (state.roundState !== "playing") {
-                    return;
-                }
-
-                state.roundState = "roundEnd";
-                state.endTimer = 3.5;
-                state.outcome = winner === "ct" ? "Counter-Terrorists Win" : "Terrorists Win";
-                state.outcomeDetail = detail;
-                state.score[winner] += 1;
-                pushFeed(state.outcome + ": " + detail, winner === "ct" ? "ct" : "t");
-            }
-
-            function updateRoundTransition(dt) {
-                if (player) {
-                    updateWeaponTimers(player, dt);
-                    player.hurtFlash = Math.max(0, player.hurtFlash - dt);
-                }
-
-                for (const enemy of enemies) {
-                    updateWeaponTimers(enemy, dt);
-                    enemy.hurtFlash = Math.max(0, enemy.hurtFlash - dt);
-                }
-
-                updateProjectiles(dt);
-                state.endTimer -= dt;
-                if (state.endTimer <= 0) {
-                    state.round += 1;
-                    initRound();
-                }
-            }
-
-            function updateCamera() {
-                const focus = player || { x: map.site.x + map.site.w / 2, y: map.site.y + map.site.h / 2 };
-                const maxX = Math.max(0, WORLD.width - canvas.width);
-                const maxY = Math.max(0, WORLD.height - canvas.height);
-                const targetX = clamp(focus.x - canvas.width / 2, 0, maxX);
-                const targetY = clamp(focus.y - canvas.height / 2, 0, maxY);
-                state.camera.x = lerp(state.camera.x, targetX, 0.1);
-                state.camera.y = lerp(state.camera.y, targetY, 0.1);
-            }
-
-            function updateHud() {
-                const enemiesAlive = enemies.filter((enemy) => enemy.alive).length;
-                ui.ctScore.textContent = state.score.ct;
-                ui.tScore.textContent = state.score.t;
-                ui.roundLabel.textContent = "Round " + state.round;
-                ui.timerValue.textContent = bomb ? formatTime(bomb.timer) : "00:00";
-                ui.enemyCountValue.textContent = String(enemiesAlive);
-                ui.bombStateValue.textContent = bomb && bomb.defuseProgress >= bomb.defuseDuration ? "Defused" : bomb ? "Armed" : "Idle";
-
-                if (player) {
-                    const activeWeapon = getWeaponState(player);
-                    ui.weaponNameValue.textContent = WEAPONS[player.activeWeapon].label + (activeWeapon.reloadTimer > 0 ? " (Reloading)" : "");
-                    ui.ammoValue.textContent = activeWeapon.clip + " / " + activeWeapon.reserve;
-                    ui.healthValue.textContent = String(Math.max(0, Math.ceil(player.hp)));
-                    ui.armorValue.textContent = String(Math.max(0, Math.ceil(player.armor)));
-                    ui.positionValue.textContent = player.x > 1450 ? "A Site" : player.x > 850 ? "Mid Lanes" : "CT Spawn";
-                    ui.hintValue.textContent = !player.alive
-                        ? "Respawn next round"
-                        : isNearBomb(player)
-                            ? "Hold E to defuse"
-                            : enemiesAlive > 0
-                                ? "Use cover and isolate duels"
-                                : "Path to the bomb";
-                }
-
-                if (bomb && player && player.alive) {
-                    if (isNearBomb(player)) {
-                        ui.objectiveValue.textContent = bomb.defuseProgress > 0 ? "Defusing..." : "Bomb in reach";
-                        ui.objectiveSubvalue.textContent = enemiesAlive > 0
-                            ? "You can stick the defuse or clear the last angles."
-                            : "Site is clear. Hold E to finish the round.";
-                    } else if (enemiesAlive > 0) {
-                        ui.objectiveValue.textContent = "Retake site A";
-                        ui.objectiveSubvalue.textContent = "Defenders still up. Use the long lane, ramp, and default box cover.";
-                    } else {
-                        ui.objectiveValue.textContent = "Recover the bomb";
-                        ui.objectiveSubvalue.textContent = "All defenders are down. Reach the site and hold E to defuse.";
-                    }
-                }
-
-                WEAPON_ORDER.forEach((weaponType) => {
-                    const card = document.getElementById("weapon-" + weaponType);
-                    const ammo = document.getElementById("weaponAmmo-" + weaponType);
-                    const stateForWeapon = player ? player.inventory[weaponType] : createWeaponState(weaponType);
-                    card.classList.toggle("active", player && player.activeWeapon === weaponType);
-                    ammo.textContent = stateForWeapon.clip + " / " + stateForWeapon.reserve;
-                });
-
-                if (bomb && player && player.alive && (isNearBomb(player) || bomb.defuseProgress > 0)) {
-                    ui.defuseWrap.classList.remove("hidden");
-                    ui.defuseLabel.textContent = bomb.defuseProgress > 0 ? "Defusing..." : "Hold E to defuse";
-                    ui.defuseTimeValue.textContent = (bomb.defuseDuration - bomb.defuseProgress).toFixed(1) + "s";
-                    ui.defuseFill.style.width = (bomb.defuseProgress / bomb.defuseDuration) * 100 + "%";
-                } else {
-                    ui.defuseWrap.classList.add("hidden");
-                }
-            }
-
-            function update(dt) {
                 state.feed = state.feed.filter((entry) => {
                     entry.ttl -= dt;
                     return entry.ttl > 0;
                 });
                 renderFeed();
 
-                state.shake = Math.max(0, state.shake - dt * 18);
+                for (const ping of state.pings) {
+                    ping.radius += dt * 460;
+                    ping.alpha = Math.max(0, ping.alpha - dt * 0.9);
+                }
+                state.pings = state.pings.filter((ping) => ping.alpha > 0);
 
+                for (const school of world.schools) {
+                    school.x += school.speed * dt * 22;
+                    if (school.x - school.spread > WORLD.width) {
+                        school.x = -school.spread;
+                    }
+                }
+
+                for (const mote of world.motes) {
+                    mote.y -= mote.speed * dt;
+                    mote.x += Math.sin(state.worldTime * 0.4 + mote.y * 0.01) * dt * 4;
+                    if (mote.y < 0) {
+                        mote.y = WORLD.height;
+                        mote.x = Math.random() * WORLD.width;
+                    }
+                }
+
+                for (const vent of world.vents) {
+                    if (Math.random() < dt * 18) {
+                        spawnBubble(
+                            vent.x + randomRange(-16, 16),
+                            vent.y + randomRange(-16, 16),
+                            Math.random() > 0.65 ? "#ffd27d" : "#c8f9ff",
+                            randomRange(2.5, 6.2)
+                        );
+                    }
+                }
+
+                bubbles = bubbles.filter((bubble) => {
+                    bubble.ttl -= dt;
+                    bubble.y -= bubble.speed * dt;
+                    bubble.x += Math.sin(state.worldTime * 2 + bubble.wobble) * dt * 14;
+                    bubble.radius *= 0.998;
+                    return bubble.ttl > 0;
+                });
+            }
+
+            function updateCamera() {
+                const focus = player || world.spawn;
+                const maxX = Math.max(0, WORLD.width - canvas.width);
+                const maxY = Math.max(0, WORLD.height - canvas.height);
+                const targetX = clamp(focus.x - canvas.width / 2, 0, maxX);
+                const targetY = clamp(focus.y - canvas.height / 2, 0, maxY);
+                state.camera.x = lerp(state.camera.x, targetX, 0.08);
+                state.camera.y = lerp(state.camera.y, targetY, 0.08);
+            }
+
+            function updateHud() {
+                const scanCount = state.scannedSpecies.size;
+                ui.scanValue.textContent = scanCount + " / " + REQUIRED_SCANS;
+                ui.databank.innerHTML = SPECIES_ORDER
+                    .map((species) => {
+                        const scanned = state.scannedSpecies.has(species);
+                        return '<span class="tag ' + (scanned ? "scanned" : "") + '">' + SPECIES[species].label + "</span>";
+                    })
+                    .join("");
+
+                if (!player) {
+                    return;
+                }
+
+                const depth = getDepthMeters();
+                ui.depthValue.textContent = depth + "m";
+                ui.oxygenValue.textContent = Math.round(player.oxygen) + "%";
+                ui.energyValue.textContent = Math.round(player.energy) + "%";
+                ui.healthValue.textContent = Math.round(player.health) + "%";
+                ui.locationValue.textContent = getLocationName();
+
+                if (state.missionComplete) {
+                    ui.objectiveValue.textContent = "Dive successful";
+                    ui.objectiveSubvalue.textContent = "Return trip complete. Press Enter to restart the dive.";
+                } else if (scanCount < REQUIRED_SCANS) {
+                    ui.objectiveValue.textContent = "Fill the databank";
+                    ui.objectiveSubvalue.textContent = "Scan " + (REQUIRED_SCANS - scanCount) + " more species and return to the pod.";
+                } else {
+                    ui.objectiveValue.textContent = "Return to Life Pod 5";
+                    ui.objectiveSubvalue.textContent = "The uplink is ready. Surface data and complete the dive.";
+                }
+
+                if (scanCandidate) {
+                    const species = SPECIES[scanCandidate.creature.species];
+                    ui.targetValue.textContent = species.label;
+                    ui.signalValue.textContent = scanCandidate.distance < 90 ? "Strong" : scanCandidate.distance < 130 ? "Good" : "Faint";
+                } else if (state.scannedSpecies.size >= REQUIRED_SCANS) {
+                    ui.targetValue.textContent = "Life Pod 5";
+                    ui.signalValue.textContent = isNearLandmark("pod", 240) ? "Docking" : "Tracked";
+                } else {
+                    ui.targetValue.textContent = "Sweep the reef";
+                    ui.signalValue.textContent = "Passive";
+                }
+
+                ui.hintValue.textContent = state.missionComplete
+                    ? "Press Enter"
+                    : player.oxygen < 30
+                        ? "Surface now"
+                        : scanCandidate
+                            ? "Hold E"
+                            : "Press Space";
+
+                if (scanCandidate || player.scanProgress > 0) {
+                    const speciesKey = player.scanSpecies || (scanCandidate ? scanCandidate.creature.species : "");
+                    const species = speciesKey ? SPECIES[speciesKey] : null;
+                    const total = species ? species.scanTime : 1;
+                    ui.scanWrap.classList.remove("hidden");
+                    ui.scanLabel.textContent = species ? "Scanning " + species.label : "Hold E to scan";
+                    ui.scanTimeValue.textContent = Math.max(0, total - player.scanProgress).toFixed(1) + "s";
+                    ui.scanFill.style.width = clamp((player.scanProgress / total) * 100, 0, 100) + "%";
+                } else {
+                    ui.scanWrap.classList.add("hidden");
+                    ui.scanFill.style.width = "0%";
+                }
+            }
+
+            function update(dt) {
                 if (!state.started) {
+                    updateAmbient(dt);
                     updateCamera();
                     updateHud();
                     return;
                 }
 
-                if (state.roundState === "playing") {
-                    updatePlayer(dt);
-                    updateEnemies(dt);
-                    updateProjectiles(dt);
-                    updateBomb(dt);
-                } else if (state.roundState === "roundEnd") {
-                    updateRoundTransition(dt);
-                }
-
+                updatePlayer(dt);
+                updateFauna(dt);
+                updateAmbient(dt);
                 updateCamera();
                 updateHud();
             }
 
-            function drawFloor() {
-                ctx.fillStyle = "#0a1723";
+            function drawBackdrop() {
+                const gradient = ctx.createLinearGradient(0, 0, 0, WORLD.height);
+                gradient.addColorStop(0, "#44bde9");
+                gradient.addColorStop(0.12, "#0b88b8");
+                gradient.addColorStop(0.35, "#0a5e88");
+                gradient.addColorStop(0.65, "#083d62");
+                gradient.addColorStop(1, "#02101f");
+                ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, WORLD.width, WORLD.height);
 
-                const gridSize = 100;
-                const startX = Math.floor(state.camera.x / gridSize) * gridSize - gridSize;
-                const startY = Math.floor(state.camera.y / gridSize) * gridSize - gridSize;
-                const endX = state.camera.x + canvas.width + gridSize;
-                const endY = state.camera.y + canvas.height + gridSize;
+                const surfaceGlow = ctx.createLinearGradient(0, 0, 0, 240);
+                surfaceGlow.addColorStop(0, "rgba(182, 246, 255, 0.75)");
+                surfaceGlow.addColorStop(1, "rgba(182, 246, 255, 0)");
+                ctx.fillStyle = surfaceGlow;
+                ctx.fillRect(0, 0, WORLD.width, 240);
 
-                ctx.strokeStyle = "rgba(138, 171, 204, 0.09)";
-                ctx.lineWidth = 1;
+                ctx.fillStyle = "rgba(13, 61, 93, 0.46)";
+                ctx.beginPath();
+                ctx.ellipse(700, 1780, 900, 540, -0.08, 0, Math.PI * 2);
+                ctx.fill();
 
-                for (let x = startX; x <= endX; x += gridSize) {
-                    ctx.beginPath();
-                    ctx.moveTo(x, startY);
-                    ctx.lineTo(x, endY);
-                    ctx.stroke();
-                }
-
-                for (let y = startY; y <= endY; y += gridSize) {
-                    ctx.beginPath();
-                    ctx.moveTo(startX, y);
-                    ctx.lineTo(endX, y);
-                    ctx.stroke();
-                }
-
-                ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
-                ctx.fillRect(80, 1060, 380, 180);
-                ctx.fillStyle = "rgba(255, 90, 90, 0.08)";
-                ctx.fillRect(map.site.x, map.site.y, map.site.w, map.site.h);
+                ctx.beginPath();
+                ctx.ellipse(2940, 1710, 1200, 700, 0.12, 0, Math.PI * 2);
+                ctx.fill();
             }
 
-            function drawWalls() {
-                for (const wall of map.walls) {
-                    ctx.fillStyle = "#132232";
-                    ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-                    ctx.strokeStyle = "rgba(196, 219, 242, 0.12)";
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(wall.x + 1, wall.y + 1, wall.w - 2, wall.h - 2);
+            function drawSunBeams() {
+                ctx.save();
+                for (let index = 0; index < 11; index += 1) {
+                    const x = index * 320 + Math.sin(state.worldTime * 0.18 + index) * 80 - 120;
+                    ctx.fillStyle = "rgba(164, 237, 255, 0.05)";
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x + 140, 0);
+                    ctx.lineTo(x + 520, WORLD.height);
+                    ctx.lineTo(x + 220, WORLD.height);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
 
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-                    const stripes = wall.w > wall.h ? Math.floor(wall.w / 38) : Math.floor(wall.h / 38);
-                    for (let i = 0; i < stripes; i += 1) {
-                        if (wall.w > wall.h) {
-                            ctx.fillRect(wall.x + i * 38, wall.y, 10, wall.h);
-                        } else {
-                            ctx.fillRect(wall.x, wall.y + i * 38, wall.w, 10);
+            function drawMotes() {
+                for (const mote of world.motes) {
+                    ctx.globalAlpha = mote.alpha;
+                    ctx.beginPath();
+                    ctx.arc(mote.x, mote.y, mote.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = "#dfffff";
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            function drawSchools() {
+                for (const school of world.schools) {
+                    ctx.save();
+                    ctx.translate(school.x, school.y);
+                    for (const fish of school.fish) {
+                        const wiggle = Math.sin(state.worldTime * 2 + fish.phase) * 14;
+                        ctx.globalAlpha = 0.36;
+                        ctx.fillStyle = school.color;
+                        ctx.beginPath();
+                        ctx.ellipse(fish.x, fish.y + wiggle, fish.size, fish.size * 0.45, 0.15, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            function drawRocks() {
+                for (const rock of world.rocks) {
+                    ctx.save();
+                    ctx.translate(rock.x, rock.y);
+                    for (const lobe of rock.lobes) {
+                        ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
+                        ctx.beginPath();
+                        ctx.ellipse(lobe.x + 16, lobe.y + 26, lobe.radius * 1.04, lobe.radius * 0.74, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        const gradient = ctx.createRadialGradient(
+                            lobe.x - lobe.radius * 0.35,
+                            lobe.y - lobe.radius * 0.4,
+                            4,
+                            lobe.x,
+                            lobe.y,
+                            lobe.radius * 1.15
+                        );
+                        gradient.addColorStop(0, "rgba(146, 219, 232, 0.32)");
+                        gradient.addColorStop(0.18, rock.baseColor);
+                        gradient.addColorStop(1, "#102a3a");
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.ellipse(lobe.x, lobe.y, lobe.radius, lobe.radius * 0.72, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            }
+
+            function drawCoralField(field) {
+                for (const piece of field.pieces) {
+                    ctx.save();
+                    ctx.translate(piece.x, piece.y);
+                    ctx.fillStyle = piece.color;
+
+                    if (piece.type === 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.lineTo(-piece.size * 0.2, -piece.size);
+                        ctx.lineTo(piece.size * 0.2, -piece.size * 0.9);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.lineTo(piece.size * 0.3, -piece.size * 0.86);
+                        ctx.lineTo(piece.size * 0.55, -piece.size * 0.22);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else if (piece.type === 1) {
+                        ctx.beginPath();
+                        ctx.arc(0, -piece.size * 0.32, piece.size * 0.44, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillRect(-piece.size * 0.12, -piece.size * 0.18, piece.size * 0.24, piece.size * 0.6);
+                    } else {
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.quadraticCurveTo(piece.size * 0.6, -piece.size * 0.55, 0, -piece.size);
+                        ctx.quadraticCurveTo(-piece.size * 0.56, -piece.size * 0.55, 0, 0);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                }
+            }
+
+            function drawCorals() {
+                for (const field of world.coralFields) {
+                    drawCoralField(field);
+                }
+            }
+
+            function drawKelpLayer(layer) {
+                for (const cluster of world.kelpClusters) {
+                    if (cluster.layer !== layer) {
+                        continue;
+                    }
+
+                    for (let index = 0; index < cluster.stalks.length; index += 1) {
+                        const stalk = cluster.stalks[index];
+                        const baseX = cluster.x + stalk.offsetX;
+                        const baseY = cluster.y + stalk.offsetY;
+                        const sway = Math.sin(state.worldTime * 1.3 + stalk.swayOffset + index * 0.12) * 28;
+                        const tipX = baseX + sway;
+                        const tipY = baseY - stalk.height;
+
+                        ctx.strokeStyle = layer === "front" ? "rgba(70, 199, 146, 0.7)" : "rgba(56, 160, 123, 0.48)";
+                        ctx.lineWidth = stalk.width;
+                        ctx.lineCap = "round";
+                        ctx.beginPath();
+                        ctx.moveTo(baseX, baseY);
+                        ctx.quadraticCurveTo(baseX + sway * 0.3, baseY - stalk.height * 0.45, tipX, tipY);
+                        ctx.stroke();
+
+                        ctx.strokeStyle = "rgba(149, 255, 193, 0.2)";
+                        ctx.lineWidth = 2.5;
+                        ctx.beginPath();
+                        ctx.moveTo(baseX - stalk.width * 0.15, baseY - 10);
+                        ctx.quadraticCurveTo(baseX + sway * 0.24, baseY - stalk.height * 0.38, tipX - 8, tipY + 18);
+                        ctx.stroke();
+
+                        const blades = 4;
+                        for (let blade = 1; blade <= blades; blade += 1) {
+                            const t = blade / (blades + 1);
+                            const centerX = lerp(baseX, tipX, t);
+                            const centerY = lerp(baseY, tipY, t);
+                            const bladeSway = Math.sin(state.worldTime * 1.6 + stalk.swayOffset + blade) * 14;
+                            ctx.fillStyle = layer === "front" ? "rgba(116, 244, 173, 0.22)" : "rgba(99, 220, 161, 0.14)";
+                            ctx.beginPath();
+                            ctx.moveTo(centerX, centerY);
+                            ctx.quadraticCurveTo(centerX + bladeSway, centerY - stalk.width * 1.4, centerX + bladeSway * 0.22, centerY - stalk.width * 2.6);
+                            ctx.quadraticCurveTo(centerX - bladeSway * 0.36, centerY - stalk.width * 1.4, centerX, centerY);
+                            ctx.fill();
                         }
                     }
                 }
             }
 
-            function drawSiteDetails() {
-                const siteBomb = bomb || map.bomb;
-                ctx.strokeStyle = "rgba(255, 140, 110, 0.32)";
-                ctx.lineWidth = 3;
-                ctx.strokeRect(map.site.x, map.site.y, map.site.w, map.site.h);
+            function drawLandmarks() {
+                for (const landmark of world.landmarks) {
+                    ctx.save();
+                    ctx.translate(landmark.x, landmark.y);
 
-                ctx.fillStyle = "rgba(255, 170, 120, 0.12)";
-                ctx.beginPath();
-                ctx.arc(siteBomb.x, siteBomb.y, 82, 0, Math.PI * 2);
-                ctx.fill();
+                    if (landmark.type === "pod") {
+                        ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+                        ctx.beginPath();
+                        ctx.ellipse(8, 24, 92, 44, 0, 0, Math.PI * 2);
+                        ctx.fill();
 
-                ctx.fillStyle = "rgba(255, 214, 113, 0.8)";
-                ctx.font = "700 54px Inter, sans-serif";
-                ctx.fillText("A", map.site.x + 24, map.site.y + 62);
+                        const glow = ctx.createRadialGradient(0, 0, 10, 0, 0, 130);
+                        glow.addColorStop(0, "rgba(126, 244, 255, 0.28)");
+                        glow.addColorStop(1, "rgba(126, 244, 255, 0)");
+                        ctx.fillStyle = glow;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 130, 0, Math.PI * 2);
+                        ctx.fill();
 
-                ctx.fillStyle = "rgba(185, 205, 226, 0.25)";
-                ctx.font = "700 18px Inter, sans-serif";
-                ctx.fillText("CT Spawn", 90, 1260);
-                ctx.fillText("Mid Lanes", 890, 140);
-                ctx.fillText("Default", 1650, 235);
-            }
+                        ctx.fillStyle = "#edf8ff";
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, 74, 48, -0.15, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = "#f8a55a";
+                        ctx.beginPath();
+                        ctx.ellipse(10, -10, 34, 22, -0.15, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = "rgba(6, 34, 52, 0.28)";
+                        ctx.lineWidth = 5;
+                        ctx.beginPath();
+                        ctx.arc(10, -10, 18, 0, Math.PI * 2);
+                        ctx.stroke();
+                    } else if (landmark.type === "wreck") {
+                        ctx.rotate(-0.2);
+                        ctx.fillStyle = "#556a7d";
+                        ctx.fillRect(-70, -24, 140, 48);
+                        ctx.fillStyle = "#ffb083";
+                        ctx.fillRect(-56, -18, 42, 36);
+                        ctx.fillStyle = "#304659";
+                        ctx.fillRect(10, -16, 46, 32);
+                    } else {
+                        ctx.strokeStyle = "rgba(137, 247, 255, 0.75)";
+                        ctx.lineWidth = 18;
+                        ctx.beginPath();
+                        ctx.moveTo(-54, 36);
+                        ctx.quadraticCurveTo(0, -110, 54, 36);
+                        ctx.stroke();
+                        ctx.lineWidth = 8;
+                        ctx.strokeStyle = "rgba(220, 255, 255, 0.18)";
+                        ctx.beginPath();
+                        ctx.moveTo(-34, 20);
+                        ctx.quadraticCurveTo(0, -54, 34, 20);
+                        ctx.stroke();
+                    }
 
-            function drawBomb() {
-                if (!bomb) {
-                    return;
-                }
-
-                const pulse = 16 + Math.sin(bomb.pulse) * 5;
-                ctx.beginPath();
-                ctx.arc(bomb.x, bomb.y, pulse + 18, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(255, 92, 92, 0.12)";
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.arc(bomb.x, bomb.y, pulse, 0, Math.PI * 2);
-                ctx.fillStyle = "#be2d2d";
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.arc(bomb.x, bomb.y, 14, 0, Math.PI * 2);
-                ctx.fillStyle = "#ffd671";
-                ctx.fill();
-
-                ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-                ctx.font = "700 14px Inter, sans-serif";
-                ctx.fillText(formatTime(bomb.timer), bomb.x - 28, bomb.y - 34);
-            }
-
-            function drawTraces() {
-                for (const trace of traces) {
-                    ctx.strokeStyle = trace.color;
-                    ctx.lineWidth = trace.width;
-                    ctx.globalAlpha = clamp(trace.ttl / 0.08, 0, 1);
-                    ctx.beginPath();
-                    ctx.moveTo(trace.x1, trace.y1);
-                    ctx.lineTo(trace.x2, trace.y2);
-                    ctx.stroke();
-                }
-                ctx.globalAlpha = 1;
-            }
-
-            function drawSparks() {
-                for (const spark of sparks) {
-                    ctx.globalAlpha = clamp(spark.ttl / 0.34, 0, 1);
-                    ctx.beginPath();
-                    ctx.arc(spark.x, spark.y, spark.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = spark.color;
-                    ctx.fill();
-                }
-                ctx.globalAlpha = 1;
-            }
-
-            function drawEntity(entity, isPlayer) {
-                ctx.save();
-                ctx.translate(entity.x, entity.y);
-
-                ctx.beginPath();
-                ctx.ellipse(0, 0, entity.radius + 4, entity.radius - 2, 0, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(0, 0, 0, 0.24)";
-                ctx.fill();
-
-                if (!entity.alive) {
-                    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
-                    ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.moveTo(-12, -12);
-                    ctx.lineTo(12, 12);
-                    ctx.moveTo(-12, 12);
-                    ctx.lineTo(12, -12);
-                    ctx.stroke();
+                    ctx.fillStyle = "rgba(235, 251, 255, 0.9)";
+                    ctx.font = "700 14px Inter, sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(landmark.label, 0, landmark.type === "arch" ? 72 : 82);
                     ctx.restore();
-                    return;
                 }
+            }
 
-                const flash = entity.hurtFlash > 0 ? 90 : 0;
-                const bodyColor = isPlayer
-                    ? "rgb(" + (93 + flash) + ", " + (215 + flash / 3) + ", 255)"
-                    : "rgb(255, " + (153 - flash / 3) + ", " + (102 - flash / 4) + ")";
-                const weaponState = getWeaponState(entity);
-                const muzzleScale = weaponState ? weaponState.muzzleFlash : 0;
+            function drawVents() {
+                for (const vent of world.vents) {
+                    ctx.save();
+                    ctx.translate(vent.x, vent.y);
+                    const plume = ctx.createRadialGradient(0, 0, 10, 0, 0, vent.radius);
+                    plume.addColorStop(0, "rgba(255, 212, 125, 0.48)");
+                    plume.addColorStop(1, "rgba(255, 212, 125, 0)");
+                    ctx.fillStyle = plume;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, vent.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = "#ffad5d";
+                    ctx.beginPath();
+                    ctx.moveTo(-18, 16);
+                    ctx.lineTo(-8, -30);
+                    ctx.lineTo(0, 18);
+                    ctx.lineTo(12, -42);
+                    ctx.lineTo(24, 16);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
 
+            function drawBubbles() {
+                for (const bubble of bubbles) {
+                    ctx.globalAlpha = clamp(bubble.ttl / 2.2, 0, 1);
+                    ctx.strokeStyle = bubble.color;
+                    ctx.lineWidth = 1.6;
+                    ctx.beginPath();
+                    ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            function drawPings() {
+                for (const ping of state.pings) {
+                    ctx.globalAlpha = ping.alpha;
+                    ctx.strokeStyle = "rgba(126, 244, 255, 0.85)";
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(ping.x, ping.y, ping.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = "rgba(208, 255, 255, 0.35)";
+                    ctx.lineWidth = 10;
+                    ctx.beginPath();
+                    ctx.arc(ping.x, ping.y, ping.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            function drawCreature(creature) {
+                const meta = SPECIES[creature.species];
+                ctx.save();
+                ctx.translate(creature.x, creature.y);
+                ctx.rotate(creature.angle);
+
+                ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
                 ctx.beginPath();
-                ctx.arc(0, 0, entity.radius, 0, Math.PI * 2);
-                ctx.fillStyle = bodyColor;
+                ctx.ellipse(8, 18, creature.radius * 0.92, creature.radius * 0.46, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = isPlayer ? "rgba(180, 245, 255, 0.9)" : "rgba(255, 205, 168, 0.9)";
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(Math.cos(entity.angle) * 26, Math.sin(entity.angle) * 26);
-                ctx.stroke();
-
-                if (muzzleScale > 0) {
+                if (meta.glow > 0.2) {
+                    const glow = ctx.createRadialGradient(0, 0, 6, 0, 0, creature.radius * 2.4);
+                    glow.addColorStop(0, "rgba(150, 250, 255, " + meta.glow + ")");
+                    glow.addColorStop(1, "rgba(150, 250, 255, 0)");
+                    ctx.fillStyle = glow;
                     ctx.beginPath();
-                    ctx.arc(Math.cos(entity.angle) * 28, Math.sin(entity.angle) * 28, 6 * muzzleScale, 0, Math.PI * 2);
-                    ctx.fillStyle = isPlayer ? "rgba(255, 248, 180, 0.95)" : "rgba(255, 186, 110, 0.95)";
+                    ctx.arc(0, 0, creature.radius * 2.4, 0, Math.PI * 2);
                     ctx.fill();
                 }
 
-                ctx.fillStyle = "rgba(4, 10, 16, 0.85)";
-                ctx.fillRect(-26, -34, 52, 7);
-                ctx.fillStyle = isPlayer ? "#77f7b3" : "#ff8f8f";
-                ctx.fillRect(-26, -34, Math.max(0, entity.hp / 100) * 52, 7);
+                if (creature.species === "reefback") {
+                    ctx.fillStyle = meta.body;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, creature.radius * 1.1, creature.radius * 0.72, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = "rgba(150, 255, 209, 0.38)";
+                    ctx.beginPath();
+                    ctx.arc(-28, -16, 14, 0, Math.PI * 2);
+                    ctx.arc(12, -24, 12, 0, Math.PI * 2);
+                    ctx.arc(42, -6, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = meta.accent;
+                    ctx.beginPath();
+                    ctx.ellipse(-86, 0, 38, 18, 0.08, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (creature.species === "glowray") {
+                    ctx.fillStyle = meta.body;
+                    ctx.beginPath();
+                    ctx.moveTo(-creature.radius * 0.9, 0);
+                    ctx.quadraticCurveTo(0, -creature.radius * 1.1, creature.radius * 1.15, 0);
+                    ctx.quadraticCurveTo(0, creature.radius * 1.1, -creature.radius * 0.9, 0);
+                    ctx.fill();
+                    ctx.fillStyle = meta.accent;
+                    ctx.beginPath();
+                    ctx.ellipse(8, 0, creature.radius * 0.28, creature.radius * 0.1, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (creature.species === "stalker") {
+                    ctx.fillStyle = meta.body;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, creature.radius * 1.1, creature.radius * 0.5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = meta.accent;
+                    ctx.beginPath();
+                    ctx.moveTo(creature.radius * 0.76, 0);
+                    ctx.lineTo(creature.radius * 1.15, -8);
+                    ctx.lineTo(creature.radius * 1.15, 8);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = meta.body;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, creature.radius, creature.radius * 0.54, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = meta.accent;
+                    ctx.beginPath();
+                    ctx.arc(creature.radius * 0.2, -2, creature.radius * 0.26, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
-                ctx.fillStyle = "rgba(235, 242, 255, 0.85)";
-                ctx.font = "700 12px Inter, sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText(entity.label, 0, -42);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+                ctx.beginPath();
+                ctx.ellipse(-creature.radius * 0.18, -creature.radius * 0.16, creature.radius * 0.34, creature.radius * 0.18, 0, 0, Math.PI * 2);
+                ctx.fill();
 
                 ctx.restore();
             }
 
-            function drawPlayerAimline() {
-                if (!player || !player.alive) {
+            function drawPlayer() {
+                if (!player) {
                     return;
                 }
 
-                ctx.strokeStyle = "rgba(138, 229, 255, 0.16)";
+                ctx.save();
+                ctx.translate(player.x, player.y);
+                ctx.rotate(player.angle);
+
+                const light = ctx.createRadialGradient(0, 0, 10, 0, 0, 180);
+                light.addColorStop(0, "rgba(138, 245, 255, 0.22)");
+                light.addColorStop(1, "rgba(138, 245, 255, 0)");
+                ctx.fillStyle = light;
+                ctx.beginPath();
+                ctx.arc(0, 0, 180, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+                ctx.beginPath();
+                ctx.ellipse(8, 18, 28, 12, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = player.damageFlash > 0 ? "#ffb3a0" : "#f8fcff";
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 24, 14, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = "#ff9d5e";
+                ctx.beginPath();
+                ctx.ellipse(12, 0, 12, 7, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = "#4dd7ff";
+                ctx.lineWidth = 7;
+                ctx.beginPath();
+                ctx.moveTo(-8, -4);
+                ctx.lineTo(-28, -12);
+                ctx.moveTo(-8, 4);
+                ctx.lineTo(-28, 12);
+                ctx.stroke();
+
+                ctx.strokeStyle = "#78ffb2";
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(14, 2);
+                ctx.lineTo(34, 2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            function drawScanLink() {
+                if (!player || !scanCandidate) {
+                    return;
+                }
+
+                ctx.strokeStyle = "rgba(126, 244, 255, 0.46)";
                 ctx.lineWidth = 2;
                 ctx.setLineDash([8, 10]);
                 ctx.beginPath();
                 ctx.moveTo(player.x, player.y);
-                ctx.lineTo(player.x + Math.cos(player.angle) * 220, player.y + Math.sin(player.angle) * 220);
+                ctx.lineTo(scanCandidate.creature.x, scanCandidate.creature.y);
                 ctx.stroke();
                 ctx.setLineDash([]);
+
+                ctx.strokeStyle = "rgba(204, 255, 255, 0.65)";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(scanCandidate.creature.x, scanCandidate.creature.y, scanCandidate.creature.radius + 12, 0, Math.PI * 2);
+                ctx.stroke();
             }
 
-            function drawRoundBanner() {
-                if (state.roundState !== "roundEnd") {
+            function drawCaustics() {
+                ctx.save();
+                ctx.globalCompositeOperation = "screen";
+                for (let band = -1; band < 7; band += 1) {
+                    const baseY = band * 150 + (state.worldTime * 18) % 150;
+                    for (let x = -160; x < canvas.width + 160; x += 110) {
+                        const y = baseY + Math.sin((x + state.worldTime * 140 + band * 60) * 0.015) * 14;
+                        ctx.strokeStyle = "rgba(168, 247, 255, 0.035)";
+                        ctx.lineWidth = 7;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.bezierCurveTo(x + 28, y - 12, x + 72, y + 16, x + 106, y);
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+            }
+
+            function drawDepthFog() {
+                if (!player) {
                     return;
                 }
 
-                const width = Math.min(canvas.width - 40, 520);
+                const px = player.x - state.camera.x;
+                const py = player.y - state.camera.y;
+                const depth = getDepthMeters();
+                const radius = clamp(430 - depth * 0.55, 220, 430);
+
+                const visibility = ctx.createRadialGradient(px, py, radius * 0.18, px, py, radius * 1.45);
+                visibility.addColorStop(0, "rgba(2, 15, 26, 0)");
+                visibility.addColorStop(0.58, "rgba(2, 15, 26, " + clamp(depth / 520, 0.12, 0.32) + ")");
+                visibility.addColorStop(1, "rgba(2, 15, 26, 0.82)");
+                ctx.fillStyle = visibility;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = "rgba(4, 21, 32, " + clamp(depth / 900, 0.04, 0.24) + ")";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const vignette = ctx.createRadialGradient(
+                    canvas.width / 2,
+                    canvas.height / 2,
+                    canvas.width * 0.15,
+                    canvas.width / 2,
+                    canvas.height / 2,
+                    canvas.width * 0.7
+                );
+                vignette.addColorStop(0, "rgba(0, 0, 0, 0)");
+                vignette.addColorStop(1, "rgba(0, 0, 0, 0.34)");
+                ctx.fillStyle = vignette;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            function drawMissionBanner() {
+                if (!state.missionComplete && state.bannerTimer <= 0) {
+                    return;
+                }
+
+                const width = Math.min(canvas.width - 40, 560);
                 const height = 140;
                 const x = (canvas.width - width) / 2;
-                const y = Math.max(130, canvas.height * 0.14);
+                const y = Math.max(120, canvas.height * 0.12);
 
-                ctx.fillStyle = "rgba(5, 10, 16, 0.8)";
+                ctx.fillStyle = "rgba(2, 10, 18, 0.82)";
                 ctx.fillRect(x, y, width, height);
-                ctx.strokeStyle = "rgba(132, 164, 196, 0.24)";
+                ctx.strokeStyle = "rgba(126, 244, 255, 0.26)";
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, width, height);
 
-                ctx.fillStyle = state.outcome.indexOf("Counter") === 0 ? "#77f7b3" : "#ff9a83";
-                ctx.font = "800 30px Inter, sans-serif";
+                ctx.fillStyle = "#7ef7c2";
+                ctx.font = "800 32px Inter, sans-serif";
                 ctx.textAlign = "center";
-                ctx.fillText(state.outcome, x + width / 2, y + 48);
+                ctx.fillText("Databank uplink complete", x + width / 2, y + 52);
 
-                ctx.fillStyle = "rgba(234, 243, 255, 0.92)";
+                ctx.fillStyle = "rgba(235, 251, 255, 0.92)";
                 ctx.font = "500 18px Inter, sans-serif";
-                ctx.fillText(state.outcomeDetail, x + width / 2, y + 82);
-
-                ctx.fillStyle = "rgba(146, 166, 189, 0.95)";
-                ctx.font = "700 14px Inter, sans-serif";
-                ctx.fillText("Next round in " + state.endTimer.toFixed(1) + "s", x + width / 2, y + 112);
+                ctx.fillText("Life Pod 5 received your scans. Press Enter to dive again.", x + width / 2, y + 86);
             }
 
             function render() {
@@ -1768,32 +1869,41 @@
                 ctx.save();
                 ctx.translate(-(state.camera.x + shakeX), -(state.camera.y + shakeY));
 
-                drawFloor();
-                drawSiteDetails();
-                drawWalls();
-                drawBomb();
-                drawPlayerAimline();
-                drawTraces();
-                drawSparks();
+                drawBackdrop();
+                drawSunBeams();
+                drawMotes();
+                drawSchools();
+                drawKelpLayer("back");
+                drawRocks();
+                drawCorals();
+                drawLandmarks();
+                drawVents();
+                drawPings();
+                drawBubbles();
 
-                enemies.forEach((enemy) => drawEntity(enemy, false));
-                if (player) {
-                    drawEntity(player, true);
+                for (const creature of fauna) {
+                    drawCreature(creature);
                 }
 
+                drawScanLink();
+                drawPlayer();
+                drawKelpLayer("front");
                 ctx.restore();
-                drawRoundBanner();
+
+                drawCaustics();
+                drawDepthFog();
+                drawMissionBanner();
             }
 
             function resizeCanvas() {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
-                moveCrosshair(state.mouse.x, state.mouse.y);
+                moveReticle(state.mouse.x, state.mouse.y);
             }
 
-            function moveCrosshair(x, y) {
-                crosshair.style.left = x + "px";
-                crosshair.style.top = y + "px";
+            function moveReticle(x, y) {
+                reticle.style.left = x + "px";
+                reticle.style.top = y + "px";
             }
 
             function animate(timestamp) {
@@ -1810,61 +1920,43 @@
             window.addEventListener("mousemove", (event) => {
                 state.mouse.x = event.clientX;
                 state.mouse.y = event.clientY;
-                moveCrosshair(event.clientX, event.clientY);
-            });
-
-            window.addEventListener("mousedown", (event) => {
-                if (event.button === 0 && state.started) {
-                    state.mouse.down = true;
-                }
-            });
-
-            window.addEventListener("mouseup", (event) => {
-                if (event.button === 0) {
-                    state.mouse.down = false;
-                }
-            });
-
-            window.addEventListener("contextmenu", (event) => event.preventDefault());
-
-            window.addEventListener("blur", () => {
-                state.mouse.down = false;
-                state.keys = {};
+                moveReticle(event.clientX, event.clientY);
             });
 
             window.addEventListener("keydown", (event) => {
                 const key = event.key.toLowerCase();
-
                 if (!state.started && (key === "enter" || key === " ")) {
                     event.preventDefault();
-                    startMatch();
+                    startDive();
                     return;
+                }
+
+                if (state.missionComplete && key === "enter") {
+                    event.preventDefault();
+                    startDive();
+                    return;
+                }
+
+                if (key === " ") {
+                    event.preventDefault();
+                    emitPing();
                 }
 
                 state.keys[key] = true;
-
-                if (!player) {
-                    return;
-                }
-
-                if (key === "1") {
-                    switchWeapon("pistol");
-                } else if (key === "2") {
-                    switchWeapon("rifle");
-                } else if (key === "3") {
-                    switchWeapon("sniper");
-                } else if (key === "r") {
-                    startReload(player);
-                }
             });
 
             window.addEventListener("keyup", (event) => {
                 state.keys[event.key.toLowerCase()] = false;
             });
 
-            startButton.addEventListener("click", startMatch);
+            window.addEventListener("blur", () => {
+                state.keys = {};
+            });
+
+            startButton.addEventListener("click", startDive);
 
             resizeCanvas();
+            renderFeed();
             updateHud();
             requestAnimationFrame(animate);
         })();
