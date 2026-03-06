@@ -1,154 +1,154 @@
-const suiteData = {
+const trackData = {
     language: {
-        eyebrow: "Language adaptation",
-        title: "Instruction following that survives goal drift",
+        kicker: "Language drift track",
+        title: "Prompt formats mutate while objectives stay constant.",
         description:
-            "Language tasks begin with clean instructions and gradually introduce ambiguity, style drift, compressed context windows, and contradictory retrieval cues. Strong agents adapt while preserving earlier instruction hierarchies and formatting behavior.",
-        pills: ["retrieval drift", "context compression", "multi-step repair", "memory recall probes"],
+            "Relay's language track shifts tone, retrieval structure, formatting contracts, and context availability. Strong systems preserve prior instruction-following habits while learning new prompt conventions quickly.",
+        pills: ["retrieval reordering", "format drift", "compressed context", "delayed replay"],
         notes: [
             {
                 title: "Representative tasks",
-                body: "Summarization under changing rubric weights, retrieval-conditioned writing, preference shifts, and long-horizon instruction repair."
+                body: "Long-form synthesis, grounded summarization, instruction repair, and rubric changes under memory limits."
             },
             {
-                title: "Failure mode exposed",
-                body: "Models that improve on the latest prompt style but quietly forget earlier formatting and retrieval conventions."
+                title: "What it exposes",
+                body: "Models that get better at the newest prompt style but quietly forget earlier output contracts."
             },
             {
-                title: "Primary metric",
-                body: "Retention-weighted success after language policy changes and delayed recall checkpoints."
+                title: "Primary signal",
+                body: "Retention-weighted task success after repeated prompt schema changes."
             }
         ]
     },
     tools: {
-        eyebrow: "Tool use adaptation",
-        title: "Policies that keep working after the interface changes",
+        kicker: "Tool adaptation track",
+        title: "Tools keep the same purpose, but not the same shape.",
         description:
-            "Tool-use tracks swap parameter schemas, response latency, observability limits, and error semantics. The best systems recover quickly and preserve prior operational competence even when the same objective requires a different interaction pattern.",
-        pills: ["API schema swap", "latency spikes", "hidden retries", "degraded observability"],
+            "API contracts, latency, error semantics, and output fields shift over time. Relay measures whether an agent can repair its tool policy without losing older workflows that used the original interface.",
+        pills: ["schema swaps", "latency drift", "degraded observability", "retry penalties"],
         notes: [
             {
                 title: "Representative tasks",
-                body: "Search-and-cite workflows, calculator chains, data cleaning pipelines, and chained browsing actions under revised tool contracts."
+                body: "Search-and-cite chains, data cleanup flows, spreadsheet edits, and retrieval pipelines under revised tool contracts."
             },
             {
-                title: "Failure mode exposed",
-                body: "Agents that memorize one happy-path API surface and fail as soon as argument order, tool names, or retry semantics move."
+                title: "What it exposes",
+                body: "Agents that memorize one happy path and collapse when arguments, retries, or output structure move."
             },
             {
-                title: "Primary metric",
-                body: "Median episodes to recover task completion with penalties for irreversible tool misuse."
+                title: "Primary signal",
+                body: "Median recovery rounds plus irreversible tool-misuse penalties."
             }
         ]
     },
-    vision: {
-        eyebrow: "Vision adaptation",
-        title: "Perception that remains stable under sensory drift",
+    perception: {
+        kicker: "Perception track",
+        title: "Visual conditions drift before the semantics do.",
         description:
-            "Vision tasks introduce lighting shifts, crop noise, symbol remapping, and object co-occurrence changes. Continuum checks whether perception improves on new conditions without erasing earlier recognition behavior.",
-        pills: ["lighting shift", "camera jitter", "symbol remap", "rare object replay"],
+            "Perception tasks add lighting changes, symbol remaps, crop jitter, and background clutter. Systems must absorb new sensory conditions while preserving earlier recognition behavior.",
+        pills: ["lighting shifts", "symbol remaps", "rare object replay", "sensor noise"],
         notes: [
             {
                 title: "Representative tasks",
-                body: "Scene classification, chart reading, OCR repair, and object grounding under repeated perturbation waves."
+                body: "Chart reading, OCR repair, scene labeling, and visual grounding under repeated perturbation waves."
             },
             {
-                title: "Failure mode exposed",
-                body: "Specialists that tune to the latest visual distribution but lose robustness on previously solved sensory conditions."
+                title: "What it exposes",
+                body: "Policies that overfit to the latest visual domain and lose performance on older but still relevant scenes."
             },
             {
-                title: "Primary metric",
-                body: "Cross-shift accuracy area under the retention curve, weighted by replay difficulty."
+                title: "Primary signal",
+                body: "Area under the cross-shift retention curve across replay checkpoints."
             }
         ]
     },
-    agents: {
-        eyebrow: "Agentic control",
-        title: "Long-horizon control with memory, planning, and recovery",
+    control: {
+        kicker: "Long-horizon control track",
+        title: "Plans are interrupted, reordered, and forced to recover.",
         description:
-            "Agentic control sequences test whether a system can maintain plans when constraints change mid-episode. Memory budgets shrink, subgoals reorder, and partial observability increases while older route patterns still matter.",
-        pills: ["memory pressure", "goal reorder", "sparse reward", "hidden resets"],
+            "The control track evaluates web automation, multi-stage workflows, and planning loops where goals reorder mid-run and memory budgets shrink. Learning has to survive interruption.",
+        pills: ["goal reordering", "sparse rewards", "hidden resets", "state truncation"],
         notes: [
             {
                 title: "Representative tasks",
-                body: "Web navigation, workflow automation, embodied grid planning, and multi-stage repair tasks under interrupted state."
+                body: "Web navigation, workflow recovery, sequential tool orchestration, and stateful planning with interrupted episodes."
             },
             {
-                title: "Failure mode exposed",
-                body: "Agents that relearn every perturbation from scratch instead of carrying over useful structure from previous control policies."
+                title: "What it exposes",
+                body: "Agents that relearn every perturbation from scratch and forget previously stable routines."
             },
             {
-                title: "Primary metric",
-                body: "Composite score blending adaptation latency, final success, and recall on previously mastered control routines."
+                title: "Primary signal",
+                body: "Composite of recovery speed, final success rate, and replay recall under constrained memory."
             }
         ]
     }
 };
 
-const leaderboardData = [
+const scoreboardData = [
     {
         rank: "#1",
-        name: "Northstar-XL",
-        tagline: "Balanced frontier model with strong replay retention",
-        score: "84.6",
+        name: "Relay-One XL",
+        tagline: "Fast recovery with unusually strong replay retention",
+        score: "88.2",
         metrics: [
-            { label: "Retention", value: "92%", score: "92%" },
-            { label: "Adaptation", value: "88", score: "88%" },
-            { label: "Transfer", value: "81", score: "81%" },
-            { label: "Robustness", value: "76", score: "76%" }
+            { label: "Retention", value: "94%" },
+            { label: "Recovery", value: "86%" },
+            { label: "Transfer", value: "84%" },
+            { label: "Robustness", value: "77%" }
         ]
     },
     {
         rank: "#2",
-        name: "Helix-Agent",
-        tagline: "Fast recovery under tool drift, moderate memory stability",
-        score: "79.3",
+        name: "Signal Weave",
+        tagline: "Excellent under tool drift, slightly weaker on delayed replay",
+        score: "82.7",
         metrics: [
-            { label: "Retention", value: "84%", score: "84%" },
-            { label: "Adaptation", value: "91", score: "91%" },
-            { label: "Transfer", value: "73", score: "73%" },
-            { label: "Robustness", value: "68", score: "68%" }
+            { label: "Retention", value: "87%" },
+            { label: "Recovery", value: "90%" },
+            { label: "Transfer", value: "79%" },
+            { label: "Robustness", value: "72%" }
         ]
     },
     {
         rank: "#3",
-        name: "StaticMax-Pro",
-        tagline: "Excellent on frozen tasks, weaker under repeated shifts",
-        score: "67.9",
+        name: "Archive-3",
+        tagline: "Stable memory profile, slower to regain competence after major shifts",
+        score: "76.9",
         metrics: [
-            { label: "Retention", value: "69%", score: "69%" },
-            { label: "Adaptation", value: "62", score: "62%" },
-            { label: "Transfer", value: "58", score: "58%" },
-            { label: "Robustness", value: "66", score: "66%" }
+            { label: "Retention", value: "90%" },
+            { label: "Recovery", value: "68%" },
+            { label: "Transfer", value: "70%" },
+            { label: "Robustness", value: "69%" }
         ]
     }
 ];
 
-function renderSuitePanel(tabKey) {
-    const panel = document.getElementById("suitePanel");
-    const tab = suiteData[tabKey];
+function renderTrackPanel(key) {
+    const panel = document.getElementById("trackPanel");
+    const track = trackData[key];
 
-    if (!panel || !tab) {
+    if (!panel || !track) {
         return;
     }
 
     panel.innerHTML = `
-        <div class="tab-panel-grid">
-            <div class="tab-panel-copy">
-                <span class="panel-kicker">${tab.eyebrow}</span>
-                <h3>${tab.title}</h3>
-                <p>${tab.description}</p>
-                <div class="pill-row">
-                    ${tab.pills.map((pill) => `<span>${pill}</span>`).join("")}
+        <div class="track-layout">
+            <div class="track-copy">
+                <span class="track-kicker">${track.kicker}</span>
+                <h3>${track.title}</h3>
+                <p>${track.description}</p>
+                <div class="track-pills">
+                    ${track.pills.map((pill) => `<span>${pill}</span>`).join("")}
                 </div>
             </div>
-            <div class="suite-sidebar">
-                ${tab.notes
+            <div class="track-rail">
+                ${track.notes
                     .map(
                         (note) => `
-                            <div class="suite-note">
+                            <div class="track-meta">
                                 <strong>${note.title}</strong>
-                                <span>${note.body}</span>
+                                <p>${note.body}</p>
                             </div>
                         `
                     )
@@ -158,36 +158,34 @@ function renderSuitePanel(tabKey) {
     `;
 }
 
-function renderLeaderboard() {
-    const grid = document.getElementById("leaderboardGrid");
+function renderScoreboard() {
+    const grid = document.getElementById("scoreboardGrid");
 
     if (!grid) {
         return;
     }
 
-    grid.innerHTML = leaderboardData
+    grid.innerHTML = scoreboardData
         .map(
             (entry) => `
-                <article class="leaderboard-card glass-panel reveal is-visible">
-                    <span class="leaderboard-rank">${entry.rank}</span>
+                <article class="scoreboard-card reveal is-visible">
+                    <span class="score-tag">${entry.rank}</span>
                     <h3>${entry.name}</h3>
                     <p>${entry.tagline}</p>
-                    <div class="leaderboard-score">
+                    <div class="score-number">
                         <strong>${entry.score}</strong>
-                        <span>composite score</span>
+                        <span>Relay index</span>
                     </div>
-                    <div class="score-bars">
+                    <div class="score-meta">
                         ${entry.metrics
                             .map(
                                 (metric) => `
-                                    <div class="score-bar">
-                                        <div class="score-bar-head">
-                                            <span>${metric.label}</span>
-                                            <span>${metric.value}</span>
+                                    <div class="score-meta-row">
+                                        <span>${metric.label}</span>
+                                        <div class="score-mini-bar">
+                                            <span style="--value: ${metric.value}"></span>
                                         </div>
-                                        <div class="score-bar-track">
-                                            <div class="score-bar-fill" style="--score: ${metric.score}"></div>
-                                        </div>
+                                        <strong>${metric.value}</strong>
                                     </div>
                                 `
                             )
@@ -205,41 +203,38 @@ function initCounters() {
 
     counters.forEach((counter) => {
         const target = Number(counter.dataset.count);
-        const decimals = String(target).includes(".") ? 1 : 0;
 
         if (reducedMotion) {
-            counter.textContent = target.toFixed(decimals);
+            counter.textContent = String(target);
             return;
         }
 
-        let current = 0;
         const duration = 1100;
         const start = performance.now();
 
-        const tick = (timestamp) => {
+        const update = (timestamp) => {
             const progress = Math.min(1, (timestamp - start) / duration);
             const eased = 1 - Math.pow(1 - progress, 3);
-            current = target * eased;
-            counter.textContent = current.toFixed(decimals).replace(/\.0$/, "");
+            counter.textContent = String(Math.round(target * eased));
 
             if (progress < 1) {
-                requestAnimationFrame(tick);
+                requestAnimationFrame(update);
             }
         };
 
-        requestAnimationFrame(tick);
+        requestAnimationFrame(update);
     });
 }
 
 function initRevealAnimations() {
     const items = document.querySelectorAll(".reveal");
 
-    const revealInViewport = () => {
+    const revealVisibleItems = () => {
         items.forEach((item) => {
             const rect = item.getBoundingClientRect();
-            const isNearViewport = rect.top < window.innerHeight * 0.92 && rect.bottom > 0;
+            const inRange = rect.top < window.innerHeight * 0.92 && rect.bottom > 0;
 
-            if (isNearViewport) {
+            if (inRange) {
                 item.classList.add("is-visible");
             }
         });
@@ -259,20 +254,20 @@ function initRevealAnimations() {
                 }
             });
         },
-        { threshold: 0.18 }
+        { threshold: 0.16 }
     );
 
     items.forEach((item) => observer.observe(item));
-    revealInViewport();
-    window.addEventListener("hashchange", revealInViewport);
+    revealVisibleItems();
+    window.addEventListener("hashchange", revealVisibleItems);
 
     setTimeout(() => {
-        revealInViewport();
+        revealVisibleItems();
     }, 250);
 }
 
-function initTabs() {
-    const buttons = document.querySelectorAll(".tab-button");
+function initTrackTabs() {
+    const buttons = document.querySelectorAll(".track-tab");
 
     if (!buttons.length) {
         return;
@@ -287,21 +282,21 @@ function initTabs() {
 
             button.classList.add("active");
             button.setAttribute("aria-selected", "true");
-            renderSuitePanel(button.dataset.tab);
+            renderTrackPanel(button.dataset.track);
         });
     });
 
-    renderSuitePanel("language");
+    renderTrackPanel("language");
 }
 
 function initFaq() {
     document.querySelectorAll(".faq-trigger").forEach((trigger) => {
         trigger.addEventListener("click", () => {
-            const item = trigger.closest(".faq-item");
+            const card = trigger.closest(".faq-card");
             const expanded = trigger.getAttribute("aria-expanded") === "true";
 
-            item.classList.toggle("open", !expanded);
             trigger.setAttribute("aria-expanded", String(!expanded));
+            card.classList.toggle("open", !expanded);
         });
     });
 }
@@ -310,8 +305,8 @@ function initScrollSpy() {
     const links = Array.from(document.querySelectorAll(".nav-links a"));
     const sections = links
         .map((link) => {
-            const id = link.getAttribute("href");
-            return id ? document.querySelector(id) : null;
+            const href = link.getAttribute("href");
+            return href ? document.querySelector(href) : null;
         })
         .filter(Boolean);
 
@@ -327,13 +322,13 @@ function initScrollSpy() {
                 }
 
                 links.forEach((link) => {
-                    const isActive = link.getAttribute("href") === `#${entry.target.id}`;
-                    link.classList.toggle("active", isActive);
+                    const active = link.getAttribute("href") === `#${entry.target.id}`;
+                    link.classList.toggle("active", active);
                 });
             });
         },
         {
-            rootMargin: "-35% 0px -45% 0px",
+            rootMargin: "-35% 0px -50% 0px",
             threshold: 0.05
         }
     );
@@ -342,8 +337,8 @@ function initScrollSpy() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    renderLeaderboard();
-    initTabs();
+    renderScoreboard();
+    initTrackTabs();
     initCounters();
     initRevealAnimations();
     initFaq();
