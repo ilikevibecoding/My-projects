@@ -961,6 +961,15 @@ select {
         font-size: clamp(2.2rem, 10vw, 3rem);
     }
 
+    .hero-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hero-actions .button {
+        width: 100%;
+    }
+
     .track-tabs {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
