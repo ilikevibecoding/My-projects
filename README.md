@@ -1,42 +1,53 @@
-# Bombsite Breach
+# Abyssal Dawn
 
-Bombsite Breach is a self-contained browser tactical shooter inspired by the CS:GO retake loop.
-The whole prototype lives in `index.html` with no dependencies or build step.
+Abyssal Dawn is a Subnautica-inspired browser prototype built around underwater atmosphere first: dense fog, moving caustics, volumetric light shafts, glowing coral, animated fish schools, a roaming ray creature, and first-person swimming with scan objectives.
 
-## What is included
+## Highlights
 
-- Top-down tactical shooter gameplay
-- Bombsite A retake scenario with a live bomb timer
-- Enemy bots with patrol, sightlines, and combat behavior
-- Weapon switching between USP-S, M4A1-S, and AWP
-- Reloading, armor, round transitions, score tracking, and HUD updates
-- Defuse mechanic with a hold-to-complete progress bar
+- First-person underwater exploration with pointer-lock look controls
+- Procedural seabed terrain with animated surface waves and caustic lighting
+- Neon coral fields, kelp forests, vent plumes, and a crash lifepod landmark
+- Ambient wildlife including multiple fish schools and a moving scan target creature
+- Scanner-driven objective chain with HUD, sonar display, and oxygen management
+- Single static site powered by Three.js and local assets only
 
-## How to run
+## Run locally
 
-Open `index.html` in a desktop browser.
-
-If you want to serve it locally instead of opening the file directly:
+Install dependencies:
 
 ```bash
-python3 -m http.server 8000
+npm install
 ```
 
-Then visit `http://localhost:8000`.
+Start a local server:
+
+```bash
+npm run start
+```
+
+Then open:
+
+```text
+http://localhost:8000
+```
 
 ## Controls
 
-- `WASD` - move
-- `Shift` - slow walk for tighter spread
-- `Mouse` - aim
-- `Left Click` - fire
-- `R` - reload
-- `1` - USP-S
-- `2` - M4A1-S
-- `3` - AWP
-- `E` - hold to defuse when near the bomb
-- `Enter` or `Space` - start the match from the intro screen
+- `Mouse` - look around
+- `WASD` - swim
+- `Space` - ascend
+- `Shift` - dive
+- `E` - hold to scan the active target
+- `Esc` - release pointer lock
+- `Enter` or `Space` on the intro screen - begin dive
 
-## Objective
+## Goal
 
-You play as the counter-terrorist on a solo retake. Eliminate defenders if needed, but the round is only won once the bomb is defused before the timer expires.
+Follow the active beacon markers and complete all scan objectives:
+
+1. Crash Lifepod
+2. Solar Fan Coral
+3. Vent Bloom
+4. Rayback Juvenile
+
+Surface regularly to refill oxygen while exploring the reef and trench.
