@@ -3,9 +3,21 @@ const path = require("node:path");
 const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
 
+const appDataRoot = app.getPath("appData");
+const userDataDir = path.join(appDataRoot, "Neon Forecourt");
+const sessionDataDir = path.join(userDataDir, "SessionData");
+const cacheDir = path.join(userDataDir, "Cache");
+
+fs.mkdirSync(userDataDir, { recursive: true });
+fs.mkdirSync(sessionDataDir, { recursive: true });
+fs.mkdirSync(cacheDir, { recursive: true });
+
+app.setPath("userData", userDataDir);
+app.setPath("sessionData", sessionDataDir);
 app.commandLine.appendSwitch("ignore-gpu-blocklist");
 app.commandLine.appendSwitch("enable-gpu-rasterization");
 app.commandLine.appendSwitch("enable-zero-copy");
+app.commandLine.appendSwitch("disk-cache-dir", cacheDir);
 
 function resolveRendererEntry() {
   const builtIndex = path.join(__dirname, "..", "dist", "index.html");
@@ -38,7 +50,7 @@ function createWindow() {
 
   mainWindow.loadURL(resolveRendererEntry());
 
-  if (!app.isPackaged) {
+  if (process.env.ELECTRON_OPEN_DEVTOOLS === "1") {
     mainWindow.webContents.openDevTools({ mode: "detach" });
   }
 }
