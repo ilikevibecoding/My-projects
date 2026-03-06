@@ -90,7 +90,7 @@ button {
 
 .page-shell {
     position: relative;
-    overflow: clip;
+    overflow-x: clip;
 }
 
 .page-noise,
