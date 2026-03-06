@@ -1,0 +1,495 @@
+:root {
+    --bg-1: #9fd4ff;
+    --bg-2: #f8d8ff;
+    --bg-3: #fff6c1;
+    --ink: #193052;
+    --paper: rgba(255, 255, 255, 0.88);
+    --paper-strong: rgba(255, 255, 255, 0.96);
+    --shadow: 0 24px 70px rgba(37, 60, 99, 0.18);
+    --border: rgba(25, 48, 82, 0.16);
+    --accent: #ff8f6b;
+    --accent-2: #7d8cff;
+    --success: #65d29b;
+    --danger: #ff6f91;
+    --warning: #ffd166;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+}
+
+body {
+    position: relative;
+    overflow-x: hidden;
+    font-family: "Inter", sans-serif;
+    color: var(--ink);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.8), transparent 28%),
+        radial-gradient(circle at top right, rgba(255, 247, 214, 0.65), transparent 32%),
+        linear-gradient(180deg, #bce5ff 0%, #daf0ff 24%, #f7e7ff 65%, #fff6d5 100%);
+}
+
+body::before,
+body::after {
+    content: "";
+    position: fixed;
+    inset: auto;
+    width: 34vmax;
+    height: 34vmax;
+    border-radius: 50%;
+    filter: blur(20px);
+    opacity: 0.26;
+    pointer-events: none;
+    z-index: -2;
+}
+
+body::before {
+    top: -10vmax;
+    right: -6vmax;
+    background: radial-gradient(circle, rgba(255, 164, 185, 0.7), transparent 68%);
+}
+
+body::after {
+    bottom: -14vmax;
+    left: -8vmax;
+    background: radial-gradient(circle, rgba(118, 195, 255, 0.75), transparent 64%);
+}
+
+.page-noise {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.18;
+    background-image:
+        radial-gradient(circle at 12% 18%, rgba(25, 48, 82, 0.14) 0 1px, transparent 1px),
+        radial-gradient(circle at 70% 30%, rgba(25, 48, 82, 0.12) 0 1px, transparent 1px),
+        radial-gradient(circle at 25% 75%, rgba(25, 48, 82, 0.14) 0 1px, transparent 1px),
+        radial-gradient(circle at 85% 80%, rgba(25, 48, 82, 0.12) 0 1px, transparent 1px);
+    background-size: 28px 28px, 32px 32px, 26px 26px, 34px 34px;
+}
+
+.app-shell {
+    width: min(1400px, calc(100vw - 32px));
+    margin: 0 auto;
+    padding: 28px 0 36px;
+}
+
+.hero-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: flex-end;
+    margin-bottom: 22px;
+    padding: 22px 24px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.48));
+    border: 2px solid rgba(25, 48, 82, 0.12);
+    border-radius: 28px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+}
+
+.eyebrow {
+    margin: 0 0 6px;
+    font-size: 0.82rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(25, 48, 82, 0.62);
+}
+
+.hero-bar h1 {
+    margin: 0;
+    font-family: "Baloo 2", cursive;
+    font-weight: 800;
+    font-size: clamp(2.6rem, 4.4vw, 4.6rem);
+    line-height: 0.95;
+}
+
+.hero-copy {
+    max-width: 720px;
+    margin: 10px 0 0;
+    color: rgba(25, 48, 82, 0.78);
+    font-size: 1.02rem;
+    line-height: 1.6;
+}
+
+.hero-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 12px;
+    min-width: 280px;
+}
+
+.pill,
+.hud-card,
+.panel-card,
+.overlay-card,
+.touch-button,
+.icon-button,
+.primary-button {
+    border: 2px solid var(--border);
+    box-shadow: 0 12px 26px rgba(42, 64, 102, 0.12);
+}
+
+.pill {
+    display: grid;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.pill span,
+.hud-card span,
+.result-grid span,
+.mini-grid span {
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(25, 48, 82, 0.62);
+}
+
+.pill strong {
+    font-size: 1rem;
+}
+
+.game-layout {
+    display: grid;
+    grid-template-columns: minmax(220px, 270px) minmax(340px, 540px) minmax(220px, 270px);
+    gap: 24px;
+    align-items: start;
+}
+
+.info-panel {
+    display: grid;
+    gap: 18px;
+}
+
+.panel-card {
+    padding: 18px 18px 20px;
+    border-radius: 22px;
+    background: var(--paper);
+    backdrop-filter: blur(12px);
+}
+
+.panel-card h2 {
+    margin: 0 0 12px;
+    font-family: "Baloo 2", cursive;
+    font-size: 1.42rem;
+    line-height: 1;
+}
+
+.panel-card p,
+.tip-list {
+    margin: 0;
+    color: rgba(25, 48, 82, 0.78);
+    line-height: 1.6;
+}
+
+.tip-list {
+    padding-left: 18px;
+}
+
+.legend-list {
+    display: grid;
+    gap: 10px;
+    color: rgba(25, 48, 82, 0.82);
+}
+
+.legend-list div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 2px solid rgba(25, 48, 82, 0.4);
+}
+
+.swatch-normal { background: #8ddf95; }
+.swatch-moving { background: #71caff; }
+.swatch-break { background: #ffc96e; }
+.swatch-ghost { background: #ccb9ff; }
+.swatch-boost { background: #ff9aa2; }
+
+.game-column {
+    display: grid;
+    gap: 18px;
+}
+
+.game-frame {
+    position: relative;
+    width: 100%;
+    padding: 16px;
+    border-radius: 32px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.22)),
+        linear-gradient(135deg, rgba(125, 140, 255, 0.16), rgba(255, 143, 107, 0.16));
+    border: 2px solid rgba(25, 48, 82, 0.14);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+}
+
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 24px;
+    background: linear-gradient(180deg, #d6f1ff 0%, #ebf9ff 45%, #fffbee 100%);
+    border: 3px solid rgba(25, 48, 82, 0.18);
+}
+
+.hud {
+    position: absolute;
+    inset: 28px 30px auto 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    pointer-events: none;
+}
+
+.hud-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(80px, 1fr));
+    gap: 10px;
+}
+
+.hud-card {
+    display: grid;
+    gap: 2px;
+    min-width: 92px;
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.84);
+}
+
+.hud-card strong {
+    font-family: "Baloo 2", cursive;
+    font-size: 1.36rem;
+    line-height: 1;
+}
+
+.hud-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: auto;
+}
+
+.icon-button,
+.primary-button,
+.touch-button {
+    cursor: pointer;
+    font: inherit;
+    border-radius: 16px;
+    color: var(--ink);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.icon-button:hover,
+.primary-button:hover,
+.touch-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 28px rgba(42, 64, 102, 0.18);
+}
+
+.icon-button {
+    padding: 11px 14px;
+    background: rgba(255, 255, 255, 0.86);
+}
+
+.primary-button {
+    padding: 14px 24px;
+    background: linear-gradient(135deg, var(--accent), #ffb15d);
+    color: #fff;
+    border-color: rgba(255, 115, 72, 0.35);
+    font-weight: 700;
+}
+
+.screen-overlay {
+    position: absolute;
+    inset: 16px;
+    display: grid;
+    place-items: center;
+    background: rgba(32, 53, 86, 0.22);
+    backdrop-filter: blur(6px);
+    border-radius: 24px;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.screen-overlay.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.98);
+}
+
+.overlay-card {
+    width: min(88%, 380px);
+    padding: 24px 24px 22px;
+    border-radius: 24px;
+    background: var(--paper-strong);
+    text-align: center;
+}
+
+.overlay-card h2 {
+    margin: 0 0 10px;
+    font-family: "Baloo 2", cursive;
+    font-size: 2rem;
+    line-height: 0.96;
+}
+
+.overlay-card p {
+    margin: 0;
+    line-height: 1.6;
+    color: rgba(25, 48, 82, 0.8);
+}
+
+.button-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 18px;
+}
+
+.mini-grid,
+.result-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.mini-grid div,
+.result-grid div {
+    display: grid;
+    gap: 4px;
+    padding: 12px;
+    border-radius: 16px;
+    background: rgba(125, 140, 255, 0.08);
+}
+
+.mini-grid strong,
+.result-grid strong {
+    font-size: 1rem;
+}
+
+.result-grid strong {
+    font-family: "Baloo 2", cursive;
+    font-size: 1.35rem;
+}
+
+.touch-controls {
+    display: none;
+    justify-content: center;
+    gap: 16px;
+}
+
+.touch-button {
+    width: 92px;
+    height: 62px;
+    background: rgba(255, 255, 255, 0.86);
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.touch-button.is-active {
+    background: linear-gradient(135deg, rgba(125, 140, 255, 0.28), rgba(255, 143, 107, 0.28));
+    transform: translateY(1px) scale(0.98);
+}
+
+.footer-note {
+    margin-top: 20px;
+    padding: 0 4px;
+    text-align: center;
+    color: rgba(25, 48, 82, 0.72);
+}
+
+code {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(25, 48, 82, 0.12);
+}
+
+@media (max-width: 1180px) {
+    .game-layout {
+        grid-template-columns: 1fr minmax(340px, 540px) 1fr;
+    }
+
+    .hero-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 980px) {
+    .app-shell {
+        width: min(720px, calc(100vw - 20px));
+        padding-top: 18px;
+    }
+
+    .game-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .info-panel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .game-column {
+        order: -1;
+    }
+}
+
+@media (max-width: 720px) {
+    .hero-bar {
+        padding: 18px;
+        border-radius: 24px;
+    }
+
+    .hero-stats,
+    .info-panel,
+    .mini-grid,
+    .result-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .game-frame {
+        padding: 12px;
+        border-radius: 24px;
+    }
+
+    .hud {
+        inset: 22px 24px auto 24px;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hud-group {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .hud-actions {
+        flex-direction: row;
+        justify-content: flex-end;
+    }
+
+    .touch-controls {
+        display: flex;
+    }
+}
+
+@media (pointer: coarse) {
+    .touch-controls {
+        display: flex;
+    }
+}
