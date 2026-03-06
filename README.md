@@ -1,41 +1,44 @@
-# Continuum
+# Relay
 
-Continuum is a polished, dependency-free static website concept for a **continuous learning benchmark**.
-It presents a fictional benchmark brand, methodology, task suite, and illustrative leaderboard in a
-single-page experience designed for research launches, benchmark announcements, or demo microsites.
+Relay is a polished, dependency-free static website concept for a **continuous learning benchmark**.
+It is designed as a research-style launch page for a benchmark that measures how well agents retain,
+recover, transfer, and remain robust as tasks and environments shift over time.
 
-## What is included
+## What changed
 
-- A premium dark-mode landing page with a strong hero section
-- Benchmark positioning focused on retention, adaptation, transfer, and robustness
-- Task-suite tabs with domain-specific benchmark descriptions
-- An illustrative leaderboard rendered from lightweight client-side data
-- FAQ interactions, animated counters, scroll reveals, and section-aware nav highlighting
-- Fully static hosting with no framework, no bundler, and no runtime dependencies
+This repo now ships a complete static benchmark website rather than a game or prototype UI.
+The current site includes:
+
+- a new benchmark brand and homepage
+- a hero section with benchmark summary metrics
+- a benchmark loop section explaining the evaluation cycle
+- interactive evaluation-track tabs
+- a rendered scoreboard with illustrative submissions
+- an FAQ and launch-ready CTA/footer
 
 ## File structure
 
-- `index.html` — semantic page structure and content
-- `styles.css` — design system, layout, responsiveness, and visual effects
-- `script.js` — lightweight interactions and data-driven rendering
+- `index.html` — semantic page structure and site copy
+- `styles.css` — layout, visual system, and responsive behavior
+- `script.js` — lightweight interactions and data-driven content
 
-## How to run
+## Run locally
 
-Open `index.html` directly in a browser, or serve the directory locally:
+Open `index.html` directly in a browser, or serve the repo locally:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then visit `http://localhost:8000`.
+Then open `http://localhost:8000`.
 
-## Customization notes
+## Customization
 
-- Update the benchmark name, copy, and CTA language in `index.html`
-- Replace the illustrative task-suite and leaderboard data in `script.js`
-- Adjust colors, spacing, and visual style tokens in `styles.css`
+- Update copy and section structure in `index.html`
+- Change colors, spacing, and component styling in `styles.css`
+- Replace track and scoreboard data in `script.js`
 
 ## Notes
 
-The benchmark content and scores are intentionally fictional, but the site structure is designed to be a
-practical starting point for a real benchmark launch page.
+The benchmark copy and scores are illustrative, but the site is intentionally structured so it can be
+adapted into a real benchmark launch page with minimal effort.

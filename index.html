@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Continuum — A benchmark for continuous learning agents</title>
+    <title>Relay — Benchmarking continuous learning in motion</title>
     <meta
         name="description"
-        content="Continuum is a beautifully designed concept website for a continuous learning benchmark focused on retention, adaptation, transfer, and robustness."
+        content="Relay is a concept website for a continuous learning benchmark that measures retention, recovery, transfer, and performance through repeated distribution shifts."
     >
-    <meta property="og:title" content="Continuum — Continuous Learning Benchmark">
+    <meta property="og:title" content="Relay — Continuous Learning Benchmark">
     <meta
         property="og:description"
-        content="Evaluate whether agents can keep learning without forgetting as the world shifts beneath them."
+        content="A research-style static website for evaluating whether agents keep learning as objectives, interfaces, and environments change."
     >
     <meta property="og:type" content="website">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,497 +25,378 @@
 <body>
     <a class="skip-link" href="#main">Skip to content</a>
 
-    <div class="page-shell">
-        <div class="page-noise" aria-hidden="true"></div>
-        <div class="aurora aurora-one" aria-hidden="true"></div>
-        <div class="aurora aurora-two" aria-hidden="true"></div>
-        <div class="grid-glow" aria-hidden="true"></div>
-
-        <header class="site-header" id="top">
-            <div class="container nav">
-                <a class="brand" href="#top" aria-label="Continuum homepage">
-                    <span class="brand-mark">C</span>
-                    <span class="brand-copy">
-                        <strong>Continuum</strong>
-                        <span>continuous learning benchmark</span>
-                    </span>
-                </a>
-
-                <nav class="nav-links" aria-label="Primary">
-                    <a href="#benchmark">Benchmark</a>
-                    <a href="#suite">Task Suite</a>
-                    <a href="#leaderboard">Leaderboard</a>
-                    <a href="#method">Method</a>
-                    <a href="#faq">FAQ</a>
-                </nav>
-
-                <a class="button button-ghost nav-button" href="#leaderboard">See scores</a>
-            </div>
-        </header>
-
-        <main id="main">
-            <section class="section hero-section">
-                <div class="container hero-grid">
-                    <div class="hero-copy reveal">
-                        <span class="eyebrow-pill">Preview benchmark · Version 0.9</span>
-                        <h1>
-                            A benchmark for agents that
-                            <span class="gradient-text">keep learning</span>
-                            after the world changes.
-                        </h1>
-                        <p class="hero-body">
-                            Continuum measures what static leaderboards miss: whether a model can adapt to
-                            new tasks, retain what it learned yesterday, and stay robust through repeated
-                            distribution shifts without collapsing into catastrophic forgetting.
-                        </p>
-
-                        <div class="hero-actions">
-                            <a class="button button-primary" href="#benchmark">Explore the benchmark</a>
-                            <a class="button button-secondary" href="#method">View methodology</a>
-                        </div>
-
-                        <div class="hero-microstats">
-                            <article class="microstat glass-panel">
-                                <span class="microstat-label">Domains</span>
-                                <strong class="microstat-value"><span data-count="6">0</span></strong>
-                                <span class="microstat-note">language, vision, memory, tools, planning, control</span>
-                            </article>
-                            <article class="microstat glass-panel">
-                                <span class="microstat-label">Task variants</span>
-                                <strong class="microstat-value"><span data-count="480">0</span>+</strong>
-                                <span class="microstat-note">staged, curriculum-driven, and non-stationary</span>
-                            </article>
-                            <article class="microstat glass-panel">
-                                <span class="microstat-label">Shift cycles</span>
-                                <strong class="microstat-value"><span data-count="18">0</span></strong>
-                                <span class="microstat-note">re-evaluation after every perturbation wave</span>
-                            </article>
-                        </div>
-                    </div>
-
-                    <div class="hero-visual reveal">
-                        <article class="glass-panel signal-board">
-                            <div class="signal-board-top">
-                                <div>
-                                    <span class="panel-kicker">Composite benchmark index</span>
-                                    <h2>Frontier systems should improve without forgetting.</h2>
-                                </div>
-                                <span class="status-pill">Live preview</span>
-                            </div>
-
-                            <div class="signal-ring-wrap">
-                                <div class="signal-ring">
-                                    <div class="signal-ring-core">
-                                        <span>Mean score</span>
-                                        <strong>84.6</strong>
-                                        <small>/ 100</small>
-                                    </div>
-                                </div>
-
-                                <div class="signal-metrics">
-                                    <div class="signal-metric">
-                                        <span>Retention</span>
-                                        <strong>92%</strong>
-                                        <div class="metric-bar"><span style="--fill: 92%"></span></div>
-                                    </div>
-                                    <div class="signal-metric">
-                                        <span>Adaptation latency</span>
-                                        <strong>4.8 episodes</strong>
-                                        <div class="metric-bar"><span style="--fill: 74%"></span></div>
-                                    </div>
-                                    <div class="signal-metric">
-                                        <span>Forward transfer</span>
-                                        <strong>+17 pts</strong>
-                                        <div class="metric-bar"><span style="--fill: 81%"></span></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="shift-map">
-                                <div class="shift-map-head">
-                                    <span>Curriculum shift map</span>
-                                    <span>Increasing pressure</span>
-                                </div>
-
-                                <div class="shift-track">
-                                    <span>pretrain</span>
-                                    <span>drift</span>
-                                    <span>tool swap</span>
-                                    <span>memory stress</span>
-                                    <span>recovery</span>
-                                </div>
-
-                                <div class="sparkline" aria-hidden="true">
-                                    <span style="--height: 36%"></span>
-                                    <span style="--height: 54%"></span>
-                                    <span style="--height: 68%"></span>
-                                    <span style="--height: 48%"></span>
-                                    <span style="--height: 74%"></span>
-                                    <span style="--height: 88%"></span>
-                                    <span style="--height: 62%"></span>
-                                    <span style="--height: 91%"></span>
-                                    <span style="--height: 77%"></span>
-                                    <span style="--height: 83%"></span>
-                                </div>
-                            </div>
-                        </article>
-                    </div>
-                </div>
-
-                <div class="container trust-row reveal">
-                    <span class="trust-label">Designed for continual evaluation across</span>
-                    <div class="trust-items" aria-label="Benchmark evaluation dimensions">
-                        <span>Retention</span>
-                        <span>Rapid adaptation</span>
-                        <span>Transfer</span>
-                        <span>Robustness</span>
-                        <span>Versioned shifts</span>
-                    </div>
-                </div>
-            </section>
-
-            <section class="section" id="why">
-                <div class="container">
-                    <div class="section-heading reveal">
-                        <span class="eyebrow-pill eyebrow-soft">Why static evaluation fails</span>
-                        <h2>Most leaderboards reward frozen competence, not durable learning.</h2>
-                        <p>
-                            Real agents do not live in one snapshot. They receive new tools, face changing
-                            environments, and must preserve earlier skills while improving on unfamiliar ones.
-                            Continuum turns that reality into a measurable benchmark.
-                        </p>
-                    </div>
-
-                    <div class="card-grid card-grid-four">
-                        <article class="glass-panel feature-card reveal">
-                            <span class="feature-index">01</span>
-                            <h3>Distribution shift is staged on purpose</h3>
-                            <p>
-                                Each curriculum wave changes inputs, reward structure, interface assumptions,
-                                or memory pressure so benchmark scores reflect adaptation under drift.
-                            </p>
-                        </article>
-                        <article class="glass-panel feature-card reveal">
-                            <span class="feature-index">02</span>
-                            <h3>Retention is measured after every improvement</h3>
-                            <p>
-                                Agents are repeatedly sent back to earlier tasks. If new gains erase prior
-                                capability, Continuum penalizes them immediately.
-                            </p>
-                        </article>
-                        <article class="glass-panel feature-card reveal">
-                            <span class="feature-index">03</span>
-                            <h3>Transfer matters as much as raw score</h3>
-                            <p>
-                                We care about whether learning one task makes the next one easier, not only
-                                whether a system can brute-force each stage in isolation.
-                            </p>
-                        </article>
-                        <article class="glass-panel feature-card reveal">
-                            <span class="feature-index">04</span>
-                            <h3>Benchmark versions are explicit and comparable</h3>
-                            <p>
-                                Shift packs are versioned so labs can report progress over time without losing
-                                comparability or quietly overfitting to an outdated suite.
-                            </p>
-                        </article>
-                    </div>
-                </div>
-            </section>
-
-            <section class="section benchmark-section" id="benchmark">
-                <div class="container benchmark-grid">
-                    <div class="section-heading reveal">
-                        <span class="eyebrow-pill eyebrow-soft">Benchmark anatomy</span>
-                        <h2>One score, four dimensions, many ways to fail gracefully.</h2>
-                        <p>
-                            Continuum aggregates complementary signals so a model cannot top the chart by
-                            excelling at one dimension while silently forgetting everything else.
-                        </p>
-
-                        <div class="metric-stack">
-                            <article class="glass-panel metric-card reveal">
-                                <div class="metric-copy">
-                                    <span>Retention score</span>
-                                    <strong><span data-count="92">0</span>%</strong>
-                                </div>
-                                <p>Re-tested performance on previously solved tasks after later training waves.</p>
-                            </article>
-                            <article class="glass-panel metric-card reveal">
-                                <div class="metric-copy">
-                                    <span>Adaptation episodes</span>
-                                    <strong><span data-count="5">0</span></strong>
-                                </div>
-                                <p>Median episodes required to recover 90% of peak performance after a shift.</p>
-                            </article>
-                            <article class="glass-panel metric-card reveal">
-                                <div class="metric-copy">
-                                    <span>Forward transfer</span>
-                                    <strong>+<span data-count="17">0</span></strong>
-                                </div>
-                                <p>Improvement on unseen downstream tasks attributable to prior curriculum stages.</p>
-                            </article>
-                            <article class="glass-panel metric-card reveal">
-                                <div class="metric-copy">
-                                    <span>Robustness variance</span>
-                                    <strong><span data-count="7">0</span>%</strong>
-                                </div>
-                                <p>Performance volatility under interface changes, hidden resets, and sparse feedback.</p>
-                            </article>
-                        </div>
-                    </div>
-
-                    <article class="glass-panel radar-card reveal">
-                        <div class="radar-head">
-                            <div>
-                                <span class="panel-kicker">Evaluation surface</span>
-                                <h3>Balanced systems form a wider frontier.</h3>
-                            </div>
-                            <span class="status-pill status-pill-soft">Weighted composite</span>
-                        </div>
-
-                        <div class="radar-display" aria-hidden="true">
-                            <div class="radar-grid">
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                            </div>
-                            <div class="radar-shape radar-shape-primary"></div>
-                            <div class="radar-shape radar-shape-secondary"></div>
-                            <div class="radar-center"></div>
-                        </div>
-
-                        <div class="legend-grid">
-                            <div>
-                                <span class="legend-dot legend-primary"></span>
-                                <span>Continuum frontier model</span>
-                            </div>
-                            <div>
-                                <span class="legend-dot legend-secondary"></span>
-                                <span>Static benchmark specialist</span>
-                            </div>
-                        </div>
-
-                        <ul class="benchmark-notes">
-                            <li>Retention and transfer are rewarded together.</li>
-                            <li>Latency penalties prevent "eventual" recovery from dominating.</li>
-                            <li>Shift robustness keeps brittle systems from hiding behind mean averages.</li>
-                        </ul>
-                    </article>
-                </div>
-            </section>
-
-            <section class="section suite-section" id="suite">
-                <div class="container">
-                    <div class="section-heading reveal">
-                        <span class="eyebrow-pill eyebrow-soft">Task suite</span>
-                        <h2>A curriculum built to expose forgetting, not flatter it.</h2>
-                        <p>
-                            Each domain introduces a different failure mode. The benchmark rotates through
-                            domain-specific shifts and then returns to older checkpoints to test what survived.
-                        </p>
-                    </div>
-
-                    <div class="suite-shell">
-                        <div class="tab-list reveal" role="tablist" aria-label="Continuum task domains">
-                            <button class="tab-button active" type="button" role="tab" aria-selected="true" data-tab="language">Language</button>
-                            <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="tools">Tool use</button>
-                            <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="vision">Vision</button>
-                            <button class="tab-button" type="button" role="tab" aria-selected="false" data-tab="agents">Agentic control</button>
-                        </div>
-
-                        <article class="glass-panel tab-panel reveal" id="suitePanel" aria-live="polite"></article>
-                    </div>
-                </div>
-            </section>
-
-            <section class="section leaderboard-section" id="leaderboard">
-                <div class="container">
-                    <div class="section-heading reveal">
-                        <span class="eyebrow-pill eyebrow-soft">Leaderboard snapshot</span>
-                        <h2>Scores that reward durable improvement, not one-off wins.</h2>
-                        <p>
-                            Leaderboard entries below are illustrative, but the scoring logic is real:
-                            retention, adaptation speed, transfer, and robustness combine into a single
-                            weighted benchmark index.
-                        </p>
-                    </div>
-
-                    <div class="leaderboard-summary reveal">
-                        <div class="summary-chip glass-panel">
-                            <span>Scoring weights</span>
-                            <strong>35% retention · 25% adaptation · 25% transfer · 15% robustness</strong>
-                        </div>
-                        <div class="summary-chip glass-panel">
-                            <span>Submission cadence</span>
-                            <strong>Versioned quarterly with frozen replay packs</strong>
-                        </div>
-                    </div>
-
-                    <div class="leaderboard-grid" id="leaderboardGrid"></div>
-                </div>
-            </section>
-
-            <section class="section" id="method">
-                <div class="container">
-                    <div class="section-heading reveal">
-                        <span class="eyebrow-pill eyebrow-soft">Methodology</span>
-                        <h2>Evaluate, perturb, revisit, measure what actually sticks.</h2>
-                        <p>
-                            Continuum is intentionally cyclic. Systems do not simply advance through tasks; they
-                            repeatedly return to older skills under new assumptions so retention becomes visible.
-                        </p>
-                    </div>
-
-                    <div class="process-grid">
-                        <article class="glass-panel process-card reveal">
-                            <span class="process-step">01</span>
-                            <h3>Establish the capability floor</h3>
-                            <p>Agents complete a balanced seed curriculum across six domains and expose their initial frontier.</p>
-                        </article>
-                        <article class="glass-panel process-card reveal">
-                            <span class="process-step">02</span>
-                            <h3>Inject a controlled shift</h3>
-                            <p>Interfaces, reward sparsity, sensory noise, or available tools change without altering the underlying objective.</p>
-                        </article>
-                        <article class="glass-panel process-card reveal">
-                            <span class="process-step">03</span>
-                            <h3>Measure recovery and transfer</h3>
-                            <p>We track how quickly the system climbs back, whether prior experience helps, and where it wastes samples.</p>
-                        </article>
-                        <article class="glass-panel process-card reveal">
-                            <span class="process-step">04</span>
-                            <h3>Re-test old skills under pressure</h3>
-                            <p>Previously solved tasks return with latency budgets and hidden recalls to quantify forgetting explicitly.</p>
-                        </article>
-                    </div>
-
-                    <div class="method-footer">
-                        <article class="glass-panel policy-card reveal">
-                            <span class="panel-kicker">Versioning policy</span>
-                            <h3>Every benchmark release ships with frozen replay packs and drift notes.</h3>
-                            <p>
-                                Submissions remain comparable inside each release train, while newer versions add
-                                fresh shift packs to keep the benchmark from becoming stale or gameable.
-                            </p>
-                        </article>
-                    </div>
-                </div>
-            </section>
-
-            <section class="section faq-section" id="faq">
-                <div class="container faq-grid">
-                    <div class="section-heading reveal">
-                        <span class="eyebrow-pill eyebrow-soft">Frequently asked questions</span>
-                        <h2>Built for researchers, model builders, and benchmark skeptics.</h2>
-                        <p>
-                            Continuum is designed to be interpretable. The questions below cover why it exists,
-                            how it stays honest, and what a strong result actually means.
-                        </p>
-                    </div>
-
-                    <div class="faq-list">
-                        <article class="glass-panel faq-item reveal">
-                            <button class="faq-trigger" type="button" aria-expanded="false">
-                                <span>What makes this different from a normal benchmark?</span>
-                                <span class="faq-icon">+</span>
-                            </button>
-                            <div class="faq-content">
-                                <p>
-                                    Static benchmarks score a frozen snapshot. Continuum repeatedly changes the
-                                    environment and re-tests earlier skills so learning dynamics, retention, and
-                                    transfer become part of the score.
-                                </p>
-                            </div>
-                        </article>
-                        <article class="glass-panel faq-item reveal">
-                            <button class="faq-trigger" type="button" aria-expanded="false">
-                                <span>How do you prevent benchmark leakage and overfitting?</span>
-                                <span class="faq-icon">+</span>
-                            </button>
-                            <div class="faq-content">
-                                <p>
-                                    Public specs define the structure of shifts, not every concrete instance.
-                                    Frozen replay packs are versioned, and hidden holdout perturbations are used
-                                    to evaluate whether policies generalize beyond public examples.
-                                </p>
-                            </div>
-                        </article>
-                        <article class="glass-panel faq-item reveal">
-                            <button class="faq-trigger" type="button" aria-expanded="false">
-                                <span>Does a high score imply a generally intelligent agent?</span>
-                                <span class="faq-icon">+</span>
-                            </button>
-                            <div class="faq-content">
-                                <p>
-                                    No single benchmark can do that. A high Continuum score means the system is
-                                    unusually good at learning under repeated change without forgetting, which is
-                                    a useful but still partial signal.
-                                </p>
-                            </div>
-                        </article>
-                        <article class="glass-panel faq-item reveal">
-                            <button class="faq-trigger" type="button" aria-expanded="false">
-                                <span>Can teams adapt this site to a real benchmark launch?</span>
-                                <span class="faq-icon">+</span>
-                            </button>
-                            <div class="faq-content">
-                                <p>
-                                    Yes. The site is fully static and dependency-free. Swap the placeholder
-                                    benchmark data in the script file, update copy, and it is ready to serve as a
-                                    polished launch page for a real evaluation suite.
-                                </p>
-                            </div>
-                        </article>
-                    </div>
-                </div>
-            </section>
-
-            <section class="section cta-section">
-                <div class="container">
-                    <article class="cta-panel glass-panel reveal">
-                        <div>
-                            <span class="eyebrow-pill">Ready for launch</span>
-                            <h2>Build a leaderboard that rewards learning, not memorization.</h2>
-                            <p>
-                                Use Continuum as the visual and conceptual starting point for a benchmark site
-                                that feels more like a research product than a static landing page.
-                            </p>
-                        </div>
-                        <div class="cta-actions">
-                            <a class="button button-primary" href="#top">Back to top</a>
-                            <a class="button button-secondary" href="#faq">Read the FAQ</a>
-                        </div>
-                    </article>
-                </div>
-            </section>
-        </main>
-
-        <footer class="site-footer">
-            <div class="container footer-grid">
-                <div>
-                    <a class="brand footer-brand" href="#top">
-                        <span class="brand-mark">C</span>
-                        <span class="brand-copy">
-                            <strong>Continuum</strong>
-                            <span>benchmarking learning over time</span>
-                        </span>
-                    </a>
-                </div>
-                <div class="footer-links">
-                    <a href="#benchmark">Benchmark</a>
-                    <a href="#suite">Task suite</a>
-                    <a href="#leaderboard">Leaderboard</a>
-                    <a href="#method">Method</a>
-                </div>
-                <p class="footer-note">
-                    Concept website built as a single, dependency-free static experience.
-                    Replace the illustrative benchmark data with real submissions whenever you are ready.
-                </p>
-            </div>
-        </footer>
+    <div class="page-bg" aria-hidden="true">
+        <span class="glow glow-a"></span>
+        <span class="glow glow-b"></span>
+        <span class="grid-overlay"></span>
     </div>
+
+    <header class="site-header" id="top">
+        <div class="container nav-shell">
+            <a class="brand" href="#top" aria-label="Relay homepage">
+                <span class="brand-mark">R</span>
+                <span class="brand-copy">
+                    <strong>Relay</strong>
+                    <span>continuous learning benchmark</span>
+                </span>
+            </a>
+
+            <nav class="nav-links" aria-label="Primary">
+                <a href="#loop">Loop</a>
+                <a href="#tracks">Tracks</a>
+                <a href="#scores">Scores</a>
+                <a href="#faq">FAQ</a>
+            </nav>
+
+            <a class="button button-ghost" href="#scores">Open scoreboard</a>
+        </div>
+    </header>
+
+    <main id="main">
+        <section class="hero section">
+            <div class="container hero-grid">
+                <div class="hero-copy reveal">
+                    <span class="pill">Research preview · release train 2026-A</span>
+                    <h1>Train agents that <span>keep their footing</span> while the task keeps moving.</h1>
+                    <p class="lede">
+                        Relay measures whether a system can adapt to new rules, preserve old skills, and
+                        recover quickly when interfaces, incentives, or sensory conditions shift underneath it.
+                    </p>
+
+                    <div class="hero-actions">
+                        <a class="button button-primary" href="#loop">View benchmark loop</a>
+                        <a class="button button-secondary" href="#tracks">Explore evaluation tracks</a>
+                    </div>
+
+                    <div class="hero-stats">
+                        <article class="stat-card">
+                            <span class="stat-label">Shift packs</span>
+                            <strong><span data-count="12">0</span></strong>
+                            <p>Versioned curriculum changes spanning reward drift, tool rewiring, and hidden resets.</p>
+                        </article>
+                        <article class="stat-card">
+                            <span class="stat-label">Replay checks</span>
+                            <strong><span data-count="96">0</span></strong>
+                            <p>Forced returns to previous tasks so retention is measured instead of assumed.</p>
+                        </article>
+                        <article class="stat-card">
+                            <span class="stat-label">Evaluation domains</span>
+                            <strong><span data-count="5">0</span></strong>
+                            <p>Language, tools, perception, planning, and multi-stage agentic control.</p>
+                        </article>
+                    </div>
+                </div>
+
+                <div class="hero-panel reveal">
+                    <article class="score-card">
+                        <div class="score-header">
+                            <div>
+                                <span class="eyebrow">Current frontier profile</span>
+                                <h2>High-scoring systems learn fast without dropping old routines.</h2>
+                            </div>
+                            <span class="status-dot">Live schema</span>
+                        </div>
+
+                        <div class="score-hero">
+                            <div class="score-orbit">
+                                <div class="score-orbit-core">
+                                    <span>Relay index</span>
+                                    <strong>88.2</strong>
+                                    <small>/ 100</small>
+                                </div>
+                            </div>
+
+                            <div class="score-metrics">
+                                <div class="score-metric">
+                                    <div class="score-metric-head">
+                                        <span>Retention</span>
+                                        <strong>94%</strong>
+                                    </div>
+                                    <div class="progress"><span style="--value: 94%"></span></div>
+                                </div>
+                                <div class="score-metric">
+                                    <div class="score-metric-head">
+                                        <span>Recovery rate</span>
+                                        <strong>3.6 rounds</strong>
+                                    </div>
+                                    <div class="progress"><span style="--value: 81%"></span></div>
+                                </div>
+                                <div class="score-metric">
+                                    <div class="score-metric-head">
+                                        <span>Forward transfer</span>
+                                        <strong>+19 pts</strong>
+                                    </div>
+                                    <div class="progress"><span style="--value: 86%"></span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="drift-strip">
+                            <div>
+                                <span>Interface drift</span>
+                                <strong>stable</strong>
+                            </div>
+                            <div>
+                                <span>Memory replay</span>
+                                <strong>scheduled</strong>
+                            </div>
+                            <div>
+                                <span>Holdout shifts</span>
+                                <strong>locked</strong>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container feature-shell">
+                <div class="section-head reveal">
+                    <span class="pill pill-soft">Why Relay exists</span>
+                    <h2>Most benchmarks score a frozen snapshot. Relay scores what survives change.</h2>
+                    <p>
+                        Instead of asking whether a model is good once, Relay asks whether it stays good after
+                        the environment changes repeatedly, then returns to older tasks to see what broke.
+                    </p>
+                </div>
+
+                <div class="feature-grid">
+                    <article class="feature-card reveal">
+                        <span class="feature-index">01</span>
+                        <h3>Recovery is measured, not narrated</h3>
+                        <p>Each shift wave logs how quickly a system regains competence after a previously unseen perturbation.</p>
+                    </article>
+                    <article class="feature-card reveal">
+                        <span class="feature-index">02</span>
+                        <h3>Old tasks always come back</h3>
+                        <p>Replay checkpoints force systems to prove they still remember earlier routines under time and memory pressure.</p>
+                    </article>
+                    <article class="feature-card reveal">
+                        <span class="feature-index">03</span>
+                        <h3>Transfer gets rewarded explicitly</h3>
+                        <p>Policies that make the next task easier score better than ones that relearn everything from scratch.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="loop">
+            <div class="container loop-grid">
+                <div class="section-head reveal">
+                    <span class="pill pill-soft">Benchmark loop</span>
+                    <h2>Four passes through the same system, each one less forgiving.</h2>
+                    <p>
+                        Relay uses a recurring loop so model updates can be compared on the same structure:
+                        establish the floor, inject drift, test recovery, and revisit what was supposedly learned.
+                    </p>
+                </div>
+
+                <div class="loop-cards">
+                    <article class="loop-card reveal">
+                        <span>1</span>
+                        <h3>Seed</h3>
+                        <p>Agents solve a balanced baseline curriculum across all benchmark domains.</p>
+                    </article>
+                    <article class="loop-card reveal">
+                        <span>2</span>
+                        <h3>Shift</h3>
+                        <p>Reward functions, tool schemas, prompts, or observability constraints are altered.</p>
+                    </article>
+                    <article class="loop-card reveal">
+                        <span>3</span>
+                        <h3>Recover</h3>
+                        <p>We track recovery speed, sample efficiency, and whether earlier habits accelerate the climb back.</p>
+                    </article>
+                    <article class="loop-card reveal">
+                        <span>4</span>
+                        <h3>Replay</h3>
+                        <p>Old tasks reappear under pressure to surface forgetting that average scores hide.</p>
+                    </article>
+                </div>
+
+                <article class="matrix-card reveal">
+                    <div class="matrix-head">
+                        <div>
+                            <span class="eyebrow">Scoring geometry</span>
+                            <h3>Every submission is judged on four interacting axes.</h3>
+                        </div>
+                        <span class="matrix-badge">weighted composite</span>
+                    </div>
+
+                    <div class="axis-grid" aria-hidden="true">
+                        <div class="axis-column">
+                            <span class="axis-label">Retention</span>
+                            <div class="axis-bar"><span style="--value: 92%"></span></div>
+                        </div>
+                        <div class="axis-column">
+                            <span class="axis-label">Recovery</span>
+                            <div class="axis-bar"><span style="--value: 84%"></span></div>
+                        </div>
+                        <div class="axis-column">
+                            <span class="axis-label">Transfer</span>
+                            <div class="axis-bar"><span style="--value: 79%"></span></div>
+                        </div>
+                        <div class="axis-column">
+                            <span class="axis-label">Robustness</span>
+                            <div class="axis-bar"><span style="--value: 73%"></span></div>
+                        </div>
+                    </div>
+
+                    <ul class="matrix-notes">
+                        <li>Retention prevents single-wave specialists from dominating.</li>
+                        <li>Recovery time penalizes systems that eventually improve but adapt too slowly.</li>
+                        <li>Transfer rewards reusable structure, not repeated relearning.</li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section class="section" id="tracks">
+            <div class="container">
+                <div class="section-head reveal">
+                    <span class="pill pill-soft">Evaluation tracks</span>
+                    <h2>Each track introduces a different way for a learning system to break.</h2>
+                    <p>
+                        Relay's tracks are designed as families of perturbations. Switching between them should
+                        feel like moving through the same benchmark, not visiting unrelated demos.
+                    </p>
+                </div>
+
+                <div class="track-shell">
+                    <div class="track-tabs reveal" role="tablist" aria-label="Relay benchmark tracks">
+                        <button class="track-tab active" type="button" role="tab" aria-selected="true" data-track="language">Language drift</button>
+                        <button class="track-tab" type="button" role="tab" aria-selected="false" data-track="tools">Tool adaptation</button>
+                        <button class="track-tab" type="button" role="tab" aria-selected="false" data-track="perception">Perception</button>
+                        <button class="track-tab" type="button" role="tab" aria-selected="false" data-track="control">Long-horizon control</button>
+                    </div>
+
+                    <article class="track-panel reveal" id="trackPanel" aria-live="polite"></article>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="scores">
+            <div class="container">
+                <div class="section-head reveal">
+                    <span class="pill pill-soft">Scoreboard</span>
+                    <h2>Submissions are ranked by what they preserve, not just what they discover.</h2>
+                    <p>
+                        The board below is illustrative, but the reporting shape mirrors a real benchmark launch:
+                        headline score, sub-metrics, and a quick read on where each system bends first.
+                    </p>
+                </div>
+
+                <div class="scoreboard-note reveal">
+                    <div>
+                        <span class="eyebrow">Weighting</span>
+                        <strong>35% retention · 25% recovery · 25% transfer · 15% robustness</strong>
+                    </div>
+                    <div>
+                        <span class="eyebrow">Submission policy</span>
+                        <strong>Quarterly versions with frozen replay packs and hidden holdout perturbations.</strong>
+                    </div>
+                </div>
+
+                <div class="scoreboard-grid" id="scoreboardGrid"></div>
+            </div>
+        </section>
+
+        <section class="section faq-section" id="faq">
+            <div class="container faq-grid">
+                <div class="section-head reveal">
+                    <span class="pill pill-soft">FAQ</span>
+                    <h2>Practical answers for researchers, evaluators, and launch teams.</h2>
+                    <p>
+                        Relay is designed to read like a benchmark site someone could actually ship: concise,
+                        opinionated, and clear about what the numbers do and do not mean.
+                    </p>
+                </div>
+
+                <div class="faq-list">
+                    <article class="faq-card reveal">
+                        <button class="faq-trigger" type="button" aria-expanded="false">
+                            <span>What does Relay measure that a static benchmark misses?</span>
+                            <span class="faq-icon">+</span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>
+                                Relay makes change part of the test. Systems are perturbed, asked to recover,
+                                and then pushed back through earlier tasks to expose forgetting and brittle adaptation.
+                            </p>
+                        </div>
+                    </article>
+                    <article class="faq-card reveal">
+                        <button class="faq-trigger" type="button" aria-expanded="false">
+                            <span>Is the benchmark content on this page real?</span>
+                            <span class="faq-icon">+</span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>
+                                The content and scores here are illustrative, but the structure is intended as a
+                                realistic launch-ready website for a real continuous-learning benchmark.
+                            </p>
+                        </div>
+                    </article>
+                    <article class="faq-card reveal">
+                        <button class="faq-trigger" type="button" aria-expanded="false">
+                            <span>Can this site be adapted to a real benchmark quickly?</span>
+                            <span class="faq-icon">+</span>
+                        </button>
+                        <div class="faq-answer">
+                            <p>
+                                Yes. Replace the copy in `index.html`, update the track and scoreboard data in
+                                `script.js`, and tweak tokens in `styles.css` to match your benchmark brand.
+                            </p>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="section cta-section">
+            <div class="container">
+                <article class="cta-card reveal">
+                    <div>
+                        <span class="pill">Launch-ready concept</span>
+                        <h2>Give your benchmark a homepage that feels like a research product.</h2>
+                        <p>
+                            Relay is designed to be unmistakably a benchmark website: no game UI, no playful
+                            prototype chrome, just a clean static experience built for a serious technical launch.
+                        </p>
+                    </div>
+                    <div class="hero-actions">
+                        <a class="button button-primary" href="#top">Back to top</a>
+                        <a class="button button-secondary" href="#tracks">Review tracks</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-shell">
+            <a class="brand" href="#top">
+                <span class="brand-mark">R</span>
+                <span class="brand-copy">
+                    <strong>Relay</strong>
+                    <span>benchmarking learning through change</span>
+                </span>
+            </a>
+
+            <div class="footer-links">
+                <a href="#loop">Loop</a>
+                <a href="#tracks">Tracks</a>
+                <a href="#scores">Scores</a>
+                <a href="#faq">FAQ</a>
+            </div>
+
+            <p class="footer-copy">
+                Static concept site for a continuous learning benchmark. Ship it as-is or customize the content
+                and data for a real release.
+            </p>
+        </div>
+    </footer>
 
     <script src="script.js"></script>
 </body>
