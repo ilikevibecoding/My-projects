@@ -13,6 +13,8 @@ A desktop-ready gas station simulator with stylized 3D arcade visuals, shifting 
 ## Controls
 
 - `WASD` / arrow keys: move
+- Drag mouse: orbit camera
+- Mouse wheel: zoom
 - `Hold E`: fuel the car at the nearest waiting pump
 - `Shift`: sprint
 - `R`: buy an instant tanker refill

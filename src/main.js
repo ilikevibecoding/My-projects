@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Sky } from "three/addons/objects/Sky.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -13,33 +14,33 @@ const reportedMemory = navigator.deviceMemory ?? 8;
 const qualityTiers = [
   {
     name: "Cinematic",
-    pixelRatioCap: isDesktopApp ? 1.35 : 1.45,
-    bloomStrength: 0.72,
-    bloomRadius: 0.24,
-    bloomThreshold: 0.88,
-    shadowMapSize: 1536,
-    starCount: 900,
-    toneBase: 1.03,
+    pixelRatioCap: isDesktopApp ? 1.55 : 1.4,
+    bloomStrength: 0.18,
+    bloomRadius: 0.08,
+    bloomThreshold: 0.94,
+    shadowMapSize: 2048,
+    starCount: 1100,
+    toneBase: 0.95,
   },
   {
     name: "Balanced",
     pixelRatioCap: 1.1,
-    bloomStrength: 0.42,
-    bloomRadius: 0.17,
-    bloomThreshold: 0.91,
-    shadowMapSize: 1024,
-    starCount: 680,
-    toneBase: 1,
+    bloomStrength: 0.1,
+    bloomRadius: 0.05,
+    bloomThreshold: 0.97,
+    shadowMapSize: 1536,
+    starCount: 760,
+    toneBase: 0.93,
   },
   {
     name: "Performance",
     pixelRatioCap: 0.85,
-    bloomStrength: 0.16,
-    bloomRadius: 0.08,
-    bloomThreshold: 0.98,
-    shadowMapSize: 512,
-    starCount: 420,
-    toneBase: 0.97,
+    bloomStrength: 0.04,
+    bloomRadius: 0.02,
+    bloomThreshold: 1,
+    shadowMapSize: 768,
+    starCount: 520,
+    toneBase: 0.9,
   },
 ];
 
@@ -147,6 +148,14 @@ app.innerHTML = `
             <span>Sprint</span>
             <span class="keys"><span class="keycap">Shift</span></span>
           </div>
+          <div class="control-row">
+            <span>Spin camera</span>
+            <span class="keys"><span class="keycap">Drag mouse</span></span>
+          </div>
+          <div class="control-row">
+            <span>Zoom</span>
+            <span class="keys"><span class="keycap">Wheel</span></span>
+          </div>
         </div>
       </section>
 
@@ -246,9 +255,9 @@ const state = {
   totalLiters: 0,
   shiftOver: false,
   spawnCooldown: 2.4,
-  bannerText: "Clock in, pick a pump, and keep the forecourt glowing.",
+  bannerText: "Clock in, drag the mouse to orbit, and keep the forecourt glowing.",
   bannerTimer: 5,
-  tickerText: "Three lanes are live. Hold E near a waiting pump to start fueling.",
+  tickerText: "Three lanes are live. Drag to spin, wheel to zoom, and hold E near a pump to fuel.",
   tickerTimer: 8,
   restockCooldown: 0,
   bestCash: Number(localStorage.getItem("neon-forecourt-best-cash") || 0),
@@ -264,8 +273,8 @@ const input = {
 };
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x09111f);
-scene.fog = new THREE.Fog(0x09111f, 38, 132);
+scene.background = new THREE.Color(0x101a2a);
+scene.fog = new THREE.Fog(0x162538, 95, 240);
 
 const camera = new THREE.PerspectiveCamera(
   52,
@@ -291,16 +300,16 @@ const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.72,
-  0.24,
-  0.88,
+  0.18,
+  0.08,
+  0.94,
 );
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 
 const clock = new THREE.Clock();
-const pointer = new THREE.Vector2();
 const tmpVector = new THREE.Vector3();
+const cameraTarget = new THREE.Vector3(0, 2.6, 0);
 const carColors = [
   0x4de9ff,
   0xff6bb4,
@@ -321,6 +330,7 @@ let ambientLight;
 let player;
 let restockBeacon;
 let tickerClock = 0;
+let cameraControls;
 
 const materials = {
   asphalt: new THREE.MeshStandardMaterial({
@@ -344,28 +354,28 @@ const materials = {
   neonBlue: new THREE.MeshStandardMaterial({
     color: 0x61ecff,
     emissive: 0x2cd8ff,
-    emissiveIntensity: 2.8,
+    emissiveIntensity: 1.35,
     roughness: 0.25,
     metalness: 0.15,
   }),
   neonPink: new THREE.MeshStandardMaterial({
     color: 0xff7ad4,
     emissive: 0xff3fba,
-    emissiveIntensity: 3.2,
+    emissiveIntensity: 1.5,
     roughness: 0.25,
     metalness: 0.15,
   }),
   neonAmber: new THREE.MeshStandardMaterial({
     color: 0xffdf8a,
     emissive: 0xffbb36,
-    emissiveIntensity: 2.5,
+    emissiveIntensity: 1.2,
     roughness: 0.2,
     metalness: 0.12,
   }),
   whiteGlow: new THREE.MeshStandardMaterial({
     color: 0xf3f7ff,
     emissive: 0xf3f7ff,
-    emissiveIntensity: 2,
+    emissiveIntensity: 0.95,
     roughness: 0.16,
     metalness: 0.08,
   }),
@@ -378,7 +388,7 @@ const materials = {
   glass: new THREE.MeshStandardMaterial({
     color: 0x8ecaff,
     emissive: 0x224c88,
-    emissiveIntensity: 0.5,
+    emissiveIntensity: 0.18,
     transparent: true,
     opacity: 0.6,
     roughness: 0.05,
@@ -699,7 +709,7 @@ function createStation() {
     new THREE.MeshStandardMaterial({
       color: 0xe8f0ff,
       emissive: 0x8abaff,
-      emissiveIntensity: 0.65,
+      emissiveIntensity: 0.32,
       roughness: 0.26,
     }),
   );
@@ -770,7 +780,7 @@ function createStation() {
     new THREE.MeshStandardMaterial({
       color: 0x171b31,
       emissive: 0x192441,
-      emissiveIntensity: 0.6,
+      emissiveIntensity: 0.35,
       roughness: 0.32,
       metalness: 0.1,
     }),
@@ -779,7 +789,7 @@ function createStation() {
   boardFace.castShadow = true;
   priceBoard.add(boardFace);
 
-  const boardGlow = new THREE.PointLight(0x5cf0ff, 18, 18, 2);
+  const boardGlow = new THREE.PointLight(0x5cf0ff, 8, 18, 2);
   boardGlow.position.set(0, 9.3, 1.8);
   priceBoard.add(boardGlow);
   scene.add(priceBoard);
@@ -864,7 +874,7 @@ function createPump(index, x) {
     new THREE.MeshStandardMaterial({
       color: 0xeff4ff,
       emissive: 0x0f2347,
-      emissiveIntensity: 0.6,
+      emissiveIntensity: 0.28,
       roughness: 0.22,
       metalness: 0.18,
       flatShading: true,
@@ -887,7 +897,7 @@ function createPump(index, x) {
     new THREE.MeshStandardMaterial({
       color: 0xd8f9ff,
       emissive: 0x54d9ff,
-      emissiveIntensity: 1.8,
+      emissiveIntensity: 0.95,
       roughness: 0.12,
     }),
   );
@@ -925,7 +935,7 @@ function createPump(index, x) {
   ring.position.y = 0.08;
   group.add(ring);
 
-  const laneLight = new THREE.PointLight(0x5cf0ff, 5, 9, 2);
+  const laneLight = new THREE.PointLight(0x5cf0ff, 3.6, 9, 2);
   laneLight.position.set(0, 4.6, 0);
   group.add(laneLight);
 
@@ -965,7 +975,7 @@ function createPlayer() {
     new THREE.MeshStandardMaterial({
       color: 0x8b7dff,
       emissive: 0x261d63,
-      emissiveIntensity: 0.65,
+      emissiveIntensity: 0.28,
       roughness: 0.42,
       metalness: 0.06,
       flatShading: true,
@@ -1018,21 +1028,21 @@ function createSky() {
   scene.add(skyDome);
 
   const uniforms = skyDome.material.uniforms;
-  uniforms.turbidity.value = 10;
-  uniforms.rayleigh.value = 1.6;
-  uniforms.mieCoefficient.value = 0.028;
-  uniforms.mieDirectionalG.value = 0.85;
+  uniforms.turbidity.value = 4.2;
+  uniforms.rayleigh.value = 1.1;
+  uniforms.mieCoefficient.value = 0.008;
+  uniforms.mieDirectionalG.value = 0.78;
 
   const sun = new THREE.Vector3();
-  const phi = THREE.MathUtils.degToRad(84);
-  const theta = THREE.MathUtils.degToRad(180);
+  const phi = THREE.MathUtils.degToRad(82);
+  const theta = THREE.MathUtils.degToRad(198);
   sun.setFromSphericalCoords(1, phi, theta);
   uniforms.sunPosition.value.copy(sun);
 
-  ambientLight = new THREE.HemisphereLight(0x95a8ff, 0x09111f, 1.75);
+  ambientLight = new THREE.HemisphereLight(0xa8bcff, 0x101a2b, 1.35);
   scene.add(ambientLight);
 
-  sunLight = new THREE.DirectionalLight(0xffd7a8, 2.7);
+  sunLight = new THREE.DirectionalLight(0xffd7a8, 2.15);
   sunLight.position.set(-22, 30, 10);
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.set(getQualityTier().shadowMapSize, getQualityTier().shadowMapSize);
@@ -1044,8 +1054,8 @@ function createSky() {
   sunLight.shadow.camera.far = 120;
   scene.add(sunLight);
 
-  const fillLight = new THREE.PointLight(0xff63c8, 12, 60, 2);
-  fillLight.position.set(0, 12, 0);
+  const fillLight = new THREE.PointLight(0xff63c8, 5.5, 60, 2);
+  fillLight.position.set(0, 12, -4);
   scene.add(fillLight);
 }
 
@@ -1084,7 +1094,7 @@ function createCarMesh(color) {
   const bodyMaterial = new THREE.MeshStandardMaterial({
     color,
     emissive: new THREE.Color(color).multiplyScalar(0.13),
-    emissiveIntensity: 1.1,
+    emissiveIntensity: 0.38,
     roughness: 0.3,
     metalness: 0.12,
     flatShading: true,
@@ -1104,7 +1114,7 @@ function createCarMesh(color) {
     new THREE.MeshStandardMaterial({
       color: 0xe2efff,
       emissive: 0x284678,
-      emissiveIntensity: 0.65,
+      emissiveIntensity: 0.22,
       roughness: 0.08,
       metalness: 0.2,
       flatShading: true,
@@ -1151,7 +1161,7 @@ function createCarMesh(color) {
   const headlightMaterial = new THREE.MeshStandardMaterial({
     color: 0xfaf5d3,
     emissive: 0xf8eda8,
-    emissiveIntensity: 2.7,
+    emissiveIntensity: 1.15,
     roughness: 0.18,
   });
   for (const x of [-0.82, 0.82]) {
@@ -1163,7 +1173,7 @@ function createCarMesh(color) {
   const taillightMaterial = new THREE.MeshStandardMaterial({
     color: 0xff7db5,
     emissive: 0xff4980,
-    emissiveIntensity: 2.2,
+    emissiveIntensity: 1,
     roughness: 0.18,
   });
   for (const x of [-0.82, 0.82]) {
@@ -1334,7 +1344,7 @@ function updatePumps(delta, elapsed) {
     pump.ring.material.opacity = occupied ? 0.4 + pulse * 0.25 + flash * 0.25 : 0.16 + pulse * 0.06;
     pump.ring.scale.setScalar(fueling ? 1.06 + pulse * 0.05 : 1 + pulse * 0.02);
     pump.ring.material.color.set(fueling ? 0xffd166 : occupied ? 0x61ecff : 0x435172);
-    pump.laneLight.intensity = fueling ? 12 : occupied ? 7 : 2.8;
+    pump.laneLight.intensity = fueling ? 7 : occupied ? 4.2 : 1.8;
 
     pump.flash = Math.max(0, pump.flash - delta * 1.5);
   }
@@ -1603,24 +1613,15 @@ function updatePlayer(delta, elapsed) {
 }
 
 function updateCamera(delta) {
-  const desiredPosition = new THREE.Vector3(
-    player.group.position.x + pointer.x * 1.8,
-    21 + Math.max(0, pointer.y * 2.4),
-    player.group.position.z + 25 + pointer.y * 2,
-  );
-
-  camera.position.lerp(desiredPosition, 1 - Math.exp(-delta * 5));
-  camera.lookAt(
-    player.group.position.x,
-    2.6,
-    player.group.position.z - 5.4,
-  );
+  cameraTarget.set(player.group.position.x, 2.6, player.group.position.z - 1.2);
+  cameraControls.target.lerp(cameraTarget, 1 - Math.exp(-delta * 4.5));
+  cameraControls.update();
 }
 
 function updateAtmosphere(elapsed) {
-  renderer.toneMappingExposure = getQualityTier().toneBase + Math.sin(elapsed * 0.12) * 0.03;
-  ambientLight.intensity = 1.55 + Math.sin(elapsed * 0.2) * 0.06;
-  sunLight.intensity = 2.4 + Math.sin(elapsed * 0.16) * 0.08;
+  renderer.toneMappingExposure = getQualityTier().toneBase + Math.sin(elapsed * 0.12) * 0.015;
+  ambientLight.intensity = 1.32 + Math.sin(elapsed * 0.2) * 0.04;
+  sunLight.intensity = 2.05 + Math.sin(elapsed * 0.16) * 0.05;
 
   if (restockBeacon) {
     restockBeacon.intensity = THREE.MathUtils.lerp(
@@ -1736,6 +1737,20 @@ function buildWorld() {
   spawnCar();
 }
 
+function createCameraControls() {
+  camera.position.set(0, 18, 30);
+  cameraControls = new OrbitControls(camera, renderer.domElement);
+  cameraControls.enableDamping = true;
+  cameraControls.dampingFactor = 0.08;
+  cameraControls.enablePan = false;
+  cameraControls.minDistance = 15;
+  cameraControls.maxDistance = 42;
+  cameraControls.minPolarAngle = 0.72;
+  cameraControls.maxPolarAngle = 1.34;
+  cameraControls.target.set(0, 2.6, 0);
+  cameraControls.update();
+}
+
 function onResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -1783,10 +1798,6 @@ function handleKey(event, down) {
 }
 
 window.addEventListener("resize", onResize);
-window.addEventListener("pointermove", (event) => {
-  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = (event.clientY / window.innerHeight) * 2 - 1;
-});
 window.addEventListener("keydown", (event) => handleKey(event, true));
 window.addEventListener("keyup", (event) => handleKey(event, false));
 
@@ -1795,6 +1806,7 @@ ui.restartButton.addEventListener("click", () => {
 });
 
 buildWorld();
+createCameraControls();
 applyQualitySettings();
 updateHUD();
 onResize();
