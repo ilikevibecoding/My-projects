@@ -1,0 +1,27 @@
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Mm]emoryCaptures/
+/[Uu]serSettings/
+
+# Asset meta data should stay tracked.
+!/[Aa]ssets/**/*.meta
+
+# IDE / OS noise
+/.vs/
+/.vscode/
+/*.csproj
+/*.sln
+/*.suo
+/*.tmp
+/*.user
+/*.userprefs
+/*.pidb
+/*.booproj
+/*.svd
+*.swp
+*.DS_Store
+Thumbs.db
