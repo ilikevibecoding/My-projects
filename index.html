@@ -3,178 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Skybound Scribble is a detailed browser-based Doodle Jump-inspired arcade game with moving platforms, power-ups, hazards, and doodled visuals.">
-    <title>Skybound Scribble</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f6fbff'/%3E%3Cpath d='M16 43c0-7 6-12 16-12s16 5 16 12' fill='%2382d66b' stroke='%23173150' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='26' cy='25' r='7' fill='white' stroke='%23173150' stroke-width='4'/%3E%3Ccircle cx='38' cy='25' r='7' fill='white' stroke='%23173150' stroke-width='4'/%3E%3Ccircle cx='26' cy='25' r='2' fill='%23173150'/%3E%3Ccircle cx='38' cy='25' r='2' fill='%23173150'/%3E%3Cpath d='M43 29l10 4-11 4' fill='%23ffbb6e' stroke='%23173150' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <meta name="description" content="Doodle Jump Parody is a faithful browser parody clone with graph paper visuals, classic platform types, monsters, boosts, and upward shooting.">
+    <title>Doodle Jump Parody</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f7f2e8'/%3E%3Cpath d='M11 47h42' stroke='%231e1a17' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M19 38c0-7 6-12 13-12 9 0 13 5 13 12' fill='%2380cf31' stroke='%231e1a17' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='24' cy='22' r='6' fill='white' stroke='%231e1a17' stroke-width='4'/%3E%3Ccircle cx='38' cy='22' r='6' fill='white' stroke='%231e1a17' stroke-width='4'/%3E%3Ccircle cx='24' cy='22' r='2' fill='%231e1a17'/%3E%3Ccircle cx='38' cy='22' r='2' fill='%231e1a17'/%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@400;500;600;700&family=Patrick+Hand+SC&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="page-noise" aria-hidden="true"></div>
-
-    <main class="app-shell">
-        <header class="hero-bar">
+    <main class="page-shell">
+        <header class="masthead">
             <div>
-                <p class="eyebrow">Notebook Arcade</p>
-                <h1>Skybound Scribble</h1>
-                <p class="hero-copy">A detailed Doodle Jump-style climb through scribbled skies, sketchy monsters, cracked ledges, springs, and jetpack bursts.</p>
+                <p class="kicker">faithful browser parody</p>
+                <h1>Doodle Jump <span>Parody</span></h1>
+                <p class="subcopy">Classic graph-paper jumping, closer physics, real platform families, monsters, boosts, and upward shooting.</p>
             </div>
-            <div class="hero-stats">
-                <div class="pill">
-                    <span>Goal</span>
-                    <strong>Climb forever</strong>
-                </div>
-                <div class="pill">
-                    <span>Input</span>
-                    <strong>Keyboard + touch</strong>
-                </div>
-            </div>
+            <p class="parody-note">Parody build for personal authorized use.</p>
         </header>
 
-        <section class="game-layout">
-            <aside class="info-panel">
-                <div class="panel-card">
-                    <h2>How to play</h2>
-                    <ul class="tip-list">
-                        <li>Move with <strong>A / D</strong> or <strong>← / →</strong>.</li>
-                        <li>Your doodler bounces automatically when landing from above.</li>
-                        <li>Wrap around the screen edges to rescue risky jumps.</li>
-                        <li>Press <strong>P</strong> or <strong>Esc</strong> to pause.</li>
-                    </ul>
-                </div>
+        <section class="game-stage">
+            <div class="game-frame">
+                <canvas id="gameCanvas" width="432" height="768" aria-label="Doodle Jump parody game canvas"></canvas>
 
-                <div class="panel-card legend-card">
-                    <h2>Platform guide</h2>
-                    <div class="legend-list">
-                        <div><span class="swatch swatch-normal"></span> Stable pad</div>
-                        <div><span class="swatch swatch-moving"></span> Moving pad</div>
-                        <div><span class="swatch swatch-break"></span> Cracking pad</div>
-                        <div><span class="swatch swatch-ghost"></span> Vanishing pad</div>
-                        <div><span class="swatch swatch-boost"></span> Boost pad</div>
+                <div class="top-ui" aria-live="polite">
+                    <div id="hudScore" class="hud-score">0</div>
+                    <div class="hud-buttons">
+                        <button id="soundToggle" class="hud-button" type="button" aria-pressed="false" title="Toggle sound">🔇</button>
+                        <button id="pauseButton" class="hud-button" type="button" title="Pause">Ⅱ</button>
                     </div>
                 </div>
-            </aside>
 
-            <section class="game-column">
-                <div class="game-frame">
-                    <canvas id="gameCanvas" width="420" height="720" aria-label="Skybound Scribble game canvas"></canvas>
+                <div class="canvas-badge">parody</div>
 
-                    <div class="hud">
-                        <div class="hud-group">
-                            <div class="hud-card">
-                                <span>Score</span>
-                                <strong id="hudScore">0</strong>
-                            </div>
-                            <div class="hud-card">
-                                <span>Height</span>
-                                <strong id="hudHeight">0 m</strong>
-                            </div>
-                            <div class="hud-card">
-                                <span>Best</span>
-                                <strong id="hudBest">0</strong>
-                            </div>
-                            <div class="hud-card">
-                                <span>Style</span>
-                                <strong id="hudStreak">x0</strong>
-                            </div>
-                        </div>
-
-                        <div class="hud-actions">
-                            <button id="soundToggle" class="icon-button" type="button" aria-pressed="false">Sound: Off</button>
-                            <button id="pauseButton" class="icon-button" type="button">Pause</button>
-                        </div>
+                <section id="startScreen" class="overlay-screen">
+                    <div class="overlay-card">
+                        <h2>Doodle Jump Parody</h2>
+                        <p>Bounce, wrap, shoot upward, and climb with a feel tuned closer to the original.</p>
+                        <p class="control-line">Move: A / D / ← / → · Shoot: Space · Pause: P</p>
+                        <button id="startButton" class="main-button" type="button" disabled>Loading…</button>
+                        <p id="loadingLabel" class="loading-label">Loading sprites and sounds…</p>
                     </div>
+                </section>
 
-                    <section id="startScreen" class="screen-overlay">
-                        <div class="overlay-card">
-                            <p class="eyebrow">Ready to scribble?</p>
-                            <h2>Jump into the margins</h2>
-                            <p>Climb through moving ledges, cracked doodles, spring pads, jetpacks, and grumpy sky monsters. Chase the highest score and keep your style streak alive.</p>
-                            <div class="button-row">
-                                <button id="startButton" class="primary-button" type="button">Start run</button>
-                            </div>
-                            <div class="mini-grid">
-                                <div>
-                                    <strong>Controls</strong>
-                                    <span>A / D / ← / →</span>
-                                </div>
-                                <div>
-                                    <strong>Pause</strong>
-                                    <span>P or Esc</span>
-                                </div>
-                                <div>
-                                    <strong>Touch</strong>
-                                    <span>Bottom arrows</span>
-                                </div>
-                            </div>
+                <section id="pauseScreen" class="overlay-screen is-hidden">
+                    <div class="overlay-card">
+                        <h2>Paused</h2>
+                        <p>Resume when you are ready to keep climbing.</p>
+                        <button id="resumeButton" class="main-button" type="button">Resume</button>
+                    </div>
+                </section>
+
+                <section id="gameOverScreen" class="overlay-screen is-hidden">
+                    <div class="overlay-card">
+                        <h2>Game Over</h2>
+                        <div class="result-stack">
+                            <div><span>Score</span><strong id="finalScore">0</strong></div>
+                            <div><span>Best</span><strong id="finalBest">0</strong></div>
                         </div>
-                    </section>
+                        <button id="restartButton" class="main-button" type="button">Play Again</button>
+                    </div>
+                </section>
+            </div>
 
-                    <section id="pauseScreen" class="screen-overlay is-hidden">
-                        <div class="overlay-card">
-                            <p class="eyebrow">Game paused</p>
-                            <h2>Catch your breath</h2>
-                            <p>Your doodler is hovering in place. Resume when you are ready to keep climbing.</p>
-                            <div class="button-row">
-                                <button id="resumeButton" class="primary-button" type="button">Resume</button>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section id="gameOverScreen" class="screen-overlay is-hidden">
-                        <div class="overlay-card">
-                            <p class="eyebrow">Run over</p>
-                            <h2>Back to the paper floor</h2>
-                            <div class="result-grid">
-                                <div>
-                                    <span>Final score</span>
-                                    <strong id="finalScore">0</strong>
-                                </div>
-                                <div>
-                                    <span>Peak height</span>
-                                    <strong id="finalHeight">0 m</strong>
-                                </div>
-                                <div>
-                                    <span>Best streak</span>
-                                    <strong id="finalStreak">x0</strong>
-                                </div>
-                            </div>
-                            <div class="button-row">
-                                <button id="restartButton" class="primary-button" type="button">Play again</button>
-                            </div>
-                        </div>
-                    </section>
-                </div>
-
-                <div class="touch-controls" aria-label="Touch movement controls">
-                    <button id="leftButton" class="touch-button" type="button" aria-label="Move left">←</button>
-                    <button id="rightButton" class="touch-button" type="button" aria-label="Move right">→</button>
-                </div>
-            </section>
-
-            <aside class="info-panel">
-                <div class="panel-card">
-                    <h2>Chase the high score</h2>
-                    <p>Every climb counts. The game saves your best score and sound preference in the browser, so your next run starts where the bragging rights left off.</p>
-                </div>
-
-                <div class="panel-card">
-                    <h2>Sky hazards</h2>
-                    <ul class="tip-list">
-                        <li>Jetpacks launch you past dangerous gaps.</li>
-                        <li>Cloud critters appear deeper into a run.</li>
-                        <li>Ghost pads fade quickly, so don’t hesitate.</li>
-                        <li>Boost pads give huge altitude bursts—use them to skip chaos.</li>
-                    </ul>
-                </div>
-            </aside>
+            <div class="touch-controls" aria-label="Touch game controls">
+                <button id="leftButton" class="touch-button" type="button" aria-label="Move left">←</button>
+                <button id="shootButton" class="touch-button touch-button-shoot" type="button" aria-label="Shoot upward">●</button>
+                <button id="rightButton" class="touch-button" type="button" aria-label="Move right">→</button>
+            </div>
         </section>
 
-        <footer class="footer-note">
-            <p>Tip: run locally in a browser with <code>python3 -m http.server 8000</code>, then open <code>http://localhost:8000</code>.</p>
-        </footer>
+        <p class="run-note">Run locally with <code>python -m http.server 8000</code> or <code>python3 -m http.server 8000</code>, then open <code>http://localhost:8000</code>.</p>
     </main>
 
     <script src="game.js" defer></script>

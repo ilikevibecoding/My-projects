@@ -57,8 +57,7 @@ class CdpClient {
 
     send(method, params = {}) {
         const id = this.nextId++;
-        const payload = { id, method, params };
-        this.socket.send(JSON.stringify(payload));
+        this.socket.send(JSON.stringify({ id, method, params }));
         return new Promise((resolve, reject) => {
             this.pending.set(id, { resolve, reject });
         });
@@ -68,10 +67,7 @@ class CdpClient {
         return new Promise((resolve) => {
             const handler = (params) => {
                 const listeners = this.events.get(method) || [];
-                this.events.set(
-                    method,
-                    listeners.filter((listener) => listener !== handler),
-                );
+                this.events.set(method, listeners.filter((listener) => listener !== handler));
                 resolve(params);
             };
             this.on(method, handler);
@@ -90,7 +86,6 @@ class CdpClient {
             awaitPromise: true,
             returnByValue: true,
         });
-
         return result.result?.value;
     }
 
@@ -119,9 +114,7 @@ async function main() {
     await client.send("Log.enable");
 
     client.on("Runtime.consoleAPICalled", (params) => {
-        consoleMessages.push(
-            params.args?.map((arg) => arg.value).filter(Boolean).join(" ") || params.type,
-        );
+        consoleMessages.push(params.args?.map((arg) => arg.value).filter(Boolean).join(" ") || params.type);
     });
     client.on("Runtime.exceptionThrown", (params) => {
         pageErrors.push(params.exceptionDetails?.text || "Runtime exception");
@@ -135,33 +128,48 @@ async function main() {
     const loadPromise = client.once("Page.loadEventFired");
     await client.send("Page.navigate", { url: "http://127.0.0.1:8000" });
     await loadPromise;
-    await delay(1500);
+
+    await client.evaluate(`
+        new Promise((resolve) => {
+            const check = () => {
+                const button = document.getElementById("startButton");
+                const game = window.doodleJumpParody;
+                if (button && !button.disabled && game && game.state === "start") {
+                    resolve(true);
+                    return;
+                }
+                setTimeout(check, 100);
+            };
+            check();
+        })
+    `);
 
     const initial = await client.evaluate(`(() => ({
         title: document.querySelector("h1")?.textContent ?? null,
-        hasCanvas: Boolean(document.getElementById("gameCanvas")),
         startVisible: !document.getElementById("startScreen")?.classList.contains("is-hidden"),
-        hudScore: document.getElementById("hudScore")?.textContent ?? null,
-        soundToggle: document.getElementById("soundToggle")?.textContent ?? null
+        scoreTopLeft: (() => {
+            const scoreRect = document.getElementById("hudScore")?.getBoundingClientRect();
+            const canvasRect = document.getElementById("gameCanvas")?.getBoundingClientRect();
+            if (!scoreRect || !canvasRect) return false;
+            return scoreRect.left < canvasRect.left + 48 && scoreRect.top < canvasRect.top + 40;
+        })(),
+        soundToggle: document.getElementById("soundToggle")?.textContent ?? null,
+        buttonText: document.getElementById("startButton")?.textContent ?? null,
+        assetCount: Object.values(window.doodleJumpParody.assets).filter(Boolean).length
     }))()`);
 
-    await client.screenshot("/workspace/skybound-runtime-start.png");
+    await client.screenshot("/workspace/doodle-parody-start-01.png");
 
     await client.evaluate(`document.getElementById("startButton").click()`);
-    await delay(400);
-
-    await client.evaluate(`
-        (() => {
-            window.dispatchEvent(new KeyboardEvent("keydown", { key: "p" }));
-            return window.skyboundGame.state;
-        })()
-    `);
-    await delay(150);
-    const pausedState = await client.evaluate(`window.skyboundGame.state`);
+    await delay(500);
 
     await client.evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "p" }))`);
-    await delay(150);
-    const resumedState = await client.evaluate(`window.skyboundGame.state`);
+    await delay(200);
+    const pausedState = await client.evaluate(`window.doodleJumpParody.state`);
+
+    await client.evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "p" }))`);
+    await delay(200);
+    const resumedState = await client.evaluate(`window.doodleJumpParody.state`);
 
     await client.evaluate(`
         (() => {
@@ -172,44 +180,50 @@ async function main() {
                 return [direct, wrappedPositive, wrappedNegative].sort((a, b) => Math.abs(a) - Math.abs(b))[0];
             };
 
-            window.__skyboundPilot = setInterval(() => {
-                const game = window.skyboundGame;
+            window.__doodlePilot = setInterval(() => {
+                const game = window.doodleJumpParody;
                 if (!game || game.state !== "playing") {
                     return;
                 }
 
                 const player = game.player;
                 const candidates = game.platforms
-                    .filter((platform) => platform.active && platform.y > player.y + 12 && platform.y < player.y + 250)
+                    .filter((platform) => platform.active && platform.y > player.y + 6 && platform.y < player.y + 220)
                     .sort((a, b) => {
-                        const aScore = (a.type === "boost" ? 50 : 0) + (a.type === "moving" ? 18 : 0) + (a.y - player.y);
-                        const bScore = (b.type === "boost" ? 50 : 0) + (b.type === "moving" ? 18 : 0) + (b.y - player.y);
-                        return bScore - aScore;
+                        const rank = (platform) => {
+                            let bonus = 0;
+                            if (platform.pickup?.type === "spring") bonus += 60;
+                            if (platform.pickup?.type === "propeller") bonus += 130;
+                            if (platform.pickup?.type === "jetpack") bonus += 180;
+                            if (platform.type === "green") bonus += 40;
+                            if (platform.type === "blue") bonus += 30;
+                            if (platform.type === "brown") bonus -= 15;
+                            if (platform.type === "white") bonus -= 20;
+                            return bonus + (platform.y - player.y) * 1.8 - Math.abs(platform.x - player.x) * 0.9;
+                        };
+                        return rank(b) - rank(a);
                     });
 
                 const target = candidates[0];
-                const targetX = target ? target.x + target.width / 2 : game.canvas.width / 2;
+                const targetX = target ? target.x : game.canvas.width / 2;
                 const dx = shortestDx(player.x, targetX, game.canvas.width);
-                game.input.left = dx < -12;
-                game.input.right = dx > 12;
+                game.input.left = dx < -10;
+                game.input.right = dx > 10;
+
+                const monsterAhead = game.monsters.find((monster) => {
+                    const vertical = monster.y > player.y + 40 && monster.y < player.y + 340;
+                    const aligned = Math.abs(monster.x - player.x) < 22;
+                    return vertical && aligned;
+                });
+                game.input.shoot = Boolean(monsterAhead);
             }, 24);
         })()
     `);
 
-    await delay(3000);
-    await client.screenshot("/workspace/skybound-runtime-live.png");
-    const liveRuntime = await client.evaluate(`(() => ({
-        state: window.skyboundGame.state,
-        score: window.skyboundGame.score,
-        heightMeters: Math.floor((window.skyboundGame.maxHeight - window.skyboundGame.startHeight) * 0.36),
-        streak: window.skyboundGame.styleStreak
-    }))()`);
-
-    await delay(12000);
-    await client.screenshot("/workspace/skybound-runtime-play.png");
-
-    const runtime = await client.evaluate(`(() => {
-        const game = window.skyboundGame;
+    await delay(3500);
+    await client.screenshot("/workspace/doodle-parody-live-01.png");
+    const midRun = await client.evaluate(`(() => {
+        const game = window.doodleJumpParody;
         const typeCounts = game.platforms.reduce((acc, platform) => {
             acc[platform.type] = (acc[platform.type] || 0) + 1;
             return acc;
@@ -217,61 +231,87 @@ async function main() {
         return {
             state: game.state,
             score: game.score,
-            maxHeightMeters: Math.floor((game.maxHeight - game.startHeight) * 0.36),
-            streak: game.styleStreak,
-            maxStreak: game.maxStyleStreak,
-            enemiesVisible: game.enemies.length,
-            pickupsVisible: game.pickups.length,
-            typeCounts,
+            cameraY: Math.floor(game.cameraY),
+            monsters: game.monsters.length,
+            bullets: game.bullets.length,
+            pickups: game.platforms.filter((platform) => platform.pickup && !platform.pickup.used).map((platform) => platform.pickup.type),
+            typeCounts
+        };
+    })()`);
+
+    await delay(15000);
+    await client.screenshot("/workspace/doodle-parody-play-01.png");
+    const runtime = await client.evaluate(`(() => {
+        const game = window.doodleJumpParody;
+        const typeCounts = game.platforms.reduce((acc, platform) => {
+            acc[platform.type] = (acc[platform.type] || 0) + 1;
+            return acc;
+        }, {});
+        return {
+            state: game.state,
+            score: game.score,
+            bestScore: game.bestScore,
+            monstersVisible: game.monsters.length,
+            bulletsVisible: game.bullets.length,
+            pickupsVisible: game.platforms.filter((platform) => platform.pickup && !platform.pickup.used).length,
+            typeCounts
         };
     })()`);
 
     await client.evaluate(`
         (() => {
-            clearInterval(window.__skyboundPilot);
-            window.skyboundGame.input.left = false;
-            window.skyboundGame.input.right = false;
-            window.skyboundGame.endRun();
+            clearInterval(window.__doodlePilot);
+            const game = window.doodleJumpParody;
+            game.input.left = false;
+            game.input.right = false;
+            game.input.shoot = false;
+            game.gameOver();
         })()
     `);
     await delay(400);
-    await client.screenshot("/workspace/skybound-runtime-gameover.png");
+    await client.screenshot("/workspace/doodle-parody-gameover-01.png");
 
     const gameOverSummary = await client.evaluate(`(() => ({
-        state: window.skyboundGame.state,
+        state: window.doodleJumpParody.state,
         finalScore: document.getElementById("finalScore")?.textContent ?? null,
-        finalHeight: document.getElementById("finalHeight")?.textContent ?? null,
-        finalStreak: document.getElementById("finalStreak")?.textContent ?? null
+        finalBest: document.getElementById("finalBest")?.textContent ?? null
     }))()`);
 
     const reloadPromise = client.once("Page.loadEventFired");
     await client.send("Page.reload");
     await reloadPromise;
-    await delay(1000);
+    await client.evaluate(`
+        new Promise((resolve) => {
+            const check = () => {
+                const button = document.getElementById("startButton");
+                const game = window.doodleJumpParody;
+                if (button && !button.disabled && game && game.state === "start") {
+                    resolve(true);
+                    return;
+                }
+                setTimeout(check, 100);
+            };
+            check();
+        })
+    `);
 
     const persisted = await client.evaluate(`(() => ({
-        bestHud: document.getElementById("hudBest")?.textContent ?? null,
-        startVisible: !document.getElementById("startScreen")?.classList.contains("is-hidden"),
-        soundToggle: document.getElementById("soundToggle")?.textContent ?? null
+        bestScore: window.doodleJumpParody.bestScore,
+        soundToggle: document.getElementById("soundToggle")?.textContent ?? null,
+        startVisible: !document.getElementById("startScreen")?.classList.contains("is-hidden")
     }))()`);
 
-    console.log(
-        JSON.stringify(
-            {
-                initial,
-                pausedState,
-                resumedState,
-                liveRuntime,
-                runtime,
-                gameOverSummary,
-                persisted,
-                consoleMessages,
-                pageErrors,
-            },
-            null,
-            2,
-        ),
-    );
+    console.log(JSON.stringify({
+        initial,
+        pausedState,
+        resumedState,
+        midRun,
+        runtime,
+        gameOverSummary,
+        persisted,
+        consoleMessages,
+        pageErrors
+    }, null, 2));
 
     client.socket.close();
 }
