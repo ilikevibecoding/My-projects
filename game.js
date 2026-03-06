@@ -8,12 +8,12 @@
     const PLATFORM_HEIGHT = 20;
     const PLAYER_WIDTH = 62;
     const PLAYER_HEIGHT = 60;
-    const MOVE_SPEED = 178;
-    const GRAVITY = -1880;
-    const JUMP_VELOCITY = 835;
-    const SPRING_VELOCITY = 1080;
-    const PROPELLER_VELOCITY = 930;
-    const JETPACK_VELOCITY = 1185;
+    const MOVE_SPEED = 188;
+    const GRAVITY = -1940;
+    const JUMP_VELOCITY = 860;
+    const SPRING_VELOCITY = 1110;
+    const PROPELLER_VELOCITY = 960;
+    const JETPACK_VELOCITY = 1210;
     const CAMERA_THRESHOLD = 305;
     const DEATH_BUFFER = 110;
     const BULLET_SPEED = 880;
@@ -45,6 +45,7 @@
     };
 
     const AUDIO_URLS = {
+        break: "assets/audio/break.wav",
         jump: "assets/audio/jump.wav",
         gameOver: "assets/audio/gameover.wav",
         spring: "assets/audio/spring.mp3",
@@ -590,6 +591,14 @@
                     this.player.prevY >= platform.y &&
                     this.player.y <= platform.y
                 ) {
+                    if (platform.type === "brown") {
+                        platform.active = false;
+                        platform.brokenTimer = 0.28;
+                        this.audio.play("break", 0.45);
+                        this.effects.push({ x: platform.x, y: platform.y + 12, vy: 20, life: 0.35, text: "CRACK!" });
+                        return;
+                    }
+
                     let bounceVelocity = JUMP_VELOCITY;
 
                     if (platform.pickup?.type === "spring" && !platform.pickup.used) {
@@ -600,10 +609,6 @@
                         this.audio.play("jump", 0.34);
                     }
 
-                    if (platform.type === "brown") {
-                        platform.active = false;
-                        platform.brokenTimer = 0.28;
-                    }
                     if (platform.type === "white") {
                         platform.active = false;
                         platform.vanishTimer = 0.18;
@@ -681,14 +686,17 @@
                 const overlapY = Math.min(this.player.y + this.player.height, monster.y + monster.height) -
                     Math.max(this.player.y, monster.y);
 
-                if (overlapX > 12 && overlapY > 8) {
-                    const stompLine = monster.y + monster.height * 0.62;
-                    if (this.player.vy <= 0 && this.player.prevY >= stompLine && this.player.y <= stompLine) {
+                if (overlapX > 12 && overlapY >= 6) {
+                    const stompLine = monster.y + monster.height - 6;
+                    const stompedFromAbove = this.player.prevY >= stompLine && this.player.y <= stompLine;
+                    if (this.player.vy <= 0 && stompedFromAbove) {
                         monster.dead = true;
                         this.player.y = stompLine;
-                        this.player.vy = JUMP_VELOCITY * 0.92;
+                        this.player.vy = JUMP_VELOCITY * 0.98;
                         this.audio.play("monster", 0.42);
                         this.effects.push({ x: monster.x, y: monster.y + 16, vy: 28, life: 0.4, text: "BOUNCE!" });
+                        this.monsters = this.monsters.filter((activeMonster) => !activeMonster.dead);
+                        return;
                     } else {
                         this.gameOver();
                         return;
@@ -701,7 +709,18 @@
 
         cleanupWorld() {
             const floor = this.cameraY - 80;
-            this.platforms = this.platforms.filter((platform) => platform.y > floor - 40);
+            this.platforms = this.platforms.filter((platform) => {
+                if (platform.y <= floor - 40) {
+                    return false;
+                }
+                if (!platform.active && platform.type === "brown" && platform.brokenTimer <= 0) {
+                    return false;
+                }
+                if (!platform.active && platform.type === "white" && platform.vanishTimer <= 0) {
+                    return false;
+                }
+                return true;
+            });
             this.monsters = this.monsters.filter((monster) => monster.y > floor - 60);
         }
 
@@ -834,6 +853,13 @@
 
         drawPlatforms() {
             for (const platform of this.platforms) {
+                if (!platform.active && platform.type === "brown" && platform.brokenTimer <= 0) {
+                    continue;
+                }
+                if (!platform.active && platform.type === "white" && platform.vanishTimer <= 0) {
+                    continue;
+                }
+
                 const screenY = this.worldToScreen(platform.y);
                 const image =
                     platform.type === "green"
@@ -846,8 +872,25 @@
 
                 this.drawImageOrFallback(
                     image,
-                    (img) => this.ctx.drawImage(img, platform.x - platform.width / 2, screenY - 12, platform.width, 18),
+                    (img) => {
+                        this.ctx.save();
+                        if (!platform.active && platform.type === "brown") {
+                            this.ctx.globalAlpha = clamp(platform.brokenTimer / 0.28, 0, 1);
+                        }
+                        if (!platform.active && platform.type === "white") {
+                            this.ctx.globalAlpha = clamp(platform.vanishTimer / 0.18, 0, 1);
+                        }
+                        this.ctx.drawImage(img, platform.x - platform.width / 2, screenY - 12, platform.width, 18);
+                        this.ctx.restore();
+                    },
                     () => {
+                        this.ctx.save();
+                        if (!platform.active && platform.type === "brown") {
+                            this.ctx.globalAlpha = clamp(platform.brokenTimer / 0.28, 0, 1);
+                        }
+                        if (!platform.active && platform.type === "white") {
+                            this.ctx.globalAlpha = clamp(platform.vanishTimer / 0.18, 0, 1);
+                        }
                         this.ctx.fillStyle = platform.type === "green" ? "#79c937" : platform.type === "blue" ? "#6bb8f2" : platform.type === "brown" ? "#8d6338" : "#ffffff";
                         this.ctx.strokeStyle = "#191511";
                         this.ctx.lineWidth = 2;
@@ -855,6 +898,7 @@
                         this.ctx.roundRect(platform.x - platform.width / 2, screenY - 12, platform.width, 18, 12);
                         this.ctx.fill();
                         this.ctx.stroke();
+                        this.ctx.restore();
                     },
                 );
 

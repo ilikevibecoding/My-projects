@@ -171,6 +171,66 @@ async function main() {
     await delay(200);
     const resumedState = await client.evaluate(`window.doodleJumpParody.state`);
 
+    const brownPlatformTest = await client.evaluate(`(() => {
+        const game = window.doodleJumpParody;
+        game.resetWorld();
+        game.state = "playing";
+        game.platforms = [{
+            x: 216,
+            y: 220,
+            width: 82,
+            type: "brown",
+            active: true,
+            vx: 0,
+            brokenTimer: 0,
+            vanishTimer: 0,
+            pickup: null
+        }];
+        game.monsters = [];
+        game.player.x = 216;
+        game.player.prevY = 250;
+        game.player.y = 210;
+        game.player.vy = -180;
+        game.player.boostTimer = 0;
+        game.handlePlatformCollisions();
+        const afterImpactVy = game.player.vy;
+        const breakTimer = game.platforms[0]?.brokenTimer ?? 0;
+        game.updatePlatforms(0.3);
+        game.cleanupWorld();
+        return {
+            afterImpactVy,
+            platformActiveAfterImpact: game.platforms[0]?.active ?? false,
+            breakTimerStarted: breakTimer > 0,
+            removedAfterCleanup: game.platforms.length === 0
+        };
+    })()`);
+
+    const monsterStompTest = await client.evaluate(`(() => {
+        const game = window.doodleJumpParody;
+        game.resetWorld();
+        game.state = "playing";
+        game.monsters = [{
+            x: 216,
+            y: 240,
+            width: 62,
+            height: 42,
+            vx: 0,
+            dead: false
+        }];
+        game.player.x = 216;
+        game.player.prevY = 282;
+        game.player.y = 274;
+        game.player.vy = -160;
+        game.handleMonsterCollisions();
+        return {
+            state: game.state,
+            playerVy: game.player.vy,
+            monsterCount: game.monsters.length
+        };
+    })()`);
+
+    await client.evaluate(`window.doodleJumpParody.resetWorld()`);
+
     await client.evaluate(`
         (() => {
             const shortestDx = (from, to, width) => {
@@ -305,6 +365,8 @@ async function main() {
         initial,
         pausedState,
         resumedState,
+        brownPlatformTest,
+        monsterStompTest,
         midRun,
         runtime,
         gameOverSummary,
