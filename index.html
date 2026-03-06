@@ -3,20 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bombsite Breach</title>
+    <title>Owlingo Path - Duolingo Parody</title>
     <style>
         :root {
-            color-scheme: dark;
-            --bg: #07111a;
-            --panel: rgba(8, 17, 28, 0.74);
-            --panel-border: rgba(132, 164, 196, 0.22);
-            --text: #eaf3ff;
-            --muted: #92a6bd;
-            --ct: #5dd7ff;
-            --t: #ff9966;
-            --danger: #ff5c5c;
-            --ok: #77f7b3;
-            --warn: #ffd671;
+            color-scheme: light;
+            --bg: #ddf4ff;
+            --bg-deep: #9ddcff;
+            --surface: #ffffff;
+            --surface-alt: #f7fbff;
+            --ink: #35414b;
+            --muted: #7d8b99;
+            --green: #58cc02;
+            --green-dark: #46a302;
+            --green-soft: #dff7c6;
+            --blue: #1cb0f6;
+            --blue-soft: #d9f4ff;
+            --pink: #ff70b8;
+            --pink-soft: #ffe4f2;
+            --gold: #ffc800;
+            --gold-soft: #fff2bf;
+            --red: #ff4b4b;
+            --red-soft: #ffe0e0;
+            --shadow: 0 18px 0 rgba(0, 0, 0, 0.08), 0 28px 54px rgba(28, 176, 246, 0.18);
+            --border: #dfe8ef;
+            --radius-xl: 32px;
+            --radius-lg: 24px;
+            --radius-md: 18px;
+            --radius-sm: 14px;
         }
 
         * {
@@ -26,1847 +39,1807 @@
         html,
         body {
             margin: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            font-family: Inter, "Segoe UI", Roboto, sans-serif;
+            min-height: 100%;
+            font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--ink);
             background:
-                radial-gradient(circle at top, rgba(44, 76, 115, 0.35), transparent 40%),
-                linear-gradient(180deg, #08121c 0%, #03070c 100%);
-            color: var(--text);
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.8), transparent 28%),
+                radial-gradient(circle at top right, rgba(255, 255, 255, 0.65), transparent 24%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
         }
 
         body {
-            position: relative;
+            padding: 24px;
         }
 
-        canvas {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            display: block;
-            cursor: none;
+        button,
+        input {
+            font: inherit;
         }
 
-        .hud {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
+        button {
+            cursor: pointer;
+            border: 0;
         }
 
-        .hud-row {
-            position: absolute;
-            left: 24px;
-            right: 24px;
+        .hidden {
+            display: none !important;
+        }
+
+        .app-shell {
+            width: min(1400px, 100%);
+            margin: 0 auto;
+        }
+
+        .topbar {
             display: flex;
-            gap: 18px;
+            flex-wrap: wrap;
             justify-content: space-between;
-            align-items: flex-start;
+            gap: 18px;
+            align-items: center;
+            margin-bottom: 20px;
         }
 
-        .hud-top {
-            top: 24px;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 280px;
         }
 
-        .hud-bottom {
-            bottom: 24px;
-            align-items: flex-end;
-        }
-
-        .panel {
-            min-width: 220px;
-            max-width: min(360px, 40vw);
-            padding: 14px 16px;
-            background: var(--panel);
-            border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            backdrop-filter: blur(14px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
-        }
-
-        .panel.center {
-            text-align: center;
-            min-width: 260px;
+        .brand img {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.18));
         }
 
         .eyebrow {
-            display: block;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.18em;
-            color: var(--muted);
+            margin: 0 0 6px;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
-            margin-bottom: 8px;
+            color: var(--blue);
         }
 
-        .value {
-            font-size: clamp(24px, 3vw, 38px);
+        .brand h1 {
+            margin: 0;
+            font-size: clamp(30px, 4vw, 44px);
+            line-height: 0.95;
+        }
+
+        .brand p {
+            margin: 6px 0 0;
+            max-width: 650px;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .status-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .status-pill {
+            min-width: 120px;
+            padding: 14px 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            box-shadow: 0 8px 24px rgba(53, 65, 75, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-pill .icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 18px;
+            font-weight: 900;
+            background: var(--surface-alt);
+        }
+
+        .status-pill.energy .icon {
+            background: var(--pink-soft);
+        }
+
+        .status-pill.streak .icon {
+            background: var(--gold-soft);
+        }
+
+        .status-pill.gems .icon {
+            background: var(--blue-soft);
+        }
+
+        .status-pill.xp .icon {
+            background: var(--green-soft);
+        }
+
+        .status-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .status-copy span {
+            font-size: 12px;
             font-weight: 800;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--muted);
         }
 
-        .subvalue {
-            margin-top: 6px;
-            font-size: 13px;
+        .status-copy strong {
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(280px, 1.05fr) minmax(380px, 1.28fr) minmax(260px, 0.92fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.93);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow);
+        }
+
+        .intro-card,
+        .roadmap-card,
+        .hero-card,
+        .lesson-card,
+        .parody-card,
+        .meta-card,
+        .reward-card {
+            padding: 24px;
+        }
+
+        .intro-card h2,
+        .hero-card h2,
+        .lesson-card h2,
+        .meta-card h3,
+        .reward-card h3 {
+            margin: 0;
+        }
+
+        .intro-card p,
+        .hero-card p,
+        .meta-card p,
+        .parody-card p,
+        .reward-card p {
             color: var(--muted);
             line-height: 1.5;
         }
 
-        .scoreline {
+        .primary-button,
+        .secondary-button,
+        .option-button,
+        .friend-button,
+        .modal-button,
+        .lesson-node {
+            transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+        }
+
+        .primary-button:hover,
+        .secondary-button:hover,
+        .option-button:hover,
+        .friend-button:hover,
+        .modal-button:hover,
+        .lesson-node:hover:not(:disabled) {
+            transform: translateY(-2px);
+            filter: saturate(1.04);
+        }
+
+        .primary-button,
+        .modal-button {
+            background: var(--green);
+            color: #ffffff;
+            font-weight: 900;
+            padding: 16px 22px;
+            border-radius: 18px;
+            box-shadow: 0 6px 0 var(--green-dark);
+        }
+
+        .secondary-button {
+            background: #ffffff;
+            color: var(--blue);
+            font-weight: 900;
+            padding: 14px 18px;
+            border: 2px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 6px 0 rgba(223, 232, 239, 0.95);
+        }
+
+        .intro-actions {
             display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 14px;
-            font-size: 28px;
-            font-weight: 800;
-        }
-
-        .scoreline .ct {
-            color: var(--ct);
-        }
-
-        .scoreline .t {
-            color: var(--t);
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px 14px;
-            margin-top: 8px;
-        }
-
-        .status-item {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .status-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.16em;
-            color: var(--muted);
-            text-transform: uppercase;
-        }
-
-        .status-value {
-            font-size: 20px;
-            font-weight: 750;
-        }
-
-        .weapon-strip {
-            display: flex;
-            gap: 10px;
-            margin-top: 14px;
-        }
-
-        .weapon-card {
-            flex: 1;
-            min-width: 100px;
-            padding: 10px 12px;
-            border-radius: 14px;
-            border: 1px solid rgba(132, 164, 196, 0.18);
-            background: rgba(255, 255, 255, 0.04);
-            transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
-        }
-
-        .weapon-card.active {
-            border-color: rgba(255, 214, 113, 0.75);
-            background: rgba(255, 214, 113, 0.12);
-            transform: translateY(-3px);
-        }
-
-        .weapon-title {
-            font-size: 13px;
-            font-weight: 700;
-        }
-
-        .weapon-ammo {
-            margin-top: 6px;
-            font-size: 12px;
-            color: var(--muted);
-        }
-
-        .feed {
-            position: absolute;
-            right: 24px;
-            top: 160px;
-            width: min(360px, calc(100vw - 48px));
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            pointer-events: none;
-        }
-
-        .feed-entry {
-            padding: 10px 14px;
-            border-radius: 12px;
-            background: rgba(9, 16, 26, 0.76);
-            border: 1px solid rgba(132, 164, 196, 0.16);
-            color: var(--text);
-            font-size: 13px;
-            line-height: 1.45;
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
-        }
-
-        .feed-entry.ct {
-            border-color: rgba(93, 215, 255, 0.28);
-        }
-
-        .feed-entry.t {
-            border-color: rgba(255, 153, 102, 0.28);
-        }
-
-        .feed-entry.warn {
-            border-color: rgba(255, 214, 113, 0.3);
-        }
-
-        .defuse-wrap {
-            position: absolute;
-            left: 50%;
-            bottom: 120px;
-            width: min(420px, calc(100vw - 48px));
-            transform: translateX(-50%);
-            padding: 14px 16px;
-            border-radius: 16px;
-            background: rgba(9, 16, 26, 0.84);
-            border: 1px solid rgba(132, 164, 196, 0.18);
-            box-shadow: 0 16px 28px rgba(0, 0, 0, 0.25);
-            pointer-events: none;
-        }
-
-        .defuse-title {
-            display: flex;
-            justify-content: space-between;
+            flex-wrap: wrap;
             gap: 12px;
-            font-size: 13px;
-            color: var(--muted);
-            margin-bottom: 10px;
+            margin-top: 18px;
         }
 
-        .bar {
-            width: 100%;
-            height: 12px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.08);
+        .roadmap-card {
+            position: relative;
             overflow: hidden;
         }
 
-        .bar-fill {
-            width: 0;
-            height: 100%;
-            border-radius: inherit;
-            background: linear-gradient(90deg, #4ed9ff 0%, #7cf7b5 100%);
-            box-shadow: 0 0 16px rgba(76, 220, 255, 0.5);
-        }
-
-        .crosshair {
-            position: absolute;
-            width: 26px;
-            height: 26px;
-            pointer-events: none;
-            transform: translate(-50%, -50%);
-        }
-
-        .crosshair::before,
-        .crosshair::after {
+        .roadmap-card::before {
             content: "";
             position: absolute;
-            background: rgba(255, 255, 255, 0.94);
-            border-radius: 999px;
-            box-shadow: 0 0 12px rgba(255, 255, 255, 0.45);
-        }
-
-        .crosshair::before {
-            left: 50%;
-            top: 4px;
-            bottom: 4px;
-            width: 2px;
+            inset: 18px auto 18px 50%;
+            width: 10px;
             transform: translateX(-50%);
+            border-radius: 999px;
+            background: linear-gradient(180deg, #8fddff 0%, #d7f5ff 100%);
         }
 
-        .crosshair::after {
-            top: 50%;
-            left: 4px;
-            right: 4px;
-            height: 2px;
-            transform: translateY(-50%);
+        .roadmap-header {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 16px;
         }
 
-        .overlay {
-            position: absolute;
-            inset: 0;
-            display: grid;
-            place-items: center;
-            padding: 24px;
-            background: rgba(2, 5, 9, 0.58);
-            backdrop-filter: blur(10px);
-            z-index: 5;
-            transition: opacity 180ms ease, visibility 180ms ease;
+        .roadmap {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
         }
 
-        .overlay.hidden,
-        .hidden {
-            opacity: 0;
-            visibility: hidden;
+        .roadmap-row {
+            display: flex;
+            align-items: center;
         }
 
-        .modal {
-            width: min(780px, 100%);
-            padding: 28px;
-            border-radius: 28px;
-            background:
-                linear-gradient(180deg, rgba(14, 25, 39, 0.98) 0%, rgba(7, 12, 18, 0.98) 100%);
-            border: 1px solid rgba(132, 164, 196, 0.22);
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+        .roadmap-row.left {
+            justify-content: flex-start;
         }
 
-        .modal h1 {
-            margin: 0;
-            font-size: clamp(38px, 6vw, 64px);
-            line-height: 0.95;
+        .roadmap-row.right {
+            justify-content: flex-end;
         }
 
-        .lead {
-            margin: 14px 0 24px;
-            max-width: 640px;
-            color: var(--muted);
+        .lesson-node {
+            width: min(100%, 210px);
+            padding: 16px 18px;
+            border-radius: 26px;
+            background: var(--surface);
+            border: 2px solid var(--border);
+            box-shadow: 0 10px 0 rgba(223, 232, 239, 0.95);
+            text-align: left;
+        }
+
+        .lesson-node.current {
+            background: linear-gradient(180deg, #7ae12e 0%, #58cc02 100%);
+            border-color: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 10px 0 #46a302;
+            color: #ffffff;
+        }
+
+        .lesson-node.complete {
+            background: linear-gradient(180deg, #dff7c6 0%, #c7f0a0 100%);
+            border-color: rgba(70, 163, 2, 0.25);
+        }
+
+        .lesson-node.locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+            filter: grayscale(0.08);
+        }
+
+        .lesson-node small {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: inherit;
+            opacity: 0.76;
+        }
+
+        .lesson-node strong {
+            display: block;
             font-size: 18px;
-            line-height: 1.6;
+            line-height: 1.1;
         }
 
-        .controls-grid {
+        .lesson-node span {
+            display: block;
+            margin-top: 6px;
+            font-size: 13px;
+            opacity: 0.85;
+        }
+
+        .hero-card {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 16px;
+            align-items: center;
+            background:
+                radial-gradient(circle at top right, rgba(255, 255, 255, 0.8), transparent 26%),
+                linear-gradient(135deg, #58cc02 0%, #8ae533 100%);
+            color: #ffffff;
+        }
+
+        .hero-card .eyebrow,
+        .hero-card p {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .hero-card img {
+            width: min(100%, 260px);
+            justify-self: center;
+            object-fit: contain;
+            filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.18));
+        }
+
+        .hero-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .hero-tag {
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            font-weight: 800;
+            font-size: 13px;
+        }
+
+        .lesson-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
             gap: 14px;
-            margin: 22px 0 26px;
+            margin-bottom: 12px;
         }
 
-        .control-card {
-            padding: 16px;
+        .progress-pill {
+            min-width: 110px;
+            padding: 12px 14px;
             border-radius: 18px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(132, 164, 196, 0.14);
+            background: var(--surface-alt);
+            text-align: right;
+            font-size: 13px;
+            font-weight: 900;
+            color: var(--muted);
         }
 
-        .control-card h2 {
-            margin: 0 0 8px;
+        .prompt {
+            margin: 0;
+            font-size: clamp(28px, 4vw, 38px);
+            line-height: 1.08;
+        }
+
+        .hint {
+            margin: 0 0 18px;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 16px;
+            border-radius: 999px;
+            background: #edf4f9;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #58cc02 0%, #89e533 100%);
+            transition: width 180ms ease;
+        }
+
+        .challenge-area {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .option-button {
+            width: 100%;
+            padding: 18px 18px;
+            border-radius: 20px;
+            background: #ffffff;
+            border: 2px solid var(--border);
+            box-shadow: 0 7px 0 rgba(223, 232, 239, 0.95);
+            text-align: left;
+            font-weight: 800;
+            color: var(--ink);
+        }
+
+        .option-button.selected {
+            border-color: var(--blue);
+            background: var(--blue-soft);
+            box-shadow: 0 7px 0 rgba(28, 176, 246, 0.2);
+        }
+
+        .option-button.correct {
+            border-color: var(--green);
+            background: var(--green-soft);
+            box-shadow: 0 7px 0 rgba(88, 204, 2, 0.2);
+        }
+
+        .option-button.incorrect {
+            border-color: var(--red);
+            background: var(--red-soft);
+            box-shadow: 0 7px 0 rgba(255, 75, 75, 0.18);
+        }
+
+        .answer-shell {
+            padding: 18px;
+            border-radius: 20px;
+            background: var(--surface-alt);
+            border: 2px dashed #c9d6e2;
+        }
+
+        .answer-shell label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 13px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+        }
+
+        .answer-input {
+            width: 100%;
+            padding: 16px 18px;
+            border: 2px solid var(--border);
+            border-radius: 18px;
+            background: #ffffff;
+            font-size: 18px;
+            color: var(--ink);
+        }
+
+        .answer-input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 4px rgba(28, 176, 246, 0.12);
+        }
+
+        .word-bank,
+        .built-answer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .token {
+            padding: 12px 16px;
+            border-radius: 16px;
+            background: #ffffff;
+            border: 2px solid var(--border);
+            box-shadow: 0 6px 0 rgba(223, 232, 239, 0.95);
+            font-weight: 800;
+        }
+
+        .token.used {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .built-answer {
+            min-height: 66px;
+            align-items: center;
+        }
+
+        .feedback {
+            min-height: 66px;
+            padding: 18px;
+            border-radius: 22px;
+            font-weight: 800;
+            line-height: 1.45;
+            background: #f3f7fa;
+            color: var(--muted);
+        }
+
+        .feedback.correct {
+            background: var(--green-soft);
+            color: #287100;
+        }
+
+        .feedback.incorrect {
+            background: var(--red-soft);
+            color: #9c2f2f;
+        }
+
+        .lesson-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .lesson-actions button {
+            flex: 1;
+        }
+
+        .parody-card {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 16px;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.88);
+        }
+
+        .parody-card img {
+            width: 86px;
+            height: 86px;
+            object-fit: contain;
+        }
+
+        .quest-list,
+        .leaderboard {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .quest {
+            padding: 16px;
+            border-radius: 20px;
+            background: var(--surface-alt);
+            border: 2px solid var(--border);
+        }
+
+        .quest-header,
+        .leader-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .quest-header strong,
+        .leader-row strong {
             font-size: 16px;
         }
 
-        .control-card p {
-            margin: 0;
-            color: var(--muted);
-            font-size: 14px;
-            line-height: 1.6;
+        .mini-track {
+            width: 100%;
+            height: 12px;
+            margin-top: 10px;
+            border-radius: 999px;
+            background: #e7eff5;
+            overflow: hidden;
         }
 
-        .start-row {
+        .mini-fill {
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #1cb0f6 0%, #8fddff 100%);
+        }
+
+        .leader-row {
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: var(--surface-alt);
+            border: 2px solid var(--border);
+        }
+
+        .leader-row.self {
+            background: var(--green-soft);
+            border-color: rgba(88, 204, 2, 0.2);
+        }
+
+        .leader-left {
             display: flex;
             align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
+            gap: 12px;
         }
 
-        button {
-            appearance: none;
-            border: 0;
-            border-radius: 999px;
-            padding: 16px 24px;
-            font: inherit;
+        .rank-badge {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #ffffff;
+            display: grid;
+            place-items: center;
+            font-weight: 900;
+            border: 2px solid var(--border);
+        }
+
+        .friend-button {
+            width: 100%;
+            margin-top: 14px;
+            padding: 14px 18px;
+            border-radius: 18px;
+            background: var(--blue);
+            color: #ffffff;
+            font-weight: 900;
+            box-shadow: 0 6px 0 #1699d6;
+        }
+
+        .reward-card img {
+            width: min(100%, 220px);
+            display: block;
+            margin: 12px auto 0;
+            object-fit: contain;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 33, 48, 0.4);
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            z-index: 30;
+        }
+
+        .modal {
+            position: relative;
+            width: min(520px, 100%);
+            padding: 28px;
+            border-radius: 34px;
+            background:
+                radial-gradient(circle at top right, rgba(255, 255, 255, 0.9), transparent 28%),
+                linear-gradient(180deg, #1cb0f6 0%, #55c4fb 100%);
+            color: #ffffff;
+            box-shadow: 0 28px 70px rgba(17, 33, 48, 0.34);
+            text-align: center;
+        }
+
+        .modal img {
+            width: min(100%, 230px);
+            object-fit: contain;
+            filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.18));
+        }
+
+        .modal p {
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        .close-button {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 900;
+        }
+
+        .reward-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0 22px;
+        }
+
+        .reward-stat {
+            padding: 14px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.26);
+        }
+
+        .reward-stat span {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
             font-weight: 800;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: #061019;
-            background: linear-gradient(90deg, #78f7ff 0%, #ffd671 100%);
-            cursor: pointer;
-            box-shadow: 0 14px 30px rgba(120, 247, 255, 0.22);
+            opacity: 0.82;
         }
 
-        .disclaimer {
-            color: var(--muted);
+        .reward-stat strong {
+            font-size: 24px;
+        }
+
+        .toast {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            max-width: min(420px, calc(100vw - 48px));
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: rgba(53, 65, 75, 0.95);
+            color: #ffffff;
+            box-shadow: 0 18px 44px rgba(17, 33, 48, 0.26);
+            z-index: 40;
+        }
+
+        .footer-note {
+            margin-top: 18px;
+            text-align: center;
+            color: rgba(53, 65, 75, 0.72);
             font-size: 13px;
-            line-height: 1.6;
+            font-weight: 700;
         }
 
-        @media (max-width: 960px) {
-            .hud-row {
-                left: 14px;
-                right: 14px;
-                gap: 12px;
+        @media (max-width: 1120px) {
+            .layout {
+                grid-template-columns: 1fr;
             }
 
-            .panel {
-                min-width: 0;
-                max-width: none;
-                width: calc(33.333% - 8px);
-                padding: 12px;
+            .hero-card {
+                grid-template-columns: 1fr;
+                text-align: center;
             }
 
-            .hud-bottom {
-                flex-direction: column;
-                align-items: stretch;
+            .hero-tags {
+                justify-content: center;
             }
 
-            .hud-bottom .panel {
+            .roadmap-card::before {
+                left: 32px;
+                transform: none;
+            }
+
+            .roadmap-row,
+            .roadmap-row.left,
+            .roadmap-row.right {
+                justify-content: flex-start;
+                padding-left: 44px;
+            }
+
+            .lesson-node {
                 width: 100%;
-            }
-
-            .feed {
-                top: auto;
-                bottom: 220px;
-                right: 14px;
-                left: 14px;
-                width: auto;
             }
         }
 
         @media (max-width: 720px) {
-            .hud-top {
+            body {
+                padding: 14px;
+            }
+
+            .topbar {
+                gap: 14px;
+            }
+
+            .brand {
+                align-items: flex-start;
+            }
+
+            .brand img {
+                width: 58px;
+                height: 58px;
+            }
+
+            .status-row {
+                justify-content: flex-start;
+            }
+
+            .status-pill {
+                min-width: 0;
+                flex: 1 1 140px;
+            }
+
+            .intro-card,
+            .roadmap-card,
+            .hero-card,
+            .lesson-card,
+            .parody-card,
+            .meta-card,
+            .reward-card {
+                padding: 20px;
+            }
+
+            .prompt {
+                font-size: 26px;
+            }
+
+            .lesson-actions {
                 flex-direction: column;
             }
 
-            .panel {
-                width: 100%;
+            .reward-grid {
+                grid-template-columns: 1fr;
             }
 
-            .defuse-wrap {
-                bottom: 160px;
-            }
-
-            .modal {
-                padding: 22px;
-                border-radius: 22px;
-            }
-
-            .lead {
-                font-size: 16px;
+            .toast {
+                left: 14px;
+                right: 14px;
+                bottom: 14px;
+                max-width: none;
             }
         }
     </style>
 </head>
 <body>
-    <canvas id="game" aria-label="Bombsite Breach game canvas"></canvas>
-
-    <div class="hud">
-        <div class="hud-row hud-top">
-            <div class="panel">
-                <span class="eyebrow">Objective</span>
-                <div class="value" id="objectiveValue">Retake site A</div>
-                <div class="subvalue" id="objectiveSubvalue">Move through cover, clear defenders, and hold E on the bomb.</div>
-            </div>
-
-            <div class="panel center">
-                <span class="eyebrow">Round State</span>
-                <div class="value" id="timerValue">00:00</div>
-                <div class="scoreline">
-                    <span class="ct" id="ctScore">0</span>
-                    <span>-</span>
-                    <span class="t" id="tScore">0</span>
-                </div>
-                <div class="subvalue" id="roundLabel">Round 1</div>
-            </div>
-
-            <div class="panel">
-                <span class="eyebrow">Intel</span>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <span class="status-label">Enemies</span>
-                        <span class="status-value" id="enemyCountValue">0</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Bomb</span>
-                        <span class="status-value" id="bombStateValue">Armed</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Loadout</span>
-                        <span class="status-value" id="weaponNameValue">M4A1-S</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Ammo</span>
-                        <span class="status-value" id="ammoValue">30 / 90</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="hud-row hud-bottom">
-            <div class="panel">
-                <span class="eyebrow">Player Status</span>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <span class="status-label">Health</span>
-                        <span class="status-value" id="healthValue">100</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Armor</span>
-                        <span class="status-value" id="armorValue">100</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Position</span>
-                        <span class="status-value" id="positionValue">Spawn</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">Hint</span>
-                        <span class="status-value" id="hintValue">Hold angles</span>
-                    </div>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand">
+                <img data-sprite="pack" alt="Imported Duolingo sticker art used for this parody">
+                <div>
+                    <p class="eyebrow">Duolingo-inspired parody</p>
+                    <h1>Owlingo Path</h1>
+                    <p>
+                        A bright Duolingo clone parody built in one file, using imported Duolingo-hosted
+                        mascot art at your direction. This fan project is not affiliated with or endorsed by Duolingo.
+                    </p>
                 </div>
             </div>
 
-            <div class="panel">
-                <span class="eyebrow">Weapons</span>
-                <div class="weapon-strip">
-                    <div class="weapon-card" id="weapon-pistol">
-                        <div class="weapon-title">1 - USP-S</div>
-                        <div class="weapon-ammo" id="weaponAmmo-pistol">12 / 48</div>
+            <div class="status-row">
+                <div class="status-pill energy">
+                    <div class="icon">⚡</div>
+                    <div class="status-copy">
+                        <span>Energy</span>
+                        <strong id="energyValue">15</strong>
                     </div>
-                    <div class="weapon-card active" id="weapon-rifle">
-                        <div class="weapon-title">2 - M4A1-S</div>
-                        <div class="weapon-ammo" id="weaponAmmo-rifle">30 / 90</div>
+                </div>
+                <div class="status-pill streak">
+                    <div class="icon">🔥</div>
+                    <div class="status-copy">
+                        <span>Streak</span>
+                        <strong id="streakValue">7</strong>
                     </div>
-                    <div class="weapon-card" id="weapon-sniper">
-                        <div class="weapon-title">3 - AWP</div>
-                        <div class="weapon-ammo" id="weaponAmmo-sniper">5 / 20</div>
+                </div>
+                <div class="status-pill gems">
+                    <div class="icon">💎</div>
+                    <div class="status-copy">
+                        <span>Gems</span>
+                        <strong id="gemsValue">480</strong>
+                    </div>
+                </div>
+                <div class="status-pill xp">
+                    <div class="icon">⭐</div>
+                    <div class="status-copy">
+                        <span>XP</span>
+                        <strong id="xpValue">1250</strong>
                     </div>
                 </div>
             </div>
-        </div>
+        </header>
 
-        <div class="feed" id="feed"></div>
+        <main class="layout">
+            <section class="column">
+                <article class="card intro-card">
+                    <p class="eyebrow">Parody briefing</p>
+                    <h2>Follow the path, clear the lesson, collect the reward.</h2>
+                    <p>
+                        This remake copies the Duolingo vibe on purpose: a winding lesson road, quick translation
+                        drills, leaderboard pressure, and a celebratory reward modal with imported Duolingo art.
+                    </p>
+                    <div class="intro-actions">
+                        <button class="primary-button" id="resumeLessonButton" type="button">Resume current lesson</button>
+                        <button class="secondary-button" id="restartCourseButton" type="button">Restart parody course</button>
+                    </div>
+                </article>
 
-        <div class="defuse-wrap hidden" id="defuseWrap">
-            <div class="defuse-title">
-                <span id="defuseLabel">Hold E to defuse</span>
-                <span id="defuseTimeValue">0.0s</span>
-            </div>
-            <div class="bar">
-                <div class="bar-fill" id="defuseFill"></div>
-            </div>
-        </div>
+                <article class="card roadmap-card">
+                    <div class="roadmap-header">
+                        <p class="eyebrow">Course path</p>
+                        <h2>Tap a lesson bubble</h2>
+                    </div>
+                    <div class="roadmap" id="roadmap"></div>
+                </article>
+            </section>
+
+            <section class="column">
+                <article class="card hero-card">
+                    <div>
+                        <p class="eyebrow" id="heroUnit">Section 1 • Unit 1</p>
+                        <h2 id="heroTitle">Warm-up with tiny wins</h2>
+                        <p id="heroSummary">
+                            Pick up simple greetings, build confidence, and keep the parody owl happy.
+                        </p>
+                        <div class="hero-tags">
+                            <div class="hero-tag" id="heroTagOne">3 challenges</div>
+                            <div class="hero-tag" id="heroTagTwo">Quick XP</div>
+                            <div class="hero-tag">Not affiliated with Duolingo</div>
+                        </div>
+                    </div>
+                    <img data-sprite="hero" alt="Imported Duolingo mascot art used in parody hero panel">
+                </article>
+
+                <article class="card lesson-card">
+                    <div class="lesson-top">
+                        <div>
+                            <p class="eyebrow" id="challengeLabel">Choose the correct translation</p>
+                            <h2 class="prompt" id="challengePrompt">"Buenos dias"</h2>
+                        </div>
+                        <div class="progress-pill" id="progressCopy">1 / 3</div>
+                    </div>
+
+                    <div class="progress-track" aria-hidden="true">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+
+                    <p class="hint" id="challengeHint">Tap the answer that best matches the sentence.</p>
+                    <div class="challenge-area" id="challengeArea"></div>
+                    <div class="feedback" id="feedbackBox">Pick an answer, then hit Check.</div>
+
+                    <div class="lesson-actions">
+                        <button class="secondary-button hidden" id="clearAnswerButton" type="button">Clear answer</button>
+                        <button class="primary-button" id="actionButton" type="button">Check</button>
+                    </div>
+                </article>
+
+                <article class="card parody-card">
+                    <img data-sprite="mask" alt="Imported Duolingo art used in the parody notice">
+                    <div>
+                        <p class="eyebrow">Parody notice</p>
+                        <p>
+                            This interface intentionally imitates Duolingo's cheerful lesson flow as a parody.
+                            It is an unaffiliated fan mockup and clearly not an official Duolingo product.
+                        </p>
+                    </div>
+                </article>
+            </section>
+
+            <aside class="column">
+                <article class="card meta-card">
+                    <p class="eyebrow">Daily quests</p>
+                    <h3>Keep the fake streak alive</h3>
+                    <div class="quest-list" id="questList"></div>
+                </article>
+
+                <article class="card meta-card">
+                    <p class="eyebrow">League table</p>
+                    <h3>Neighborhood leaderboard</h3>
+                    <div class="leaderboard" id="leaderboard"></div>
+                </article>
+
+                <article class="card reward-card">
+                    <p class="eyebrow">Friend reward</p>
+                    <h3>Claim a parody +15 energy burst</h3>
+                    <p>
+                        The screenshots you shared leaned into energy rewards, so this clone includes the same
+                        kind of over-the-top celebration.
+                    </p>
+                    <img data-sprite="pack" alt="Imported Duolingo sticker art used for friend reward panel">
+                    <button class="friend-button" id="friendBonusButton" type="button">Claim +15 energy</button>
+                </article>
+            </aside>
+        </main>
+
+        <p class="footer-note">
+            Owlingo Path is a Duolingo-inspired parody clone. It is not affiliated with, endorsed by, or produced by Duolingo.
+        </p>
     </div>
 
-    <div class="crosshair" id="crosshair"></div>
-
-    <div class="overlay" id="overlay">
+    <div class="modal-backdrop hidden" id="rewardModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal">
-            <span class="eyebrow">Counter-Strike inspired browser prototype</span>
-            <h1>Bombsite Breach</h1>
-            <p class="lead">
-                A compact, no-dependency CS-style clone built in one file. You play the lone
-                counter-terrorist on a retake: clear site A, outduel the defenders, and defuse the bomb
-                before the round timer hits zero.
-            </p>
+            <button class="close-button" id="closeModalButton" type="button" aria-label="Close reward modal">&times;</button>
+            <img data-sprite="pack" alt="Imported Duolingo art used in reward modal">
+            <p class="eyebrow">Lesson cleared</p>
+            <h2 id="modalTitle">Nice work!</h2>
+            <p id="modalBody">You wrapped up the lesson and earned a little parody energy boost.</p>
 
-            <div class="controls-grid">
-                <div class="control-card">
-                    <h2>Move and peek</h2>
-                    <p>WASD to move. Hold Shift to slow-walk and tighten your spread when slicing corners.</p>
+            <div class="reward-grid">
+                <div class="reward-stat">
+                    <span>Lesson XP</span>
+                    <strong id="modalXpValue">0</strong>
                 </div>
-                <div class="control-card">
-                    <h2>Aim and shoot</h2>
-                    <p>Mouse to aim. Left click to fire. Press R to reload and manage magazines between fights.</p>
+                <div class="reward-stat">
+                    <span>Energy</span>
+                    <strong id="modalEnergyValue">+3</strong>
                 </div>
-                <div class="control-card">
-                    <h2>Swap weapons</h2>
-                    <p>Press 1 for USP-S, 2 for M4A1-S, and 3 for the AWP depending on the angle you want.</p>
-                </div>
-                <div class="control-card">
-                    <h2>Win the round</h2>
-                    <p>Eliminate defenders if you must, but the bomb stays live. Reach it and hold E to complete the defuse.</p>
+                <div class="reward-stat">
+                    <span>Gems</span>
+                    <strong id="modalGemsValue">+12</strong>
                 </div>
             </div>
 
-            <div class="start-row">
-                <button id="startButton" type="button">Deploy Counter-Terrorist</button>
-                <div class="disclaimer">
-                    Best played on desktop in a full browser tab. Rounds restart automatically, and enemy pressure ramps up as the score climbs.
-                </div>
-            </div>
+            <button class="modal-button" id="modalContinueButton" type="button">Back to path</button>
         </div>
     </div>
+
+    <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
 
     <script>
         (() => {
-            const canvas = document.getElementById("game");
-            const ctx = canvas.getContext("2d");
-            const overlay = document.getElementById("overlay");
-            const crosshair = document.getElementById("crosshair");
-            const startButton = document.getElementById("startButton");
+            const importedSprites = Object.freeze({
+                hero: "https://store.duolingo.com/cdn/shop/files/1767847420890_grande.png?v=1767864860",
+                pack: "https://store.duolingo.com/cdn/shop/files/1759233925216_grande.png?v=1759234020",
+                mask: "https://store.duolingo.com/cdn/shop/files/1759225452142_grande.jpg?v=1759225471"
+            });
 
-            const ui = {
-                objectiveValue: document.getElementById("objectiveValue"),
-                objectiveSubvalue: document.getElementById("objectiveSubvalue"),
-                timerValue: document.getElementById("timerValue"),
-                ctScore: document.getElementById("ctScore"),
-                tScore: document.getElementById("tScore"),
-                roundLabel: document.getElementById("roundLabel"),
-                enemyCountValue: document.getElementById("enemyCountValue"),
-                bombStateValue: document.getElementById("bombStateValue"),
-                weaponNameValue: document.getElementById("weaponNameValue"),
-                ammoValue: document.getElementById("ammoValue"),
-                healthValue: document.getElementById("healthValue"),
-                armorValue: document.getElementById("armorValue"),
-                positionValue: document.getElementById("positionValue"),
-                hintValue: document.getElementById("hintValue"),
-                feed: document.getElementById("feed"),
-                defuseWrap: document.getElementById("defuseWrap"),
-                defuseFill: document.getElementById("defuseFill"),
-                defuseLabel: document.getElementById("defuseLabel"),
-                defuseTimeValue: document.getElementById("defuseTimeValue")
-            };
-
-            const WORLD = { width: 2200, height: 1400 };
-            const WEAPON_ORDER = ["pistol", "rifle", "sniper"];
-            const WEAPONS = {
-                pistol: {
-                    label: "USP-S",
-                    magSize: 12,
-                    reserve: 48,
-                    fireRate: 4.2,
-                    damage: 24,
-                    spread: 0.05,
-                    moveSpeed: 290,
-                    reloadTime: 1.4,
-                    range: 780,
-                    tracer: "#8be5ff",
-                    impact: "#b8f3ff",
-                    preferredRange: 320
-                },
-                smg: {
-                    label: "MP9",
-                    magSize: 30,
-                    reserve: 120,
-                    fireRate: 12,
-                    damage: 18,
-                    spread: 0.08,
-                    moveSpeed: 310,
-                    reloadTime: 1.8,
-                    range: 680,
-                    tracer: "#7cf7b5",
-                    impact: "#c3ffe0",
-                    preferredRange: 220
-                },
-                rifle: {
-                    label: "M4A1-S",
-                    magSize: 30,
-                    reserve: 90,
-                    fireRate: 8.6,
-                    damage: 31,
-                    spread: 0.04,
-                    moveSpeed: 265,
-                    reloadTime: 2.1,
-                    range: 980,
-                    tracer: "#ffd671",
-                    impact: "#ffe39e",
-                    preferredRange: 360
-                },
-                sniper: {
-                    label: "AWP",
-                    magSize: 5,
-                    reserve: 20,
-                    fireRate: 1,
-                    damage: 110,
-                    spread: 0.006,
-                    moveSpeed: 215,
-                    reloadTime: 2.9,
-                    range: 1400,
-                    tracer: "#ff8f8f",
-                    impact: "#ffc3c3",
-                    preferredRange: 560
-                }
-            };
-
-            const state = {
-                started: false,
-                round: 1,
-                score: { ct: 0, t: 0 },
-                roundState: "idle",
-                endTimer: 0,
-                outcome: "",
-                outcomeDetail: "",
-                message: "",
-                mouse: {
-                    x: window.innerWidth / 2,
-                    y: window.innerHeight / 2,
-                    down: false
-                },
-                keys: {},
-                camera: { x: 0, y: 0 },
-                feed: [],
-                shake: 0,
-                lastTime: 0,
-                selectedWeapon: "rifle"
-            };
-
-            const map = createMap();
-            let player = null;
-            let enemies = [];
-            let bomb = null;
-            let traces = [];
-            let sparks = [];
-
-            function createMap() {
-                return {
-                    spawn: { x: 220, y: 1130 },
-                    bomb: { x: 1760, y: 430 },
-                    site: { x: 1490, y: 250, w: 430, h: 380 },
-                    walls: [
-                        { x: 0, y: 0, w: WORLD.width, h: 40 },
-                        { x: 0, y: WORLD.height - 40, w: WORLD.width, h: 40 },
-                        { x: 0, y: 0, w: 40, h: WORLD.height },
-                        { x: WORLD.width - 40, y: 0, w: 40, h: WORLD.height },
-                        { x: 220, y: 910, w: 460, h: 70 },
-                        { x: 360, y: 630, w: 110, h: 190 },
-                        { x: 680, y: 450, w: 260, h: 80 },
-                        { x: 820, y: 820, w: 120, h: 260 },
-                        { x: 1010, y: 210, w: 90, h: 260 },
-                        { x: 1110, y: 640, w: 300, h: 90 },
-                        { x: 1260, y: 1080, w: 90, h: 220 },
-                        { x: 1420, y: 500, w: 110, h: 310 },
-                        { x: 1465, y: 260, w: 140, h: 120 },
-                        { x: 1600, y: 160, w: 240, h: 70 },
-                        { x: 1710, y: 680, w: 260, h: 100 },
-                        { x: 1880, y: 320, w: 90, h: 260 },
-                        { x: 1460, y: 920, w: 380, h: 90 }
-                    ],
-                    enemyConfigs: [
+            const course = [
+                {
+                    id: "basics-1",
+                    unit: "Section 1 • Unit 1",
+                    title: "Basics & hellos",
+                    summary: "Warm up with tiny greetings, easy statements, and your first speedy translation streak.",
+                    challenges: [
                         {
-                            name: "Ramp",
-                            x: 1350,
-                            y: 1120,
-                            weapon: "rifle",
-                            speed: 185,
-                            patrol: [
-                                { x: 1350, y: 1120 },
-                                { x: 1540, y: 1090 },
-                                { x: 1490, y: 880 }
-                            ]
+                            type: "multiple",
+                            label: "Choose the correct translation",
+                            prompt: "\"Buenos dias\"",
+                            hint: "Tap the answer that best matches the sentence.",
+                            options: ["Good morning", "Good evening", "Please hurry"],
+                            answer: "Good morning",
+                            xp: 10
                         },
                         {
-                            name: "Default",
-                            x: 1730,
-                            y: 430,
-                            weapon: "smg",
-                            speed: 210,
-                            patrol: [
-                                { x: 1730, y: 430 },
-                                { x: 1610, y: 520 },
-                                { x: 1840, y: 520 }
-                            ]
+                            type: "arrange",
+                            label: "Build the sentence",
+                            prompt: "Arrange: \"Yo soy un gato.\"",
+                            hint: "Use the words below to form the sentence.",
+                            bank: ["I", "am", "a", "cat", "owl"],
+                            answer: "I am a cat",
+                            xp: 15
                         },
                         {
-                            name: "Heaven",
-                            x: 1530,
-                            y: 180,
-                            weapon: "sniper",
-                            speed: 165,
-                            patrol: [
-                                { x: 1530, y: 180 },
-                                { x: 1795, y: 180 }
-                            ]
-                        },
-                        {
-                            name: "Market",
-                            x: 1940,
-                            y: 880,
-                            weapon: "rifle",
-                            speed: 190,
-                            patrol: [
-                                { x: 1940, y: 880 },
-                                { x: 1780, y: 900 },
-                                { x: 1870, y: 1120 }
-                            ]
-                        },
-                        {
-                            name: "Rotator",
-                            x: 980,
-                            y: 220,
-                            weapon: "smg",
-                            speed: 220,
-                            patrol: [
-                                { x: 980, y: 220 },
-                                { x: 1180, y: 320 },
-                                { x: 1320, y: 250 }
-                            ]
+                            type: "translate",
+                            label: "Translate this sentence",
+                            prompt: "\"Ella bebe agua.\"",
+                            hint: "Type the full translation in English.",
+                            answers: ["She drinks water"],
+                            answer: "She drinks water",
+                            xp: 20
                         }
                     ]
-                };
+                },
+                {
+                    id: "food-run",
+                    unit: "Section 1 • Unit 2",
+                    title: "Cafe run",
+                    summary: "Practice snack words, easy verbs, and one of those suspiciously cheerful app moments.",
+                    challenges: [
+                        {
+                            type: "multiple",
+                            label: "Select the right phrase",
+                            prompt: "\"Quiero pan.\"",
+                            hint: "Pick the best English meaning.",
+                            options: ["I want bread", "You have soup", "We like coffee"],
+                            answer: "I want bread",
+                            xp: 10
+                        },
+                        {
+                            type: "translate",
+                            label: "Translate this sentence",
+                            prompt: "\"Nosotros comemos arroz.\"",
+                            hint: "Watch the subject carefully.",
+                            answers: ["We eat rice"],
+                            answer: "We eat rice",
+                            xp: 20
+                        },
+                        {
+                            type: "arrange",
+                            label: "Build the sentence",
+                            prompt: "Arrange: \"Ella quiere te.\"",
+                            hint: "Ignore the distractor word.",
+                            bank: ["She", "wants", "tea", "pizza"],
+                            answer: "She wants tea",
+                            xp: 15
+                        }
+                    ]
+                },
+                {
+                    id: "people-chat",
+                    unit: "Section 2 • Unit 3",
+                    title: "People & plans",
+                    summary: "Keep going with everyday sentences, names, and slightly more complex translation prompts.",
+                    challenges: [
+                        {
+                            type: "multiple",
+                            label: "Choose the correct translation",
+                            prompt: "\"Mi amigo estudia aqui.\"",
+                            hint: "The sentence is about one person.",
+                            options: ["My friend studies here", "Our friends play there", "Your teacher lives nearby"],
+                            answer: "My friend studies here",
+                            xp: 12
+                        },
+                        {
+                            type: "arrange",
+                            label: "Build the sentence",
+                            prompt: "Arrange: \"Yo voy al parque hoy.\"",
+                            hint: "The time word lands at the end.",
+                            bank: ["I", "go", "to", "the", "park", "today", "yesterday"],
+                            answer: "I go to the park today",
+                            xp: 18
+                        },
+                        {
+                            type: "translate",
+                            label: "Translate this sentence",
+                            prompt: "\"Ella es una nina feliz.\"",
+                            hint: "Use the adjective at the end.",
+                            answers: ["She is a happy girl"],
+                            answer: "She is a happy girl",
+                            xp: 22
+                        }
+                    ]
+                },
+                {
+                    id: "story-mode",
+                    unit: "Section 2 • Unit 4",
+                    title: "Story mode",
+                    summary: "A final mini run with speaking-style prompts, celebration copy, and one last reward blast.",
+                    challenges: [
+                        {
+                            type: "multiple",
+                            label: "Choose the best response",
+                            prompt: "\"Gracias\"",
+                            hint: "Pick the polite reply.",
+                            options: ["Thank you", "You're welcome", "See you tomorrow"],
+                            answer: "Thank you",
+                            xp: 12
+                        },
+                        {
+                            type: "translate",
+                            label: "Translate this sentence",
+                            prompt: "\"Mi familia vive en Madrid.\"",
+                            hint: "Keep the city name as-is.",
+                            answers: ["My family lives in Madrid"],
+                            answer: "My family lives in Madrid",
+                            xp: 22
+                        },
+                        {
+                            type: "arrange",
+                            label: "Build the sentence",
+                            prompt: "Arrange: \"Nos vemos manana.\"",
+                            hint: "Think of a common goodbye phrase.",
+                            bank: ["See", "you", "tomorrow", "bread"],
+                            answer: "See you tomorrow",
+                            xp: 18
+                        }
+                    ]
+                }
+            ];
+
+            const rivals = [
+                { name: "Lia", xp: 1460, badge: "🥇" },
+                { name: "Marco", xp: 1375, badge: "🥈" },
+                { name: "Zuri", xp: 1320, badge: "🥉" },
+                { name: "Parker", xp: 1210, badge: "🦉" },
+                { name: "Noor", xp: 1160, badge: "✨" }
+            ];
+
+            const state = {
+                energy: 15,
+                streak: 7,
+                gems: 480,
+                xp: 1250,
+                currentLessonIndex: 0,
+                currentChallengeIndex: 0,
+                selectedOptionIndex: null,
+                typedAnswer: "",
+                builtTokenIndexes: [],
+                checked: false,
+                lastResult: null,
+                completedLessons: new Set(),
+                lessonXp: 0,
+                sessionXp: 0,
+                totalCorrect: 0,
+                lessonsFinished: 0,
+                friendBonusClaimed: false,
+                modalOpen: false,
+                modalStats: { xp: 0, energy: 0, gems: 0, title: "", body: "" }
+            };
+
+            const elements = {
+                energyValue: document.getElementById("energyValue"),
+                streakValue: document.getElementById("streakValue"),
+                gemsValue: document.getElementById("gemsValue"),
+                xpValue: document.getElementById("xpValue"),
+                roadmap: document.getElementById("roadmap"),
+                heroUnit: document.getElementById("heroUnit"),
+                heroTitle: document.getElementById("heroTitle"),
+                heroSummary: document.getElementById("heroSummary"),
+                heroTagOne: document.getElementById("heroTagOne"),
+                heroTagTwo: document.getElementById("heroTagTwo"),
+                challengeLabel: document.getElementById("challengeLabel"),
+                challengePrompt: document.getElementById("challengePrompt"),
+                challengeHint: document.getElementById("challengeHint"),
+                challengeArea: document.getElementById("challengeArea"),
+                progressCopy: document.getElementById("progressCopy"),
+                progressFill: document.getElementById("progressFill"),
+                feedbackBox: document.getElementById("feedbackBox"),
+                clearAnswerButton: document.getElementById("clearAnswerButton"),
+                actionButton: document.getElementById("actionButton"),
+                questList: document.getElementById("questList"),
+                leaderboard: document.getElementById("leaderboard"),
+                friendBonusButton: document.getElementById("friendBonusButton"),
+                rewardModal: document.getElementById("rewardModal"),
+                closeModalButton: document.getElementById("closeModalButton"),
+                modalContinueButton: document.getElementById("modalContinueButton"),
+                modalTitle: document.getElementById("modalTitle"),
+                modalBody: document.getElementById("modalBody"),
+                modalXpValue: document.getElementById("modalXpValue"),
+                modalEnergyValue: document.getElementById("modalEnergyValue"),
+                modalGemsValue: document.getElementById("modalGemsValue"),
+                toast: document.getElementById("toast"),
+                resumeLessonButton: document.getElementById("resumeLessonButton"),
+                restartCourseButton: document.getElementById("restartCourseButton")
+            };
+
+            let toastTimer = null;
+
+            function normalize(value) {
+                return value
+                    .toLowerCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^a-z0-9\s]/g, " ")
+                    .trim()
+                    .replace(/\s+/g, " ");
             }
 
-            function createWeaponState(type) {
-                const weapon = WEAPONS[type];
-                return {
-                    type,
-                    clip: weapon.magSize,
-                    reserve: weapon.reserve,
-                    reloadTimer: 0,
-                    fireCooldown: 0,
-                    muzzleFlash: 0
-                };
+            function isLessonUnlocked(index) {
+                return index === 0 || state.completedLessons.has(course[index - 1].id);
             }
 
-            function createPlayer() {
-                return {
-                    team: "ct",
-                    label: "CT-01",
-                    x: map.spawn.x,
-                    y: map.spawn.y,
-                    radius: 18,
-                    hp: 100,
-                    armor: 100,
-                    alive: true,
-                    angle: 0,
-                    hurtFlash: 0,
-                    isMoving: false,
-                    inventory: {
-                        pistol: createWeaponState("pistol"),
-                        rifle: createWeaponState("rifle"),
-                        sniper: createWeaponState("sniper")
-                    },
-                    activeWeapon: state.selectedWeapon
-                };
+            function getCurrentLesson() {
+                return course[state.currentLessonIndex] || course[course.length - 1];
             }
 
-            function createEnemy(config, difficulty) {
-                return {
-                    team: "t",
-                    label: config.name,
-                    x: config.x,
-                    y: config.y,
-                    radius: 18,
-                    hp: 100,
-                    armor: 70,
-                    alive: true,
-                    angle: Math.PI,
-                    speed: config.speed + difficulty * 5,
-                    skill: clamp(0.65 + difficulty * 0.04, 0.65, 0.92),
-                    patrol: config.patrol.map((point) => ({ ...point })),
-                    patrolIndex: 0,
-                    strafeDir: Math.random() > 0.5 ? 1 : -1,
-                    strafeClock: randomRange(0.5, 1.3),
-                    aggro: 0,
-                    focusX: config.x,
-                    focusY: config.y,
-                    hurtFlash: 0,
-                    isMoving: false,
-                    inventory: {
-                        [config.weapon]: createWeaponState(config.weapon)
-                    },
-                    activeWeapon: config.weapon
-                };
+            function getCurrentChallenge() {
+                const lesson = getCurrentLesson();
+                return lesson.challenges[state.currentChallengeIndex];
             }
 
-            function createBomb() {
-                return {
-                    x: map.bomb.x,
-                    y: map.bomb.y,
-                    timer: clamp(47 - (state.round - 1) * 0.8, 32, 47),
-                    defuseProgress: 0,
-                    defuseDuration: 4,
-                    pulse: 0
-                };
+            function resetChallengeState() {
+                state.selectedOptionIndex = null;
+                state.typedAnswer = "";
+                state.builtTokenIndexes = [];
+                state.checked = false;
+                state.lastResult = null;
             }
 
-            function initRound() {
-                const difficulty = state.round - 1;
-                const defenderCount = clamp(3 + Math.floor(difficulty / 2), 3, map.enemyConfigs.length);
-
-                player = createPlayer();
-                enemies = map.enemyConfigs.slice(0, defenderCount).map((config) => createEnemy(config, difficulty));
-                bomb = createBomb();
-                traces = [];
-                sparks = [];
-                state.roundState = "playing";
-                state.endTimer = 0;
-                state.outcome = "";
-                state.outcomeDetail = "";
-                state.message = "Retake A before the clock hits zero.";
-                pushFeed("Round " + state.round + " live. Bomb planted on A.", "warn");
-                updateHud();
+            function resetCourse() {
+                state.energy = 15;
+                state.streak = 7;
+                state.gems = 480;
+                state.xp = 1250;
+                state.currentLessonIndex = 0;
+                state.currentChallengeIndex = 0;
+                state.completedLessons = new Set();
+                state.lessonXp = 0;
+                state.sessionXp = 0;
+                state.totalCorrect = 0;
+                state.lessonsFinished = 0;
+                state.friendBonusClaimed = false;
+                state.modalOpen = false;
+                resetChallengeState();
+                render();
+                showToast("Parody course restarted. The owl forgives everything.");
             }
 
-            function startMatch() {
-                if (state.started) {
+            function showToast(message) {
+                elements.toast.textContent = message;
+                elements.toast.classList.remove("hidden");
+
+                if (toastTimer) {
+                    window.clearTimeout(toastTimer);
+                }
+
+                toastTimer = window.setTimeout(() => {
+                    elements.toast.classList.add("hidden");
+                }, 2600);
+            }
+
+            function applySprites() {
+                document.querySelectorAll("[data-sprite]").forEach((img) => {
+                    const key = img.getAttribute("data-sprite");
+                    if (importedSprites[key]) {
+                        img.src = importedSprites[key];
+                    }
+                });
+            }
+
+            function renderStatus() {
+                elements.energyValue.textContent = state.energy;
+                elements.streakValue.textContent = state.streak;
+                elements.gemsValue.textContent = state.gems;
+                elements.xpValue.textContent = state.xp;
+                elements.friendBonusButton.disabled = state.friendBonusClaimed;
+                elements.friendBonusButton.textContent = state.friendBonusClaimed ? "Friend bonus claimed" : "Claim +15 energy";
+                elements.friendBonusButton.style.opacity = state.friendBonusClaimed ? "0.7" : "1";
+                elements.friendBonusButton.style.cursor = state.friendBonusClaimed ? "not-allowed" : "pointer";
+            }
+
+            function renderRoadmap() {
+                elements.roadmap.innerHTML = course.map((lesson, index) => {
+                    const unlocked = isLessonUnlocked(index);
+                    const complete = state.completedLessons.has(lesson.id);
+                    const current = index === state.currentLessonIndex && !state.modalOpen;
+                    const classes = [
+                        "lesson-node",
+                        complete ? "complete" : "",
+                        current ? "current" : "",
+                        !unlocked ? "locked" : ""
+                    ].filter(Boolean).join(" ");
+                    const side = index % 2 === 0 ? "left" : "right";
+                    const statusLine = complete
+                        ? "Completed"
+                        : unlocked
+                            ? (current ? "Current lesson" : "Ready to play")
+                            : "Locked";
+
+                    return `
+                        <div class="roadmap-row ${side}">
+                            <button class="${classes}" type="button" data-role="lesson-node" data-index="${index}" ${unlocked ? "" : "disabled"}>
+                                <small>${lesson.unit}</small>
+                                <strong>${lesson.title}</strong>
+                                <span>${statusLine}</span>
+                            </button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            function renderHero() {
+                const lesson = getCurrentLesson();
+                elements.heroUnit.textContent = lesson.unit;
+                elements.heroTitle.textContent = lesson.title;
+                elements.heroSummary.textContent = lesson.summary;
+                elements.heroTagOne.textContent = `${lesson.challenges.length} challenges`;
+                elements.heroTagTwo.textContent = `${lesson.challenges.reduce((sum, item) => sum + item.xp, 0)} XP available`;
+            }
+
+            function renderFeedback() {
+                const challenge = getCurrentChallenge();
+                let text = "Pick an answer, then hit Check.";
+                let mode = "";
+
+                if (!challenge) {
+                    text = "Course complete. Restart the parody path to run it again.";
+                    mode = "correct";
+                } else if (state.lastResult) {
+                    text = state.lastResult.correct
+                        ? `Correct! ${challenge.answer} was the right move.`
+                        : `Not quite. The best answer was: ${challenge.answer}.`;
+                    mode = state.lastResult.correct ? "correct" : "incorrect";
+                }
+
+                elements.feedbackBox.textContent = text;
+                elements.feedbackBox.className = `feedback${mode ? ` ${mode}` : ""}`;
+            }
+
+            function renderChallenge() {
+                const lesson = getCurrentLesson();
+                const challenge = getCurrentChallenge();
+
+                if (!challenge) {
+                    elements.challengeLabel.textContent = "Parody course complete";
+                    elements.challengePrompt.textContent = "You cleared every lesson bubble.";
+                    elements.challengeHint.textContent = "Restart the course or jump back to any unlocked lesson from the path.";
+                    elements.challengeArea.innerHTML = `
+                        <div class="answer-shell">
+                            <label>Victory lap</label>
+                            <p style="margin: 0; color: var(--ink); font-weight: 700;">
+                                The full Owlingo parody path is complete. Your mascot art, reward modal, quests, and
+                                fake league table are all live.
+                            </p>
+                        </div>
+                    `;
+                    elements.progressCopy.textContent = "Done";
+                    elements.progressFill.style.width = "100%";
+                    elements.actionButton.textContent = "Restart course";
+                    elements.clearAnswerButton.classList.add("hidden");
+                    renderFeedback();
                     return;
                 }
-                state.started = true;
-                state.round = 1;
-                state.score.ct = 0;
-                state.score.t = 0;
-                state.feed = [];
-                renderFeed();
-                overlay.classList.add("hidden");
-                initRound();
-            }
 
-            function clamp(value, min, max) {
-                return Math.max(min, Math.min(max, value));
-            }
+                const progressValue = ((state.currentChallengeIndex + (state.checked ? 1 : 0)) / lesson.challenges.length) * 100;
+                elements.challengeLabel.textContent = challenge.label;
+                elements.challengePrompt.textContent = challenge.prompt;
+                elements.challengeHint.textContent = challenge.hint;
+                elements.progressCopy.textContent = `${state.currentChallengeIndex + 1} / ${lesson.challenges.length}`;
+                elements.progressFill.style.width = `${Math.max(8, progressValue)}%`;
+                elements.actionButton.textContent = state.checked ? "Continue" : "Check";
 
-            function randomRange(min, max) {
-                return min + Math.random() * (max - min);
-            }
+                if (challenge.type === "multiple") {
+                    elements.clearAnswerButton.classList.add("hidden");
+                    elements.challengeArea.innerHTML = `
+                        <div class="options-grid">
+                            ${challenge.options.map((option, index) => {
+                                let extraClass = "";
+                                if (state.checked) {
+                                    if (option === challenge.answer) {
+                                        extraClass = "correct";
+                                    } else if (index === state.selectedOptionIndex) {
+                                        extraClass = "incorrect";
+                                    }
+                                } else if (index === state.selectedOptionIndex) {
+                                    extraClass = "selected";
+                                }
 
-            function distance(a, b) {
-                return Math.hypot(a.x - b.x, a.y - b.y);
-            }
+                                return `
+                                    <button
+                                        class="option-button ${extraClass}"
+                                        type="button"
+                                        data-role="option"
+                                        data-index="${index}"
+                                        ${state.checked ? "disabled" : ""}
+                                    >
+                                        ${option}
+                                    </button>
+                                `;
+                            }).join("")}
+                        </div>
+                    `;
+                } else if (challenge.type === "translate") {
+                    elements.clearAnswerButton.classList.add("hidden");
+                    elements.challengeArea.innerHTML = `
+                        <div class="answer-shell">
+                            <label for="translationInput">Your answer</label>
+                            <input
+                                class="answer-input"
+                                id="translationInput"
+                                type="text"
+                                autocomplete="off"
+                                spellcheck="false"
+                                ${state.checked ? "disabled" : ""}
+                                placeholder="Type your translation here"
+                            >
+                        </div>
+                    `;
 
-            function angleTo(a, b) {
-                return Math.atan2(b.y - a.y, b.x - a.x);
-            }
-
-            function lerp(start, end, alpha) {
-                return start + (end - start) * alpha;
-            }
-
-            function formatTime(seconds) {
-                const clamped = Math.max(0, seconds);
-                const whole = Math.ceil(clamped);
-                const minutes = String(Math.floor(whole / 60)).padStart(2, "0");
-                const remaining = String(whole % 60).padStart(2, "0");
-                return minutes + ":" + remaining;
-            }
-
-            function getWeaponState(entity) {
-                return entity.inventory[entity.activeWeapon];
-            }
-
-            function circleIntersectsRect(circleX, circleY, radius, rect) {
-                const nearestX = clamp(circleX, rect.x, rect.x + rect.w);
-                const nearestY = clamp(circleY, rect.y, rect.y + rect.h);
-                const dx = circleX - nearestX;
-                const dy = circleY - nearestY;
-                return dx * dx + dy * dy < radius * radius;
-            }
-
-            function moveEntity(entity, dx, dy) {
-                if (!entity.alive) {
-                    return;
-                }
-
-                if (dx !== 0) {
-                    entity.x += dx;
-                    for (const wall of map.walls) {
-                        if (circleIntersectsRect(entity.x, entity.y, entity.radius, wall)) {
-                            entity.x = dx > 0 ? wall.x - entity.radius : wall.x + wall.w + entity.radius;
-                        }
-                    }
-                }
-
-                if (dy !== 0) {
-                    entity.y += dy;
-                    for (const wall of map.walls) {
-                        if (circleIntersectsRect(entity.x, entity.y, entity.radius, wall)) {
-                            entity.y = dy > 0 ? wall.y - entity.radius : wall.y + wall.h + entity.radius;
-                        }
-                    }
-                }
-
-                entity.x = clamp(entity.x, entity.radius + 44, WORLD.width - entity.radius - 44);
-                entity.y = clamp(entity.y, entity.radius + 44, WORLD.height - entity.radius - 44);
-            }
-
-            function segmentRectHitT(x1, y1, x2, y2, rect) {
-                const dx = x2 - x1;
-                const dy = y2 - y1;
-                let tMin = 0;
-                let tMax = 1;
-
-                if (Math.abs(dx) < 0.000001) {
-                    if (x1 < rect.x || x1 > rect.x + rect.w) {
-                        return Infinity;
-                    }
-                } else {
-                    const tx1 = (rect.x - x1) / dx;
-                    const tx2 = (rect.x + rect.w - x1) / dx;
-                    tMin = Math.max(tMin, Math.min(tx1, tx2));
-                    tMax = Math.min(tMax, Math.max(tx1, tx2));
-                    if (tMin > tMax) {
-                        return Infinity;
-                    }
-                }
-
-                if (Math.abs(dy) < 0.000001) {
-                    if (y1 < rect.y || y1 > rect.y + rect.h) {
-                        return Infinity;
-                    }
-                } else {
-                    const ty1 = (rect.y - y1) / dy;
-                    const ty2 = (rect.y + rect.h - y1) / dy;
-                    tMin = Math.max(tMin, Math.min(ty1, ty2));
-                    tMax = Math.min(tMax, Math.max(ty1, ty2));
-                    if (tMin > tMax) {
-                        return Infinity;
-                    }
-                }
-
-                return tMin >= 0 && tMin <= 1 ? tMin : Infinity;
-            }
-
-            function segmentCircleHitT(x1, y1, x2, y2, entity) {
-                const dx = x2 - x1;
-                const dy = y2 - y1;
-                const fx = x1 - entity.x;
-                const fy = y1 - entity.y;
-                const a = dx * dx + dy * dy;
-                const b = 2 * (fx * dx + fy * dy);
-                const c = fx * fx + fy * fy - entity.radius * entity.radius;
-                const discriminant = b * b - 4 * a * c;
-
-                if (discriminant < 0) {
-                    return Infinity;
-                }
-
-                const root = Math.sqrt(discriminant);
-                const t1 = (-b - root) / (2 * a);
-                const t2 = (-b + root) / (2 * a);
-
-                if (t1 >= 0 && t1 <= 1) {
-                    return t1;
-                }
-
-                if (t2 >= 0 && t2 <= 1) {
-                    return t2;
-                }
-
-                return Infinity;
-            }
-
-            function nearestWallHitT(x1, y1, x2, y2) {
-                let nearest = Infinity;
-                for (const wall of map.walls) {
-                    const hit = segmentRectHitT(x1, y1, x2, y2, wall);
-                    if (hit < nearest) {
-                        nearest = hit;
-                    }
-                }
-                return nearest;
-            }
-
-            function canSee(shooter, target) {
-                if (!shooter.alive || !target.alive) {
-                    return false;
-                }
-
-                const weapon = WEAPONS[shooter.activeWeapon];
-                if (distance(shooter, target) > weapon.range * 0.85) {
-                    return false;
-                }
-
-                return nearestWallHitT(shooter.x, shooter.y, target.x, target.y) === Infinity;
-            }
-
-            function pushFeed(text, tone) {
-                state.feed.unshift({ text, tone, ttl: 3.8 });
-                state.feed = state.feed.slice(0, 5);
-                renderFeed();
-            }
-
-            function renderFeed() {
-                ui.feed.innerHTML = state.feed
-                    .map(
-                        (entry) =>
-                            '<div class="feed-entry ' +
-                            entry.tone +
-                            '">' +
-                            entry.text +
-                            "</div>"
-                    )
-                    .join("");
-            }
-
-            function spawnImpact(x, y, color, count) {
-                for (let i = 0; i < count; i += 1) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = randomRange(35, 125);
-                    sparks.push({
-                        x,
-                        y,
-                        vx: Math.cos(angle) * speed,
-                        vy: Math.sin(angle) * speed,
-                        radius: randomRange(1.6, 3.4),
-                        ttl: randomRange(0.14, 0.34),
-                        color
+                    const translationInput = document.getElementById("translationInput");
+                    translationInput.value = state.typedAnswer;
+                    translationInput.addEventListener("input", (event) => {
+                        state.typedAnswer = event.target.value;
                     });
-                }
-            }
-
-            function completeReload(entity, weaponState) {
-                const weapon = WEAPONS[weaponState.type];
-                const missing = weapon.magSize - weaponState.clip;
-                const transferred = Math.min(missing, weaponState.reserve);
-                weaponState.clip += transferred;
-                weaponState.reserve -= transferred;
-            }
-
-            function updateWeaponTimers(entity, dt) {
-                Object.values(entity.inventory).forEach((weaponState) => {
-                    weaponState.fireCooldown = Math.max(0, weaponState.fireCooldown - dt);
-                    weaponState.muzzleFlash = Math.max(0, weaponState.muzzleFlash - dt * 9);
-
-                    if (weaponState.reloadTimer > 0) {
-                        weaponState.reloadTimer -= dt;
-                        if (weaponState.reloadTimer <= 0) {
-                            weaponState.reloadTimer = 0;
-                            completeReload(entity, weaponState);
-                        }
-                    }
-                });
-            }
-
-            function startReload(entity) {
-                const weapon = getWeaponState(entity);
-                const weaponInfo = WEAPONS[weapon.type];
-
-                if (weapon.reloadTimer > 0 || weapon.reserve <= 0 || weapon.clip >= weaponInfo.magSize) {
-                    return false;
-                }
-
-                weapon.reloadTimer = weaponInfo.reloadTime;
-                if (entity === player) {
-                    pushFeed("Reloading " + weaponInfo.label + ".", "warn");
-                }
-                return true;
-            }
-
-            function alertEnemies(intensity) {
-                if (!player) {
-                    return;
-                }
-
-                for (const enemy of enemies) {
-                    if (!enemy.alive) {
-                        continue;
-                    }
-                    if (distance(enemy, player) < 920) {
-                        enemy.aggro = Math.max(enemy.aggro, intensity);
-                        enemy.focusX = player.x;
-                        enemy.focusY = player.y;
-                    }
-                }
-            }
-
-            function applyDamage(target, amount, sourceLabel) {
-                if (!target.alive) {
-                    return;
-                }
-
-                let damage = amount;
-                if (target.armor > 0) {
-                    const absorbed = Math.min(target.armor, amount * 0.45);
-                    target.armor -= absorbed;
-                    damage -= absorbed * 0.55;
-                }
-
-                target.hp -= damage;
-                target.hurtFlash = 0.3;
-
-                if (target === player) {
-                    state.shake = Math.max(state.shake, 8);
-                }
-
-                if (target.hp <= 0) {
-                    target.hp = 0;
-                    target.alive = false;
-                    pushFeed(sourceLabel + " eliminated " + target.label + ".", player && sourceLabel === player.label ? "ct" : "t");
-
-                    if (target === player) {
-                        endRound("t", "You were traded before the defuse.");
-                    } else if (enemies.every((enemy) => !enemy.alive)) {
-                        pushFeed("Site clear. Get to the bomb.", "ct");
-                    }
-                }
-            }
-
-            function fireWeapon(entity, isEnemy) {
-                const weaponState = getWeaponState(entity);
-                const weapon = WEAPONS[weaponState.type];
-
-                if (!entity.alive || weaponState.reloadTimer > 0 || weaponState.fireCooldown > 0) {
-                    return;
-                }
-
-                if (weaponState.clip <= 0) {
-                    startReload(entity);
-                    return;
-                }
-
-                weaponState.clip -= 1;
-                weaponState.fireCooldown = 1 / weapon.fireRate;
-                weaponState.muzzleFlash = 1;
-
-                const spread = weapon.spread + (entity.isMoving ? weapon.spread * 0.9 : 0);
-                const accuracy = isEnemy ? Math.max(0.45, 1.18 - entity.skill) : state.keys.shift ? 0.7 : 1;
-                const shotAngle = entity.angle + randomRange(-spread, spread) * accuracy;
-                const startX = entity.x + Math.cos(shotAngle) * (entity.radius + 14);
-                const startY = entity.y + Math.sin(shotAngle) * (entity.radius + 14);
-                const endX = startX + Math.cos(shotAngle) * weapon.range;
-                const endY = startY + Math.sin(shotAngle) * weapon.range;
-
-                let nearestWall = nearestWallHitT(startX, startY, endX, endY);
-                let nearestTarget = { entity: null, t: Infinity };
-                const targets = isEnemy ? [player] : enemies.filter((enemy) => enemy.alive);
-
-                for (const target of targets) {
-                    const hit = segmentCircleHitT(startX, startY, endX, endY, target);
-                    if (hit < nearestTarget.t) {
-                        nearestTarget = { entity: target, t: hit };
-                    }
-                }
-
-                const hitsTarget = nearestTarget.entity && nearestTarget.t < nearestWall;
-                const impactT = hitsTarget ? nearestTarget.t : nearestWall !== Infinity ? nearestWall : 1;
-                const impactX = lerp(startX, endX, impactT);
-                const impactY = lerp(startY, endY, impactT);
-
-                traces.push({
-                    x1: startX,
-                    y1: startY,
-                    x2: impactX,
-                    y2: impactY,
-                    width: isEnemy ? 2 : 3,
-                    ttl: 0.08,
-                    color: weapon.tracer
-                });
-
-                if (hitsTarget) {
-                    const scaledDamage = weapon.damage * randomRange(0.92, 1.08);
-                    applyDamage(nearestTarget.entity, scaledDamage, entity.label);
-                    spawnImpact(impactX, impactY, weapon.impact, 8);
                 } else {
-                    spawnImpact(impactX, impactY, "#dbe9ff", 4);
+                    elements.clearAnswerButton.classList.remove("hidden");
+                    const builtTokens = state.builtTokenIndexes.map((tokenIndex) => challenge.bank[tokenIndex]);
+
+                    elements.challengeArea.innerHTML = `
+                        <div class="answer-shell">
+                            <label>Build your answer</label>
+                            <div class="built-answer">
+                                ${builtTokens.length
+                                    ? builtTokens.map((token, index) => `
+                                        <button class="token" type="button" data-role="built-token" data-index="${index}" ${state.checked ? "disabled" : ""}>
+                                            ${token}
+                                        </button>
+                                    `).join("")
+                                    : "<span style=\"color: var(--muted); font-weight: 700;\">Tap words below to build the sentence.</span>"
+                                }
+                            </div>
+                        </div>
+                        <div class="word-bank">
+                            ${challenge.bank.map((token, index) => {
+                                const used = state.builtTokenIndexes.includes(index);
+                                return `
+                                    <button
+                                        class="token ${used ? "used" : ""}"
+                                        type="button"
+                                        data-role="bank-token"
+                                        data-index="${index}"
+                                        ${used || state.checked ? "disabled" : ""}
+                                    >
+                                        ${token}
+                                    </button>
+                                `;
+                            }).join("")}
+                        </div>
+                    `;
                 }
 
-                if (entity === player) {
-                    state.shake = Math.max(state.shake, weaponState.type === "sniper" ? 7 : 4);
-                    alertEnemies(1.45);
-                    if (weaponState.clip === 0 && weaponState.reserve > 0) {
-                        startReload(entity);
+                renderFeedback();
+            }
+
+            function renderQuests() {
+                const quests = [
+                    {
+                        title: "Finish 2 lessons",
+                        progress: Math.min(state.lessonsFinished / 2, 1),
+                        label: `${Math.min(state.lessonsFinished, 2)} / 2`
+                    },
+                    {
+                        title: "Get 6 correct answers",
+                        progress: Math.min(state.totalCorrect / 6, 1),
+                        label: `${Math.min(state.totalCorrect, 6)} / 6`
+                    },
+                    {
+                        title: "Earn 120 session XP",
+                        progress: Math.min(state.sessionXp / 120, 1),
+                        label: `${Math.min(state.sessionXp, 120)} / 120`
                     }
-                }
+                ];
+
+                elements.questList.innerHTML = quests.map((quest) => `
+                    <div class="quest">
+                        <div class="quest-header">
+                            <strong>${quest.title}</strong>
+                            <span>${quest.label}</span>
+                        </div>
+                        <div class="mini-track">
+                            <div class="mini-fill" style="width: ${quest.progress * 100}%"></div>
+                        </div>
+                    </div>
+                `).join("");
             }
 
-            function switchWeapon(type) {
-                if (!player || !player.inventory[type]) {
-                    return;
-                }
-                player.activeWeapon = type;
-                state.selectedWeapon = type;
+            function renderLeaderboard() {
+                const entries = [...rivals, { name: "You", xp: state.xp, badge: "💚", self: true }]
+                    .sort((left, right) => right.xp - left.xp)
+                    .slice(0, 6);
+
+                elements.leaderboard.innerHTML = entries.map((entry, index) => `
+                    <div class="leader-row ${entry.self ? "self" : ""}">
+                        <div class="leader-left">
+                            <div class="rank-badge">${index + 1}</div>
+                            <div>
+                                <strong>${entry.name}</strong>
+                                <div style="font-size: 13px; color: var(--muted);">${entry.badge} Weekly league</div>
+                            </div>
+                        </div>
+                        <strong>${entry.xp} XP</strong>
+                    </div>
+                `).join("");
             }
 
-            function isNearBomb(entity) {
-                if (!bomb) {
-                    return false;
-                }
-                return Math.hypot(entity.x - bomb.x, entity.y - bomb.y) < 96;
-            }
-
-            function updatePlayer(dt) {
-                if (!player || !player.alive) {
-                    return;
-                }
-
-                updateWeaponTimers(player, dt);
-                player.hurtFlash = Math.max(0, player.hurtFlash - dt);
-
-                const moveX = (state.keys.d ? 1 : 0) - (state.keys.a ? 1 : 0);
-                const moveY = (state.keys.s ? 1 : 0) - (state.keys.w ? 1 : 0);
-                const length = Math.hypot(moveX, moveY) || 1;
-                const activeWeapon = WEAPONS[player.activeWeapon];
-                let speed = activeWeapon.moveSpeed;
-
-                if (state.keys.shift) {
-                    speed *= 0.6;
-                }
-
-                player.isMoving = moveX !== 0 || moveY !== 0;
-                moveEntity(player, (moveX / length) * speed * dt, (moveY / length) * speed * dt);
-
-                const worldMouseX = state.mouse.x + state.camera.x;
-                const worldMouseY = state.mouse.y + state.camera.y;
-                player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
-
-                if (state.mouse.down) {
-                    fireWeapon(player, false);
-                }
-
-                if (isNearBomb(player) && state.keys.e) {
-                    bomb.defuseProgress = Math.min(bomb.defuseDuration, bomb.defuseProgress + dt);
-                    if (bomb.defuseProgress >= bomb.defuseDuration) {
-                        endRound("ct", "Bomb defused with " + formatTime(bomb.timer) + " remaining.");
-                    }
-                } else {
-                    bomb.defuseProgress = Math.max(0, bomb.defuseProgress - dt * 1.8);
-                }
-            }
-
-            function updateEnemies(dt) {
-                if (!player || !bomb) {
-                    return;
-                }
-
-                for (const enemy of enemies) {
-                    if (!enemy.alive) {
-                        continue;
-                    }
-
-                    updateWeaponTimers(enemy, dt);
-                    enemy.hurtFlash = Math.max(0, enemy.hurtFlash - dt);
-
-                    const seesPlayer = player.alive && canSee(enemy, player);
-                    enemy.isMoving = false;
-
-                    if (seesPlayer) {
-                        enemy.aggro = Math.max(enemy.aggro, 1.9);
-                        enemy.focusX = player.x;
-                        enemy.focusY = player.y;
-                    } else {
-                        enemy.aggro = Math.max(0, enemy.aggro - dt);
-                    }
-
-                    if (enemy.aggro > 0 && player.alive) {
-                        const targetPoint = { x: enemy.focusX, y: enemy.focusY };
-                        const preferredRange = WEAPONS[enemy.activeWeapon].preferredRange;
-                        const rangeToPlayer = distance(enemy, player);
-                        let moveAngle = angleTo(enemy, targetPoint);
-                        let moveSpeed = enemy.speed;
-
-                        if (rangeToPlayer > preferredRange + 40) {
-                            moveAngle = angleTo(enemy, player);
-                        } else if (rangeToPlayer < preferredRange - 70) {
-                            moveAngle = angleTo(player, enemy);
-                            moveSpeed *= 0.9;
-                        } else {
-                            enemy.strafeClock -= dt;
-                            if (enemy.strafeClock <= 0) {
-                                enemy.strafeClock = randomRange(0.4, 1.1);
-                                enemy.strafeDir *= -1;
-                            }
-                            moveAngle = angleTo(enemy, player) + (Math.PI / 2) * enemy.strafeDir;
-                            moveSpeed *= 0.75;
-                        }
-
-                        moveEntity(enemy, Math.cos(moveAngle) * moveSpeed * dt, Math.sin(moveAngle) * moveSpeed * dt);
-                        enemy.isMoving = true;
-                        enemy.angle = angleTo(enemy, player);
-
-                        if (seesPlayer) {
-                            fireWeapon(enemy, true);
-                        }
-                    } else {
-                        const nextPoint = enemy.patrol[enemy.patrolIndex];
-                        const toPoint = distance(enemy, nextPoint);
-
-                        if (toPoint < 22) {
-                            enemy.patrolIndex = (enemy.patrolIndex + 1) % enemy.patrol.length;
-                        } else {
-                            const patrolAngle = angleTo(enemy, nextPoint);
-                            moveEntity(enemy, Math.cos(patrolAngle) * enemy.speed * 0.62 * dt, Math.sin(patrolAngle) * enemy.speed * 0.62 * dt);
-                            enemy.isMoving = true;
-                            enemy.angle = patrolAngle;
-                        }
-                    }
-                }
-            }
-
-            function updateProjectiles(dt) {
-                traces = traces.filter((trace) => {
-                    trace.ttl -= dt;
-                    return trace.ttl > 0;
-                });
-
-                sparks = sparks.filter((spark) => {
-                    spark.ttl -= dt;
-                    spark.x += spark.vx * dt;
-                    spark.y += spark.vy * dt;
-                    spark.vx *= 0.94;
-                    spark.vy *= 0.94;
-                    return spark.ttl > 0;
-                });
-            }
-
-            function updateBomb(dt) {
-                if (!bomb) {
-                    return;
-                }
-
-                bomb.timer -= dt;
-                bomb.pulse += dt * (bomb.timer < 12 ? 7 : 4);
-                if (bomb.timer <= 0) {
-                    bomb.timer = 0;
-                    endRound("t", "Bomb exploded.");
-                }
-            }
-
-            function endRound(winner, detail) {
-                if (state.roundState !== "playing") {
-                    return;
-                }
-
-                state.roundState = "roundEnd";
-                state.endTimer = 3.5;
-                state.outcome = winner === "ct" ? "Counter-Terrorists Win" : "Terrorists Win";
-                state.outcomeDetail = detail;
-                state.score[winner] += 1;
-                pushFeed(state.outcome + ": " + detail, winner === "ct" ? "ct" : "t");
-            }
-
-            function updateRoundTransition(dt) {
-                if (player) {
-                    updateWeaponTimers(player, dt);
-                    player.hurtFlash = Math.max(0, player.hurtFlash - dt);
-                }
-
-                for (const enemy of enemies) {
-                    updateWeaponTimers(enemy, dt);
-                    enemy.hurtFlash = Math.max(0, enemy.hurtFlash - dt);
-                }
-
-                updateProjectiles(dt);
-                state.endTimer -= dt;
-                if (state.endTimer <= 0) {
-                    state.round += 1;
-                    initRound();
-                }
-            }
-
-            function updateCamera() {
-                const focus = player || { x: map.site.x + map.site.w / 2, y: map.site.y + map.site.h / 2 };
-                const maxX = Math.max(0, WORLD.width - canvas.width);
-                const maxY = Math.max(0, WORLD.height - canvas.height);
-                const targetX = clamp(focus.x - canvas.width / 2, 0, maxX);
-                const targetY = clamp(focus.y - canvas.height / 2, 0, maxY);
-                state.camera.x = lerp(state.camera.x, targetX, 0.1);
-                state.camera.y = lerp(state.camera.y, targetY, 0.1);
-            }
-
-            function updateHud() {
-                const enemiesAlive = enemies.filter((enemy) => enemy.alive).length;
-                ui.ctScore.textContent = state.score.ct;
-                ui.tScore.textContent = state.score.t;
-                ui.roundLabel.textContent = "Round " + state.round;
-                ui.timerValue.textContent = bomb ? formatTime(bomb.timer) : "00:00";
-                ui.enemyCountValue.textContent = String(enemiesAlive);
-                ui.bombStateValue.textContent = bomb && bomb.defuseProgress >= bomb.defuseDuration ? "Defused" : bomb ? "Armed" : "Idle";
-
-                if (player) {
-                    const activeWeapon = getWeaponState(player);
-                    ui.weaponNameValue.textContent = WEAPONS[player.activeWeapon].label + (activeWeapon.reloadTimer > 0 ? " (Reloading)" : "");
-                    ui.ammoValue.textContent = activeWeapon.clip + " / " + activeWeapon.reserve;
-                    ui.healthValue.textContent = String(Math.max(0, Math.ceil(player.hp)));
-                    ui.armorValue.textContent = String(Math.max(0, Math.ceil(player.armor)));
-                    ui.positionValue.textContent = player.x > 1450 ? "A Site" : player.x > 850 ? "Mid Lanes" : "CT Spawn";
-                    ui.hintValue.textContent = !player.alive
-                        ? "Respawn next round"
-                        : isNearBomb(player)
-                            ? "Hold E to defuse"
-                            : enemiesAlive > 0
-                                ? "Use cover and isolate duels"
-                                : "Path to the bomb";
-                }
-
-                if (bomb && player && player.alive) {
-                    if (isNearBomb(player)) {
-                        ui.objectiveValue.textContent = bomb.defuseProgress > 0 ? "Defusing..." : "Bomb in reach";
-                        ui.objectiveSubvalue.textContent = enemiesAlive > 0
-                            ? "You can stick the defuse or clear the last angles."
-                            : "Site is clear. Hold E to finish the round.";
-                    } else if (enemiesAlive > 0) {
-                        ui.objectiveValue.textContent = "Retake site A";
-                        ui.objectiveSubvalue.textContent = "Defenders still up. Use the long lane, ramp, and default box cover.";
-                    } else {
-                        ui.objectiveValue.textContent = "Recover the bomb";
-                        ui.objectiveSubvalue.textContent = "All defenders are down. Reach the site and hold E to defuse.";
-                    }
-                }
-
-                WEAPON_ORDER.forEach((weaponType) => {
-                    const card = document.getElementById("weapon-" + weaponType);
-                    const ammo = document.getElementById("weaponAmmo-" + weaponType);
-                    const stateForWeapon = player ? player.inventory[weaponType] : createWeaponState(weaponType);
-                    card.classList.toggle("active", player && player.activeWeapon === weaponType);
-                    ammo.textContent = stateForWeapon.clip + " / " + stateForWeapon.reserve;
-                });
-
-                if (bomb && player && player.alive && (isNearBomb(player) || bomb.defuseProgress > 0)) {
-                    ui.defuseWrap.classList.remove("hidden");
-                    ui.defuseLabel.textContent = bomb.defuseProgress > 0 ? "Defusing..." : "Hold E to defuse";
-                    ui.defuseTimeValue.textContent = (bomb.defuseDuration - bomb.defuseProgress).toFixed(1) + "s";
-                    ui.defuseFill.style.width = (bomb.defuseProgress / bomb.defuseDuration) * 100 + "%";
-                } else {
-                    ui.defuseWrap.classList.add("hidden");
-                }
-            }
-
-            function update(dt) {
-                state.feed = state.feed.filter((entry) => {
-                    entry.ttl -= dt;
-                    return entry.ttl > 0;
-                });
-                renderFeed();
-
-                state.shake = Math.max(0, state.shake - dt * 18);
-
-                if (!state.started) {
-                    updateCamera();
-                    updateHud();
-                    return;
-                }
-
-                if (state.roundState === "playing") {
-                    updatePlayer(dt);
-                    updateEnemies(dt);
-                    updateProjectiles(dt);
-                    updateBomb(dt);
-                } else if (state.roundState === "roundEnd") {
-                    updateRoundTransition(dt);
-                }
-
-                updateCamera();
-                updateHud();
-            }
-
-            function drawFloor() {
-                ctx.fillStyle = "#0a1723";
-                ctx.fillRect(0, 0, WORLD.width, WORLD.height);
-
-                const gridSize = 100;
-                const startX = Math.floor(state.camera.x / gridSize) * gridSize - gridSize;
-                const startY = Math.floor(state.camera.y / gridSize) * gridSize - gridSize;
-                const endX = state.camera.x + canvas.width + gridSize;
-                const endY = state.camera.y + canvas.height + gridSize;
-
-                ctx.strokeStyle = "rgba(138, 171, 204, 0.09)";
-                ctx.lineWidth = 1;
-
-                for (let x = startX; x <= endX; x += gridSize) {
-                    ctx.beginPath();
-                    ctx.moveTo(x, startY);
-                    ctx.lineTo(x, endY);
-                    ctx.stroke();
-                }
-
-                for (let y = startY; y <= endY; y += gridSize) {
-                    ctx.beginPath();
-                    ctx.moveTo(startX, y);
-                    ctx.lineTo(endX, y);
-                    ctx.stroke();
-                }
-
-                ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
-                ctx.fillRect(80, 1060, 380, 180);
-                ctx.fillStyle = "rgba(255, 90, 90, 0.08)";
-                ctx.fillRect(map.site.x, map.site.y, map.site.w, map.site.h);
-            }
-
-            function drawWalls() {
-                for (const wall of map.walls) {
-                    ctx.fillStyle = "#132232";
-                    ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-                    ctx.strokeStyle = "rgba(196, 219, 242, 0.12)";
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(wall.x + 1, wall.y + 1, wall.w - 2, wall.h - 2);
-
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
-                    const stripes = wall.w > wall.h ? Math.floor(wall.w / 38) : Math.floor(wall.h / 38);
-                    for (let i = 0; i < stripes; i += 1) {
-                        if (wall.w > wall.h) {
-                            ctx.fillRect(wall.x + i * 38, wall.y, 10, wall.h);
-                        } else {
-                            ctx.fillRect(wall.x, wall.y + i * 38, wall.w, 10);
-                        }
-                    }
-                }
-            }
-
-            function drawSiteDetails() {
-                const siteBomb = bomb || map.bomb;
-                ctx.strokeStyle = "rgba(255, 140, 110, 0.32)";
-                ctx.lineWidth = 3;
-                ctx.strokeRect(map.site.x, map.site.y, map.site.w, map.site.h);
-
-                ctx.fillStyle = "rgba(255, 170, 120, 0.12)";
-                ctx.beginPath();
-                ctx.arc(siteBomb.x, siteBomb.y, 82, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = "rgba(255, 214, 113, 0.8)";
-                ctx.font = "700 54px Inter, sans-serif";
-                ctx.fillText("A", map.site.x + 24, map.site.y + 62);
-
-                ctx.fillStyle = "rgba(185, 205, 226, 0.25)";
-                ctx.font = "700 18px Inter, sans-serif";
-                ctx.fillText("CT Spawn", 90, 1260);
-                ctx.fillText("Mid Lanes", 890, 140);
-                ctx.fillText("Default", 1650, 235);
-            }
-
-            function drawBomb() {
-                if (!bomb) {
-                    return;
-                }
-
-                const pulse = 16 + Math.sin(bomb.pulse) * 5;
-                ctx.beginPath();
-                ctx.arc(bomb.x, bomb.y, pulse + 18, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(255, 92, 92, 0.12)";
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.arc(bomb.x, bomb.y, pulse, 0, Math.PI * 2);
-                ctx.fillStyle = "#be2d2d";
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.arc(bomb.x, bomb.y, 14, 0, Math.PI * 2);
-                ctx.fillStyle = "#ffd671";
-                ctx.fill();
-
-                ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-                ctx.font = "700 14px Inter, sans-serif";
-                ctx.fillText(formatTime(bomb.timer), bomb.x - 28, bomb.y - 34);
-            }
-
-            function drawTraces() {
-                for (const trace of traces) {
-                    ctx.strokeStyle = trace.color;
-                    ctx.lineWidth = trace.width;
-                    ctx.globalAlpha = clamp(trace.ttl / 0.08, 0, 1);
-                    ctx.beginPath();
-                    ctx.moveTo(trace.x1, trace.y1);
-                    ctx.lineTo(trace.x2, trace.y2);
-                    ctx.stroke();
-                }
-                ctx.globalAlpha = 1;
-            }
-
-            function drawSparks() {
-                for (const spark of sparks) {
-                    ctx.globalAlpha = clamp(spark.ttl / 0.34, 0, 1);
-                    ctx.beginPath();
-                    ctx.arc(spark.x, spark.y, spark.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = spark.color;
-                    ctx.fill();
-                }
-                ctx.globalAlpha = 1;
-            }
-
-            function drawEntity(entity, isPlayer) {
-                ctx.save();
-                ctx.translate(entity.x, entity.y);
-
-                ctx.beginPath();
-                ctx.ellipse(0, 0, entity.radius + 4, entity.radius - 2, 0, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(0, 0, 0, 0.24)";
-                ctx.fill();
-
-                if (!entity.alive) {
-                    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
-                    ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.moveTo(-12, -12);
-                    ctx.lineTo(12, 12);
-                    ctx.moveTo(-12, 12);
-                    ctx.lineTo(12, -12);
-                    ctx.stroke();
-                    ctx.restore();
-                    return;
-                }
-
-                const flash = entity.hurtFlash > 0 ? 90 : 0;
-                const bodyColor = isPlayer
-                    ? "rgb(" + (93 + flash) + ", " + (215 + flash / 3) + ", 255)"
-                    : "rgb(255, " + (153 - flash / 3) + ", " + (102 - flash / 4) + ")";
-                const weaponState = getWeaponState(entity);
-                const muzzleScale = weaponState ? weaponState.muzzleFlash : 0;
-
-                ctx.beginPath();
-                ctx.arc(0, 0, entity.radius, 0, Math.PI * 2);
-                ctx.fillStyle = bodyColor;
-                ctx.fill();
-
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = isPlayer ? "rgba(180, 245, 255, 0.9)" : "rgba(255, 205, 168, 0.9)";
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(Math.cos(entity.angle) * 26, Math.sin(entity.angle) * 26);
-                ctx.stroke();
-
-                if (muzzleScale > 0) {
-                    ctx.beginPath();
-                    ctx.arc(Math.cos(entity.angle) * 28, Math.sin(entity.angle) * 28, 6 * muzzleScale, 0, Math.PI * 2);
-                    ctx.fillStyle = isPlayer ? "rgba(255, 248, 180, 0.95)" : "rgba(255, 186, 110, 0.95)";
-                    ctx.fill();
-                }
-
-                ctx.fillStyle = "rgba(4, 10, 16, 0.85)";
-                ctx.fillRect(-26, -34, 52, 7);
-                ctx.fillStyle = isPlayer ? "#77f7b3" : "#ff8f8f";
-                ctx.fillRect(-26, -34, Math.max(0, entity.hp / 100) * 52, 7);
-
-                ctx.fillStyle = "rgba(235, 242, 255, 0.85)";
-                ctx.font = "700 12px Inter, sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText(entity.label, 0, -42);
-
-                ctx.restore();
-            }
-
-            function drawPlayerAimline() {
-                if (!player || !player.alive) {
-                    return;
-                }
-
-                ctx.strokeStyle = "rgba(138, 229, 255, 0.16)";
-                ctx.lineWidth = 2;
-                ctx.setLineDash([8, 10]);
-                ctx.beginPath();
-                ctx.moveTo(player.x, player.y);
-                ctx.lineTo(player.x + Math.cos(player.angle) * 220, player.y + Math.sin(player.angle) * 220);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
-
-            function drawRoundBanner() {
-                if (state.roundState !== "roundEnd") {
-                    return;
-                }
-
-                const width = Math.min(canvas.width - 40, 520);
-                const height = 140;
-                const x = (canvas.width - width) / 2;
-                const y = Math.max(130, canvas.height * 0.14);
-
-                ctx.fillStyle = "rgba(5, 10, 16, 0.8)";
-                ctx.fillRect(x, y, width, height);
-                ctx.strokeStyle = "rgba(132, 164, 196, 0.24)";
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x, y, width, height);
-
-                ctx.fillStyle = state.outcome.indexOf("Counter") === 0 ? "#77f7b3" : "#ff9a83";
-                ctx.font = "800 30px Inter, sans-serif";
-                ctx.textAlign = "center";
-                ctx.fillText(state.outcome, x + width / 2, y + 48);
-
-                ctx.fillStyle = "rgba(234, 243, 255, 0.92)";
-                ctx.font = "500 18px Inter, sans-serif";
-                ctx.fillText(state.outcomeDetail, x + width / 2, y + 82);
-
-                ctx.fillStyle = "rgba(146, 166, 189, 0.95)";
-                ctx.font = "700 14px Inter, sans-serif";
-                ctx.fillText("Next round in " + state.endTimer.toFixed(1) + "s", x + width / 2, y + 112);
+            function renderModal() {
+                elements.rewardModal.classList.toggle("hidden", !state.modalOpen);
+                elements.modalTitle.textContent = state.modalStats.title;
+                elements.modalBody.textContent = state.modalStats.body;
+                elements.modalXpValue.textContent = `+${state.modalStats.xp}`;
+                elements.modalEnergyValue.textContent = `+${state.modalStats.energy}`;
+                elements.modalGemsValue.textContent = `+${state.modalStats.gems}`;
             }
 
             function render() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                applySprites();
+                renderStatus();
+                renderRoadmap();
+                renderHero();
+                renderChallenge();
+                renderQuests();
+                renderLeaderboard();
+                renderModal();
+            }
 
-                const shakeX = state.shake > 0 ? randomRange(-state.shake, state.shake) : 0;
-                const shakeY = state.shake > 0 ? randomRange(-state.shake, state.shake) : 0;
-
-                ctx.save();
-                ctx.translate(-(state.camera.x + shakeX), -(state.camera.y + shakeY));
-
-                drawFloor();
-                drawSiteDetails();
-                drawWalls();
-                drawBomb();
-                drawPlayerAimline();
-                drawTraces();
-                drawSparks();
-
-                enemies.forEach((enemy) => drawEntity(enemy, false));
-                if (player) {
-                    drawEntity(player, true);
+            function getSubmittedAnswer(challenge) {
+                if (challenge.type === "multiple") {
+                    return state.selectedOptionIndex === null ? "" : challenge.options[state.selectedOptionIndex];
                 }
 
-                ctx.restore();
-                drawRoundBanner();
+                if (challenge.type === "translate") {
+                    return state.typedAnswer;
+                }
+
+                return state.builtTokenIndexes.map((index) => challenge.bank[index]).join(" ");
             }
 
-            function resizeCanvas() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                moveCrosshair(state.mouse.x, state.mouse.y);
+            function hasAnswer(challenge) {
+                return normalize(getSubmittedAnswer(challenge)).length > 0;
             }
 
-            function moveCrosshair(x, y) {
-                crosshair.style.left = x + "px";
-                crosshair.style.top = y + "px";
+            function evaluateCurrentChallenge() {
+                const challenge = getCurrentChallenge();
+                const answer = getSubmittedAnswer(challenge);
+
+                if (challenge.type === "translate") {
+                    const correct = challenge.answers.some((valid) => normalize(valid) === normalize(answer));
+                    return { correct, answer };
+                }
+
+                return { correct: normalize(answer) === normalize(challenge.answer), answer };
             }
 
-            function animate(timestamp) {
-                const dt = Math.min(0.033, (timestamp - state.lastTime) / 1000 || 0.016);
-                state.lastTime = timestamp;
+            function advanceAfterCheck() {
+                const lesson = getCurrentLesson();
 
-                update(dt);
+                resetChallengeState();
+                state.currentChallengeIndex += 1;
+
+                if (state.currentChallengeIndex >= lesson.challenges.length) {
+                    finishLesson(lesson);
+                    return;
+                }
+
+                if (state.energy <= 0) {
+                    state.energy = 5;
+                    showToast("Parody refill activated. Energy bounced back to 5.");
+                }
+
                 render();
-                requestAnimationFrame(animate);
             }
 
-            window.addEventListener("resize", resizeCanvas);
+            function finishLesson(lesson) {
+                state.completedLessons.add(lesson.id);
+                state.lessonsFinished += 1;
+                state.energy = Math.min(30, state.energy + 3);
+                state.gems += 12;
+                state.modalOpen = true;
+                state.modalStats = {
+                    xp: state.lessonXp,
+                    energy: 3,
+                    gems: 12,
+                    title: `${lesson.title} complete!`,
+                    body: "You finished a Duolingo-style parody lesson and unlocked the next bubble on the path."
+                };
+                state.lessonXp = 0;
 
-            window.addEventListener("mousemove", (event) => {
-                state.mouse.x = event.clientX;
-                state.mouse.y = event.clientY;
-                moveCrosshair(event.clientX, event.clientY);
-            });
+                const nextIndex = course.findIndex((item) => !state.completedLessons.has(item.id));
+                if (nextIndex === -1) {
+                    state.currentLessonIndex = course.length - 1;
+                    state.currentChallengeIndex = course[course.length - 1].challenges.length;
+                } else {
+                    state.currentLessonIndex = nextIndex;
+                    state.currentChallengeIndex = 0;
+                }
 
-            window.addEventListener("mousedown", (event) => {
-                if (event.button === 0 && state.started) {
-                    state.mouse.down = true;
+                resetChallengeState();
+                render();
+            }
+
+            function onAction() {
+                const challenge = getCurrentChallenge();
+
+                if (!challenge) {
+                    resetCourse();
+                    return;
+                }
+
+                if (state.checked) {
+                    advanceAfterCheck();
+                    return;
+                }
+
+                if (!hasAnswer(challenge)) {
+                    showToast("Pick or type an answer first.");
+                    return;
+                }
+
+                const result = evaluateCurrentChallenge();
+                state.checked = true;
+                state.lastResult = result;
+
+                if (result.correct) {
+                    state.xp += challenge.xp;
+                    state.sessionXp += challenge.xp;
+                    state.lessonXp += challenge.xp;
+                    state.totalCorrect += 1;
+                    state.streak += 1;
+                    state.gems += 2;
+                } else {
+                    state.energy = Math.max(0, state.energy - 1);
+                    state.streak = 0;
+                }
+
+                render();
+            }
+
+            function onOptionSelect(index) {
+                if (state.checked) {
+                    return;
+                }
+                state.selectedOptionIndex = index;
+                render();
+            }
+
+            function onWordToken(index) {
+                if (state.checked) {
+                    return;
+                }
+                if (!state.builtTokenIndexes.includes(index)) {
+                    state.builtTokenIndexes = [...state.builtTokenIndexes, index];
+                    render();
+                }
+            }
+
+            function onBuiltToken(index) {
+                if (state.checked) {
+                    return;
+                }
+                state.builtTokenIndexes = state.builtTokenIndexes.filter((_, tokenIndex) => tokenIndex !== index);
+                render();
+            }
+
+            function onLessonPick(index) {
+                if (!isLessonUnlocked(index)) {
+                    return;
+                }
+
+                state.currentLessonIndex = index;
+                state.currentChallengeIndex = 0;
+                state.modalOpen = false;
+                resetChallengeState();
+                render();
+            }
+
+            document.addEventListener("click", (event) => {
+                const button = event.target.closest("button");
+                if (!button) {
+                    return;
+                }
+
+                const role = button.getAttribute("data-role");
+
+                if (role === "option") {
+                    onOptionSelect(Number(button.getAttribute("data-index")));
+                    return;
+                }
+
+                if (role === "bank-token") {
+                    onWordToken(Number(button.getAttribute("data-index")));
+                    return;
+                }
+
+                if (role === "built-token") {
+                    onBuiltToken(Number(button.getAttribute("data-index")));
+                    return;
+                }
+
+                if (role === "lesson-node") {
+                    onLessonPick(Number(button.getAttribute("data-index")));
                 }
             });
 
-            window.addEventListener("mouseup", (event) => {
-                if (event.button === 0) {
-                    state.mouse.down = false;
-                }
+            elements.actionButton.addEventListener("click", onAction);
+
+            elements.clearAnswerButton.addEventListener("click", () => {
+                state.builtTokenIndexes = [];
+                render();
             });
 
-            window.addEventListener("contextmenu", (event) => event.preventDefault());
+            elements.friendBonusButton.addEventListener("click", () => {
+                if (state.friendBonusClaimed) {
+                    return;
+                }
+                state.friendBonusClaimed = true;
+                state.energy = Math.min(30, state.energy + 15);
+                render();
+                showToast("Friend bonus claimed: +15 energy!");
+            });
 
-            window.addEventListener("blur", () => {
-                state.mouse.down = false;
-                state.keys = {};
+            elements.resumeLessonButton.addEventListener("click", () => {
+                state.modalOpen = false;
+                render();
+                showToast("Back to the current lesson bubble.");
+            });
+
+            elements.restartCourseButton.addEventListener("click", resetCourse);
+
+            elements.closeModalButton.addEventListener("click", () => {
+                state.modalOpen = false;
+                render();
+            });
+
+            elements.modalContinueButton.addEventListener("click", () => {
+                state.modalOpen = false;
+                render();
             });
 
             window.addEventListener("keydown", (event) => {
-                const key = event.key.toLowerCase();
-
-                if (!state.started && (key === "enter" || key === " ")) {
-                    event.preventDefault();
-                    startMatch();
-                    return;
+                if (event.key === "Enter") {
+                    const activeElement = document.activeElement;
+                    if (activeElement && activeElement.id === "translationInput" && !state.checked) {
+                        onAction();
+                    }
                 }
 
-                state.keys[key] = true;
-
-                if (!player) {
-                    return;
-                }
-
-                if (key === "1") {
-                    switchWeapon("pistol");
-                } else if (key === "2") {
-                    switchWeapon("rifle");
-                } else if (key === "3") {
-                    switchWeapon("sniper");
-                } else if (key === "r") {
-                    startReload(player);
+                if (event.key === "Escape" && state.modalOpen) {
+                    state.modalOpen = false;
+                    render();
                 }
             });
 
-            window.addEventListener("keyup", (event) => {
-                state.keys[event.key.toLowerCase()] = false;
-            });
-
-            startButton.addEventListener("click", startMatch);
-
-            resizeCanvas();
-            updateHud();
-            requestAnimationFrame(animate);
+            render();
         })();
     </script>
 </body>
