@@ -199,30 +199,10 @@ function renderScoreboard() {
 
 function initCounters() {
     const counters = document.querySelectorAll("[data-count]");
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     counters.forEach((counter) => {
         const target = Number(counter.dataset.count);
-
-        if (reducedMotion) {
-            counter.textContent = String(target);
-            return;
-        }
-
-        const duration = 1100;
-        const start = performance.now();
-
-        const update = (timestamp) => {
-            const progress = Math.min(1, (timestamp - start) / duration);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            counter.textContent = String(Math.round(target * eased));
-
-            if (progress < 1) {
-                requestAnimationFrame(update);
-            }
-        };
-
-        requestAnimationFrame(update);
+        counter.textContent = String(target);
     });
 }
 
