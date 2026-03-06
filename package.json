@@ -1,12 +1,16 @@
 {
   "name": "neon-forecourt",
   "version": "1.0.0",
-  "description": "A browser-based 3D arcade gas station simulator built with Three.js.",
+  "description": "A desktop-ready 3D arcade gas station simulator built with Three.js and Electron.",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "desktop": "npm run build && electron .",
+    "desktop:pack": "npm run build && electron-builder --dir",
+    "desktop:dist": "npm run build && electron-builder"
   },
   "repository": {
     "type": "git",
@@ -19,10 +23,44 @@
     "url": "https://github.com/ilikevibecoding/My-projects/issues"
   },
   "homepage": "https://github.com/ilikevibecoding/My-projects#readme",
+  "build": {
+    "appId": "com.ilikevibecoding.neonforecourt",
+    "productName": "Neon Forecourt",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "zip"
+      ],
+      "category": "Game"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.games"
+    }
+  },
   "dependencies": {
     "three": "^0.183.2"
   },
   "devDependencies": {
+    "electron": "^40.8.0",
+    "electron-builder": "^26.8.1",
     "vite": "^7.3.1"
   }
 }

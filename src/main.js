@@ -6,6 +6,49 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 
 const app = document.querySelector("#app");
+const isDesktopApp = navigator.userAgent.toLowerCase().includes("electron");
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reportedMemory = navigator.deviceMemory ?? 8;
+
+const qualityTiers = [
+  {
+    name: "Cinematic",
+    pixelRatioCap: isDesktopApp ? 1.35 : 1.45,
+    bloomStrength: 0.72,
+    bloomRadius: 0.24,
+    bloomThreshold: 0.88,
+    shadowMapSize: 1536,
+    starCount: 900,
+    toneBase: 1.03,
+  },
+  {
+    name: "Balanced",
+    pixelRatioCap: 1.1,
+    bloomStrength: 0.42,
+    bloomRadius: 0.17,
+    bloomThreshold: 0.91,
+    shadowMapSize: 1024,
+    starCount: 680,
+    toneBase: 1,
+  },
+  {
+    name: "Performance",
+    pixelRatioCap: 0.85,
+    bloomStrength: 0.16,
+    bloomRadius: 0.08,
+    bloomThreshold: 0.98,
+    shadowMapSize: 512,
+    starCount: 420,
+    toneBase: 0.97,
+  },
+];
+
+const performanceState = {
+  qualityTier: prefersReducedMotion ? 2 : reportedMemory <= 4 ? 1 : isDesktopApp ? 0 : 1,
+  sampleTime: 0,
+  sampleFrames: 0,
+  downgradeCooldown: 0,
+};
 
 app.innerHTML = `
   <div class="game-shell">
@@ -235,7 +278,7 @@ const renderer = new THREE.WebGLRenderer({
   antialias: true,
   powerPreference: "high-performance",
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(1);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -246,14 +289,13 @@ ui.sceneRoot.appendChild(renderer.domElement);
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-composer.addPass(
-  new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.9,
-    0.35,
-    0.82,
-  ),
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.72,
+  0.24,
+  0.88,
 );
+composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 
 const clock = new THREE.Clock();
@@ -360,6 +402,14 @@ function formatCash(value) {
 
 function formatSeconds(value) {
   return `${Math.max(0, Math.ceil(value))}s`;
+}
+
+function getQualityTier() {
+  return qualityTiers[performanceState.qualityTier];
+}
+
+function getTargetPixelRatio() {
+  return Math.min(window.devicePixelRatio || 1, getQualityTier().pixelRatioCap);
 }
 
 function createCanvasLabel(text, options = {}) {
@@ -985,7 +1035,7 @@ function createSky() {
   sunLight = new THREE.DirectionalLight(0xffd7a8, 2.7);
   sunLight.position.set(-22, 30, 10);
   sunLight.castShadow = true;
-  sunLight.shadow.mapSize.set(2048, 2048);
+  sunLight.shadow.mapSize.set(getQualityTier().shadowMapSize, getQualityTier().shadowMapSize);
   sunLight.shadow.camera.left = -40;
   sunLight.shadow.camera.right = 40;
   sunLight.shadow.camera.top = 35;
@@ -1001,7 +1051,7 @@ function createSky() {
 
 function createStars() {
   const starGeometry = new THREE.BufferGeometry();
-  const starCount = 1200;
+  const starCount = getQualityTier().starCount;
   const positions = new Float32Array(starCount * 3);
 
   for (let i = 0; i < starCount; i += 1) {
@@ -1568,7 +1618,7 @@ function updateCamera(delta) {
 }
 
 function updateAtmosphere(elapsed) {
-  renderer.toneMappingExposure = 1.05 + Math.sin(elapsed * 0.12) * 0.04;
+  renderer.toneMappingExposure = getQualityTier().toneBase + Math.sin(elapsed * 0.12) * 0.03;
   ambientLight.intensity = 1.55 + Math.sin(elapsed * 0.2) * 0.06;
   sunLight.intensity = 2.4 + Math.sin(elapsed * 0.16) * 0.08;
 
@@ -1578,6 +1628,54 @@ function updateAtmosphere(elapsed) {
       state.restockCooldown > 0 ? 5.5 : 3.5,
       0.08,
     );
+  }
+}
+
+function applyQualitySettings(notify = false) {
+  const tier = getQualityTier();
+  renderer.setPixelRatio(getTargetPixelRatio());
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  composer.setSize(window.innerWidth, window.innerHeight);
+  bloomPass.enabled = tier.bloomStrength > 0.05;
+  bloomPass.strength = tier.bloomStrength;
+  bloomPass.radius = tier.bloomRadius;
+  bloomPass.threshold = tier.bloomThreshold;
+
+  if (sunLight) {
+    sunLight.shadow.mapSize.set(tier.shadowMapSize, tier.shadowMapSize);
+    if (sunLight.shadow.map) {
+      sunLight.shadow.map.dispose();
+      sunLight.shadow.map = null;
+    }
+    sunLight.shadow.needsUpdate = true;
+  }
+
+  if (notify) {
+    setTicker(`Adaptive quality switched to ${tier.name.toLowerCase()} mode for smoother play.`, 4.6);
+  }
+}
+
+function updateAdaptiveQuality(delta) {
+  if (state.shiftOver || document.hidden) {
+    return;
+  }
+
+  performanceState.downgradeCooldown = Math.max(0, performanceState.downgradeCooldown - delta);
+  performanceState.sampleTime += delta;
+  performanceState.sampleFrames += 1;
+
+  if (performanceState.sampleTime < 3 || performanceState.downgradeCooldown > 0) {
+    return;
+  }
+
+  const averageFps = performanceState.sampleFrames / performanceState.sampleTime;
+  performanceState.sampleTime = 0;
+  performanceState.sampleFrames = 0;
+
+  if (averageFps < 42 && performanceState.qualityTier < qualityTiers.length - 1) {
+    performanceState.qualityTier += 1;
+    performanceState.downgradeCooldown = 6;
+    applyQualitySettings(true);
   }
 }
 
@@ -1613,6 +1711,7 @@ function tick(delta, elapsed) {
 
   updateCamera(delta);
   updateAtmosphere(elapsed);
+  updateAdaptiveQuality(delta);
   updateHUD();
 }
 
@@ -1640,8 +1739,7 @@ function buildWorld() {
 function onResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  composer.setSize(window.innerWidth, window.innerHeight);
+  applyQualitySettings();
 }
 
 function handleKey(event, down) {
@@ -1697,6 +1795,7 @@ ui.restartButton.addEventListener("click", () => {
 });
 
 buildWorld();
+applyQualitySettings();
 updateHUD();
 onResize();
 

@@ -1,6 +1,6 @@
 # Neon Forecourt
 
-A browser-based gas station simulator with stylized 3D arcade visuals, shifting neon lights, and a quick score-chasing management loop.
+A desktop-ready gas station simulator with stylized 3D arcade visuals, shifting neon lights, and a quick score-chasing management loop.
 
 ## Features
 
@@ -18,7 +18,7 @@ A browser-based gas station simulator with stylized 3D arcade visuals, shifting 
 - `R`: buy an instant tanker refill
 - `Enter`: restart after the shift ends
 
-## Run locally
+## Run in the browser
 
 ```bash
 npm install
@@ -29,4 +29,25 @@ Build for production:
 
 ```bash
 npm run build
+```
+
+## Run as a desktop app
+
+Launch the standalone Electron version:
+
+```bash
+npm install
+npm run desktop
+```
+
+Create a packaged desktop build for your current OS:
+
+```bash
+npm run desktop:pack
+```
+
+Create installable output in `release/`:
+
+```bash
+npm run desktop:dist
 ```
