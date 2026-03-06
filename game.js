@@ -8,12 +8,12 @@
     const PLATFORM_HEIGHT = 20;
     const PLAYER_WIDTH = 62;
     const PLAYER_HEIGHT = 60;
-    const MOVE_SPEED = 188;
-    const GRAVITY = -1940;
-    const JUMP_VELOCITY = 860;
-    const SPRING_VELOCITY = 1110;
-    const PROPELLER_VELOCITY = 960;
-    const JETPACK_VELOCITY = 1210;
+    const MOVE_SPEED = 182;
+    const GRAVITY = -1910;
+    const JUMP_VELOCITY = 872;
+    const SPRING_VELOCITY = 1115;
+    const PROPELLER_VELOCITY = 972;
+    const JETPACK_VELOCITY = 1225;
     const CAMERA_THRESHOLD = 305;
     const DEATH_BUFFER = 110;
     const BULLET_SPEED = 880;
@@ -611,7 +611,7 @@
 
                     if (platform.type === "white") {
                         platform.active = false;
-                        platform.vanishTimer = 0.18;
+                        platform.vanishTimer = 0.08;
                     }
 
                     this.player.y = platform.y;
@@ -733,7 +733,7 @@
         spawnNextPlatform(isEarly) {
             const heightScore = Math.max(0, this.highestPlatformY - 100);
             const difficulty = clamp(heightScore / 5200, 0, 1);
-            const gap = isEarly ? randomRange(64, 82) : randomRange(70, 104 + difficulty * 14);
+            const gap = isEarly ? randomRange(64, 82) : randomRange(68, 96 + difficulty * 10);
             const y = this.highestPlatformY + gap;
             const width = randomRange(70, 92);
 
@@ -753,7 +753,7 @@
                 }
             }
 
-            const shift = isEarly ? 78 : 120 + difficulty * 30;
+            const shift = isEarly ? 78 : 92 + difficulty * 16;
             const x = clamp(
                 this.spawnAnchorX + randomRange(-shift, shift),
                 width / 2 + 14,
@@ -792,6 +792,28 @@
             }
 
             this.platforms.push(platform);
+
+            if (!isEarly && (type === "brown" || type === "white")) {
+                const supportWidth = randomRange(76, 92);
+                const supportX = clamp(
+                    x + randomRange(-56, 56),
+                    supportWidth / 2 + 14,
+                    WIDTH - supportWidth / 2 - 14,
+                );
+
+                this.platforms.push({
+                    x: supportX,
+                    y: y - randomRange(8, 20),
+                    width: supportWidth,
+                    type: "green",
+                    active: true,
+                    vx: 0,
+                    brokenTimer: 0,
+                    vanishTimer: 0,
+                    pickup: chance(0.08) ? { type: "spring", x: supportX, used: false } : null,
+                });
+            }
+
             this.highestPlatformY = y;
             this.spawnAnchorX = x;
         }
@@ -849,6 +871,16 @@
             } else {
                 fallback();
             }
+        }
+
+        drawSpriteFrame(image, frameWidth, frameHeight, frameIndex, columns, dx, dy, dw, dh) {
+            const totalColumns = Math.max(1, Math.floor(image.width / frameWidth));
+            const totalRows = Math.max(1, Math.floor(image.height / frameHeight));
+            const totalFrames = totalColumns * totalRows;
+            const safeIndex = ((frameIndex % totalFrames) + totalFrames) % totalFrames;
+            const sx = (safeIndex % columns) * frameWidth;
+            const sy = Math.floor(safeIndex / columns) * frameHeight;
+            this.ctx.drawImage(image, sx, sy, frameWidth, frameHeight, dx, dy, dw, dh);
         }
 
         drawPlatforms() {
@@ -934,7 +966,20 @@
             if (pickup.type === "propeller") {
                 this.drawImageOrFallback(
                     this.assets.propeller,
-                    (img) => this.ctx.drawImage(img, pickup.x - 22, screenY - 30 + Math.sin(this.time * 16) * 2, 44, 32),
+                    (img) => {
+                        const frame = Math.floor(this.time * 12) % 4;
+                        this.drawSpriteFrame(
+                            img,
+                            img.width / 2,
+                            img.height / 2,
+                            frame,
+                            2,
+                            pickup.x - 22,
+                            screenY - 30 + Math.sin(this.time * 16) * 2,
+                            44,
+                            32,
+                        );
+                    },
                     () => {
                         this.ctx.fillStyle = "#ffb83f";
                         this.ctx.fillRect(pickup.x - 8, screenY - 12, 16, 12);
@@ -947,7 +992,20 @@
             if (pickup.type === "jetpack") {
                 this.drawImageOrFallback(
                     this.assets.jetpack,
-                    (img) => this.ctx.drawImage(img, pickup.x - 20, screenY - 34, 40, 46),
+                    (img) => {
+                        const frame = Math.floor(this.time * 14) % 4;
+                        this.drawSpriteFrame(
+                            img,
+                            img.width / 4,
+                            img.height / 4,
+                            frame,
+                            4,
+                            pickup.x - 20,
+                            screenY - 34,
+                            40,
+                            46,
+                        );
+                    },
                     () => {
                         this.ctx.fillStyle = "#9dd6ff";
                         this.ctx.fillRect(pickup.x - 10, screenY - 18, 20, 24);
@@ -1020,7 +1078,20 @@
             if (this.player.boostType === "propeller") {
                 this.drawImageOrFallback(
                     this.assets.propeller,
-                    (img) => this.ctx.drawImage(img, this.player.x - 24, screenY - this.player.height - 18 + Math.sin(this.time * 20) * 2, 48, 30),
+                    (img) => {
+                        const frame = Math.floor(this.time * 14) % 4;
+                        this.drawSpriteFrame(
+                            img,
+                            img.width / 2,
+                            img.height / 2,
+                            frame,
+                            2,
+                            this.player.x - 24,
+                            screenY - this.player.height - 18 + Math.sin(this.time * 20) * 2,
+                            48,
+                            30,
+                        );
+                    },
                     () => {},
                 );
             }
@@ -1028,7 +1099,20 @@
             if (this.player.boostType === "jetpack") {
                 this.drawImageOrFallback(
                     this.assets.jetpack,
-                    (img) => this.ctx.drawImage(img, this.player.x - 25, screenY - this.player.height + 2, 50, 52),
+                    (img) => {
+                        const frame = Math.floor(this.time * 16) % 4;
+                        this.drawSpriteFrame(
+                            img,
+                            img.width / 4,
+                            img.height / 4,
+                            frame,
+                            4,
+                            this.player.x - 25,
+                            screenY - this.player.height + 2,
+                            50,
+                            52,
+                        );
+                    },
                     () => {},
                 );
             }

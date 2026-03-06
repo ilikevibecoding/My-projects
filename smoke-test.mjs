@@ -229,6 +229,58 @@ async function main() {
         };
     })()`);
 
+    const whitePlatformTest = await client.evaluate(`(() => {
+        const game = window.doodleJumpParody;
+        game.resetWorld();
+        game.state = "playing";
+        game.platforms = [{
+            x: 216,
+            y: 220,
+            width: 82,
+            type: "white",
+            active: true,
+            vx: 0,
+            brokenTimer: 0,
+            vanishTimer: 0,
+            pickup: null
+        }];
+        game.monsters = [];
+        game.player.x = 216;
+        game.player.prevY = 250;
+        game.player.y = 210;
+        game.player.vy = -180;
+        game.player.boostTimer = 0;
+        game.handlePlatformCollisions();
+        const afterBounceVy = game.player.vy;
+        const vanishTimer = game.platforms[0]?.vanishTimer ?? 0;
+        game.updatePlatforms(0.1);
+        game.cleanupWorld();
+        return {
+            afterBounceVy,
+            platformActiveAfterBounce: game.platforms[0]?.active ?? false,
+            vanishTimerStarted: vanishTimer > 0,
+            removedAfterCleanup: game.platforms.length === 0
+        };
+    })()`);
+
+    await client.evaluate(`(() => {
+        const game = window.doodleJumpParody;
+        game.resetWorld();
+        game.state = "playing";
+        game.platforms = [
+            { x: 170, y: 240, width: 82, type: "green", active: true, vx: 0, brokenTimer: 0, vanishTimer: 0, pickup: { type: "propeller", x: 170, used: false } },
+            { x: 280, y: 360, width: 82, type: "green", active: true, vx: 0, brokenTimer: 0, vanishTimer: 0, pickup: { type: "jetpack", x: 280, used: false } }
+        ];
+        game.monsters = [];
+        game.player.x = 220;
+        game.player.y = 150;
+        game.player.prevY = 150;
+        game.player.vy = 0;
+        game.cameraY = 0;
+    })()`);
+    await delay(200);
+    await client.screenshot("/workspace/doodle-parody-pickups-01.png");
+
     await client.evaluate(`window.doodleJumpParody.resetWorld()`);
 
     await client.evaluate(`
@@ -367,6 +419,7 @@ async function main() {
         resumedState,
         brownPlatformTest,
         monsterStompTest,
+        whitePlatformTest,
         midRun,
         runtime,
         gameOverSummary,
