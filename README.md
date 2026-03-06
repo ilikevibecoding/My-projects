@@ -1,22 +1,27 @@
-# Bombsite Breach
+# Owllingo Parody
 
-Bombsite Breach is a self-contained browser tactical shooter inspired by the CS:GO retake loop.
-The whole prototype lives in `index.html` with no dependencies or build step.
+Owllingo is a self-contained browser parody of the Duolingo lesson flow. The whole app lives in
+`index.html` with no framework, no dependency install, and no build step.
 
 ## What is included
 
-- Top-down tactical shooter gameplay
-- Bombsite A retake scenario with a live bomb timer
-- Enemy bots with patrol, sightlines, and combat behavior
-- Weapon switching between USP-S, M4A1-S, and AWP
-- Reloading, armor, round transitions, score tracking, and HUD updates
-- Defuse mechanic with a hold-to-complete progress bar
+- A Duolingo-style lesson layout with a course path, answer choices, feedback, and progression
+- Reward overlays styled like the familiar energy/celebration cards
+- A stats bar with streak, XP, gems, and hearts
+- Daily parody quests and a recent activity feed
+- Official Duolingo-hosted mascot SVG imports used inside a clearly labeled parody UI
+- Local progress persistence via `localStorage`
+
+## Parody note
+
+This project presents itself as a parody/fan-made clone. The UI states that Duolingo mascot art is
+being used with permission asserted by the project owner.
 
 ## How to run
 
-Open `index.html` in a desktop browser.
+Open `index.html` in a browser.
 
-If you want to serve it locally instead of opening the file directly:
+If you want to serve it locally:
 
 ```bash
 python3 -m http.server 8000
@@ -26,17 +31,9 @@ Then visit `http://localhost:8000`.
 
 ## Controls
 
-- `WASD` - move
-- `Shift` - slow walk for tighter spread
-- `Mouse` - aim
-- `Left Click` - fire
-- `R` - reload
-- `1` - USP-S
-- `2` - M4A1-S
-- `3` - AWP
-- `E` - hold to defuse when near the bomb
-- `Enter` or `Space` - start the match from the intro screen
-
-## Objective
-
-You play as the counter-terrorist on a solo retake. Eliminate defenders if needed, but the round is only won once the bomb is defused before the timer expires.
+- Click lesson nodes in the left path to jump between unlocked lessons
+- Click an answer choice, then press **Check**
+- Press **Continue** after feedback to move on or retry
+- Press `1` through `4` to choose an answer quickly
+- Press `Enter` to check or continue
+- Press `Escape` to close the reward overlay
