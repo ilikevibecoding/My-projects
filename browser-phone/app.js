@@ -601,6 +601,10 @@ function buildHomePages() {
       return;
     }
 
+    if (event.target.closest(".app-tile.buttonish")) {
+      return;
+    }
+
     pointerId = event.pointerId;
     dragStartX = event.clientX;
     dragStartScrollLeft = homeScroller.scrollLeft;
