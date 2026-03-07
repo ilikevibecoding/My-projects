@@ -75,7 +75,7 @@ const favoriteApps = [
 const homePagesData = [
   [
     { name: "Notes", glyph: "N", bg: "#f3d83f", type: "notes", fg: "#1d2230", src: realIcons.notes },
-    { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230", src: realIcons.safari },
+    { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230" },
     { name: "FaceTime", glyph: "FT", bg: "#33bf74", type: "facetime", src: realIcons.facetime },
     { name: "Messages", glyph: "MSG", bg: "#26c457", type: "messages", src: realIcons.messages },
     { name: "App Store", glyph: "A", bg: "#167efb", type: "appstore", action: "store", src: realIcons.appstore },
@@ -121,7 +121,7 @@ const homePagesData = [
 
 const dockApps = [
   { name: "Phone", glyph: "TEL", bg: "#29c65b", type: "phone", src: realIcons.phone },
-  { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230", src: realIcons.safari },
+  { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230" },
   { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music", src: realIcons.music },
   { name: "Messages", glyph: "MSG", bg: "#26c457", type: "messages", src: realIcons.messages }
 ];
@@ -163,6 +163,7 @@ const tickets = [
 const screenElements = {
   lock: document.querySelector('[data-screen="lock"]'),
   home: document.querySelector('[data-screen="home"]'),
+  "native-app": document.querySelector('[data-screen="native-app"]'),
   store: document.querySelector('[data-screen="store"]'),
   game: document.querySelector('[data-screen="game"]')
 };
@@ -188,6 +189,7 @@ const storeList = document.querySelector("[data-store-list]");
 const ticketList = document.querySelector("[data-ticket-list]");
 const finalReveal = document.querySelector("[data-final-reveal]");
 const notificationStack = document.querySelector("[data-notification-stack]");
+const nativeAppContent = document.querySelector("[data-native-content]");
 
 let activeScreen = "lock";
 let currentPage = 0;
@@ -197,6 +199,8 @@ let unlockResetFrame = null;
 let isSleeping = false;
 let installedAppTile = null;
 let homeGesture = null;
+let currentNativeAppId = null;
+let faceTimeStream = null;
 
 const installState = {
   installed: false,
@@ -224,6 +228,24 @@ const christianMessages = [
   "Love you(:"
 ];
 
+const firstPageAppRoutes = {
+  Notes: "notes",
+  Safari: "safari",
+  FaceTime: "facetime",
+  Messages: "messages",
+  "Voice Memos": "voicememos",
+  "Apple TV": "tv",
+  Calculator: "calculator",
+  Home: "homeapp",
+  Contacts: "contacts",
+  Maps: "maps",
+  Mail: "mail",
+  Stocks: "stocks",
+  Calendar: "calendar",
+  "Find My": "findmy",
+  Photos: "photos"
+};
+
 function updateClock() {
   const now = new Date();
   const time = now.toLocaleTimeString([], {
@@ -241,26 +263,357 @@ function updateClock() {
   statusClock.textContent = time;
 }
 
+async function playUnlockSound() {
+  const context = ensureNotificationAudioContext();
+  if (!context) {
+    return;
+  }
+
+  await context.resume();
+  const now = context.currentTime;
+  const master = context.createGain();
+  master.gain.setValueAtTime(0.0001, now);
+  master.gain.exponentialRampToValueAtTime(0.16, now + 0.015);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+  master.connect(context.destination);
+
+  const tone = (type, frequency, start, duration, peak) => {
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(peak, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(start);
+    osc.stop(start + duration + 0.04);
+  };
+
+  tone("triangle", 740, now, 0.16, 0.14);
+  tone("sine", 987, now + 0.06, 0.22, 0.08);
+  tone("sine", 1318, now + 0.12, 0.18, 0.05);
+}
+
+function stopFaceTimePreview() {
+  if (!faceTimeStream) {
+    return;
+  }
+
+  faceTimeStream.getTracks().forEach((track) => track.stop());
+  faceTimeStream = null;
+}
+
 function showScreen(name) {
   if (!screenElements[name] || isSleeping) {
     return;
   }
 
+  if (activeScreen === "native-app" && name !== "native-app") {
+    stopFaceTimePreview();
+  }
+
   activeScreen = name;
   Object.entries(screenElements).forEach(([screenName, element]) => {
     element.classList.toggle("is-visible", screenName === name);
-    if (screenName === name && (screenName === "store" || screenName === "game")) {
+    if (screenName === name && (screenName === "store" || screenName === "game" || screenName === "native-app")) {
       element.scrollTop = 0;
     }
   });
 }
 
 function getActiveAppScreen() {
-  if (activeScreen === "store" || activeScreen === "game") {
+  if (activeScreen === "store" || activeScreen === "game" || activeScreen === "native-app") {
     return screenElements[activeScreen];
   }
 
   return null;
+}
+
+function nativeAppLayout(title, bodyHtml, kicker = "") {
+  return `
+    <div class="native-app-header">
+      <div class="native-app-header-left">
+        <button class="native-app-close" type="button" data-native-home>Home</button>
+      </div>
+      <div class="native-app-title-group">
+        ${kicker ? `<p class="native-app-kicker">${kicker}</p>` : ""}
+        <h2 class="native-app-title">${title}</h2>
+      </div>
+      <div class="native-app-header-right">
+        <div class="native-app-more">...</div>
+      </div>
+    </div>
+    <div class="native-app-body">${bodyHtml}</div>
+  `;
+}
+
+function buildCalendarMarkup() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const startWeekday = first.getDay();
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const cells = [];
+
+  for (let i = 0; i < startWeekday; i += 1) {
+    cells.push(`<div class="calendar-day muted"></div>`);
+  }
+
+  for (let day = 1; day <= last.getDate(); day += 1) {
+    const isToday = day === now.getDate();
+    cells.push(`<div class="calendar-day${isToday ? " today" : ""}">${day}</div>`);
+  }
+
+  return `
+    <div class="calendar-shell">
+      <div class="native-section-title">${now.toLocaleDateString([], { month: "long", year: "numeric" })}</div>
+      <div class="calendar-grid">
+        ${weekdays.map((day) => `<div class="calendar-weekday">${day}</div>`).join("")}
+        ${cells.join("")}
+      </div>
+    </div>
+  `;
+}
+
+function getFaceTimeCallLog() {
+  return Array.from({ length: 10 }, (_, index) => {
+    const labels = ["Missed FaceTime Audio", "Missed FaceTime Video", "Christian called"];
+    return `
+      <article class="call-log-item">
+        <strong>Christian</strong>
+        <span class="call-log-meta">${labels[index % labels.length]}</span>
+        <span class="call-log-meta" style="color:#ff5a5f;">Missed • ${index === 0 ? "Today" : `${index + 1}d ago`}</span>
+      </article>
+    `;
+  }).join("");
+}
+
+function getMailLoveText() {
+  return Array.from({ length: 10 }, () => "I love you").join(", ");
+}
+
+function renderNativeApp(appId) {
+  if (!nativeAppContent) {
+    return;
+  }
+
+  currentNativeAppId = appId;
+  screenElements["native-app"].dataset.app = appId;
+
+  const templates = {
+    notes: nativeAppLayout("Notes", `<textarea class="notes-editor" placeholder=""></textarea>`, "iCloud"),
+    safari: nativeAppLayout(
+      "Safari",
+      `
+        <div class="safari-page">
+          <div class="safari-bar">Search or enter website name</div>
+          <div class="ios-card">
+            <strong>Favorites</strong>
+            <div class="safari-favorites" style="margin-top:0.9rem;">
+              <div class="safari-favorite"><div class="safari-favorite-badge">C</div><div class="call-log-meta">Christian</div></div>
+              <div class="safari-favorite"><div class="safari-favorite-badge">A</div><div class="call-log-meta">Amazon</div></div>
+              <div class="safari-favorite"><div class="safari-favorite-badge">P</div><div class="call-log-meta">Photos</div></div>
+              <div class="safari-favorite"><div class="safari-favorite-badge">L</div><div class="call-log-meta">Love</div></div>
+            </div>
+          </div>
+          <div class="ios-card">
+            <strong>Start Page</strong>
+            <p class="call-log-meta" style="margin:0.45rem 0 0;">A little Safari space made for Eva.</p>
+          </div>
+        </div>
+      `
+    ),
+    facetime: nativeAppLayout(
+      "FaceTime",
+      `
+        <div class="facetime-preview-wrap">
+          <video class="facetime-preview" data-facetime-video autoplay muted playsinline></video>
+          <div class="facetime-preview-placeholder" data-facetime-placeholder>Tap allow camera access to preview FaceTime here.</div>
+        </div>
+        <div style="margin-top:1rem;" class="native-section-title">Recents</div>
+        <div class="call-log-list" style="margin-top:0.85rem;">${getFaceTimeCallLog()}</div>
+      `
+    ),
+    messages: nativeAppLayout(
+      "Messages",
+      `<div class="messages-thread"><div class="bubble-row"><div class="bubble">dont forget to take your meds</div></div><div class="bubble-row me"><div class="bubble">Love you(:</div></div><div class="bubble-row me"><div class="bubble">Love you(:</div></div></div>`
+    ),
+    voicememos: nativeAppLayout(
+      "Voice Memos",
+      `<div class="ios-card"><div class="voice-wave">${Array.from({ length: 28 }, (_, i) => `<span style="height:${18 + ((i * 7) % 28)}px"></span>`).join("")}</div><div style="margin-top:0.9rem;"><strong>Christian Voice Note</strong></div><div class="call-log-meta">0:18 • saved</div></div>`
+    ),
+    tv: nativeAppLayout(
+      "Apple TV",
+      `<div class="tv-hero"><div class="tv-pill">Up Next</div><h3 style="margin:0.7rem 0 0;">Movie night with Eva</h3><p style="margin:0.45rem 0 0; opacity:0.82;">A cozy queue waiting for you two.</p></div>`
+    ),
+    calculator: nativeAppLayout(
+      "Calculator",
+      `<div class="calculator-shell"><div class="calculator-display" data-calc-display>0</div><div class="calculator-grid" data-calc-grid><button class="calculator-key function" data-calc-action="clear">AC</button><button class="calculator-key function" data-calc-action="sign">+/-</button><button class="calculator-key function" data-calc-action="percent">%</button><button class="calculator-key operator" data-calc-op="/">/</button><button class="calculator-key" data-calc-digit="7">7</button><button class="calculator-key" data-calc-digit="8">8</button><button class="calculator-key" data-calc-digit="9">9</button><button class="calculator-key operator" data-calc-op="*">x</button><button class="calculator-key" data-calc-digit="4">4</button><button class="calculator-key" data-calc-digit="5">5</button><button class="calculator-key" data-calc-digit="6">6</button><button class="calculator-key operator" data-calc-op="-">-</button><button class="calculator-key" data-calc-digit="1">1</button><button class="calculator-key" data-calc-digit="2">2</button><button class="calculator-key" data-calc-digit="3">3</button><button class="calculator-key operator" data-calc-op="+">+</button><button class="calculator-key zero" data-calc-digit="0">0</button><button class="calculator-key" data-calc-action="decimal">.</button><button class="calculator-key operator" data-calc-action="equals">=</button></div></div>`
+    ),
+    homeapp: nativeAppLayout("Home", `<div class="ios-card"><strong>No Accessories Added</strong><p class="call-log-meta" style="margin:0.45rem 0 0;">This home is waiting for Eva's cozy setup.</p></div>`),
+    contacts: nativeAppLayout("Contacts", `<div class="contacts-list"><article class="contact-item"><strong>Christian</strong><span class="contact-subtitle">favorite person</span></article><article class="contact-item"><strong>Billy</strong><span class="contact-subtitle">dog</span></article><article class="contact-item"><strong>Dexter</strong><span class="contact-subtitle">dog</span></article></div>`),
+    maps: nativeAppLayout("Maps", `<div class="maps-hero"><div class="route-chip">Nearby</div><h3 style="margin:0.7rem 0 0;">Where to?</h3><p style="margin:0.45rem 0 0; opacity:0.9;">Home, date night, pharmacy, and snacks.</p></div><div class="ios-list" style="margin-top:1rem;"><div class="ios-card"><strong>Home</strong><div class="call-log-meta">12 min</div></div><div class="ios-card"><strong>Date Night</strong><div class="call-log-meta">18 min</div></div><div class="ios-card"><strong>Pharmacy</strong><div class="call-log-meta">8 min</div></div></div>`),
+    mail: nativeAppLayout("Mail", `<div class="mail-list"><article class="mail-item"><strong>Christian</strong><span class="mail-subject">Subject: I love you</span><div class="mail-thread">${getMailLoveText()}</div></article></div>`),
+    stocks: nativeAppLayout("Stocks", `<div class="stocks-hero"><div class="stock-pill">Love Index +99.9%</div><h3 style="margin:0.7rem 0 0;">Christian <span style="color:#4ee08f;">/ Eva</span></h3><p style="margin:0.45rem 0 0; opacity:0.82;">Steady upward trend all month.</p></div>`),
+    calendar: nativeAppLayout("Calendar", buildCalendarMarkup()),
+    findmy: nativeAppLayout("Find My", `<div class="findmy-list"><article class="findmy-item"><span class="findmy-dot"></span><div><strong>Eva's AirPods</strong><div class="findmy-status">With you</div></div><span class="findmy-status">Now</span></article><article class="findmy-item"><span class="findmy-dot"></span><div><strong>Eva's phone</strong><div class="findmy-status">Nearby</div></div><span class="findmy-status">Here</span></article><article class="findmy-item"><span class="findmy-dot"></span><div><strong>Eva's AirTag</strong><div class="findmy-status">Living room</div></div><span class="findmy-status">2m</span></article><article class="findmy-item lost"><span class="findmy-dot"></span><div><strong>Eva's vape</strong><div class="findmy-status">Probably in the couch</div></div><span class="findmy-status">Lost</span></article></div>`),
+    photos: nativeAppLayout("Photos", `<div class="ios-empty"><div><img class="photos-empty-icon" src="${realIcons.photos}" alt="" referrerpolicy="no-referrer" /><h3>No Photos or Videos</h3><p>Nothing is in the library yet.</p></div></div>`)
+  };
+
+  nativeAppContent.innerHTML = templates[appId] || nativeAppLayout("App", `<div class="ios-card">Nothing here yet.</div>`);
+  nativeAppContent.querySelectorAll("[data-native-home]").forEach((button) => {
+    button.addEventListener("click", () => showScreen("home"));
+  });
+
+  if (appId === "calculator") {
+    setupCalculator();
+  }
+
+  if (appId === "facetime") {
+    startFaceTimePreview();
+  }
+}
+
+function openNativeApp(appId) {
+  stopFaceTimePreview();
+  renderNativeApp(appId);
+  showScreen("native-app");
+}
+
+async function startFaceTimePreview() {
+  const video = nativeAppContent?.querySelector("[data-facetime-video]");
+  const placeholder = nativeAppContent?.querySelector("[data-facetime-placeholder]");
+  if (!video || !navigator.mediaDevices?.getUserMedia) {
+    return;
+  }
+
+  try {
+    faceTimeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    video.srcObject = faceTimeStream;
+    video.style.display = "block";
+    if (placeholder) {
+      placeholder.style.display = "none";
+    }
+  } catch (error) {
+    video.style.display = "none";
+    if (placeholder) {
+      placeholder.textContent = "Camera access is blocked right now, but Christian definitely called.";
+      placeholder.style.display = "grid";
+    }
+  }
+}
+
+function setupCalculator() {
+  const display = nativeAppContent?.querySelector("[data-calc-display]");
+  const grid = nativeAppContent?.querySelector("[data-calc-grid]");
+  if (!display || !grid) {
+    return;
+  }
+
+  const state = { display: "0", storedValue: null, operator: null, waitingForOperand: false };
+  const updateDisplay = () => {
+    display.textContent = state.display;
+  };
+  const inputDigit = (digit) => {
+    if (state.waitingForOperand) {
+      state.display = digit;
+      state.waitingForOperand = false;
+    } else {
+      state.display = state.display === "0" ? digit : state.display + digit;
+    }
+    updateDisplay();
+  };
+  const inputDecimal = () => {
+    if (state.waitingForOperand) {
+      state.display = "0.";
+      state.waitingForOperand = false;
+    } else if (!state.display.includes(".")) {
+      state.display += ".";
+    }
+    updateDisplay();
+  };
+  const perform = (first, second, operator) => {
+    switch (operator) {
+      case "+":
+        return first + second;
+      case "-":
+        return first - second;
+      case "*":
+        return first * second;
+      case "/":
+        return second === 0 ? 0 : first / second;
+      default:
+        return second;
+    }
+  };
+  const handleOperator = (nextOperator) => {
+    const inputValue = Number(state.display);
+    if (state.operator && state.waitingForOperand) {
+      state.operator = nextOperator;
+      return;
+    }
+    if (state.storedValue == null) {
+      state.storedValue = inputValue;
+    } else if (state.operator) {
+      const result = perform(state.storedValue, inputValue, state.operator);
+      state.display = `${parseFloat(result.toFixed(8))}`;
+      state.storedValue = result;
+      updateDisplay();
+    }
+    state.waitingForOperand = true;
+    state.operator = nextOperator;
+  };
+
+  grid.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) {
+      return;
+    }
+    if (button.dataset.calcDigit) {
+      inputDigit(button.dataset.calcDigit);
+      return;
+    }
+    if (button.dataset.calcOp) {
+      handleOperator(button.dataset.calcOp);
+      return;
+    }
+    switch (button.dataset.calcAction) {
+      case "decimal":
+        inputDecimal();
+        break;
+      case "clear":
+        state.display = "0";
+        state.storedValue = null;
+        state.operator = null;
+        state.waitingForOperand = false;
+        updateDisplay();
+        break;
+      case "sign":
+        state.display = `${Number(state.display) * -1}`;
+        updateDisplay();
+        break;
+      case "percent":
+        state.display = `${Number(state.display) / 100}`;
+        updateDisplay();
+        break;
+      case "equals":
+        if (state.operator == null) {
+          return;
+        }
+        handleOperator(null);
+        state.operator = null;
+        state.storedValue = null;
+        break;
+      default:
+        break;
+    }
+  });
+
+  updateDisplay();
 }
 
 function resetActiveAppTransform(target) {
@@ -335,6 +688,7 @@ function handleUnlockInput() {
   unlockCopy.style.opacity = "0";
   setTimeout(() => {
     resetUnlockSlider();
+    playUnlockSound();
     showScreen("home");
   }, 120);
 }
@@ -577,10 +931,13 @@ function buildIconMarkup(icon) {
 }
 
 function buildAppTile(icon, isDockIcon = false) {
-  const tile = icon.action ? document.createElement("button") : document.createElement("div");
-  tile.className = `app-tile${icon.action ? " buttonish" : ""}${icon.hiddenUntilInstalled ? " is-hidden" : ""}${icon.installedApp ? " installed-app" : ""}`;
+  const defaultRoute = firstPageAppRoutes[icon.name];
+  const isNativeRoute = Boolean(!icon.action && defaultRoute);
+  const isButton = Boolean(icon.action || isNativeRoute);
+  const tile = isButton ? document.createElement("button") : document.createElement("div");
+  tile.className = `app-tile${isButton ? " buttonish" : ""}${icon.hiddenUntilInstalled ? " is-hidden" : ""}${icon.installedApp ? " installed-app" : ""}`;
 
-  if (icon.action) {
+  if (isButton) {
     tile.type = "button";
   }
 
@@ -596,6 +953,10 @@ function buildAppTile(icon, isDockIcon = false) {
 
       showScreen("game");
     });
+  }
+
+  if (isNativeRoute) {
+    tile.addEventListener("click", () => openNativeApp(defaultRoute));
   }
 
   tile.append(buildIconMarkup(icon));
