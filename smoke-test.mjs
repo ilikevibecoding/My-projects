@@ -281,11 +281,13 @@ async function main() {
         game.player.vy = 980;
         game.player.boostType = "jetpack";
         game.player.boostTimer = 1.1;
+        game.player.boostInvulnerableTimer = 1.5;
         game.handleMonsterCollisions();
         return {
             state: game.state,
             monsterCount: game.monsters.length,
-            playerBoostTimer: game.player.boostTimer
+            playerBoostTimer: game.player.boostTimer,
+            playerBoostInvulnerableTimer: game.player.boostInvulnerableTimer
         };
     })()`);
 
@@ -296,25 +298,23 @@ async function main() {
         game.monsters = [];
         game.highestPlatformY = 1400;
         game.spawnAnchorX = 216;
-        const samples = [];
+        const hazards = [];
+        let hazardConflictCount = 0;
         for (let i = 0; i < 120; i += 1) {
             game.platforms = [];
             game.monsters = [];
             game.spawnNextPlatform(false);
             const hazard = game.platforms.find((platform) => platform.type === "brown" || platform.type === "white");
             if (!hazard) continue;
-            const support = game.platforms.find((platform) => platform !== hazard && platform.type === "green");
-            if (support) {
-                samples.push({
-                    type: hazard.type,
-                    dx: Math.abs(hazard.x - support.x),
-                    dy: Math.abs(hazard.y - support.y)
-                });
-            }
+            hazards.push(hazard.type);
+            hazardConflictCount += game.platforms.filter((platform) =>
+                platform !== hazard &&
+                platform.type === "green" &&
+                Math.abs(platform.x - hazard.x) < 72 &&
+                Math.abs(platform.y - hazard.y) < 64,
+            ).length;
         }
-        const minDx = samples.length ? Math.min(...samples.map((sample) => sample.dx)) : null;
-        const minDy = samples.length ? Math.min(...samples.map((sample) => sample.dy)) : null;
-        return { count: samples.length, minDx, minDy };
+        return { hazardCount: hazards.length, hazardConflictCount };
     })()`);
 
     await client.evaluate(`(() => {

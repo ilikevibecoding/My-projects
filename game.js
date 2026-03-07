@@ -20,6 +20,7 @@
     const SHOT_COOLDOWN = 0.23;
     const MAX_DT = 1 / 30;
     const BOOST_MONSTER_CLEARANCE = 280;
+    const BOOST_INVULNERABLE_EXTRA = 0.45;
 
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const randomRange = (min, max) => min + Math.random() * (max - min);
@@ -285,6 +286,7 @@
                 shootCooldown: 0,
                 boostType: null,
                 boostTimer: 0,
+                boostInvulnerableTimer: 0,
             };
         }
 
@@ -492,6 +494,8 @@
                 this.player.vy += GRAVITY * dt;
             }
 
+            this.player.boostInvulnerableTimer = Math.max(0, this.player.boostInvulnerableTimer - dt);
+
             this.player.y += this.player.vy * dt;
 
             if (this.player.boostTimer > 0) {
@@ -638,9 +642,9 @@
                     if (platform.type === "white") {
                         platform.active = false;
                         platform.vanishTimer = 0.08;
-                        this.audio.play("poof", 0.7);
+                        this.audio.play("poof", 1);
                         this.effects.push({ x: platform.x, y: platform.y + 14, vy: 18, life: 0.3, text: "POOF!" });
-                        this.effects.push({ kind: "burst", x: platform.x, y: platform.y + 8, vy: 0, life: 0.18, radius: 30, alpha: 0.34, color: "rgba(255,255,255,0.85)" });
+                        this.effects.push({ kind: "burst", x: platform.x, y: platform.y + 8, vy: 0, life: 0.22, radius: 40, alpha: 0.48, color: "rgba(255,255,255,0.9)" });
                     }
 
                     this.player.y = platform.y;
@@ -671,11 +675,13 @@
                     if (pickup.type === "propeller") {
                         this.player.boostType = "propeller";
                         this.player.boostTimer = 1.05;
+                        this.player.boostInvulnerableTimer = 1.05 + BOOST_INVULNERABLE_EXTRA;
                         this.player.vy = PROPELLER_VELOCITY;
                         this.audio.play("propeller", 0.48);
                     } else if (pickup.type === "jetpack") {
                         this.player.boostType = "jetpack";
                         this.player.boostTimer = 1.32;
+                        this.player.boostInvulnerableTimer = 1.32 + BOOST_INVULNERABLE_EXTRA;
                         this.player.vy = JETPACK_VELOCITY;
                         this.audio.play("jetpack", 0.45);
                     }
@@ -709,7 +715,7 @@
             this.bullets = this.bullets.filter((bullet) => !bullet.dead);
             this.monsters = this.monsters.filter((monster) => !monster.dead);
 
-            if (this.player.boostTimer > 0) {
+            if (this.player.boostInvulnerableTimer > 0) {
                 for (const monster of this.monsters) {
                     const verticalDelta = monster.y - this.player.y;
                     const horizontalDelta = Math.abs(monster.x - this.player.x);
@@ -719,7 +725,7 @@
                         Math.max(this.player.y, monster.y);
 
                     if (
-                        (verticalDelta > -60 && verticalDelta < BOOST_MONSTER_CLEARANCE && horizontalDelta < 90) ||
+                        (verticalDelta > -90 && verticalDelta < BOOST_MONSTER_CLEARANCE && horizontalDelta < 130) ||
                         (overlapX > 10 && overlapY > 6)
                     ) {
                         monster.dead = true;
@@ -843,46 +849,16 @@
                 });
             }
 
-            this.platforms.push(platform);
-
-            if (!isEarly && (type === "brown" || type === "white")) {
-                const supportWidth = randomRange(76, 92);
-                const supportMinDx = type === "brown" ? 56 : 38;
-                const supportOffsetBase = type === "brown" ? randomRange(42, 76) : randomRange(28, 56);
-                const supportDirection = chance(0.5) ? -1 : 1;
-                let supportX = clamp(
-                    x + supportOffsetBase * supportDirection,
-                    supportWidth / 2 + 14,
-                    WIDTH - supportWidth / 2 - 14,
-                );
-                if (Math.abs(supportX - x) < supportMinDx) {
-                    const alternateSupportX = clamp(
-                        x - supportOffsetBase * supportDirection,
-                        supportWidth / 2 + 14,
-                        WIDTH - supportWidth / 2 - 14,
-                    );
-                    if (Math.abs(alternateSupportX - x) > Math.abs(supportX - x)) {
-                        supportX = alternateSupportX;
-                    }
-                }
-                const supportY = y - (type === "brown" ? randomRange(30, 48) : randomRange(22, 36));
-
-                if (Math.abs(supportX - x) >= supportMinDx) {
-                    this.platforms.push({
-                        x: supportX,
-                        y: supportY,
-                        width: supportWidth,
-                        type: "green",
-                        active: true,
-                        vx: 0,
-                        brokenTimer: 0,
-                        vanishTimer: 0,
-                        pickup: chance(0.08) ? { type: "spring", x: supportX, used: false } : null,
-                    });
-                } else {
-                    platform.type = "green";
-                }
+            const conflictsWithNearbyGreen = this.platforms.some((existingPlatform) =>
+                existingPlatform.type === "green" &&
+                Math.abs(existingPlatform.x - platform.x) < 72 &&
+                Math.abs(existingPlatform.y - platform.y) < 64,
+            );
+            if (conflictsWithNearbyGreen && (platform.type === "brown" || platform.type === "white")) {
+                platform.type = "green";
             }
+
+            this.platforms.push(platform);
 
             this.highestPlatformY = y;
             this.spawnAnchorX = x;
@@ -1088,7 +1064,7 @@
         drawMonsters() {
             for (const monster of this.monsters) {
                 const screenY = this.worldToScreen(monster.y);
-                const fadedByBoost = this.player.boostTimer > 0 && monster.y > this.player.y && monster.y < this.player.y + 260;
+                const fadedByBoost = this.player.boostInvulnerableTimer > 0 && monster.y > this.player.y - 80 && monster.y < this.player.y + 280;
                 if (fadedByBoost) {
                     this.ctx.save();
                     this.ctx.globalAlpha = 0.32;
@@ -1203,6 +1179,24 @@
             this.ctx.fillStyle = "#171310";
             this.ctx.strokeStyle = "rgba(255,255,255,0.8)";
             this.ctx.lineWidth = 4;
+
+            if (this.player.boostInvulnerableTimer > 0) {
+                const strength = clamp(this.player.boostInvulnerableTimer / (this.player.boostType === "jetpack" ? 1.77 : 1.5), 0, 1);
+                this.ctx.save();
+                this.ctx.globalAlpha = 0.22 + strength * 0.22;
+                this.ctx.strokeStyle = this.player.boostType === "jetpack" ? "rgba(255, 199, 105, 0.85)" : "rgba(255,255,255,0.75)";
+                this.ctx.lineWidth = 3;
+                for (let index = 0; index < 7; index += 1) {
+                    const offset = (index - 3) * 18;
+                    const x = this.player.x + offset;
+                    const screenY = this.worldToScreen(this.player.y);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, screenY + 60);
+                    this.ctx.lineTo(x, screenY - 120);
+                    this.ctx.stroke();
+                }
+                this.ctx.restore();
+            }
 
             for (const effect of this.effects) {
                 const screenY = this.worldToScreen(effect.y);
