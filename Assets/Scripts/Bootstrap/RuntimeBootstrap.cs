@@ -1,19 +1,20 @@
 using UnityEngine;
+using SubnauticaClone.UI;
 
 namespace SubnauticaClone.Bootstrap
 {
     public static class RuntimeBootstrap
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void EnsurePrototypeBootstrap()
+        private static void EnsureVirtualPhoneBootstrap()
         {
-            if (Object.FindFirstObjectByType<PrototypeBootstrap>() != null)
+            if (Object.FindFirstObjectByType<VirtualPhoneBootstrap>() != null)
             {
                 return;
             }
 
-            var bootstrapObject = new GameObject("Subnautica Prototype Bootstrap");
-            bootstrapObject.AddComponent<PrototypeBootstrap>();
+            var bootstrapObject = new GameObject("Virtual Phone Bootstrap");
+            bootstrapObject.AddComponent<VirtualPhoneBootstrap>();
         }
     }
 }
