@@ -1027,6 +1027,7 @@ button {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
+  min-height: 100%;
 }
 
 .screen-store::-webkit-scrollbar,
@@ -1369,14 +1370,20 @@ button {
 }
 
 .screen-game {
+  background:
+    radial-gradient(circle at 15% 15%, rgba(255, 226, 236, 0.28), transparent 20%),
+    radial-gradient(circle at 80% 70%, rgba(255, 190, 136, 0.22), transparent 24%),
+    linear-gradient(180deg, #302b87 0%, #8d2f88 46%, #ff885b 100%);
   padding: 5rem 1rem 5.35rem;
   overflow-y: auto;
   overscroll-behavior: contain;
+  min-height: 100%;
 }
 
 .game-app-shell {
   position: relative;
   z-index: 2;
+  min-height: calc(100% - 0.4rem);
   padding: 1rem 0.9rem 1rem;
   border-radius: 1.9rem;
   background:

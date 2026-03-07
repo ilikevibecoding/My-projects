@@ -180,6 +180,15 @@ const installState = {
   progress: 0
 };
 
+const scratchAudio = {
+  context: null,
+  masterGain: null,
+  filter: null,
+  source: null,
+  noiseBuffer: null,
+  activePointers: 0
+};
+
 function updateClock() {
   const now = new Date();
   const time = now.toLocaleTimeString([], {
@@ -738,6 +747,111 @@ function startInstallFlow() {
   requestAnimationFrame(tick);
 }
 
+function ensureScratchAudio() {
+  if (scratchAudio.context) {
+    return scratchAudio.context;
+  }
+
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return null;
+  }
+
+  const context = new AudioContextClass();
+  const buffer = context.createBuffer(1, context.sampleRate * 1.5, context.sampleRate);
+  const channel = buffer.getChannelData(0);
+  for (let i = 0; i < channel.length; i += 1) {
+    channel[i] = (Math.random() * 2 - 1) * 0.9;
+  }
+
+  const filter = context.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.value = 1800;
+  filter.Q.value = 0.9;
+
+  const gain = context.createGain();
+  gain.gain.value = 0;
+
+  filter.connect(gain);
+  gain.connect(context.destination);
+
+  scratchAudio.context = context;
+  scratchAudio.filter = filter;
+  scratchAudio.masterGain = gain;
+  scratchAudio.noiseBuffer = buffer;
+  return context;
+}
+
+async function startScratchSound() {
+  const context = ensureScratchAudio();
+  if (!context || !scratchAudio.masterGain || !scratchAudio.filter || !scratchAudio.noiseBuffer) {
+    return;
+  }
+
+  scratchAudio.activePointers += 1;
+  if (scratchAudio.source) {
+    const now = context.currentTime;
+    scratchAudio.masterGain.gain.cancelScheduledValues(now);
+    scratchAudio.masterGain.gain.linearRampToValueAtTime(0.055, now + 0.03);
+    return;
+  }
+
+  await context.resume();
+
+  const source = context.createBufferSource();
+  source.buffer = scratchAudio.noiseBuffer;
+  source.loop = true;
+  source.playbackRate.value = 1.2;
+  source.connect(scratchAudio.filter);
+  source.start();
+  scratchAudio.source = source;
+
+  const now = context.currentTime;
+  scratchAudio.masterGain.gain.cancelScheduledValues(now);
+  scratchAudio.masterGain.gain.setValueAtTime(0, now);
+  scratchAudio.masterGain.gain.linearRampToValueAtTime(0.055, now + 0.03);
+}
+
+function modulateScratchSound() {
+  const context = scratchAudio.context;
+  if (!context || !scratchAudio.filter || !scratchAudio.masterGain || !scratchAudio.source) {
+    return;
+  }
+
+  const now = context.currentTime;
+  scratchAudio.filter.frequency.setValueAtTime(1300 + Math.random() * 1400, now);
+  scratchAudio.masterGain.gain.setValueAtTime(0.042 + Math.random() * 0.028, now);
+}
+
+function stopScratchSound() {
+  if (!scratchAudio.context || !scratchAudio.masterGain) {
+    return;
+  }
+
+  scratchAudio.activePointers = Math.max(0, scratchAudio.activePointers - 1);
+  if (scratchAudio.activePointers > 0) {
+    return;
+  }
+
+  const { context, masterGain, source } = scratchAudio;
+  const now = context.currentTime;
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+  masterGain.gain.linearRampToValueAtTime(0, now + 0.06);
+
+  if (source) {
+    const currentSource = source;
+    scratchAudio.source = null;
+    window.setTimeout(() => {
+      try {
+        currentSource.stop();
+      } catch (error) {
+        // Ignore stop races from fast pointer sequences.
+      }
+    }, 90);
+  }
+}
+
 class ScratchCard {
   constructor({ canvas, colors, onReveal }) {
     this.canvas = canvas;
@@ -810,6 +924,7 @@ class ScratchCard {
 
       this.isDrawing = true;
       this.canvas.setPointerCapture(event.pointerId);
+      startScratchSound();
       this.erase(event);
     });
 
@@ -818,11 +933,13 @@ class ScratchCard {
         return;
       }
 
+      modulateScratchSound();
       this.erase(event);
     });
 
     const stopDrawing = async () => {
       this.isDrawing = false;
+      stopScratchSound();
       await this.checkReveal();
     };
 
