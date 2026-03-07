@@ -1,21 +1,50 @@
+const realIcons = {
+  facetime:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/FaceTime_iOS.svg",
+  calendar:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Calendar_Icon.png",
+  photos:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Foto_(iOS).png",
+  camera:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Fotocamera_(iOS).png",
+  mail:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Mail_(iOS).svg",
+  clock:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Clock_(iOS).png",
+  maps:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Maps_Logo.png",
+  messages:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/IMessage_icon.png",
+  appstore:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/App_Store_(iOS,_2024).svg",
+  settings:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Settings_(iOS).png",
+  safari:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Safari-icon-1024.png",
+  music:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Music_icon.svg",
+  phone:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Phone_iOS.png"
+};
+
 const homePagesData = [
   [
-    { name: "FaceTime", glyph: "FT", bg: "#33bf74", type: "facetime" },
-    { name: "Calendar", glyph: "14", bg: "#ee3d43", type: "calendar" },
-    { name: "Photos", glyph: "PH", bg: "#ffffff", type: "photos", fg: "#1d2230" },
-    { name: "Camera", glyph: "CAM", bg: "#23252d", type: "camera" },
-    { name: "Mail", glyph: "M", bg: "#1f87fa", type: "mail" },
-    { name: "Clock", glyph: "CLK", bg: "#101319", type: "clock" },
-    { name: "Maps", glyph: "MAP", bg: "#ffffff", type: "maps", fg: "#1d2230" },
+    { name: "FaceTime", glyph: "FT", bg: "#33bf74", type: "facetime", src: realIcons.facetime },
+    { name: "Calendar", glyph: "14", bg: "#ee3d43", type: "calendar", src: realIcons.calendar },
+    { name: "Photos", glyph: "PH", bg: "#ffffff", type: "photos", fg: "#1d2230", src: realIcons.photos },
+    { name: "Camera", glyph: "CAM", bg: "#23252d", type: "camera", src: realIcons.camera },
+    { name: "Mail", glyph: "M", bg: "#1f87fa", type: "mail", src: realIcons.mail },
+    { name: "Clock", glyph: "CLK", bg: "#101319", type: "clock", src: realIcons.clock },
+    { name: "Maps", glyph: "MAP", bg: "#ffffff", type: "maps", fg: "#1d2230", src: realIcons.maps },
     { name: "Weather", glyph: "SUN", bg: "#59a8ff", type: "weather" },
     { name: "Notes", glyph: "N", bg: "#f3d83f", type: "notes", fg: "#1d2230" },
     { name: "Reminders", glyph: "DO", bg: "#f7f7fb", type: "text", fg: "#1d2230" },
-    { name: "App Store", glyph: "A", bg: "#167efb", type: "appstore", action: "store" },
-    { name: "Settings", glyph: "SET", bg: "#b9bec8", type: "settings", fg: "#ffffff" },
+    { name: "App Store", glyph: "A", bg: "#167efb", type: "appstore", action: "store", src: realIcons.appstore },
+    { name: "Settings", glyph: "SET", bg: "#b9bec8", type: "settings", fg: "#ffffff", src: realIcons.settings },
     { name: "TikTok", glyph: "TT", bg: "#101114", type: "tiktok" },
-    { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music" },
-    { name: "Messages", glyph: "MSG", bg: "#26c457", type: "messages" },
-    { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230" }
+    { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music", src: realIcons.music },
+    { name: "Messages", glyph: "MSG", bg: "#26c457", type: "messages", src: realIcons.messages },
+    { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230", src: realIcons.safari }
   ],
   [
     { name: "Health", glyph: "H", bg: "#ffffff", type: "health", fg: "#1d2230" },
@@ -56,10 +85,10 @@ const homePagesData = [
 ];
 
 const dockApps = [
-  { name: "Phone", glyph: "TEL", bg: "#29c65b", type: "phone" },
-  { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230" },
-  { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music" },
-  { name: "Messages", glyph: "MSG", bg: "#26c457", type: "messages" }
+  { name: "Phone", glyph: "TEL", bg: "#29c65b", type: "phone", src: realIcons.phone },
+  { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230", src: realIcons.safari },
+  { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music", src: realIcons.music },
+  { name: "Messages", glyph: "MSG", bg: "#26c457", type: "messages", src: realIcons.messages }
 ];
 
 const storeRows = [
@@ -440,13 +469,16 @@ function createGlyph(icon) {
 function buildIconMarkup(icon) {
   const iconWrap = document.createElement("div");
   iconWrap.className = "app-icon-wrap";
+  const iconInner = icon.src
+    ? `<img class="app-icon-image" src="${icon.src}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
+    : createGlyph(icon);
   iconWrap.innerHTML = `
     <span class="app-icon-shadow"></span>
     <div
-      class="app-icon"
+      class="app-icon${icon.src ? " has-image" : ""}"
       style="--icon-bg:${icon.bg}; --icon-fg:${icon.fg || "#fff"}"
     >
-      ${createGlyph(icon)}
+      ${iconInner}
     </div>
   `;
   return iconWrap;
