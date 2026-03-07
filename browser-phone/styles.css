@@ -593,6 +593,11 @@ button {
     scale(calc(1 - var(--stack-index, 0) * 0.04));
 }
 
+.message-notification.is-dismissed {
+  opacity: 0;
+  transform: translateY(-1rem) scale(0.96);
+}
+
 .message-notification.is-dimmed {
   opacity: 0.92;
 }

@@ -954,6 +954,8 @@ async function playNotificationDing() {
   const now = context.currentTime;
   const master = context.createGain();
   master.gain.setValueAtTime(0.0001, now);
+  master.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
   master.connect(context.destination);
 
   const makeTone = (type, frequency, start, duration, peak) => {
@@ -970,9 +972,25 @@ async function playNotificationDing() {
     osc.stop(start + duration + 0.03);
   };
 
-  makeTone("sine", 1318.5, now, 0.18, 0.07);
-  makeTone("triangle", 1046.5, now + 0.025, 0.24, 0.04);
-  makeTone("sine", 1567.98, now + 0.11, 0.14, 0.032);
+  makeTone("sine", 1318.5, now, 0.22, 0.18);
+  makeTone("triangle", 1046.5, now + 0.018, 0.3, 0.11);
+  makeTone("sine", 1567.98, now + 0.105, 0.18, 0.08);
+  makeTone("triangle", 2093, now + 0.14, 0.12, 0.045);
+
+  if (navigator.vibrate) {
+    navigator.vibrate(18);
+  }
+}
+
+function refreshNotificationStack() {
+  if (!notificationStack) {
+    return;
+  }
+
+  [...notificationStack.children].forEach((item, index) => {
+    item.style.setProperty("--stack-index", String(index));
+    item.classList.toggle("is-dimmed", index > 0);
+  });
 }
 
 function pushNotification(message) {
@@ -995,10 +1013,7 @@ function pushNotification(message) {
   `;
 
   notificationStack.prepend(card);
-  [...notificationStack.children].forEach((item, index) => {
-    item.style.setProperty("--stack-index", String(index));
-    item.classList.toggle("is-dimmed", index > 0);
-  });
+  refreshNotificationStack();
 
   while (notificationStack.children.length > 3) {
     notificationStack.lastElementChild.remove();
@@ -1007,6 +1022,17 @@ function pushNotification(message) {
   requestAnimationFrame(() => {
     card.classList.add("is-visible");
   });
+
+  window.setTimeout(() => {
+    card.classList.remove("is-visible");
+    card.classList.add("is-dismissed");
+    window.setTimeout(() => {
+      if (card.parentElement) {
+        card.remove();
+        refreshNotificationStack();
+      }
+    }, 280);
+  }, 3200);
 }
 
 function startChristianNotifications() {
@@ -1337,6 +1363,7 @@ function init() {
   goToPage(0, false);
 
   const startNotificationsOnFirstInteraction = () => {
+    ensureNotificationAudioContext()?.resume?.();
     startChristianNotifications();
     window.removeEventListener("pointerdown", startNotificationsOnFirstInteraction);
     window.removeEventListener("keydown", startNotificationsOnFirstInteraction);
