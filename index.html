@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Eva's Phone</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
+body{
+  background:linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%);
+  display:flex;justify-content:center;align-items:center;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ========== PHONE SCALING ========== */
+.phone-wrap{
+  --scale:1;
+  transform:scale(var(--scale));
+  transform-origin:center center;
+  position:relative;
+}
+
+/* ========== IPHONE FRAME ========== */
+.iphone{
+  width:393px;height:852px;
+  position:relative;
+  border-radius:55px;
+  background:#1c1c1e;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.08),
+    0 0 0 2px #3a3a3c,
+    0 0 0 4px #636366,
+    0 0 0 5px #3a3a3c,
+    0 40px 100px rgba(0,0,0,0.7),
+    0 10px 30px rgba(0,0,0,0.5);
+}
+
+/* Side buttons */
+.btn-silent{position:absolute;left:-4px;top:155px;width:4px;height:28px;background:#636366;border-radius:2px 0 0 2px}
+.btn-vol-up{position:absolute;left:-4px;top:210px;width:4px;height:52px;background:#636366;border-radius:2px 0 0 2px}
+.btn-vol-down{position:absolute;left:-4px;top:272px;width:4px;height:52px;background:#636366;border-radius:2px 0 0 2px}
+.btn-power{position:absolute;right:-4px;top:230px;width:4px;height:76px;background:#636366;border-radius:0 2px 2px 0}
+
+/* ========== SCREEN ========== */
+.screen{
+  position:absolute;
+  top:0;left:0;right:0;bottom:0;
+  border-radius:55px;
+  overflow:hidden;
+  background:#000;
+  z-index:1;
+}
+
+/* ========== DYNAMIC ISLAND ========== */
+.dynamic-island{
+  position:absolute;
+  top:11px;left:50%;
+  transform:translateX(-50%);
+  width:126px;height:37px;
+  background:#000;
+  border-radius:20px;
+  z-index:200;
+}
+
+/* ========== STATUS BAR ========== */
+.status-bar{
+  position:absolute;top:0;left:0;right:0;
+  height:54px;
+  display:flex;justify-content:space-between;align-items:flex-end;
+  padding:0 32px 7px;
+  z-index:150;
+  pointer-events:none;
+}
+.status-bar.dark{color:#fff}
+.status-bar.light{color:#000}
+.status-bar{transition:color 0.3s ease}
+.sb-time{font-size:16px;font-weight:600;letter-spacing:-0.3px}
+.sb-icons{display:flex;align-items:center;gap:6px}
+.sb-icons svg{display:block}
+
+/* ========== SCREEN LAYERS ========== */
+.layer{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  transition:transform 0.55s cubic-bezier(0.32,0.72,0,1),opacity 0.55s cubic-bezier(0.32,0.72,0,1);
+  will-change:transform,opacity;
+}
+.layer.above{transform:translateY(100%);pointer-events:none}
+.layer.below{transform:scale(0.88);opacity:0;pointer-events:none}
+.layer.slide-left{transform:translateX(-30%);opacity:0;pointer-events:none}
+.layer.slide-right{transform:translateX(100%);pointer-events:none}
+
+/* ========== HOME INDICATOR ========== */
+.home-indicator{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  width:134px;height:5px;
+  background:rgba(255,255,255,0.5);
+  border-radius:3px;
+  z-index:190;
+}
+
+/* ========== LOCK SCREEN ========== */
+.lock-screen{
+  background:linear-gradient(170deg,
+    #0a0015 0%,#1a0a3e 15%,#2d1b69 28%,
+    #5c2d91 42%,#9b2f8a 55%,#c13584 65%,
+    #e8455a 75%,#f56040 85%,#fcaf45 95%,#ffdc80 100%);
+  display:flex;flex-direction:column;align-items:center;
+  user-select:none;
+  z-index:60;
+}
+.lock-screen::before{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(ellipse at 30% 20%,rgba(100,60,180,0.4) 0%,transparent 60%),
+             radial-gradient(ellipse at 70% 60%,rgba(200,50,100,0.3) 0%,transparent 50%);
+  pointer-events:none;
+}
+.lock-time{
+  margin-top:120px;
+  font-size:82px;font-weight:700;letter-spacing:-3px;
+  color:#fff;
+  text-shadow:0 2px 30px rgba(0,0,0,0.3);
+  position:relative;z-index:2;
+}
+.lock-date{
+  font-size:20px;font-weight:500;letter-spacing:0.3px;
+  color:rgba(255,255,255,0.9);
+  margin-top:4px;
+  position:relative;z-index:2;
+}
+.lock-bottom{
+  position:absolute;bottom:0;left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;
+  padding-bottom:30px;
+  z-index:10;
+}
+.lock-actions{
+  display:flex;justify-content:space-between;
+  width:100%;padding:0 50px;margin-bottom:24px;
+}
+.lock-action-btn{
+  width:50px;height:50px;
+  border-radius:50%;
+  background:rgba(0,0,0,0.3);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+}
+.lock-action-btn svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.swipe-hint{
+  color:rgba(255,255,255,0.7);
+  font-size:14px;font-weight:500;
+  margin-bottom:4px;
+  animation:pulse-up 2s ease-in-out infinite;
+}
+@keyframes pulse-up{
+  0%,100%{transform:translateY(0);opacity:0.6}
+  50%{transform:translateY(-6px);opacity:1}
+}
+.swipe-pill{
+  width:36px;height:5px;
+  background:rgba(255,255,255,0.5);
+  border-radius:3px;
+}
+
+/* ========== HOME SCREEN ========== */
+.home-screen{
+  background:linear-gradient(170deg,
+    #0a0015 0%,#1a0a3e 15%,#2d1b69 28%,
+    #5c2d91 42%,#9b2f8a 55%,#c13584 65%,
+    #e8455a 75%,#f56040 85%,#fcaf45 95%,#ffdc80 100%);
+  z-index:30;
+  display:flex;flex-direction:column;
+}
+.home-screen::before{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(ellipse at 30% 20%,rgba(100,60,180,0.4) 0%,transparent 60%),
+             radial-gradient(ellipse at 70% 60%,rgba(200,50,100,0.3) 0%,transparent 50%);
+  pointer-events:none;
+}
+
+/* Search pill */
+.home-search{
+  margin:62px 16px 0;height:36px;
+  background:rgba(255,255,255,0.12);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-radius:10px;
+  display:flex;align-items:center;
+  padding:0 10px;gap:6px;
+  color:rgba(255,255,255,0.5);font-size:15px;
+  position:relative;z-index:2;
+}
+.home-search svg{width:16px;height:16px;stroke:rgba(255,255,255,0.5);fill:none;stroke-width:2;stroke-linecap:round}
+
+/* App grid */
+.app-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:22px 0;
+  padding:18px 24px 0;
+  position:relative;z-index:2;
+  flex:1;
+}
+.app-slot{
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  cursor:pointer;
+  -webkit-touch-callout:none;user-select:none;
+}
+.app-slot:active .app-icon-box{transform:scale(0.88);opacity:0.7}
+.app-icon-box{
+  width:60px;height:60px;
+  border-radius:13.5px;
+  position:relative;
+  overflow:hidden;
+  transition:transform 0.15s ease,opacity 0.15s ease;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(0,0,0,0.25);
+}
+.app-label{
+  font-size:11px;font-weight:500;
+  color:#fff;text-align:center;
+  text-shadow:0 1px 3px rgba(0,0,0,0.5);
+  line-height:1.2;
+  max-width:72px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* Page dots */
+.page-dots{
+  display:flex;justify-content:center;gap:7px;
+  padding:6px 0 4px;
+  position:relative;z-index:2;
+}
+.page-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:rgba(255,255,255,0.3);
+  transition:background 0.3s;
+}
+.page-dot.active{background:rgba(255,255,255,0.9)}
+
+/* Dock */
+.dock{
+  position:relative;z-index:3;
+  margin:0 8px 4px;
+  padding:12px 20px 28px;
+  border-radius:30px;
+  background:rgba(100,100,120,0.22);
+  backdrop-filter:blur(40px) saturate(180%);
+  -webkit-backdrop-filter:blur(40px) saturate(180%);
+  display:flex;justify-content:space-around;align-items:center;
+}
+
+/* ========== APP ICON THEMES ========== */
+.ico-phone{background:linear-gradient(180deg,#69db7c,#2ecc40)}
+.ico-safari{background:linear-gradient(180deg,#54a3ff,#006fff)}
+.ico-messages{background:linear-gradient(180deg,#6ce072,#34c759)}
+.ico-music{background:linear-gradient(180deg,#ff6b8a,#fc3c44)}
+.ico-facetime{background:linear-gradient(180deg,#6ce072,#34c759)}
+.ico-calendar{background:#fff}
+.ico-photos{background:#fff}
+.ico-camera{background:linear-gradient(180deg,#a8a8a8,#8e8e93)}
+.ico-mail{background:linear-gradient(180deg,#5eb5ff,#007aff)}
+.ico-clock{background:#000}
+.ico-weather{background:linear-gradient(180deg,#64d2ff,#30b0c7)}
+.ico-maps{background:linear-gradient(180deg,#6ce072,#34c759)}
+.ico-notes{background:linear-gradient(180deg,#ffe566,#ffcc02)}
+.ico-reminders{background:#fff}
+.ico-settings{background:linear-gradient(180deg,#a8a8a8,#8e8e93)}
+.ico-health{background:#fff}
+.ico-wallet{background:#1c1c1e}
+.ico-appstore{background:linear-gradient(180deg,#5ac8fa,#007aff)}
+.ico-news{background:linear-gradient(180deg,#ff6b8a,#ff2d55)}
+.ico-files{background:linear-gradient(180deg,#5ac8fa,#007aff)}
+.ico-contacts{background:linear-gradient(180deg,#b8b8bc,#8e8e93)}
+.ico-podcasts{background:linear-gradient(180deg,#c77dff,#9b59b6)}
+.ico-translate{background:#fff}
+.ico-shortcuts{background:linear-gradient(180deg,#5c7cfa,#3b5bdb)}
+.ico-books{background:linear-gradient(180deg,#ffa94d,#ff8c00)}
+.ico-calculator{background:linear-gradient(180deg,#4a4a4a,#2c2c2e)}
+.ico-compass{background:#1c1c1e}
+.ico-tips{background:linear-gradient(180deg,#ffd43b,#fab005)}
+.ico-findmy{background:linear-gradient(180deg,#6ce072,#34c759)}
+.ico-tiktok{background:#000}
+
+/* Icon inner symbols */
+.icon-sym{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:700;
+}
+
+/* Subtle glow pulse on App Store icon */
+[data-app="appstore"] .app-icon-box{
+  animation:app-store-glow 2.5s ease-in-out infinite;
+}
+@keyframes app-store-glow{
+  0%,100%{box-shadow:0 2px 8px rgba(0,0,0,0.25)}
+  50%{box-shadow:0 2px 8px rgba(0,0,0,0.25),0 0 16px rgba(0,122,255,0.5)}
+}
+
+/* ========== APP STORE SCREEN ========== */
+.appstore-screen{
+  background:#f2f2f7;
+  z-index:40;
+  display:flex;flex-direction:column;
+}
+.as-header{
+  padding:60px 20px 12px;
+  background:#f2f2f7;
+  position:relative;z-index:5;
+}
+.as-header h1{
+  font-size:34px;font-weight:800;
+  color:#000;letter-spacing:-0.5px;
+}
+.as-search{
+  margin:8px 20px 0;height:36px;
+  background:rgba(118,118,128,0.12);
+  border-radius:10px;
+  display:flex;align-items:center;
+  padding:0 10px;gap:6px;
+  color:rgba(60,60,67,0.5);font-size:16px;
+}
+.as-search svg{width:16px;height:16px;stroke:rgba(60,60,67,0.4);fill:none;stroke-width:2;stroke-linecap:round}
+.as-content{
+  flex:1;overflow-y:auto;
+  padding:16px 20px 100px;
+  -webkit-overflow-scrolling:touch;
+}
+.as-section-title{
+  font-size:20px;font-weight:700;color:#000;
+  margin:16px 0 10px;
+}
+.as-section-title:first-child{margin-top:0}
+
+/* Featured card */
+.featured-card{
+  background:linear-gradient(135deg,#ff6b9d 0%,#c44dff 50%,#6e5bff 100%);
+  border-radius:16px;padding:20px;
+  color:#fff;position:relative;overflow:hidden;
+  margin-bottom:8px;
+  cursor:pointer;
+}
+.featured-card::after{
+  content:'';position:absolute;top:-20px;right:-20px;
+  width:120px;height:120px;
+  background:radial-gradient(circle,rgba(255,255,255,0.2) 0%,transparent 70%);
+  border-radius:50%;
+}
+.fc-top{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;opacity:0.8;margin-bottom:4px}
+.fc-title{font-size:26px;font-weight:800;letter-spacing:-0.5px;margin-bottom:2px}
+.fc-sub{font-size:14px;opacity:0.85;margin-bottom:14px}
+.fc-bottom{display:flex;align-items:center;gap:12px}
+.fc-icon{
+  width:52px;height:52px;
+  border-radius:12px;
+  background:rgba(255,255,255,0.25);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;
+  flex-shrink:0;
+}
+.fc-info{flex:1}
+.fc-info h3{font-size:16px;font-weight:700}
+.fc-info p{font-size:12px;opacity:0.8}
+
+/* GET button */
+.get-btn{
+  min-width:72px;height:32px;
+  border-radius:16px;border:none;
+  background:rgba(255,255,255,0.3);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  color:#fff;font-size:15px;font-weight:700;
+  cursor:pointer;
+  position:relative;
+  transition:all 0.3s ease;
+  display:flex;align-items:center;justify-content:center;
+}
+.get-btn:active{transform:scale(0.92)}
+.get-btn.downloading{
+  width:32px;min-width:32px;height:32px;
+  border-radius:50%;
+  background:transparent;
+  overflow:hidden;
+  padding:0;
+}
+.get-btn.open{
+  background:rgba(255,255,255,0.95);
+  color:#6e5bff;
+}
+
+/* Progress ring */
+.progress-ring{position:absolute;top:0;left:0;width:100%;height:100%}
+.progress-ring circle{fill:none;stroke-width:3;transform-origin:center;transform:rotate(-90deg)}
+.progress-ring .ring-bg{stroke:rgba(255,255,255,0.2)}
+.progress-ring .ring-fg{stroke:#fff;stroke-dasharray:88;stroke-dashoffset:88;stroke-linecap:round;transition:stroke-dashoffset 0.1s linear}
+
+/* App list items */
+.app-list-item{
+  display:flex;align-items:center;gap:14px;
+  padding:12px 0;
+  border-bottom:0.5px solid rgba(60,60,67,0.12);
+}
+.ali-icon{
+  width:52px;height:52px;
+  border-radius:12px;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.1);
+}
+.ali-info{flex:1;min-width:0}
+.ali-info h4{font-size:16px;font-weight:600;color:#000}
+.ali-info p{font-size:13px;color:#8e8e93;margin-top:1px}
+.ali-get{
+  min-width:72px;height:30px;
+  border-radius:15px;border:none;
+  background:rgba(0,122,255,0.12);
+  color:#007aff;font-size:15px;font-weight:700;
+  cursor:pointer;
+  transition:transform 0.15s ease;
+}
+.ali-get:active{transform:scale(0.92)}
+
+/* App Store tab bar */
+.as-tabbar{
+  position:absolute;bottom:0;left:0;right:0;
+  height:83px;
+  background:rgba(249,249,249,0.94);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:0.5px solid rgba(60,60,67,0.12);
+  display:flex;justify-content:space-around;align-items:flex-start;
+  padding-top:8px;
+  z-index:10;
+}
+.tab-item{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-size:10px;color:#8e8e93;
+  cursor:pointer;
+}
+.tab-item.active{color:#007aff}
+.tab-item svg{width:24px;height:24px}
+
+/* Back button */
+.as-back{
+  position:absolute;top:58px;left:12px;z-index:10;
+  width:36px;height:36px;
+  border-radius:50%;
+  background:rgba(0,0,0,0.05);
+  border:none;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+}
+.as-back svg{width:18px;height:18px;stroke:#007aff;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* ========== EVA SCRATCHERS GAME ========== */
+.game-screen{
+  background:linear-gradient(170deg,#1a0533 0%,#3d1a78 30%,#6e3baf 60%,#c96dd8 85%,#ffd6e8 100%);
+  z-index:50;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.game-header{
+  padding:60px 20px 6px;
+  text-align:center;
+  position:relative;z-index:5;
+}
+.game-header h1{
+  font-size:28px;font-weight:800;letter-spacing:-0.5px;
+  color:#fff;
+  text-shadow:0 2px 20px rgba(150,50,200,0.5);
+}
+.game-header p{
+  font-size:14px;color:rgba(255,255,255,0.7);
+  margin-top:2px;
+}
+.game-content{
+  flex:1;overflow-y:auto;
+  padding:10px 20px 40px;
+  display:flex;flex-direction:column;gap:16px;
+  -webkit-overflow-scrolling:touch;
+  position:relative;z-index:2;
+}
+
+/* Ticket */
+.ticket{
+  background:linear-gradient(135deg,#fff8e1,#fff3cd);
+  border-radius:16px;
+  border:3px solid #d4a017;
+  position:relative;
+  overflow:hidden;
+  box-shadow:0 4px 20px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.8);
+  flex-shrink:0;
+}
+.ticket::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:100%;
+  background:repeating-linear-gradient(90deg,transparent,transparent 18px,rgba(212,160,23,0.1) 18px,rgba(212,160,23,0.1) 19px);
+  pointer-events:none;z-index:0;
+}
+.ticket-inner{
+  padding:14px 16px;
+  position:relative;z-index:1;
+}
+.ticket-top{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:8px;
+}
+.ticket-brand{
+  font-size:16px;font-weight:800;
+  color:#8b6914;letter-spacing:1px;text-transform:uppercase;
+}
+.ticket-num{
+  font-size:11px;color:#b8960c;font-weight:600;
+}
+.ticket-stars{
+  text-align:center;margin-bottom:8px;
+  font-size:14px;letter-spacing:4px;
+  color:#d4a017;
+}
+
+/* Scratch area wrapper */
+.scratch-area{
+  position:relative;
+  width:100%;height:100px;
+  border-radius:10px;
+  overflow:hidden;
+  border:2px dashed #d4a017;
+  background:linear-gradient(135deg,#fef3c7,#fde68a);
+}
+.scratch-prize{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;
+  z-index:1;
+}
+.prize-emoji{font-size:24px}
+.prize-title{font-size:15px;font-weight:700;color:#7c3aed}
+.prize-code{
+  font-size:14px;font-weight:700;color:#059669;
+  font-family:'SF Mono',SFMono-Regular,'Cascadia Code',Consolas,monospace;
+  background:rgba(5,150,105,0.1);
+  padding:3px 10px;border-radius:6px;
+  letter-spacing:1px;
+}
+.scratch-canvas{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  z-index:5;
+  cursor:crosshair;
+  touch-action:none;
+}
+.ticket-footer{
+  text-align:center;margin-top:8px;
+  font-size:10px;color:#b8960c;font-style:italic;
+}
+
+/* Scratched state */
+.ticket.revealed{border-color:#7c3aed}
+.ticket.revealed .ticket-brand{color:#7c3aed}
+.ticket.revealed .ticket-stars{color:#7c3aed}
+
+/* ========== CONFETTI ========== */
+.confetti-container{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:300;
+  overflow:hidden;
+}
+.confetti-piece{
+  position:absolute;
+  width:8px;height:12px;
+  border-radius:1px;
+  top:-20px;
+  animation:confetti-fall linear forwards;
+}
+@keyframes confetti-fall{
+  0%{transform:translateY(0) rotate(0deg) scale(1);opacity:1}
+  100%{transform:translateY(900px) rotate(720deg) scale(0.5);opacity:0}
+}
+
+/* ========== ALL-DONE OVERLAY ========== */
+.all-done{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  background:rgba(30,10,60,0.85);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:250;gap:8px;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.6s ease;
+}
+.all-done.show{opacity:1;pointer-events:auto}
+.all-done .big-heart{font-size:72px;animation:heartbeat 1.2s ease-in-out infinite}
+.all-done h2{font-size:28px;font-weight:800;color:#fff;text-align:center}
+.all-done p{font-size:16px;color:rgba(255,255,255,0.8);text-align:center;max-width:280px}
+@keyframes heartbeat{
+  0%,100%{transform:scale(1)}
+  15%{transform:scale(1.15)}
+  30%{transform:scale(1)}
+  45%{transform:scale(1.1)}
+}
+
+/* ========== MISC ANIMATIONS ========== */
+@keyframes fade-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+
+<div class="phone-wrap" id="phoneWrap">
+  <!-- Side buttons -->
+  <div class="btn-silent"></div>
+  <div class="btn-vol-up"></div>
+  <div class="btn-vol-down"></div>
+  <div class="btn-power"></div>
+
+  <div class="iphone">
+    <div class="screen" id="screen">
+      <!-- Dynamic Island -->
+      <div class="dynamic-island"></div>
+
+      <!-- Status Bar -->
+      <div class="status-bar dark" id="statusBar">
+        <span class="sb-time" id="sbTime">9:41</span>
+        <div class="sb-icons">
+          <!-- Signal -->
+          <svg width="18" height="12" viewBox="0 0 18 12">
+            <rect x="0" y="9" width="3" height="3" rx="0.5" fill="currentColor"/>
+            <rect x="4" y="6" width="3" height="6" rx="0.5" fill="currentColor"/>
+            <rect x="8" y="3" width="3" height="9" rx="0.5" fill="currentColor"/>
+            <rect x="12" y="0" width="3" height="12" rx="0.5" fill="currentColor"/>
+          </svg>
+          <!-- WiFi -->
+          <svg width="16" height="12" viewBox="0 0 16 12">
+            <path d="M8 10.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" fill="currentColor"/>
+            <path d="M4.5 8.5C5.5 7.2 6.7 6.5 8 6.5s2.5.7 3.5 2" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M2 5.5c2-2.5 4-3.5 6-3.5s4 1 6 3.5" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <!-- Battery -->
+          <svg width="27" height="12" viewBox="0 0 27 12">
+            <rect x="0" y="0.5" width="23" height="11" rx="2.5" stroke="currentColor" stroke-width="1" fill="none"/>
+            <path d="M25 4v4a2 2 0 000-4z" fill="currentColor" opacity="0.5"/>
+            <rect x="2" y="2.5" width="19" height="7" rx="1" fill="currentColor"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ===== LOCK SCREEN ===== -->
+      <div class="layer lock-screen" id="lockScreen">
+        <div class="lock-time" id="lockTime">9:41</div>
+        <div class="lock-date" id="lockDate">Saturday, March 7</div>
+        <div class="lock-bottom">
+          <div class="lock-actions">
+            <div class="lock-action-btn">
+              <svg viewBox="0 0 24 24"><path d="M9 2h6v2H9zM8 4h8v3l-1 1H9L8 7z" fill="white"/><rect x="9" y="9" width="6" height="12" rx="1" fill="white"/><circle cx="12" cy="5.5" r="1.5" fill="rgba(0,0,0,0.3)"/></svg>
+            </div>
+            <div class="lock-action-btn">
+              <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2" fill="none" stroke="white" stroke-width="1.8"/><circle cx="12" cy="13.5" r="3.5" fill="none" stroke="white" stroke-width="1.8"/><path d="M8 7l2-3h4l2 3" fill="none" stroke="white" stroke-width="1.8"/></svg>
+            </div>
+          </div>
+          <div class="swipe-hint">Swipe up to unlock</div>
+          <div class="swipe-pill"></div>
+        </div>
+      </div>
+
+      <!-- ===== HOME SCREEN ===== -->
+      <div class="layer home-screen" id="homeScreen">
+        <!-- Search -->
+        <div class="home-search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16 16l4 4"/></svg>
+          Search
+        </div>
+
+        <!-- App Grid -->
+        <div class="app-grid" id="appGrid">
+          <!-- Row 1 -->
+          <div class="app-slot" data-app="facetime">
+            <div class="app-icon-box ico-facetime"><div class="icon-sym"><svg width="30" height="30" viewBox="0 0 30 30" fill="none"><rect x="3" y="8" width="16" height="14" rx="3" fill="white"/><path d="M21 11l6-3v14l-6-3V11z" fill="white"/></svg></div></div>
+            <span class="app-label">FaceTime</span>
+          </div>
+          <div class="app-slot" data-app="calendar">
+            <div class="app-icon-box ico-calendar"><div class="icon-sym" style="flex-direction:column;gap:0"><span style="font-size:9px;font-weight:600;color:#ff3b30;letter-spacing:0.5px">SATURDAY</span><span style="font-size:24px;font-weight:300;color:#000;line-height:1">7</span></div></div>
+            <span class="app-label">Calendar</span>
+          </div>
+          <div class="app-slot" data-app="photos">
+            <div class="app-icon-box ico-photos"><div class="icon-sym"><svg width="32" height="32" viewBox="0 0 32 32"><circle cx="10" cy="12" r="4" fill="#ff9500"/><circle cx="22" cy="12" r="4" fill="#34c759"/><circle cx="16" cy="20" r="4" fill="#5ac8fa"/><circle cx="10" cy="20" r="4" fill="#ff2d55"/><circle cx="22" cy="20" r="4" fill="#af52de"/><circle cx="16" cy="12" r="4" fill="#ffcc02"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg></div></div>
+            <span class="app-label">Photos</span>
+          </div>
+          <div class="app-slot" data-app="camera">
+            <div class="app-icon-box ico-camera"><div class="icon-sym"><svg width="30" height="30" viewBox="0 0 30 30" fill="none"><rect x="3" y="9" width="24" height="16" rx="3" fill="none" stroke="white" stroke-width="2"/><circle cx="15" cy="17" r="4" fill="none" stroke="white" stroke-width="2"/><path d="M10 9l2-4h6l2 4" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg></div></div>
+            <span class="app-label">Camera</span>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="app-slot" data-app="weather">
+            <div class="app-icon-box ico-weather"><div class="icon-sym"><svg width="30" height="30" viewBox="0 0 30 30" fill="none"><circle cx="13" cy="12" r="5" fill="white" opacity="0.9"/><path d="M13 5v-2M13 21v2M5 12H3M23 12h-2M7 6l-1.5-1.5M20.5 19.5L19 18M7 18l-1.5 1.5M20.5 4.5L19 6" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/><path d="M18 17a5 5 0 00-10 0c0 .3 0 .6.1.9A3.5 3.5 0 009 24h12a3 3 0 00.4-6H18z" fill="white"/></svg></div></div>
+            <span class="app-label">Weather</span>
+          </div>
+          <div class="app-slot" data-app="clock">
+            <div class="app-icon-box ico-clock"><div class="icon-sym"><svg width="30" height="30" viewBox="0 0 30 30" fill="none"><circle cx="15" cy="15" r="12" stroke="white" stroke-width="2"/><path d="M15 7v8l5 3" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></div></div>
+            <span class="app-label">Clock</span>
+          </div>
+          <div class="app-slot" data-app="maps">
+            <div class="app-icon-box ico-maps"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M5 8l7-4 7 4 4-3v17l-4 3-7-4-7 4V8z" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M12 4v17M19 8v17" stroke="white" stroke-width="2"/></svg></div></div>
+            <span class="app-label">Maps</span>
+          </div>
+          <div class="app-slot" data-app="notes">
+            <div class="app-icon-box ico-notes"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M8 8h12M8 12h12M8 16h8" stroke="#8B6508" stroke-width="2" stroke-linecap="round"/></svg></div></div>
+            <span class="app-label">Notes</span>
+          </div>
+
+          <!-- Row 3 -->
+          <div class="app-slot" data-app="reminders">
+            <div class="app-icon-box ico-reminders"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="9" cy="10" r="4" stroke="#007AFF" stroke-width="2"/><path d="M7 10l2 2 4-4" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 9h6M16 14h6M16 19h6M6 19h6" stroke="#007AFF" stroke-width="1.5" stroke-linecap="round"/></svg></div></div>
+            <span class="app-label">Reminders</span>
+          </div>
+          <div class="app-slot" data-app="health">
+            <div class="app-icon-box ico-health"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28"><path d="M14 24s-9-5.5-9-12a5.5 5.5 0 0111 0 5.5 5.5 0 0111 0c0 6.5-9 12-9 12z" fill="#FF2D55" opacity="0.9"/></svg></div></div>
+            <span class="app-label">Health</span>
+          </div>
+          <div class="app-slot" data-app="wallet">
+            <div class="app-icon-box ico-wallet"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="3" y="7" width="22" height="4" rx="1" fill="#FF9500"/><rect x="3" y="12" width="22" height="4" rx="1" fill="#5AC8FA"/><rect x="3" y="17" width="22" height="4" rx="1" fill="#34C759"/></svg></div></div>
+            <span class="app-label">Wallet</span>
+          </div>
+          <div class="app-slot" data-app="settings">
+            <div class="app-icon-box ico-settings"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="4" stroke="white" stroke-width="2"/><path d="M14 3v3M14 22v3M3 14h3M22 14h3M6.1 6.1l2.1 2.1M19.8 19.8l2.1 2.1M6.1 21.9l2.1-2.1M19.8 8.2l2.1-2.1" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></div></div>
+            <span class="app-label">Settings</span>
+          </div>
+
+          <!-- Row 4 -->
+          <div class="app-slot" data-app="translate">
+            <div class="app-icon-box ico-translate"><div class="icon-sym" style="font-size:26px;color:#007AFF;font-weight:400">文A</div></div>
+            <span class="app-label">Translate</span>
+          </div>
+          <div class="app-slot" data-app="files">
+            <div class="app-icon-box ico-files"><div class="icon-sym"><svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M3 6a2 2 0 012-2h5l3 3h8a2 2 0 012 2v11a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" fill="white" opacity="0.9"/></svg></div></div>
+            <span class="app-label">Files</span>
+          </div>
+          <div class="app-slot" data-app="contacts">
+            <div class="app-icon-box ico-contacts"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="10" r="5" fill="white"/><path d="M5 24c0-5 4-9 9-9s9 4 9 9" fill="white"/></svg></div></div>
+            <span class="app-label">Contacts</span>
+          </div>
+          <div class="app-slot" data-app="appstore">
+            <div class="app-icon-box ico-appstore"><div class="icon-sym"><svg width="30" height="30" viewBox="0 0 30 30" fill="none"><line x1="6" y1="20" x2="24" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round"/><line x1="15" y1="5" x2="8" y2="23" stroke="white" stroke-width="2.5" stroke-linecap="round"/><line x1="15" y1="5" x2="22" y2="23" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>
+            <span class="app-label">App Store</span>
+          </div>
+
+          <!-- Row 5 -->
+          <div class="app-slot" data-app="podcasts">
+            <div class="app-icon-box ico-podcasts"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="12" r="3" fill="white"/><path d="M9 12a5 5 0 0110 0" stroke="white" stroke-width="2" stroke-linecap="round"/><path d="M6 12a8 8 0 0116 0" stroke="white" stroke-width="2" stroke-linecap="round"/><path d="M13 15h2v8h-2z" fill="white" rx="1"/></svg></div></div>
+            <span class="app-label">Podcasts</span>
+          </div>
+          <div class="app-slot" data-app="news">
+            <div class="app-icon-box ico-news"><div class="icon-sym" style="font-size:26px;font-weight:800;font-style:italic;color:#fff">N</div></div>
+            <span class="app-label">News</span>
+          </div>
+          <div class="app-slot" data-app="books">
+            <div class="app-icon-box ico-books"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 6c-2-2-5-3-8-3v16c3 0 6 1 8 3 2-2 5-3 8-3V3c-3 0-6 1-8 3z" stroke="white" stroke-width="2" fill="none"/><path d="M14 6v16" stroke="white" stroke-width="2"/></svg></div></div>
+            <span class="app-label">Books</span>
+          </div>
+          <div class="app-slot" data-app="findmy">
+            <div class="app-icon-box ico-findmy"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="10" stroke="white" stroke-width="2"/><circle cx="14" cy="14" r="4" stroke="white" stroke-width="2"/><circle cx="14" cy="14" r="1.5" fill="white"/></svg></div></div>
+            <span class="app-label">Find My</span>
+          </div>
+        </div>
+
+        <!-- Page dots -->
+        <div class="page-dots">
+          <div class="page-dot active"></div>
+          <div class="page-dot"></div>
+          <div class="page-dot"></div>
+        </div>
+
+        <!-- Dock -->
+        <div class="dock">
+          <div class="app-slot" data-app="phone">
+            <div class="app-icon-box ico-phone"><div class="icon-sym"><svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M5 3.5C5 2.7 5.7 2 6.5 2h3.3c.5 0 .9.3 1 .8l1.3 4.5c.1.5-.1 1-.5 1.2L9 10.2s1 4 4.8 4.8l1.7-2.6c.2-.4.7-.6 1.2-.5l4.5 1.3c.5.1.8.5.8 1v3.3c0 .8-.7 1.5-1.5 1.5C11.2 19 5 12.8 5 3.5z" fill="white"/></svg></div></div>
+            <span class="app-label">Phone</span>
+          </div>
+          <div class="app-slot" data-app="safari">
+            <div class="app-icon-box ico-safari"><div class="icon-sym"><svg width="30" height="30" viewBox="0 0 30 30" fill="none"><circle cx="15" cy="15" r="12" stroke="white" stroke-width="2"/><polygon points="15,5 18,18 15,15 12,18" fill="white" opacity="0.9"/><polygon points="15,25 12,12 15,15 18,12" fill="white" opacity="0.5"/></svg></div></div>
+            <span class="app-label">Safari</span>
+          </div>
+          <div class="app-slot" data-app="messages">
+            <div class="app-icon-box ico-messages"><div class="icon-sym"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M4 12c0-5 4.5-9 10-9s10 4 10 9-4.5 9-10 9c-1.3 0-2.6-.2-3.8-.5L5 23l2.2-4.2C5.3 17 4 14.7 4 12z" fill="white"/></svg></div></div>
+            <span class="app-label">Messages</span>
+          </div>
+          <div class="app-slot" data-app="music">
+            <div class="app-icon-box ico-music"><div class="icon-sym"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 18V6l11-2v14" stroke="white" stroke-width="2"/><circle cx="6" cy="18" r="3" fill="white"/><circle cx="17" cy="16" r="3" fill="white"/></svg></div></div>
+            <span class="app-label">Music</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== APP STORE SCREEN ===== -->
+      <div class="layer appstore-screen slide-right" id="appstoreScreen">
+        <button class="as-back" id="asBack">
+          <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="as-header">
+          <h1 style="text-align:right">App Store</h1>
+        </div>
+        <div class="as-search">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16 16l4 4"/></svg>
+          Games, Apps, Stories and More
+        </div>
+        <div class="as-content">
+          <div class="as-section-title">Suggested for You</div>
+
+          <!-- Eva's Game (Featured) -->
+          <div class="featured-card" id="evaCard">
+            <div class="fc-top">New Game</div>
+            <div class="fc-title">Eva's Game</div>
+            <div class="fc-sub">A special surprise made just for Eva</div>
+            <div class="fc-bottom">
+              <div class="fc-icon">🎰</div>
+              <div class="fc-info">
+                <h3>Eva's Game</h3>
+                <p>Entertainment • Made with love</p>
+              </div>
+              <button class="get-btn" id="getBtn">GET</button>
+            </div>
+          </div>
+
+          <div class="as-section-title">Games You Might Like</div>
+
+          <!-- Cooking Game 1 -->
+          <div class="app-list-item">
+            <div class="ali-icon" style="background:linear-gradient(135deg,#ff9a56,#ff6b35)">🍳</div>
+            <div class="ali-info"><h4>Cooking Mama Deluxe</h4><p>Cook amazing recipes!</p></div>
+            <button class="ali-get">GET</button>
+          </div>
+
+          <!-- Cooking Game 2 -->
+          <div class="app-list-item">
+            <div class="ali-icon" style="background:linear-gradient(135deg,#ff6b8a,#ee5a70)">🧁</div>
+            <div class="ali-info"><h4>Baking Frenzy</h4><p>Bake & decorate sweet treats</p></div>
+            <button class="ali-get">GET</button>
+          </div>
+
+          <!-- Cooking Game 3 -->
+          <div class="app-list-item">
+            <div class="ali-icon" style="background:linear-gradient(135deg,#56c596,#3aaf85)">🍕</div>
+            <div class="ali-info"><h4>Kitchen Stories</h4><p>Step-by-step cooking fun</p></div>
+            <button class="ali-get">GET</button>
+          </div>
+
+          <!-- TikTok -->
+          <div class="app-list-item">
+            <div class="ali-icon ico-tiktok" style="border:0.5px solid rgba(0,0,0,0.1)"><svg width="26" height="26" viewBox="0 0 26 26"><path d="M18.5 4c0 2.5 1.7 4.5 4 5v3.5c-1.5 0-3-.5-4-1.3V17a6.5 6.5 0 11-5.6-6.4v3.6a3 3 0 102.1 2.8V4h3.5z" fill="white"/></svg></div>
+            <div class="ali-info"><h4>TikTok</h4><p>Videos, Lives & FYP</p></div>
+            <button class="ali-get">GET</button>
+          </div>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="as-tabbar">
+          <div class="tab-item active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" fill="currentColor"/></svg>
+            <span>Today</span>
+          </div>
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M12 8v8"/></svg>
+            <span>Games</span>
+          </div>
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4l8 4 8-4v16l-8-4-8 4z"/></svg>
+            <span>Apps</span>
+          </div>
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12a4 4 0 018 0"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+            <span>Arcade</span>
+          </div>
+          <div class="tab-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M16 16l4 4"/></svg>
+            <span>Search</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== EVA SCRATCHERS GAME ===== -->
+      <div class="layer game-screen slide-right" id="gameScreen">
+        <div class="game-header">
+          <h1>🎰 Eva Scratchers 🎰</h1>
+          <p>Scratch to reveal your prizes!</p>
+        </div>
+        <div class="game-content" id="gameContent">
+          <!-- Ticket 1 -->
+          <div class="ticket" id="ticket0">
+            <div class="ticket-inner">
+              <div class="ticket-top">
+                <span class="ticket-brand">Eva Scratchers</span>
+                <span class="ticket-num">#001</span>
+              </div>
+              <div class="ticket-stars">★ ✦ ★ ✦ ★ ✦ ★</div>
+              <div class="scratch-area">
+                <div class="scratch-prize">
+                  <span class="prize-emoji">💆‍♀️</span>
+                  <span class="prize-title">Spa & Pamper Package!</span>
+                  <span class="prize-code">AMZN-SPA-2026</span>
+                </div>
+                <canvas class="scratch-canvas" id="canvas0"></canvas>
+              </div>
+              <div class="ticket-footer">Scratch the silver area to reveal your prize</div>
+            </div>
+          </div>
+
+          <!-- Ticket 2 -->
+          <div class="ticket" id="ticket1">
+            <div class="ticket-inner">
+              <div class="ticket-top">
+                <span class="ticket-brand">Eva Scratchers</span>
+                <span class="ticket-num">#002</span>
+              </div>
+              <div class="ticket-stars">✦ ★ ✦ ★ ✦ ★ ✦</div>
+              <div class="scratch-area">
+                <div class="scratch-prize">
+                  <span class="prize-emoji">🛍️</span>
+                  <span class="prize-title">Shopping Spree!</span>
+                  <span class="prize-code">AMZN-SHOP-2026</span>
+                </div>
+                <canvas class="scratch-canvas" id="canvas1"></canvas>
+              </div>
+              <div class="ticket-footer">Scratch the silver area to reveal your prize</div>
+            </div>
+          </div>
+
+          <!-- Ticket 3 -->
+          <div class="ticket" id="ticket2">
+            <div class="ticket-inner">
+              <div class="ticket-top">
+                <span class="ticket-brand">Eva Scratchers</span>
+                <span class="ticket-num">#003</span>
+              </div>
+              <div class="ticket-stars">★ ★ ✦ ★ ★ ✦ ★</div>
+              <div class="scratch-area">
+                <div class="scratch-prize">
+                  <span class="prize-emoji">💕</span>
+                  <span class="prize-title">Date Night Special!</span>
+                  <span class="prize-code">AMZN-DATE-2026</span>
+                </div>
+                <canvas class="scratch-canvas" id="canvas2"></canvas>
+              </div>
+              <div class="ticket-footer">Scratch the silver area to reveal your prize</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- All done overlay -->
+        <div class="all-done" id="allDone">
+          <div class="big-heart">❤️</div>
+          <h2>You're a Winner, Eva!</h2>
+          <p>Every ticket is a winner because you deserve it all. I love you!</p>
+        </div>
+
+        <!-- Confetti container -->
+        <div class="confetti-container" id="confettiBox"></div>
+      </div>
+
+      <!-- Home indicator -->
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ========== SCALING ========== */
+  function scalePhone(){
+    const wrap=document.getElementById('phoneWrap');
+    const vh=window.innerHeight, vw=window.innerWidth;
+    const ph=852, pw=393;
+    const s=Math.min((vh-40)/ph,(vw-40)/pw,1);
+    wrap.style.setProperty('--scale',s);
+  }
+  window.addEventListener('resize',scalePhone);
+  scalePhone();
+
+  /* ========== LIVE CLOCK ========== */
+  function updateClock(){
+    const d=new Date();
+    let h=d.getHours(), m=d.getMinutes();
+    const time=(h%12||12)+':'+String(m).padStart(2,'0');
+    document.getElementById('sbTime').textContent=time;
+    document.getElementById('lockTime').textContent=time;
+    const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('lockDate').textContent=days[d.getDay()]+', '+months[d.getMonth()]+' '+d.getDate();
+  }
+  updateClock();
+  setInterval(updateClock,10000);
+
+  /* ========== SCREEN MANAGEMENT ========== */
+  const lockScreen=document.getElementById('lockScreen');
+  const homeScreen=document.getElementById('homeScreen');
+  const appstoreScreen=document.getElementById('appstoreScreen');
+  const gameScreen=document.getElementById('gameScreen');
+  const statusBar=document.getElementById('statusBar');
+
+  function showLayer(layer){
+    layer.classList.remove('above','below','slide-left','slide-right');
+  }
+  function hideLayer(layer,to){
+    layer.classList.add(to);
+  }
+
+  /* ========== LOCK SCREEN SWIPE ========== */
+  let lockStartY=0, lockSwiping=false;
+  lockScreen.addEventListener('touchstart',e=>{lockStartY=e.touches[0].clientY;lockSwiping=true},{passive:true});
+  lockScreen.addEventListener('mousedown',e=>{lockStartY=e.clientY;lockSwiping=true});
+  lockScreen.addEventListener('touchmove',e=>{
+    if(!lockSwiping)return;
+    const dy=lockStartY-e.touches[0].clientY;
+    if(dy>60)unlock();
+  },{passive:true});
+  lockScreen.addEventListener('mousemove',e=>{
+    if(!lockSwiping)return;
+    const dy=lockStartY-e.clientY;
+    if(dy>60)unlock();
+  });
+  lockScreen.addEventListener('touchend',()=>{lockSwiping=false});
+  lockScreen.addEventListener('mouseup',()=>{lockSwiping=false});
+  lockScreen.addEventListener('click',e=>{
+    if(e.target.closest('.lock-action-btn'))return;
+    unlock();
+  });
+
+  let unlocked=false;
+  function unlock(){
+    if(unlocked)return;
+    unlocked=true;
+    lockScreen.style.transition='transform 0.6s cubic-bezier(0.32,0.72,0,1), opacity 0.5s ease';
+    lockScreen.style.transform='translateY(-100%) scale(0.95)';
+    lockScreen.style.opacity='0';
+    lockScreen.style.pointerEvents='none';
+  }
+
+  /* ========== HOME SCREEN APP TAPS ========== */
+  document.getElementById('appGrid').addEventListener('click',e=>{
+    const slot=e.target.closest('.app-slot');
+    if(!slot)return;
+    const app=slot.dataset.app;
+    if(app==='appstore')openAppStore();
+  });
+  document.querySelector('.dock').addEventListener('click',e=>{
+    const slot=e.target.closest('.app-slot');
+    if(!slot)return;
+    const app=slot.dataset.app;
+    if(app==='appstore')openAppStore();
+  });
+
+  function openAppStore(){
+    hideLayer(homeScreen,'slide-left');
+    showLayer(appstoreScreen);
+    statusBar.classList.remove('dark');
+    statusBar.classList.add('light');
+  }
+
+  /* ========== APP STORE BACK ========== */
+  document.getElementById('asBack').addEventListener('click',()=>{
+    hideLayer(appstoreScreen,'slide-right');
+    showLayer(homeScreen);
+    statusBar.classList.remove('light');
+    statusBar.classList.add('dark');
+  });
+
+  /* ========== DOWNLOAD ANIMATION ========== */
+  const getBtn=document.getElementById('getBtn');
+  let downloading=false, downloaded=false;
+
+  getBtn.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(downloaded){
+      openGame();
+      return;
+    }
+    if(downloading)return;
+    downloading=true;
+    startDownload();
+  });
+
+  function startDownload(){
+    getBtn.textContent='';
+    getBtn.classList.add('downloading');
+
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('class','progress-ring');
+    svg.setAttribute('viewBox','0 0 32 32');
+    const bg=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    bg.setAttribute('class','ring-bg');
+    bg.setAttribute('cx','16');bg.setAttribute('cy','16');bg.setAttribute('r','14');
+    const fg=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    fg.setAttribute('class','ring-fg');
+    fg.setAttribute('cx','16');fg.setAttribute('cy','16');fg.setAttribute('r','14');
+    svg.appendChild(bg);svg.appendChild(fg);
+    getBtn.appendChild(svg);
+
+    const circ=2*Math.PI*14;
+    fg.style.strokeDasharray=circ;
+    fg.style.strokeDashoffset=circ;
+
+    let progress=0;
+    const iv=setInterval(()=>{
+      progress+=0.02;
+      if(progress>=1){
+        progress=1;clearInterval(iv);
+        finishDownload();
+      }
+      fg.style.strokeDashoffset=circ*(1-progress);
+    },50);
+  }
+
+  function finishDownload(){
+    downloaded=true;downloading=false;
+    getBtn.classList.remove('downloading');
+    getBtn.classList.add('open');
+    getBtn.innerHTML='OPEN';
+  }
+
+  /* ========== OPEN GAME ========== */
+  function openGame(){
+    hideLayer(appstoreScreen,'slide-left');
+    showLayer(gameScreen);
+    statusBar.classList.remove('light');
+    statusBar.classList.add('dark');
+    setTimeout(initScratchCards,600);
+  }
+
+  /* ========== SCRATCH CARDS ========== */
+  let cardsInit=false;
+  const revealed=[false,false,false];
+
+  function initScratchCards(){
+    if(cardsInit)return;
+    cardsInit=true;
+    for(let i=0;i<3;i++) setupCanvas(i);
+  }
+
+  function setupCanvas(idx){
+    const canvas=document.getElementById('canvas'+idx);
+    const area=canvas.parentElement;
+    const w=area.offsetWidth;
+    const h=area.offsetHeight;
+    const dpr=window.devicePixelRatio||1;
+    canvas.width=w*dpr;
+    canvas.height=h*dpr;
+    canvas.style.width=w+'px';
+    canvas.style.height=h+'px';
+
+    const ctx=canvas.getContext('2d');
+    ctx.scale(dpr,dpr);
+
+    const grad=ctx.createLinearGradient(0,0,w,h);
+    grad.addColorStop(0,'#c0c0c0');
+    grad.addColorStop(0.3,'#d8d8d8');
+    grad.addColorStop(0.5,'#b0b0b0');
+    grad.addColorStop(0.7,'#d0d0d0');
+    grad.addColorStop(1,'#a8a8a8');
+    ctx.fillStyle=grad;
+    ctx.fillRect(0,0,w,h);
+
+    ctx.fillStyle='rgba(160,160,160,0.4)';
+    ctx.font='bold 12px -apple-system,sans-serif';
+    ctx.textAlign='center';
+    for(let y=15;y<h;y+=22){
+      for(let x=20;x<w;x+=90){
+        ctx.fillText('SCRATCH ME',x,y);
+      }
+    }
+
+    let drawing=false;
+    function getPos(e){
+      const r=canvas.getBoundingClientRect();
+      const t=e.touches?e.touches[0]:e;
+      return{x:t.clientX-r.left,y:t.clientY-r.top};
+    }
+    function scratch(x,y){
+      ctx.globalCompositeOperation='destination-out';
+      ctx.beginPath();
+      ctx.arc(x,y,18,0,Math.PI*2);
+      ctx.fill();
+    }
+    function check(){
+      const id=ctx.getImageData(0,0,canvas.width,canvas.height);
+      let t=0;
+      for(let i=3;i<id.data.length;i+=4){if(id.data[i]===0)t++;}
+      const pct=t/(canvas.width*canvas.height);
+      if(pct>0.45)revealCard(idx,canvas,ctx,w,h);
+    }
+
+    let scratchCount=0;
+    function scratchAndCheck(e){
+      const p=getPos(e);
+      scratch(p.x,p.y);
+      scratchCount++;
+      if(scratchCount%8===0) check();
+    }
+
+    canvas.addEventListener('mousedown',e=>{drawing=true;scratchAndCheck(e)});
+    canvas.addEventListener('mousemove',e=>{if(!drawing)return;scratchAndCheck(e)});
+    canvas.addEventListener('mouseup',()=>{drawing=false;check()});
+    canvas.addEventListener('mouseleave',()=>{if(drawing){drawing=false;check()}});
+
+    canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;scratchAndCheck(e)},{passive:false});
+    canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;scratchAndCheck(e)},{passive:false});
+    canvas.addEventListener('touchend',e=>{e.preventDefault();drawing=false;check()},{passive:false});
+  }
+
+  function revealCard(idx,canvas,ctx,w,h){
+    if(revealed[idx])return;
+    revealed[idx]=true;
+
+    ctx.globalCompositeOperation='destination-out';
+    ctx.fillRect(0,0,w*4,h*4);
+
+    canvas.style.pointerEvents='none';
+    canvas.style.opacity='0';
+    canvas.style.transition='opacity 0.4s ease';
+
+    const ticket=document.getElementById('ticket'+idx);
+    ticket.classList.add('revealed');
+
+    spawnConfetti();
+
+    if(revealed[0]&&revealed[1]&&revealed[2]){
+      setTimeout(()=>{
+        document.getElementById('allDone').classList.add('show');
+        spawnConfetti();
+        setTimeout(spawnConfetti,800);
+      },1200);
+    }
+  }
+
+  /* ========== CONFETTI ========== */
+  function spawnConfetti(){
+    const box=document.getElementById('confettiBox');
+    const colors=['#ff6b8a','#ffcc02','#5ac8fa','#34c759','#af52de','#ff9500','#ff2d55','#007aff','#ffd700','#ff69b4'];
+    for(let i=0;i<60;i++){
+      const p=document.createElement('div');
+      p.className='confetti-piece';
+      p.style.left=Math.random()*100+'%';
+      p.style.background=colors[Math.floor(Math.random()*colors.length)];
+      p.style.width=(4+Math.random()*8)+'px';
+      p.style.height=(6+Math.random()*12)+'px';
+      p.style.borderRadius=Math.random()>0.5?'50%':'2px';
+      p.style.animationDuration=(1.5+Math.random()*2)+'s';
+      p.style.animationDelay=(Math.random()*0.5)+'s';
+      box.appendChild(p);
+      setTimeout(()=>p.remove(),4000);
+    }
+  }
+
+})();
+</script>
+</body>
+</html>

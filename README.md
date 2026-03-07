@@ -1,58 +1,48 @@
-# Subnautica-Inspired Underwater Slice
+# Eva's Phone - Virtual iPhone Surprise
 
-This repository is now a **Unity 6.3 LTS** prototype focused on building the look and feel of a
-Subnautica-style underwater scene. The goal is a strong visual vertical slice rather than a full
-survival sandbox.
+A pixel-perfect virtual iPhone mockup built as a single-page web app. Designed as a
+personal gift experience with an interactive surprise inside.
 
-## What is included
+## The Experience
 
-- First-person underwater swimming with buoyant acceleration
-- Procedurally generated seafloor, reef dressing, and coral silhouettes
-- Graphics-focused underwater atmosphere:
-  - depth fog
-  - animated caustic light patterns
-  - water surface shimmer
-  - drifting particulates and bubbles
-  - fullscreen underwater post effect
-- Scanner tool presentation in the lower-right of the view
-- Ambient fish schools plus a larger distant creature silhouette
-- A light scan loop with several scannable targets
+1. **Lock Screen** — A gorgeous gradient wallpaper with live clock. Tap or swipe up to unlock.
+2. **Home Screen** — Realistic iOS home screen with app icons and frosted-glass dock.
+3. **App Store** — Tap the App Store icon to browse. Find "Eva's Game" featured at the top.
+4. **Download** — Tap GET to watch the download animation. Then tap OPEN.
+5. **Eva Scratchers** — Three scratch-off lottery tickets with hidden prizes. Scratch each
+   one to reveal Amazon codes underneath. When all three are scratched, a special message
+   appears.
 
-## Unity version
+## How to Open
 
-- **Unity 6.3 LTS**
-- Project version file targets **6000.3.3f1**
+Open `index.html` in any modern browser — no build step or dependencies required.
 
-If your local Unity patch is slightly newer within the 6000.3 line, importing the project should
-still be fine.
+You can also serve it locally:
 
-## How to open
+```bash
+python3 -m http.server 8080
+```
 
-1. Open Unity Hub.
-2. Add this repository as a project.
-3. Open it with Unity **6000.3.x**.
-4. Open the scene at `Assets/Scenes/SubnauticaSlice.unity`.
-5. Press **Play**.
+Then open `http://localhost:8080` in your browser.
 
-The scene itself is intentionally minimal; most of the environment is built at runtime by the
-bootstrap scripts.
+## Customization
 
-## Controls
+Edit the prize codes and descriptions directly in `index.html`. Search for `prize-code` and
+`prize-title` to find the three tickets:
 
-- `WASD` - swim
-- `Mouse` - look
-- `Space` - ascend
-- `Left Ctrl` or `C` - descend
-- `Left Shift` - burst swim
-- `E` - scan highlighted targets
+- Ticket 1: Spa & Pamper Package (`AMZN-SPA-2026`)
+- Ticket 2: Shopping Spree (`AMZN-SHOP-2026`)
+- Ticket 3: Date Night Special (`AMZN-DATE-2026`)
 
-## Scan objective
+Replace the placeholder codes with real Amazon gift card codes before sending.
 
-Swim through the reef and scan nearby flora/fauna targets. The objective text and scanner HUD update
-as progress increases.
+## Tech
 
-## Notes
+Pure HTML + CSS + JavaScript in a single file. No frameworks, no dependencies. Features
+include:
 
-- This prototype is **graphics-first**. The emphasis is on underwater mood, color, composition, and
-  motion in the scene.
-- The world is assembled procedurally in code to keep the repository lightweight and easy to extend.
+- Responsive scaling to fit any screen size
+- Touch and mouse support for all interactions
+- HTML5 Canvas-based scratch-off mechanic
+- CSS transitions mimicking iOS animations
+- Live clock synced to the viewer's device
