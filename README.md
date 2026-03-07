@@ -37,6 +37,18 @@ still be fine.
 The scene itself is intentionally minimal; most of the environment is built at runtime by the
 bootstrap scripts.
 
+## Gift phone mockup scene
+
+There is also a separate interactive gift mockup scene at `Assets/Scenes/EvaPhoneMockup.unity`.
+
+Open that scene and press **Play** to launch the iPhone-style experience:
+
+- slide to unlock
+- swipe between home screen pages
+- open the App Store
+- download **Eva's Game**
+- play the **Eva Scratchers** mini-game
+
 ## Controls
 
 - `WASD` - swim
