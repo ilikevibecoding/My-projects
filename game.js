@@ -48,6 +48,7 @@
         break: "assets/audio/break.wav",
         jump: "assets/audio/jump.wav",
         gameOver: "assets/audio/gameover.wav",
+        poof: "assets/audio/pop.mp3",
         spring: "assets/audio/spring.mp3",
         propeller: "assets/audio/propeller.mp3",
         jetpack: "assets/audio/jetpack.mp3",
@@ -492,6 +493,19 @@
 
             this.player.y += this.player.vy * dt;
 
+            if (this.player.boostTimer > 0) {
+                this.effects.push({
+                    kind: "trail",
+                    x: this.player.x + randomRange(-16, 16),
+                    y: this.player.y + randomRange(-8, 18),
+                    vy: -45,
+                    life: 0.16,
+                    size: randomRange(18, 34),
+                    alpha: 0.38,
+                    color: this.player.boostType === "jetpack" ? "rgba(255, 169, 84, 0.65)" : "rgba(255,255,255,0.5)",
+                });
+            }
+
             if (this.input.shoot && this.player.shootCooldown <= 0) {
                 this.fireBullet();
             }
@@ -558,6 +572,7 @@
             this.effects = this.effects.filter((effect) => {
                 effect.life -= dt;
                 effect.y += effect.vy * dt;
+                effect.alpha = Math.max(0, (effect.alpha ?? 1) - dt * 1.8);
                 return effect.life > 0;
             });
         }
@@ -612,6 +627,8 @@
                     if (platform.type === "white") {
                         platform.active = false;
                         platform.vanishTimer = 0.08;
+                        this.audio.play("poof", 0.36);
+                        this.effects.push({ x: platform.x, y: platform.y + 14, vy: 18, life: 0.28, text: "POOF!" });
                     }
 
                     this.player.y = platform.y;
@@ -679,6 +696,23 @@
 
             this.bullets = this.bullets.filter((bullet) => !bullet.dead);
             this.monsters = this.monsters.filter((monster) => !monster.dead);
+
+            if (this.player.boostTimer > 0) {
+                for (const monster of this.monsters) {
+                    const overlapX = Math.min(this.player.x + this.player.width / 2, monster.x + monster.width / 2) -
+                        Math.max(this.player.x - this.player.width / 2, monster.x - monster.width / 2);
+                    const overlapY = Math.min(this.player.y + this.player.height, monster.y + monster.height) -
+                        Math.max(this.player.y, monster.y);
+
+                    if (overlapX > 10 && overlapY > 6) {
+                        monster.dead = true;
+                        this.effects.push({ x: monster.x, y: monster.y + 20, vy: 24, life: 0.32, text: "WHOOSH!" });
+                    }
+                }
+
+                this.monsters = this.monsters.filter((monster) => !monster.dead);
+                return;
+            }
 
             for (const monster of this.monsters) {
                 const overlapX = Math.min(this.player.x + this.player.width / 2, monster.x + monster.width / 2) -
@@ -795,23 +829,41 @@
 
             if (!isEarly && (type === "brown" || type === "white")) {
                 const supportWidth = randomRange(76, 92);
-                const supportX = clamp(
-                    x + randomRange(-56, 56),
+                const supportMinDx = type === "brown" ? 34 : 24;
+                const supportOffsetBase = type === "brown" ? randomRange(42, 76) : randomRange(28, 56);
+                const supportDirection = chance(0.5) ? -1 : 1;
+                let supportX = clamp(
+                    x + supportOffsetBase * supportDirection,
                     supportWidth / 2 + 14,
                     WIDTH - supportWidth / 2 - 14,
                 );
+                if (Math.abs(supportX - x) < supportMinDx) {
+                    const alternateSupportX = clamp(
+                        x - supportOffsetBase * supportDirection,
+                        supportWidth / 2 + 14,
+                        WIDTH - supportWidth / 2 - 14,
+                    );
+                    if (Math.abs(alternateSupportX - x) > Math.abs(supportX - x)) {
+                        supportX = alternateSupportX;
+                    }
+                }
+                const supportY = y - (type === "brown" ? randomRange(30, 48) : randomRange(22, 36));
 
-                this.platforms.push({
-                    x: supportX,
-                    y: y - randomRange(8, 20),
-                    width: supportWidth,
-                    type: "green",
-                    active: true,
-                    vx: 0,
-                    brokenTimer: 0,
-                    vanishTimer: 0,
-                    pickup: chance(0.08) ? { type: "spring", x: supportX, used: false } : null,
-                });
+                if (Math.abs(supportX - x) >= supportMinDx) {
+                    this.platforms.push({
+                        x: supportX,
+                        y: supportY,
+                        width: supportWidth,
+                        type: "green",
+                        active: true,
+                        vx: 0,
+                        brokenTimer: 0,
+                        vanishTimer: 0,
+                        pickup: chance(0.08) ? { type: "spring", x: supportX, used: false } : null,
+                    });
+                } else {
+                    platform.type = "green";
+                }
             }
 
             this.highestPlatformY = y;
@@ -1018,6 +1070,11 @@
         drawMonsters() {
             for (const monster of this.monsters) {
                 const screenY = this.worldToScreen(monster.y);
+                const fadedByBoost = this.player.boostTimer > 0 && monster.y > this.player.y && monster.y < this.player.y + 260;
+                if (fadedByBoost) {
+                    this.ctx.save();
+                    this.ctx.globalAlpha = 0.32;
+                }
                 this.drawImageOrFallback(
                     this.assets.monster,
                     (img) => this.ctx.drawImage(img, monster.x - monster.width / 2, screenY - monster.height, monster.width, monster.height),
@@ -1031,6 +1088,9 @@
                         this.ctx.stroke();
                     },
                 );
+                if (fadedByBoost) {
+                    this.ctx.restore();
+                }
             }
         }
 
@@ -1128,7 +1188,18 @@
 
             for (const effect of this.effects) {
                 const screenY = this.worldToScreen(effect.y);
-                this.ctx.globalAlpha = clamp(effect.life / 0.5, 0, 1);
+                this.ctx.globalAlpha = effect.alpha ?? clamp(effect.life / 0.5, 0, 1);
+                if (effect.kind === "trail") {
+                    this.ctx.save();
+                    this.ctx.strokeStyle = effect.color ?? "rgba(255,255,255,0.5)";
+                    this.ctx.lineWidth = 4;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(effect.x, screenY - effect.size * 0.2);
+                    this.ctx.lineTo(effect.x, screenY + effect.size);
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                    continue;
+                }
                 this.ctx.strokeText(effect.text, effect.x, screenY);
                 this.ctx.fillText(effect.text, effect.x, screenY);
             }

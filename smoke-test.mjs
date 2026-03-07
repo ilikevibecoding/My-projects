@@ -263,6 +263,60 @@ async function main() {
         };
     })()`);
 
+    const boostProtectionTest = await client.evaluate(`(() => {
+        const game = window.doodleJumpParody;
+        game.resetWorld();
+        game.state = "playing";
+        game.monsters = [{
+            x: 216,
+            y: 250,
+            width: 62,
+            height: 42,
+            vx: 0,
+            dead: false
+        }];
+        game.player.x = 216;
+        game.player.y = 230;
+        game.player.prevY = 228;
+        game.player.vy = 980;
+        game.player.boostType = "jetpack";
+        game.player.boostTimer = 1.1;
+        game.handleMonsterCollisions();
+        return {
+            state: game.state,
+            monsterCount: game.monsters.length,
+            playerBoostTimer: game.player.boostTimer
+        };
+    })()`);
+
+    const supportSpacingTest = await client.evaluate(`(() => {
+        const game = window.doodleJumpParody;
+        game.resetWorld();
+        game.platforms = [];
+        game.monsters = [];
+        game.highestPlatformY = 1400;
+        game.spawnAnchorX = 216;
+        const samples = [];
+        for (let i = 0; i < 120; i += 1) {
+            game.platforms = [];
+            game.monsters = [];
+            game.spawnNextPlatform(false);
+            const hazard = game.platforms.find((platform) => platform.type === "brown" || platform.type === "white");
+            if (!hazard) continue;
+            const support = game.platforms.find((platform) => platform !== hazard && platform.type === "green");
+            if (support) {
+                samples.push({
+                    type: hazard.type,
+                    dx: Math.abs(hazard.x - support.x),
+                    dy: Math.abs(hazard.y - support.y)
+                });
+            }
+        }
+        const minDx = samples.length ? Math.min(...samples.map((sample) => sample.dx)) : null;
+        const minDy = samples.length ? Math.min(...samples.map((sample) => sample.dy)) : null;
+        return { count: samples.length, minDx, minDy };
+    })()`);
+
     await client.evaluate(`(() => {
         const game = window.doodleJumpParody;
         game.resetWorld();
@@ -420,6 +474,8 @@ async function main() {
         brownPlatformTest,
         monsterStompTest,
         whitePlatformTest,
+        boostProtectionTest,
+        supportSpacingTest,
         midRun,
         runtime,
         gameOverSummary,
