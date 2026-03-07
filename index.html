@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="refresh" content="0; url=./browser-phone/" />
+    <title>Redirecting to Eva's Game</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+          sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 20% 15%, rgba(255, 141, 184, 0.28), transparent 24%),
+          radial-gradient(circle at 82% 22%, rgba(135, 137, 255, 0.22), transparent 26%),
+          linear-gradient(180deg, #0c0915, #221140 40%, #4b205f 72%, #281437 100%);
+        color: #fff;
+      }
+
+      .card {
+        width: min(92vw, 28rem);
+        padding: 1.5rem;
+        border-radius: 1.5rem;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(18px);
+      }
+
+      a {
+        color: #fff;
+        font-weight: 700;
+      }
+    </style>
+    <script>
+      window.location.replace("./browser-phone/");
+    </script>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Opening Eva's game...</h1>
+      <p>
+        If the redirect does not happen automatically,
+        <a href="./browser-phone/">open the browser version here</a>.
+      </p>
+    </div>
+  </body>
+</html>
