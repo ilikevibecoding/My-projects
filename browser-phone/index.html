@@ -16,11 +16,16 @@
 
     <main class="stage">
       <section class="phone-shell" aria-label="Interactive phone gift">
-        <div class="phone-side-buttons" aria-hidden="true">
-          <span class="phone-button left top"></span>
-          <span class="phone-button left middle"></span>
-          <span class="phone-button left bottom"></span>
-          <span class="phone-button right"></span>
+        <div class="phone-side-buttons">
+          <span class="phone-button left top" aria-hidden="true"></span>
+          <span class="phone-button left middle" aria-hidden="true"></span>
+          <span class="phone-button left bottom" aria-hidden="true"></span>
+          <button
+            class="phone-button phone-power-button right"
+            type="button"
+            data-side-button
+            aria-label="Press side button"
+          ></button>
         </div>
 
         <div class="phone-shadow"></div>
@@ -179,6 +184,7 @@
               </div>
             </section>
 
+            <div class="sleep-overlay" data-sleep-overlay></div>
             <div class="home-indicator" aria-hidden="true"></div>
           </div>
         </div>

@@ -5,6 +5,10 @@
   --bg-2: #5d2976;
   --bg-3: #ff865f;
   --white: #ffffff;
+  --shell-0: #fdfdfd;
+  --shell-1: #eceef2;
+  --shell-2: #dfe2e8;
+  --shell-stroke: rgba(180, 186, 199, 0.88);
   --screen-padding: 1.15rem;
   --glass: rgba(255, 255, 255, 0.14);
   --glass-strong: rgba(255, 255, 255, 0.2);
@@ -92,12 +96,12 @@ button {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 1.5rem;
+  padding: min(2vh, 1rem) 1rem;
 }
 
 .phone-shell {
   position: relative;
-  width: min(92vw, 26rem);
+  width: min(92vw, calc(95vh * 393 / 852), 26rem);
   aspect-ratio: 393 / 852;
   display: grid;
   place-items: center;
@@ -111,14 +115,16 @@ button {
 
 .phone-button {
   position: absolute;
-  width: 0.28rem;
+  width: 0.34rem;
   border-radius: 999px;
-  background: linear-gradient(180deg, #4f515b, #22242c);
-  box-shadow: 0 0.08rem 0.12rem rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, #d7dce5, #aab0bc);
+  box-shadow:
+    inset 0 0.04rem 0 rgba(255, 255, 255, 0.68),
+    0 0.08rem 0.18rem rgba(72, 79, 94, 0.22);
 }
 
 .phone-button.left {
-  left: -0.22rem;
+  left: -0.15rem;
 }
 
 .phone-button.left.top {
@@ -140,18 +146,32 @@ button {
 }
 
 .phone-button.right {
-  right: -0.22rem;
+  right: -0.15rem;
   top: 33%;
   height: 11.5%;
+}
+
+.phone-power-button {
+  pointer-events: auto;
+  border: 0;
+  padding: 0;
+}
+
+.phone-power-button:hover {
+  filter: brightness(0.98);
+}
+
+.phone-power-button:active {
+  transform: translateX(1px);
 }
 
 .phone-shadow {
   position: absolute;
   inset: 4% 3% -2%;
-  border-radius: 3rem;
-  background: rgba(0, 0, 0, 0.35);
-  filter: blur(20px);
-  transform: translateY(1rem) scale(0.97);
+  border-radius: 3.25rem;
+  background: rgba(0, 0, 0, 0.22);
+  filter: blur(22px);
+  transform: translateY(1rem) scale(0.985);
 }
 
 .phone-frame {
@@ -159,14 +179,24 @@ button {
   width: 100%;
   height: 100%;
   border-radius: 3rem;
-  padding: 0.75rem;
+  padding: 0.52rem;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 24%),
-    linear-gradient(145deg, #0d1017, #07080d 64%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.3) 20%, transparent 35%),
+    linear-gradient(155deg, var(--shell-0), var(--shell-1) 54%, var(--shell-2));
+  border: 0.06rem solid var(--shell-stroke);
   box-shadow:
-    inset 0 0.08rem 0.12rem rgba(255, 255, 255, 0.08),
-    inset 0 -0.08rem 0.12rem rgba(255, 255, 255, 0.04),
+    inset 0 0.1rem 0.14rem rgba(255, 255, 255, 0.72),
+    inset 0 -0.08rem 0.14rem rgba(173, 181, 195, 0.28),
     var(--shadow-lg);
+}
+
+.phone-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0.18rem;
+  border-radius: 2.84rem;
+  border: 0.06rem solid rgba(255, 255, 255, 0.78);
+  pointer-events: none;
 }
 
 .phone-screen {
@@ -176,6 +206,9 @@ button {
   border-radius: 2.5rem;
   overflow: hidden;
   background: #000;
+  box-shadow:
+    inset 0 0 0 0.08rem rgba(255, 255, 255, 0.08),
+    0 0 0 0.08rem rgba(16, 19, 26, 0.7);
 }
 
 .status-bar {
@@ -311,6 +344,7 @@ button {
   opacity: 0;
   pointer-events: none;
   transition: opacity 240ms ease;
+  overflow: hidden;
 }
 
 .screen.is-visible {
@@ -367,7 +401,7 @@ button {
 .lock-content {
   position: relative;
   z-index: 2;
-  padding: 5.45rem 1.3rem 0;
+  padding: 5.4rem 1.25rem 0;
   text-align: center;
 }
 
@@ -429,9 +463,9 @@ button {
 .unlock-tray {
   position: absolute;
   left: 50%;
-  bottom: 8.9rem;
+  bottom: 5.55rem;
   z-index: 3;
-  width: calc(100% - 3.1rem);
+  width: calc(100% - 2.5rem);
   max-width: 19rem;
   transform: translateX(-50%);
   min-height: 4rem;
@@ -497,11 +531,11 @@ button {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 5.2rem;
+  bottom: 1.9rem;
   z-index: 2;
   display: flex;
   justify-content: space-between;
-  padding: 0 1.55rem;
+  padding: 0 1.25rem;
 }
 
 .quick-action {
@@ -890,7 +924,7 @@ button {
 .page-dots {
   position: absolute;
   left: 50%;
-  bottom: 8.2rem;
+  bottom: 7.45rem;
   z-index: 3;
   transform: translateX(-50%);
   display: flex;
@@ -915,7 +949,7 @@ button {
   position: absolute;
   left: 1rem;
   right: 1rem;
-  bottom: 3.65rem;
+  bottom: 2.65rem;
   z-index: 3;
   min-height: 5.35rem;
   display: flex;
@@ -930,13 +964,21 @@ button {
 }
 
 .screen-store {
-  padding: 5.1rem 1rem 4rem;
+  padding: 5.1rem 1rem 5.25rem;
   color: var(--text-dark);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.screen-store::-webkit-scrollbar,
+.screen-game::-webkit-scrollbar {
+  display: none;
 }
 
 .top-button {
   position: absolute;
-  top: 4.55rem;
+  top: 4.35rem;
   width: 2.85rem;
   height: 2.85rem;
   z-index: 4;
@@ -1268,7 +1310,9 @@ button {
 }
 
 .screen-game {
-  padding: 5rem 1rem 4rem;
+  padding: 5rem 1rem 5.35rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .game-header {
@@ -1295,12 +1339,13 @@ button {
   z-index: 2;
   margin-top: 1.2rem;
   display: grid;
-  gap: 0.9rem;
+  gap: 0.78rem;
+  padding-bottom: 0.25rem;
 }
 
 .ticket {
   position: relative;
-  min-height: 11.2rem;
+  min-height: 9.5rem;
   padding: 1rem;
   border-radius: 1.55rem;
   overflow: hidden;
@@ -1351,13 +1396,13 @@ button {
 }
 
 .ticket h3 {
-  margin: 0.85rem 0 0;
-  font-size: 1.36rem;
+  margin: 0.72rem 0 0;
+  font-size: 1.18rem;
   letter-spacing: -0.04em;
 }
 
 .ticket-label {
-  margin-top: 0.9rem;
+  margin-top: 0.72rem;
   font-size: 0.8rem;
   font-weight: 600;
   opacity: 0.76;
@@ -1365,16 +1410,16 @@ button {
 
 .ticket-code {
   margin-top: 0.2rem;
-  font-size: 1.28rem;
+  font-size: 1.08rem;
   font-weight: 800;
   letter-spacing: -0.04em;
 }
 
 .ticket-note {
-  margin-top: 0.78rem;
+  margin-top: 0.58rem;
   max-width: 82%;
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: 0.72rem;
+  line-height: 1.32;
   opacity: 0.84;
 }
 
@@ -1440,6 +1485,29 @@ button {
   transform: translateY(0);
 }
 
+.sleep-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.03), transparent 12%),
+    #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.phone-screen.is-sleeping .sleep-overlay {
+  opacity: 1;
+}
+
+.phone-screen.is-sleeping .screen,
+.phone-screen.is-sleeping .status-bar,
+.phone-screen.is-sleeping .home-indicator {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .home-indicator {
   position: absolute;
   left: 50%;
@@ -1454,7 +1522,7 @@ button {
 
 @media (max-width: 460px) {
   .phone-shell {
-    width: min(96vw, 24rem);
+    width: min(96vw, calc(94vh * 393 / 852), 24rem);
   }
 
   .feature-copy {
@@ -1479,10 +1547,10 @@ button {
   }
 
   .unlock-tray {
-    bottom: 7.8rem;
+    bottom: 5rem;
   }
 
   .quick-actions {
-    bottom: 4.5rem;
+    bottom: 1.55rem;
   }
 }

@@ -132,6 +132,8 @@ const lockDate = document.querySelector("[data-lock-date]");
 const statusClock = document.querySelector("[data-clock-time]");
 const unlockSlider = document.querySelector("[data-unlock-slider]");
 const unlockCopy = document.querySelector("[data-unlock-copy]");
+const phoneScreen = document.querySelector(".phone-screen");
+const sideButton = document.querySelector("[data-side-button]");
 const homePages = document.querySelector("[data-home-pages]");
 const pageDots = document.querySelector("[data-page-dots]");
 const dock = document.querySelector("[data-dock]");
@@ -149,6 +151,7 @@ let activeScreen = "lock";
 let currentPage = 0;
 let homeScroller = null;
 let unlockResetFrame = null;
+let isSleeping = false;
 
 const installState = {
   installed: false,
@@ -174,14 +177,33 @@ function updateClock() {
 }
 
 function showScreen(name) {
-  if (!screenElements[name]) {
+  if (!screenElements[name] || isSleeping) {
     return;
   }
 
   activeScreen = name;
   Object.entries(screenElements).forEach(([screenName, element]) => {
     element.classList.toggle("is-visible", screenName === name);
+    if (screenName === name && (screenName === "store" || screenName === "game")) {
+      element.scrollTop = 0;
+    }
   });
+}
+
+function resetUnlockSlider() {
+  cancelAnimationFrame(unlockResetFrame);
+  unlockSlider.value = "0";
+  unlockCopy.style.opacity = "1";
+}
+
+function setSleeping(value) {
+  isSleeping = value;
+  phoneScreen.classList.toggle("is-sleeping", value);
+}
+
+function lockPhone() {
+  resetUnlockSlider();
+  showScreen("lock");
 }
 
 function animateUnlockReset() {
@@ -214,7 +236,10 @@ function handleUnlockInput() {
 
   unlockSlider.value = "100";
   unlockCopy.style.opacity = "0";
-  setTimeout(() => showScreen("home"), 120);
+  setTimeout(() => {
+    resetUnlockSlider();
+    showScreen("home");
+  }, 120);
 }
 
 function createGlyph(icon) {
@@ -639,6 +664,21 @@ function bindNav() {
   });
 
   installCard.addEventListener("click", startInstallFlow);
+
+  sideButton.addEventListener("click", () => {
+    if (isSleeping) {
+      setSleeping(false);
+      lockPhone();
+      return;
+    }
+
+    if (activeScreen !== "lock") {
+      lockPhone();
+      return;
+    }
+
+    setSleeping(true);
+  });
 }
 
 function init() {
