@@ -1,38 +1,38 @@
 const homePagesData = [
   [
-    { name: "FaceTime", glyph: "FT", bg: "#33bf74", type: "text" },
+    { name: "FaceTime", glyph: "FT", bg: "#33bf74", type: "facetime" },
     { name: "Calendar", glyph: "14", bg: "#ee3d43", type: "calendar" },
-    { name: "Photos", glyph: "PH", bg: "#f6a82f", type: "text" },
+    { name: "Photos", glyph: "PH", bg: "#ffffff", type: "photos", fg: "#1d2230" },
     { name: "Camera", glyph: "CAM", bg: "#23252d", type: "camera" },
-    { name: "Mail", glyph: "M", bg: "#1f87fa", type: "text" },
-    { name: "Clock", glyph: "CLK", bg: "#101319", type: "text" },
-    { name: "Maps", glyph: "MAP", bg: "#3abf7e", type: "text" },
-    { name: "Weather", glyph: "SUN", bg: "#4f8eff", type: "text" },
+    { name: "Mail", glyph: "M", bg: "#1f87fa", type: "mail" },
+    { name: "Clock", glyph: "CLK", bg: "#101319", type: "clock" },
+    { name: "Maps", glyph: "MAP", bg: "#ffffff", type: "maps", fg: "#1d2230" },
+    { name: "Weather", glyph: "SUN", bg: "#59a8ff", type: "weather" },
     { name: "Notes", glyph: "N", bg: "#f3d83f", type: "notes", fg: "#1d2230" },
     { name: "Reminders", glyph: "DO", bg: "#f7f7fb", type: "text", fg: "#1d2230" },
     { name: "App Store", glyph: "A", bg: "#167efb", type: "appstore", action: "store" },
-    { name: "Settings", glyph: "SET", bg: "#8a909b", type: "text" },
+    { name: "Settings", glyph: "SET", bg: "#b9bec8", type: "settings", fg: "#ffffff" },
     { name: "TikTok", glyph: "TT", bg: "#101114", type: "tiktok" },
-    { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "text" },
+    { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music" },
     { name: "Messages", glyph: "MSG", bg: "#26c457", type: "messages" },
-    { name: "Safari", glyph: "SAF", bg: "#31a5ff", type: "text" }
+    { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230" }
   ],
   [
-    { name: "Health", glyph: "H", bg: "#ff6677", type: "text" },
-    { name: "Wallet", glyph: "W", bg: "#12151d", type: "text" },
-    { name: "Books", glyph: "BK", bg: "#f78c43", type: "text" },
+    { name: "Health", glyph: "H", bg: "#ffffff", type: "health", fg: "#1d2230" },
+    { name: "Wallet", glyph: "W", bg: "#141821", type: "wallet" },
+    { name: "Books", glyph: "BK", bg: "#f78c43", type: "books" },
     { name: "Files", glyph: "FL", bg: "#4d90ff", type: "text" },
-    { name: "Fitness", glyph: "FIT", bg: "#de4bb0", type: "text" },
+    { name: "Fitness", glyph: "FIT", bg: "#121316", type: "fitness" },
     { name: "Clips", glyph: "CC", bg: "#8d3cff", type: "text" },
-    { name: "Calculator", glyph: "CAL", bg: "#17191f", type: "text" },
+    { name: "Calculator", glyph: "CAL", bg: "#17191f", type: "calculator" },
     { name: "Translate", glyph: "TR", bg: "#fafafd", type: "text", fg: "#1d2230" },
-    { name: "Podcasts", glyph: "PC", bg: "#7e43ff", type: "text" },
-    { name: "TV", glyph: "TV", bg: "#111216", type: "text" },
-    { name: "Journal", glyph: "JR", bg: "#4c86f5", type: "text" },
-    { name: "Contacts", glyph: "CT", bg: "#c4c7d0", type: "text", fg: "#1d2230" },
+    { name: "Podcasts", glyph: "PC", bg: "#7e43ff", type: "podcasts" },
+    { name: "TV", glyph: "TV", bg: "#111216", type: "tv" },
+    { name: "Journal", glyph: "JR", bg: "#4c86f5", type: "journal" },
+    { name: "Contacts", glyph: "CT", bg: "#f3f5f8", type: "contacts", fg: "#1d2230" },
     { name: "Shortcuts", glyph: "SC", bg: "#eb7832", type: "text" },
     { name: "Find My", glyph: "FM", bg: "#1ed18f", type: "text" },
-    { name: "Tips", glyph: "!", bg: "#f4d33b", type: "text", fg: "#1d2230" },
+    { name: "Tips", glyph: "!", bg: "#f4d33b", type: "tips", fg: "#1d2230" },
     { name: "Stocks", glyph: "ST", bg: "#17191f", type: "text" }
   ],
   [
@@ -56,9 +56,9 @@ const homePagesData = [
 ];
 
 const dockApps = [
-  { name: "Phone", glyph: "TEL", bg: "#29c65b", type: "text" },
-  { name: "Safari", glyph: "SAF", bg: "#31a5ff", type: "text" },
-  { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "text" },
+  { name: "Phone", glyph: "TEL", bg: "#29c65b", type: "phone" },
+  { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230" },
+  { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music" },
   { name: "Messages", glyph: "MSG", bg: "#26c457", type: "messages" }
 ];
 
@@ -243,13 +243,146 @@ function handleUnlockInput() {
 }
 
 function createGlyph(icon) {
+  const svg = (markup, viewBox = "0 0 64 64") =>
+    `<svg class="icon-svg" viewBox="${viewBox}" aria-hidden="true">${markup}</svg>`;
+
   switch (icon.type) {
+    case "facetime":
+      return svg(`
+        <rect x="14" y="18" width="28" height="28" rx="9" fill="#fff"/>
+        <path d="M42 26.5 51 21c1.4-.8 3 .2 3 1.8v18.4c0 1.6-1.6 2.6-3 1.8L42 37.5Z" fill="#fff"/>
+      `);
+    case "photos":
+      return svg(`
+        <circle cx="32" cy="17" r="7.2" fill="#ff4f74"/>
+        <circle cx="43.3" cy="21.7" r="7.2" fill="#ff9d2f"/>
+        <circle cx="47" cy="33" r="7.2" fill="#ffd93b"/>
+        <circle cx="43.3" cy="44.3" r="7.2" fill="#55d16e"/>
+        <circle cx="32" cy="49" r="7.2" fill="#28c9d7"/>
+        <circle cx="20.7" cy="44.3" r="7.2" fill="#3e8cff"/>
+        <circle cx="17" cy="33" r="7.2" fill="#7a68ff"/>
+        <circle cx="20.7" cy="21.7" r="7.2" fill="#d365ff"/>
+        <circle cx="32" cy="33" r="7" fill="#fff"/>
+      `);
     case "appstore":
       return `
         <div class="glyph-appstore">
           <i></i><i></i><i></i>
         </div>
       `;
+    case "mail":
+      return svg(`
+        <path d="M14 18h36c2.2 0 4 1.8 4 4v20c0 2.2-1.8 4-4 4H14c-2.2 0-4-1.8-4-4V22c0-2.2 1.8-4 4-4Z" fill="#fff"/>
+        <path d="M12 22 32 36 52 22" fill="none" stroke="#1f87fa" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      `);
+    case "maps":
+      return svg(`
+        <rect x="10" y="10" width="44" height="44" rx="11" fill="#fff"/>
+        <path d="M13 42c7-8 13-12 20-10 5 2 10 0 18-8" fill="none" stroke="#2c7efc" stroke-width="5" stroke-linecap="round"/>
+        <path d="M15 46c8-8 15-11 21-8 7 3 12 1 17-3" fill="none" stroke="#45d26d" stroke-width="6" stroke-linecap="round"/>
+        <path d="M33 16c-5.2 0-9.5 3.9-9.5 9.1 0 7.2 9.5 15.9 9.5 15.9s9.5-8.7 9.5-15.9c0-5.2-4.3-9.1-9.5-9.1Z" fill="#ff5a59"/>
+        <circle cx="33" cy="25" r="3.8" fill="#fff"/>
+      `);
+    case "weather":
+      return svg(`
+        <circle cx="24" cy="24" r="10" fill="#ffd54a"/>
+        <path d="M34 40c0-4.8 3.7-8.5 8.4-8.5 1.3 0 2.6.3 3.7.9 1.2-2.8 4-4.8 7.2-4.8 4.4 0 8 3.6 8 8 0 .3 0 .6-.1.9 1.7 1 2.8 2.8 2.8 4.9 0 3.1-2.5 5.6-5.6 5.6H39.7A5.7 5.7 0 0 1 34 40Z" fill="#fff" transform="translate(-12 0)"/>
+      `);
+    case "clock":
+      return svg(`
+        <circle cx="32" cy="32" r="18" fill="#fff"/>
+        <circle cx="32" cy="32" r="2.8" fill="#101319"/>
+        <path d="M32 32V21" stroke="#101319" stroke-width="3.8" stroke-linecap="round"/>
+        <path d="m32 32 8.5 5.5" stroke="#ff623f" stroke-width="3.8" stroke-linecap="round"/>
+      `);
+    case "settings":
+      return svg(`
+        <circle cx="32" cy="32" r="11" fill="#f8fafc"/>
+        <circle cx="32" cy="32" r="6.5" fill="#9fa6b5"/>
+        <g stroke="#f8fafc" stroke-width="4" stroke-linecap="round">
+          <path d="M32 12v6"/><path d="M32 46v6"/><path d="M12 32h6"/><path d="M46 32h6"/>
+          <path d="m18.5 18.5 4.2 4.2"/><path d="m41.3 41.3 4.2 4.2"/>
+          <path d="m45.5 18.5-4.2 4.2"/><path d="m22.7 41.3-4.2 4.2"/>
+        </g>
+      `);
+    case "music":
+      return svg(`
+        <path d="M26 18v22.5a6.5 6.5 0 1 1-3.5-5.8V21l18-4v18.5a6.5 6.5 0 1 1-3.5-5.8V16Z" fill="#fff"/>
+      `);
+    case "safari":
+      return svg(`
+        <circle cx="32" cy="32" r="21" fill="#f3f8ff"/>
+        <circle cx="32" cy="32" r="17.8" fill="#42a5ff"/>
+        <circle cx="32" cy="32" r="13.8" fill="#7dc8ff"/>
+        <path d="M32 17 37 31 32 47 27 33Z" fill="#ff5c55"/>
+        <path d="M32 17 27 33 32 47 37 31Z" fill="#fff"/>
+        <circle cx="32" cy="32" r="3.4" fill="#fff"/>
+      `);
+    case "phone":
+      return svg(`
+        <path d="M22.6 14.8c1.2-1.2 3-1.5 4.5-.7l4.2 2.4c1.7 1 2.4 3 1.6 4.8l-1.8 4c2.6 5.1 6.7 9.2 11.8 11.8l4-1.8c1.8-.8 3.8-.1 4.8 1.6l2.4 4.2c.8 1.5.5 3.3-.7 4.5l-2.8 2.8c-1.8 1.8-4.5 2.6-7 2.1-14.4-3.1-25.7-14.4-28.8-28.8-.5-2.5.3-5.2 2.1-7Z" fill="#fff"/>
+      `);
+    case "health":
+      return svg(`
+        <path d="M32 50s-16.5-9.9-16.5-22.6c0-6.2 4.6-10.8 10.6-10.8 3.2 0 5.2 1.2 5.9 2.1.7-.9 2.7-2.1 5.9-2.1 6 0 10.6 4.6 10.6 10.8C48.5 40.1 32 50 32 50Z" fill="#ff4f72"/>
+      `);
+    case "wallet":
+      return svg(`
+        <rect x="12" y="16" width="40" height="28" rx="8" fill="#1e232f"/>
+        <rect x="17" y="12" width="28" height="10" rx="5" fill="#53a8ff"/>
+        <rect x="20" y="19" width="28" height="10" rx="5" fill="#66df9d"/>
+        <rect x="17" y="26" width="30" height="10" rx="5" fill="#ff9e49"/>
+        <circle cx="43" cy="30.5" r="2.4" fill="#fff"/>
+      `);
+    case "books":
+      return svg(`
+        <path d="M16 17h15c4 0 7 3 7 7v23H21c-4 0-7-3-7-7V17Z" fill="#fff"/>
+        <path d="M48 17H33c-4 0-7 3-7 7v23h17c4 0 7-3 7-7V17Z" fill="#fff" opacity=".92"/>
+        <path d="M32 17v30" stroke="#f78c43" stroke-width="3"/>
+      `);
+    case "fitness":
+      return svg(`
+        <circle cx="25" cy="32" r="10" fill="none" stroke="#ff3b77" stroke-width="6"/>
+        <circle cx="39" cy="32" r="10" fill="none" stroke="#b45cff" stroke-width="6"/>
+      `);
+    case "calculator":
+      return svg(`
+        <rect x="16" y="14" width="32" height="36" rx="8" fill="#2a2e36"/>
+        <rect x="21" y="19" width="22" height="8" rx="3" fill="#8f949c"/>
+        <g fill="#fff">
+          <circle cx="24" cy="33" r="3"/><circle cx="32" cy="33" r="3"/><circle cx="40" cy="33" r="3"/>
+          <circle cx="24" cy="41" r="3"/><circle cx="32" cy="41" r="3"/><circle cx="40" cy="41" r="3"/>
+        </g>
+        <circle cx="40" cy="49" r="3" fill="#ff9d2f"/>
+      `);
+    case "podcasts":
+      return svg(`
+        <circle cx="32" cy="32" r="4.5" fill="#fff"/>
+        <rect x="29.5" y="37" width="5" height="10" rx="2.5" fill="#fff"/>
+        <path d="M22 32a10 10 0 0 1 20 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+        <path d="M16 32a16 16 0 0 1 32 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".75"/>
+      `);
+    case "tv":
+      return svg(`
+        <rect x="15" y="18" width="34" height="24" rx="7" fill="#fff"/>
+        <path d="M27 27.5v5l5-2.5Z" fill="#111216"/>
+      `);
+    case "journal":
+      return svg(`
+        <rect x="17" y="13" width="30" height="38" rx="7" fill="#fff"/>
+        <path d="M25 19h14M25 25h14M25 31h10" stroke="#4c86f5" stroke-width="3" stroke-linecap="round"/>
+        <rect x="21" y="13" width="4" height="38" rx="2" fill="#9cc0ff"/>
+      `);
+    case "contacts":
+      return svg(`
+        <circle cx="32" cy="25" r="8" fill="#9ca5b4"/>
+        <path d="M18 46c1.9-6.4 7.4-10 14-10s12.1 3.6 14 10" fill="#9ca5b4"/>
+      `);
+    case "tips":
+      return svg(`
+        <path d="M32 16c-6.3 0-11.5 5.1-11.5 11.4 0 3.4 1.5 6.2 4 8.2 2 1.6 3.3 3.7 3.5 5.5h8c.2-1.8 1.5-3.9 3.5-5.5 2.5-2 4-4.8 4-8.2C43.5 21.1 38.3 16 32 16Z" fill="#fff"/>
+        <rect x="26" y="43" width="12" height="4" rx="2" fill="#fff"/>
+      `);
     case "messages":
       return `
         <div class="glyph-messages">
