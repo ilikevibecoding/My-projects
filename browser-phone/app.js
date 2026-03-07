@@ -37,6 +37,41 @@ const realIcons = {
     "https://commons.wikimedia.org/wiki/Special:FilePath/Shortcuts_(iOS_26)_app_icon.png"
 };
 
+const favoriteApps = [
+  {
+    name: "DreamyRoom",
+    subtitle: "favorite cozy game",
+    glyph: "DR",
+    bg: "#8e73ff",
+    type: "text",
+    src: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ff/02/5d/ff025dfe-15b6-a30d-f7d4-8c968e5f0f21/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    name: "Cookingdom",
+    subtitle: "favorite cozy game",
+    glyph: "CD",
+    bg: "#f0c96a",
+    type: "text",
+    src: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/fd/c7/81/fdc781f5-ece0-45d3-14b9-bbe54dfc3901/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    name: "Satistory: TidyUp",
+    subtitle: "favorite tidy game",
+    glyph: "ST",
+    bg: "#8be8ff",
+    type: "text",
+    src: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d4/3e/02/d43e02e9-25a8-e0c7-75e1-a4994cda39a2/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    name: "CrimeRadar",
+    subtitle: "favorite scanner app",
+    glyph: "CR",
+    bg: "#111216",
+    type: "text",
+    src: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/af/65/36/af653650-c86d-e4d0-c444-196a064ac579/AppIconNewsBreak-0-0-1x_U007ephone-0-11-0-85-220.png/512x512bb.jpg"
+  }
+];
+
 const homePagesData = [
   [
     { name: "Notes", glyph: "N", bg: "#f3d83f", type: "notes", fg: "#1d2230", src: realIcons.notes },
@@ -57,18 +92,18 @@ const homePagesData = [
     { name: "Photos", glyph: "PH", bg: "#ffffff", type: "photos", fg: "#1d2230", src: realIcons.photos }
   ],
   [
-    { name: "News", glyph: "NW", bg: "#ffffff", type: "text", fg: "#1d2230", src: realIcons.news },
-    { name: "Podcasts", glyph: "PC", bg: "#7e43ff", type: "podcasts" },
-    { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music", src: realIcons.music },
-    { name: "Settings", glyph: "SET", bg: "#b9bec8", type: "settings", fg: "#ffffff", src: realIcons.settings },
+    favoriteApps[0],
+    favoriteApps[1],
+    favoriteApps[2],
+    favoriteApps[3],
     { name: "Phone", glyph: "TEL", bg: "#29c65b", type: "phone", src: realIcons.phone },
     { name: "Camera", glyph: "CAM", bg: "#23252d", type: "camera", src: realIcons.camera },
     { name: "Clock", glyph: "CLK", bg: "#101319", type: "clock", src: realIcons.clock },
-    { name: "Shortcuts", glyph: "SC", bg: "#eb7832", type: "text", src: realIcons.shortcuts },
+    { name: "Settings", glyph: "SET", bg: "#b9bec8", type: "settings", fg: "#ffffff", src: realIcons.settings },
     { name: "Health", glyph: "H", bg: "#ffffff", type: "health", fg: "#1d2230" },
     { name: "Wallet", glyph: "W", bg: "#141821", type: "wallet" },
     { name: "Books", glyph: "BK", bg: "#f78c43", type: "books" },
-    { name: "Tips", glyph: "!", bg: "#f4d33b", type: "tips", fg: "#1d2230" },
+    { name: "Podcasts", glyph: "PC", bg: "#7e43ff", type: "podcasts" },
     { name: "Translate", glyph: "TR", bg: "#fafafd", type: "text", fg: "#1d2230" },
     { name: "Files", glyph: "FL", bg: "#4d90ff", type: "text" },
     { name: "TikTok", glyph: "TT", bg: "#101114", type: "tiktok" },
@@ -92,34 +127,10 @@ const dockApps = [
 ];
 
 const storeRows = [
-  {
-    title: "Cooking game 1",
-    subtitle: "temporary favorite placeholder",
-    glyph: "CG",
-    bg: "#f8a95f",
-    type: "text"
-  },
-  {
-    title: "Cooking game 2",
-    subtitle: "temporary favorite placeholder",
-    glyph: "CG",
-    bg: "#ff7f6d",
-    type: "text"
-  },
-  {
-    title: "Cooking game 3",
-    subtitle: "temporary favorite placeholder",
-    glyph: "CG",
-    bg: "#f676b7",
-    type: "text"
-  },
-  {
-    title: "TikTok",
-    subtitle: "for the current mood board",
-    glyph: "TT",
-    bg: "#111216",
-    type: "tiktok"
-  }
+  favoriteApps[0],
+  favoriteApps[1],
+  favoriteApps[2],
+  favoriteApps[3]
 ];
 
 const tickets = [
@@ -176,6 +187,7 @@ const progressRing = document.querySelector("[data-progress-ring]");
 const storeList = document.querySelector("[data-store-list]");
 const ticketList = document.querySelector("[data-ticket-list]");
 const finalReveal = document.querySelector("[data-final-reveal]");
+const notificationStack = document.querySelector("[data-notification-stack]");
 
 let activeScreen = "lock";
 let currentPage = 0;
@@ -200,6 +212,17 @@ const scratchAudio = {
   noiseBuffer: null,
   activePointers: 0
 };
+
+const notificationState = {
+  started: false,
+  context: null
+};
+
+const christianMessages = [
+  "dont forget to take your meds",
+  "Love you(:",
+  "Love you(:"
+];
 
 function updateClock() {
   const now = new Date();
@@ -723,7 +746,7 @@ function buildStoreRows() {
 
     const meta = document.createElement("div");
     meta.className = "store-meta";
-    meta.innerHTML = `<h4>${item.title}</h4><p>${item.subtitle}</p>`;
+    meta.innerHTML = `<h4>${item.name || item.title}</h4><p>${item.subtitle}</p>`;
 
     const get = document.createElement("div");
     get.className = "row-get";
@@ -905,6 +928,99 @@ function stopScratchSound() {
       }
     }, 90);
   }
+}
+
+function ensureNotificationAudioContext() {
+  if (notificationState.context) {
+    return notificationState.context;
+  }
+
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return null;
+  }
+
+  notificationState.context = new AudioContextClass();
+  return notificationState.context;
+}
+
+async function playNotificationDing() {
+  const context = ensureNotificationAudioContext();
+  if (!context) {
+    return;
+  }
+
+  await context.resume();
+  const now = context.currentTime;
+  const master = context.createGain();
+  master.gain.setValueAtTime(0.0001, now);
+  master.connect(context.destination);
+
+  const makeTone = (type, frequency, start, duration, peak) => {
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(peak, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(start);
+    osc.stop(start + duration + 0.03);
+  };
+
+  makeTone("sine", 1318.5, now, 0.18, 0.07);
+  makeTone("triangle", 1046.5, now + 0.025, 0.24, 0.04);
+  makeTone("sine", 1567.98, now + 0.11, 0.14, 0.032);
+}
+
+function pushNotification(message) {
+  if (!notificationStack) {
+    return;
+  }
+
+  const card = document.createElement("article");
+  card.className = "message-notification";
+  card.innerHTML = `
+    <img class="message-notification-icon" src="${realIcons.messages}" alt="" referrerpolicy="no-referrer" />
+    <div class="message-notification-copy">
+      <div class="message-notification-topline">
+        <span class="message-app-label">Messages</span>
+        <span class="message-time">now</span>
+      </div>
+      <div class="message-sender">Christian</div>
+      <div class="message-body">${message}</div>
+    </div>
+  `;
+
+  notificationStack.prepend(card);
+  [...notificationStack.children].forEach((item, index) => {
+    item.style.setProperty("--stack-index", String(index));
+    item.classList.toggle("is-dimmed", index > 0);
+  });
+
+  while (notificationStack.children.length > 3) {
+    notificationStack.lastElementChild.remove();
+  }
+
+  requestAnimationFrame(() => {
+    card.classList.add("is-visible");
+  });
+}
+
+function startChristianNotifications() {
+  if (notificationState.started) {
+    return;
+  }
+
+  notificationState.started = true;
+  christianMessages.forEach((message, index) => {
+    window.setTimeout(() => {
+      pushNotification(message);
+      playNotificationDing();
+    }, 650 + index * 1100);
+  });
 }
 
 class ScratchCard {
@@ -1219,6 +1335,15 @@ function init() {
   bindNav();
   refreshInstallUi();
   goToPage(0, false);
+
+  const startNotificationsOnFirstInteraction = () => {
+    startChristianNotifications();
+    window.removeEventListener("pointerdown", startNotificationsOnFirstInteraction);
+    window.removeEventListener("keydown", startNotificationsOnFirstInteraction);
+  };
+
+  window.addEventListener("pointerdown", startNotificationsOnFirstInteraction, { once: true });
+  window.addEventListener("keydown", startNotificationsOnFirstInteraction, { once: true });
 
   unlockSlider.addEventListener("input", handleUnlockInput);
   ["mouseup", "touchend", "pointerup", "keyup"].forEach((eventName) => {
