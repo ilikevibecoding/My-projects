@@ -3,6 +3,8 @@ const realIcons = {
     "https://commons.wikimedia.org/wiki/Special:FilePath/FaceTime_iOS.svg",
   calendar:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Calendar_(iOS).svg",
+  notes:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Notes_(iOS).png",
   photos:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Foto_(iOS).png",
   camera:
@@ -15,50 +17,61 @@ const realIcons = {
     "https://commons.wikimedia.org/wiki/Special:FilePath/Apple%20Maps%20iOS%2026%20icon.png",
   messages:
     "https://commons.wikimedia.org/wiki/Special:FilePath/IMessage_icon.png",
+  contacts:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Contacts_(iOS).png",
+  news:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_News_icon_(iOS).png",
   appstore:
     "https://commons.wikimedia.org/wiki/Special:FilePath/App_Store_(iOS,_2024).svg",
   settings:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Settings_(iOS).png",
   safari:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Safari-icon-1024.png",
+  tv:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/AppleTVLogo.svg",
   music:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Music_icon_iOS_26.svg",
   phone:
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Phone_iOS.png"
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Phone_iOS.png",
+  shortcuts:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Shortcuts_(iOS_26)_app_icon.png"
 };
 
 const homePagesData = [
   [
+    { name: "Notes", glyph: "N", bg: "#f3d83f", type: "notes", fg: "#1d2230", src: realIcons.notes },
+    { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230", src: realIcons.safari },
     { name: "FaceTime", glyph: "FT", bg: "#33bf74", type: "facetime", src: realIcons.facetime },
-    { name: "Calendar", glyph: "14", bg: "#ee3d43", type: "calendar", src: realIcons.calendar },
-    { name: "Photos", glyph: "PH", bg: "#ffffff", type: "photos", fg: "#1d2230", src: realIcons.photos },
-    { name: "Camera", glyph: "CAM", bg: "#23252d", type: "camera", src: realIcons.camera },
-    { name: "Mail", glyph: "M", bg: "#1f87fa", type: "mail", src: realIcons.mail },
-    { name: "Clock", glyph: "CLK", bg: "#101319", type: "clock", src: realIcons.clock },
-    { name: "Maps", glyph: "MAP", bg: "#ffffff", type: "maps", fg: "#1d2230", src: realIcons.maps },
-    { name: "Weather", glyph: "SUN", bg: "#59a8ff", type: "weather" },
-    { name: "Notes", glyph: "N", bg: "#f3d83f", type: "notes", fg: "#1d2230" },
-    { name: "Reminders", glyph: "DO", bg: "#f7f7fb", type: "text", fg: "#1d2230" },
-    { name: "App Store", glyph: "A", bg: "#167efb", type: "appstore", action: "store", src: realIcons.appstore },
-    { name: "Settings", glyph: "SET", bg: "#b9bec8", type: "settings", fg: "#ffffff", src: realIcons.settings },
-    { name: "TikTok", glyph: "TT", bg: "#101114", type: "tiktok" },
-    { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music", src: realIcons.music },
     { name: "Messages", glyph: "MSG", bg: "#26c457", type: "messages", src: realIcons.messages },
-    { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230", src: realIcons.safari }
+    { name: "App Store", glyph: "A", bg: "#167efb", type: "appstore", action: "store", src: realIcons.appstore },
+    { name: "Voice Memos", glyph: "VM", bg: "#111216", type: "voicememos" },
+    { name: "Apple TV", glyph: "TV", bg: "#111216", type: "tv", src: realIcons.tv },
+    { name: "Calculator", glyph: "CAL", bg: "#17191f", type: "calculator" },
+    { name: "Home", glyph: "HM", bg: "#ffffff", type: "homeapp", fg: "#1d2230" },
+    { name: "Contacts", glyph: "CT", bg: "#f3f5f8", type: "contacts", fg: "#1d2230", src: realIcons.contacts },
+    { name: "Maps", glyph: "MAP", bg: "#ffffff", type: "maps", fg: "#1d2230", src: realIcons.maps },
+    { name: "Mail", glyph: "M", bg: "#1f87fa", type: "mail", src: realIcons.mail },
+    { name: "Stocks", glyph: "ST", bg: "#111216", type: "stocks" },
+    { name: "Calendar", glyph: "14", bg: "#ee3d43", type: "calendar", src: realIcons.calendar },
+    { name: "Find My", glyph: "FM", bg: "#24d38e", type: "findmy" },
+    { name: "Photos", glyph: "PH", bg: "#ffffff", type: "photos", fg: "#1d2230", src: realIcons.photos }
   ],
   [
+    { name: "News", glyph: "NW", bg: "#ffffff", type: "text", fg: "#1d2230", src: realIcons.news },
+    { name: "Podcasts", glyph: "PC", bg: "#7e43ff", type: "podcasts" },
+    { name: "Music", glyph: "MUS", bg: "#f43a7f", type: "music", src: realIcons.music },
+    { name: "Settings", glyph: "SET", bg: "#b9bec8", type: "settings", fg: "#ffffff", src: realIcons.settings },
+    { name: "Phone", glyph: "TEL", bg: "#29c65b", type: "phone", src: realIcons.phone },
+    { name: "Camera", glyph: "CAM", bg: "#23252d", type: "camera", src: realIcons.camera },
+    { name: "Clock", glyph: "CLK", bg: "#101319", type: "clock", src: realIcons.clock },
+    { name: "Shortcuts", glyph: "SC", bg: "#eb7832", type: "text", src: realIcons.shortcuts },
     { name: "Health", glyph: "H", bg: "#ffffff", type: "health", fg: "#1d2230" },
     { name: "Wallet", glyph: "W", bg: "#141821", type: "wallet" },
     { name: "Books", glyph: "BK", bg: "#f78c43", type: "books" },
-    { name: "Files", glyph: "FL", bg: "#4d90ff", type: "text" },
-    { name: "Fitness", glyph: "FIT", bg: "#121316", type: "fitness" },
-    { name: "Clips", glyph: "CC", bg: "#8d3cff", type: "text" },
-    { name: "Calculator", glyph: "CAL", bg: "#17191f", type: "calculator" },
+    { name: "Tips", glyph: "!", bg: "#f4d33b", type: "tips", fg: "#1d2230" },
     { name: "Translate", glyph: "TR", bg: "#fafafd", type: "text", fg: "#1d2230" },
-    { name: "Podcasts", glyph: "PC", bg: "#7e43ff", type: "podcasts" },
-    { name: "TV", glyph: "TV", bg: "#111216", type: "tv" },
-    { name: "Journal", glyph: "JR", bg: "#4c86f5", type: "journal" },
-    { name: "Contacts", glyph: "CT", bg: "#f3f5f8", type: "contacts", fg: "#1d2230" },
+    { name: "Files", glyph: "FL", bg: "#4d90ff", type: "text" },
+    { name: "TikTok", glyph: "TT", bg: "#101114", type: "tiktok" },
     {
       name: "Eva Scratchers",
       glyph: "E",
@@ -67,10 +80,7 @@ const homePagesData = [
       action: "game",
       hiddenUntilInstalled: true,
       installedApp: true
-    },
-    { name: "Shortcuts", glyph: "SC", bg: "#eb7832", type: "text" },
-    { name: "Find My", glyph: "FM", bg: "#1ed18f", type: "text" },
-    { name: "Tips", glyph: "!", bg: "#f4d33b", type: "tips", fg: "#1d2230" }
+    }
   ]
 ];
 
@@ -339,6 +349,18 @@ function createGlyph(icon) {
         <path d="M14 18h36c2.2 0 4 1.8 4 4v20c0 2.2-1.8 4-4 4H14c-2.2 0-4-1.8-4-4V22c0-2.2 1.8-4 4-4Z" fill="#fff"/>
         <path d="M12 22 32 36 52 22" fill="none" stroke="#1f87fa" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
       `);
+    case "voicememos":
+      return svg(`
+        <path d="M12 33h4M18 29v8M24 24v18M30 20v26M36 25v16M42 21v24M48 28v10M52 31h4" stroke="#ff525d" stroke-width="3.6" stroke-linecap="round"/>
+        <path d="M30 32c0-6 4.4-10.3 10.3-10.3S50.6 26 50.6 32 46.2 42.3 40.3 42.3 30 38 30 32Z" fill="none" stroke="#4aa7ff" stroke-width="3"/>
+      `);
+    case "homeapp":
+      return svg(`
+        <path d="M14 31.5 32 17l18 14.5" fill="none" stroke="#f1a51a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20 29h24v17H20Z" fill="#ffc647"/>
+        <path d="M25 33h14v13H25Z" fill="#fff3d5"/>
+        <path d="M28.5 38h7v8h-7Z" fill="#fff"/>
+      `);
     case "maps":
       return svg(`
         <rect x="10" y="10" width="44" height="44" rx="11" fill="#fff"/>
@@ -346,6 +368,12 @@ function createGlyph(icon) {
         <path d="M15 46c8-8 15-11 21-8 7 3 12 1 17-3" fill="none" stroke="#45d26d" stroke-width="6" stroke-linecap="round"/>
         <path d="M33 16c-5.2 0-9.5 3.9-9.5 9.1 0 7.2 9.5 15.9 9.5 15.9s9.5-8.7 9.5-15.9c0-5.2-4.3-9.1-9.5-9.1Z" fill="#ff5a59"/>
         <circle cx="33" cy="25" r="3.8" fill="#fff"/>
+      `);
+    case "stocks":
+      return svg(`
+        <path d="M10 48h44" stroke="#353a46" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M12 40 22 33l8 6 11-16 11 8" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="41" cy="23" r="2.2" fill="#46a8ff"/>
       `);
     case "weather":
       return svg(`
@@ -425,6 +453,12 @@ function createGlyph(icon) {
         <rect x="29.5" y="37" width="5" height="10" rx="2.5" fill="#fff"/>
         <path d="M22 32a10 10 0 0 1 20 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
         <path d="M16 32a16 16 0 0 1 32 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".75"/>
+      `);
+    case "findmy":
+      return svg(`
+        <circle cx="32" cy="32" r="17" fill="#2fe08e"/>
+        <circle cx="32" cy="32" r="10" fill="#2f9dff"/>
+        <circle cx="32" cy="32" r="4.6" fill="#fff"/>
       `);
     case "tv":
       return svg(`
