@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Eva's Phone</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --phone-w:393px;--phone-h:852px;
+  --screen-w:387px;--screen-h:842px;
+  --body-r:55px;--screen-r:50px;
+  --icon-size:62px;--icon-r:14px;
+  --grid-cols:4;--grid-gap-x:24px;--grid-gap-y:18px;
+  --dock-h:96px;
+  --status-h:54px;
+  --island-w:126px;--island-h:37px;
+  --sf:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',system-ui,sans-serif;
+}
+html,body{height:100%;overflow:hidden;font-family:var(--sf);-webkit-font-smoothing:antialiased}
+body{
+  display:flex;justify-content:center;align-items:center;
+  background:linear-gradient(135deg,#0d0d0d 0%,#1a1a2e 50%,#16213e 100%);
+  background-size:400% 400%;animation:bgShift 12s ease infinite;
+}
+@keyframes bgShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+/* ── iPhone Frame ── */
+.iphone{
+  position:relative;width:var(--phone-w);height:var(--phone-h);
+  background:linear-gradient(145deg,#2a2a2e 0%,#1d1d1f 50%,#2a2a2e 100%);
+  border-radius:var(--body-r);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.08),
+    0 0 0 3px #1a1a1c,
+    0 25px 60px rgba(0,0,0,.6),
+    0 8px 20px rgba(0,0,0,.4),
+    inset 0 0 0 1px rgba(255,255,255,.05);
+  transform-origin:center center;
+  transition:transform .3s;
+  user-select:none;
+}
+/* side buttons */
+.btn-action{position:absolute;left:-3px;top:170px;width:3px;height:32px;background:#2a2a2e;border-radius:2px 0 0 2px}
+.btn-vol-up{position:absolute;left:-3px;top:225px;width:3px;height:52px;background:#2a2a2e;border-radius:2px 0 0 2px}
+.btn-vol-down{position:absolute;left:-3px;top:290px;width:3px;height:52px;background:#2a2a2e;border-radius:2px 0 0 2px}
+.btn-power{position:absolute;right:-3px;top:250px;width:3px;height:80px;background:#2a2a2e;border-radius:0 2px 2px 0}
+
+/* ── Screen ── */
+.screen{
+  position:absolute;
+  top:calc((var(--phone-h) - var(--screen-h)) / 2);
+  left:calc((var(--phone-w) - var(--screen-w)) / 2);
+  width:var(--screen-w);height:var(--screen-h);
+  border-radius:var(--screen-r);
+  overflow:hidden;background:#000;
+}
+
+/* ── Dynamic Island ── */
+.dynamic-island{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  width:var(--island-w);height:var(--island-h);
+  background:#000;border-radius:19px;z-index:100;
+}
+
+/* ── Status Bar ── */
+.status-bar{
+  position:absolute;top:0;left:0;right:0;height:var(--status-h);
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:16px 26px 0;z-index:90;
+  color:#fff;font-size:15px;font-weight:600;
+  letter-spacing:0.3px;
+}
+.status-bar.dark-text{color:#000}
+.status-left,.status-right{display:flex;align-items:center;gap:5px}
+.status-right{gap:6px}
+.status-right svg{display:block}
+.battery-shell{position:relative;display:flex;align-items:center}
+.battery-shell .cap{width:2px;height:6px;background:currentColor;border-radius:0 1px 1px 0;opacity:.5;margin-left:1px}
+.battery-body{width:25px;height:12px;border:1.5px solid currentColor;border-radius:3px;position:relative;overflow:hidden}
+.battery-body::after{content:'';position:absolute;inset:1.5px;background:currentColor;border-radius:1px}
+
+/* ── Views ── */
+.view{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .4s,transform .4s}
+.view.active{opacity:1;pointer-events:auto}
+
+/* ── LOCK SCREEN ── */
+.lock-screen{
+  background:
+    radial-gradient(ellipse at 30% 20%,#3b1d8e 0%,transparent 55%),
+    radial-gradient(ellipse at 70% 80%,#0c4a6e 0%,transparent 55%),
+    radial-gradient(ellipse at 50% 50%,#1e1b4b 0%,#0f0a1e 100%);
+  display:flex;flex-direction:column;align-items:center;
+}
+.lock-icon{margin-top:72px;opacity:.7}
+.lock-icon svg{width:18px;height:22px;fill:#fff}
+.lock-time{
+  font-size:82px;font-weight:700;letter-spacing:-3px;
+  color:#fff;margin-top:8px;line-height:1;
+  text-shadow:0 2px 20px rgba(0,0,0,.3);
+}
+.lock-date{font-size:18px;font-weight:500;color:rgba(255,255,255,.85);margin-top:6px;letter-spacing:.3px}
+.lock-bottom{
+  position:absolute;bottom:0;left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;
+  padding-bottom:12px;
+}
+.lock-shortcuts{
+  display:flex;justify-content:space-between;width:100%;
+  padding:0 48px;margin-bottom:28px;
+}
+.lock-shortcut{
+  width:50px;height:50px;border-radius:50%;
+  background:rgba(255,255,255,.18);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:transform .2s;
+}
+.lock-shortcut:active{transform:scale(.9)}
+.lock-shortcut svg{width:24px;height:24px;fill:#fff}
+.swipe-text{
+  color:rgba(255,255,255,.55);font-size:13px;font-weight:500;
+  letter-spacing:.5px;margin-bottom:4px;
+  animation:pulse 2.5s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.home-indicator{
+  width:134px;height:5px;background:rgba(255,255,255,.35);
+  border-radius:3px;margin-top:8px;
+}
+.home-indicator.dark{background:rgba(0,0,0,.25)}
+
+/* Lock screen slide up */
+.lock-screen.unlocking{
+  transform:translateY(-100%);opacity:0;
+  transition:transform .5s cubic-bezier(.4,.0,.2,1),opacity .4s ease;
+}
+
+/* ── HOME SCREEN ── */
+.home-screen{
+  background:
+    radial-gradient(ellipse at 30% 20%,#3b1d8e 0%,transparent 55%),
+    radial-gradient(ellipse at 70% 80%,#0c4a6e 0%,transparent 55%),
+    radial-gradient(ellipse at 50% 50%,#1e1b4b 0%,#0f0a1e 100%);
+  display:flex;flex-direction:column;
+}
+.home-search{
+  margin:60px auto 6px;
+  width:calc(100% - 48px);height:36px;
+  background:rgba(255,255,255,.12);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-radius:10px;display:flex;align-items:center;
+  padding:0 12px;gap:6px;
+  font-size:14px;color:rgba(255,255,255,.5);
+}
+.home-search svg{width:14px;height:14px;fill:rgba(255,255,255,.5);flex-shrink:0}
+.home-pages-wrapper{
+  flex:1;overflow:hidden;position:relative;
+}
+.home-pages{
+  display:flex;width:200%;height:100%;
+  transition:transform .35s cubic-bezier(.25,.1,.25,1);
+}
+.home-page{
+  width:50%;height:100%;
+  display:grid;
+  grid-template-columns:repeat(4,var(--icon-size));
+  grid-auto-rows:auto;
+  justify-content:center;
+  gap:var(--grid-gap-y) var(--grid-gap-x);
+  padding:14px 0 0;
+  align-content:start;
+}
+.page-dots{
+  display:flex;justify-content:center;gap:7px;
+  padding:6px 0 4px;
+}
+.page-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:rgba(255,255,255,.3);transition:background .3s;
+}
+.page-dot.active{background:rgba(255,255,255,.9)}
+
+/* ── App Icon ── */
+.app-icon{
+  display:flex;flex-direction:column;align-items:center;
+  gap:4px;cursor:pointer;
+  -webkit-touch-callout:none;
+}
+.app-icon:active .icon-img{transform:scale(.88);filter:brightness(.85)}
+.icon-img{
+  width:var(--icon-size);height:var(--icon-size);
+  border-radius:22.5%;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;transition:transform .15s,filter .15s;
+  box-shadow:0 1px 3px rgba(0,0,0,.18);
+}
+.icon-label{
+  font-size:11px;font-weight:500;color:#fff;
+  text-align:center;max-width:72px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  text-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+.icon-img svg{position:relative;z-index:1}
+
+/* icon color backgrounds */
+.ig-green{background:linear-gradient(135deg,#25D366 0%,#128C7E 100%)}
+.ig-blue{background:linear-gradient(135deg,#007AFF 0%,#0055D4 100%)}
+.ig-red{background:linear-gradient(135deg,#FF3B30 0%,#C62828 100%)}
+.ig-orange{background:linear-gradient(135deg,#FF9500 0%,#E67E00 100%)}
+.ig-yellow{background:linear-gradient(135deg,#FFD60A 0%,#F5C800 100%)}
+.ig-purple{background:linear-gradient(135deg,#AF52DE 0%,#8E24AA 100%)}
+.ig-pink{background:linear-gradient(135deg,#FF2D55 0%,#C2185B 100%)}
+.ig-gray{background:linear-gradient(135deg,#8E8E93 0%,#636366 100%)}
+.ig-dark{background:linear-gradient(135deg,#2C2C2E 0%,#1C1C1E 100%)}
+.ig-ltblue{background:linear-gradient(135deg,#5AC8FA 0%,#32ADE6 100%)}
+.ig-teal{background:linear-gradient(135deg,#30D158 0%,#28A745 100%)}
+.ig-white{background:#fff}
+.ig-music{background:linear-gradient(135deg,#FC3C44 0%,#F44283 100%)}
+.ig-appstore{background:linear-gradient(180deg,#2196F3 0%,#1976D2 100%)}
+.ig-facetime{background:linear-gradient(135deg,#32D74B 0%,#30B94D 100%)}
+.ig-tiktok{background:#010101}
+.ig-insta{background:linear-gradient(135deg,#833AB4 0%,#FD1D1D 50%,#F77737 100%)}
+
+/* calendar icon special */
+.icon-calendar{background:#fff;display:flex;flex-direction:column;align-items:center;overflow:hidden}
+.icon-calendar .cal-top{width:100%;height:18px;background:#FF3B30;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;letter-spacing:.5px;text-transform:uppercase}
+.icon-calendar .cal-day{flex:1;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:300;color:#1c1c1e}
+
+/* ── Dock ── */
+.dock{
+  display:flex;justify-content:center;gap:var(--grid-gap-x);
+  padding:10px 0 14px;position:relative;
+  background:rgba(255,255,255,.08);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.dock .app-icon .icon-label{display:none}
+.dock .home-indicator{margin:6px auto 0}
+
+/* ── APP STORE SCREEN ── */
+.appstore-screen{
+  background:#f2f2f7;display:flex;flex-direction:column;
+}
+.appstore-screen .status-bar-bg{
+  height:var(--status-h);background:#f2f2f7;flex-shrink:0;
+}
+.as-nav{
+  display:flex;align-items:center;padding:0 18px;
+  height:52px;flex-shrink:0;
+}
+.as-back{
+  display:flex;align-items:center;gap:4px;
+  color:#007AFF;font-size:17px;cursor:pointer;
+  background:none;border:none;font-family:var(--sf);
+}
+.as-back svg{width:12px;height:20px;fill:#007AFF}
+.as-back:active{opacity:.5}
+.as-title{
+  font-size:34px;font-weight:800;color:#1c1c1e;
+  padding:0 18px 10px;letter-spacing:-.5px;
+}
+.as-search-bar{
+  margin:0 18px 16px;height:36px;background:#e5e5ea;
+  border-radius:10px;display:flex;align-items:center;
+  padding:0 10px;gap:6px;font-size:15px;color:#8e8e93;
+}
+.as-search-bar svg{width:14px;height:14px;fill:#8e8e93;flex-shrink:0}
+.as-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* featured card */
+.as-featured{
+  margin:0 18px 20px;border-radius:18px;overflow:hidden;
+  background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+  box-shadow:0 8px 30px rgba(102,126,234,.35);
+  position:relative;cursor:pointer;
+}
+.as-featured-inner{padding:24px 22px 20px;position:relative;z-index:1}
+.as-featured-label{font-size:11px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:1px}
+.as-featured-name{font-size:28px;font-weight:800;color:#fff;margin:6px 0 4px;letter-spacing:-.3px}
+.as-featured-desc{font-size:14px;color:rgba(255,255,255,.85);line-height:1.4;margin-bottom:16px}
+.as-featured-bottom{display:flex;align-items:center;gap:14px}
+.as-featured-icon{
+  width:56px;height:56px;border-radius:13px;
+  background:linear-gradient(135deg,#ff6b9d 0%,#ff3366 100%);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 10px rgba(0,0,0,.2);
+  font-size:24px;
+}
+.as-featured-meta{flex:1}
+.as-featured-meta .name{font-size:16px;font-weight:700;color:#fff}
+.as-featured-meta .sub{font-size:12px;color:rgba(255,255,255,.7);margin-top:1px}
+.btn-get{
+  min-width:72px;height:32px;border-radius:16px;
+  background:rgba(255,255,255,.25);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:none;color:#fff;font-size:15px;font-weight:700;
+  font-family:var(--sf);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;transition:all .3s;
+}
+.btn-get:active{transform:scale(.92)}
+.btn-get.downloading{
+  width:32px;min-width:32px;height:32px;padding:0;
+  background:transparent;border:3px solid rgba(255,255,255,.3);
+  border-radius:50%;
+}
+.btn-get.downloading::after{
+  content:'';position:absolute;inset:-3px;
+  border:3px solid transparent;border-top-color:#fff;
+  border-radius:50%;animation:spin 1s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn-get.open{background:rgba(255,255,255,.35)}
+
+/* progress ring */
+.progress-ring{position:absolute;inset:-3px;border-radius:50%;pointer-events:none}
+.progress-ring circle{fill:none;stroke-width:3;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center}
+.progress-ring .bg{stroke:rgba(255,255,255,.2)}
+.progress-ring .fg{stroke:#fff;transition:stroke-dashoffset .3s}
+
+/* sparkle on featured card */
+.as-featured::before{
+  content:'';position:absolute;top:-50%;right:-50%;
+  width:200%;height:200%;
+  background:radial-gradient(ellipse at center,rgba(255,255,255,.08) 0%,transparent 60%);
+  animation:sparkleMove 6s ease-in-out infinite;
+}
+@keyframes sparkleMove{0%,100%{transform:translate(0,0)}50%{transform:translate(-15%,10%)}}
+
+/* section */
+.as-section{padding:0 18px 8px}
+.as-section-title{font-size:22px;font-weight:800;color:#1c1c1e;margin-bottom:14px}
+
+/* game list */
+.as-game-item{
+  display:flex;align-items:center;gap:14px;
+  padding:12px 0;border-bottom:1px solid #e5e5ea;
+}
+.as-game-item:last-child{border-bottom:none}
+.as-game-icon{
+  width:64px;height:64px;border-radius:14px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:28px;box-shadow:0 1px 4px rgba(0,0,0,.1);
+}
+.as-game-info{flex:1;min-width:0}
+.as-game-info .name{font-size:16px;font-weight:600;color:#1c1c1e}
+.as-game-info .sub{font-size:13px;color:#8e8e93;margin-top:2px}
+.as-game-info .sub2{font-size:11px;color:#aeaeb2;margin-top:1px}
+.btn-get-sm{
+  min-width:72px;height:30px;border-radius:15px;
+  background:#ebebf0;border:none;
+  color:#007AFF;font-size:15px;font-weight:700;
+  font-family:var(--sf);cursor:pointer;
+  transition:all .2s;
+}
+.btn-get-sm:active{background:#d1d1d6;transform:scale(.92)}
+
+/* ── DOWNLOAD SCREEN (overlay) ── */
+.download-overlay{
+  position:absolute;inset:0;z-index:200;
+  background:rgba(0,0,0,.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .4s;
+}
+.download-overlay.active{opacity:1;pointer-events:auto}
+.dl-icon{
+  width:100px;height:100px;border-radius:22.5%;
+  background:linear-gradient(135deg,#ff6b9d 0%,#ff3366 100%);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 10px 40px rgba(255,51,102,.4);
+  margin-bottom:24px;font-size:44px;
+}
+.dl-name{font-size:20px;font-weight:700;color:#fff;margin-bottom:6px}
+.dl-sub{font-size:14px;color:rgba(255,255,255,.6);margin-bottom:32px}
+.dl-progress-bar{
+  width:220px;height:4px;background:rgba(255,255,255,.15);
+  border-radius:2px;overflow:hidden;margin-bottom:12px;
+}
+.dl-progress-fill{
+  height:100%;background:#fff;border-radius:2px;
+  width:0%;transition:width .1s linear;
+}
+.dl-percent{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:40px}
+.dl-status{font-size:15px;color:rgba(255,255,255,.8);font-weight:500}
+.btn-open-game{
+  margin-top:24px;padding:14px 48px;border-radius:14px;
+  background:#fff;border:none;color:#1c1c1e;
+  font-size:17px;font-weight:700;font-family:var(--sf);
+  cursor:pointer;display:none;
+  box-shadow:0 4px 15px rgba(0,0,0,.2);
+  transition:transform .2s;
+}
+.btn-open-game:active{transform:scale(.94)}
+.btn-open-game.show{display:block;animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+
+/* ── EVA SCRATCHERS GAME ── */
+.game-screen{
+  background:linear-gradient(180deg,#1a0a2e 0%,#2d1b69 30%,#1a0a2e 100%);
+  display:flex;flex-direction:column;align-items:center;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+}
+.game-header{
+  width:100%;padding:68px 20px 12px;text-align:center;flex-shrink:0;
+}
+.game-logo{
+  font-size:32px;font-weight:900;
+  background:linear-gradient(135deg,#FFD700,#FFA500,#FFD700);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  letter-spacing:1px;
+  filter:drop-shadow(0 2px 4px rgba(255,165,0,.4));
+}
+.game-subtitle{font-size:14px;color:rgba(255,215,0,.6);margin-top:4px;font-weight:500;letter-spacing:.5px}
+.game-tickets{
+  width:100%;padding:10px 20px 30px;
+  display:flex;flex-direction:column;gap:20px;
+  flex-shrink:0;
+}
+
+/* Scratch Ticket */
+.scratch-ticket{
+  width:100%;border-radius:16px;overflow:hidden;
+  position:relative;
+  box-shadow:0 8px 30px rgba(0,0,0,.4);
+}
+.ticket-bg{
+  padding:20px;display:flex;flex-direction:column;align-items:center;
+  min-height:160px;justify-content:center;
+}
+.ticket-bg.gold{background:linear-gradient(135deg,#fff7e6 0%,#ffe4a0 30%,#ffd54f 60%,#ffb300 100%)}
+.ticket-bg.silver{background:linear-gradient(135deg,#f5f5f5 0%,#e0e0e0 30%,#bdbdbd 60%,#9e9e9e 100%)}
+.ticket-bg.rose{background:linear-gradient(135deg,#fce4ec 0%,#f8bbd0 30%,#f48fb1 60%,#ec407a 100%)}
+
+.ticket-top{
+  width:100%;text-align:center;padding-bottom:8px;
+  border-bottom:2px dashed rgba(0,0,0,.15);margin-bottom:12px;
+}
+.ticket-top .ticket-num{font-size:10px;color:rgba(0,0,0,.35);font-weight:600;letter-spacing:1px}
+.ticket-top .ticket-title{font-size:16px;font-weight:800;color:rgba(0,0,0,.7);margin-top:2px;letter-spacing:.5px}
+.prize-area{
+  width:100%;position:relative;
+  background:rgba(255,255,255,.4);border-radius:10px;
+  overflow:hidden;
+  height:80px;
+  display:flex;align-items:center;justify-content:center;
+}
+.prize-content{
+  text-align:center;padding:8px 12px;
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.prize-content .prize-emoji{font-size:22px;margin-bottom:2px}
+.prize-content .prize-text{font-size:14px;font-weight:800;color:#1a1a2e;line-height:1.3}
+.prize-content .prize-code{font-size:11px;font-weight:600;color:#666;margin-top:4px;letter-spacing:.5px;font-family:'Courier New',monospace}
+.scratch-canvas{
+  position:absolute;inset:0;border-radius:10px;
+  cursor:pointer;touch-action:none;z-index:2;
+}
+
+/* scratched-off reveal animation */
+.prize-area.revealed .prize-content{animation:revealPop .5s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes revealPop{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
+
+/* confetti */
+.confetti-particle{
+  position:absolute;width:8px;height:8px;
+  pointer-events:none;z-index:10;
+  animation:confettiBurst 1.2s ease-out forwards;
+}
+.confetti-particle.square{border-radius:2px}
+.confetti-particle.circle{border-radius:50%}
+@keyframes confettiBurst{
+  0%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}
+  100%{transform:translate(var(--x),var(--y)) rotate(var(--r)) scale(0);opacity:0}
+}
+
+/* ticket decorative border */
+.scratch-ticket::before{
+  content:'';position:absolute;inset:3px;
+  border:2px dashed rgba(0,0,0,.08);border-radius:14px;
+  pointer-events:none;z-index:1;
+}
+
+/* game back button */
+.game-back{
+  position:absolute;top:64px;left:16px;z-index:10;
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(255,255,255,.12);border:none;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.game-back:active{background:rgba(255,255,255,.2)}
+.game-back svg{width:12px;height:18px;fill:#fff}
+
+/* ── Transition Animations ── */
+.appstore-screen{
+  transform:translateX(100%);
+  transition:transform .4s cubic-bezier(.25,.1,.25,1),opacity .4s;
+}
+.appstore-screen.active{transform:translateX(0)}
+.game-screen{
+  transform:scale(.92);opacity:0;
+  transition:transform .45s cubic-bezier(.25,.1,.25,1),opacity .35s;
+}
+.game-screen.active{transform:scale(1);opacity:1}
+
+/* extra iPhone realism */
+.iphone::after{
+  content:'';position:absolute;
+  inset:0;border-radius:var(--body-r);
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1);
+  pointer-events:none;
+}
+
+/* ── Responsive Scale ── */
+@media(max-height:900px){.iphone{transform:scale(.88)}}
+@media(max-height:750px){.iphone{transform:scale(.75)}}
+@media(max-height:600px){.iphone{transform:scale(.6)}}
+@media(max-width:420px){.iphone{transform:scale(.85)}}
+@media(max-width:380px){.iphone{transform:scale(.75)}}
+</style>
+</head>
+<body>
+
+<div class="iphone" id="iphone">
+  <div class="btn-action"></div>
+  <div class="btn-vol-up"></div>
+  <div class="btn-vol-down"></div>
+  <div class="btn-power"></div>
+
+  <div class="screen" id="screen">
+    <div class="dynamic-island"></div>
+
+    <!-- ═══ LOCK SCREEN ═══ -->
+    <div class="view lock-screen active" id="lockScreen">
+      <div class="status-bar">
+        <div class="status-left"><span id="statusTime">9:41</span></div>
+        <div class="status-right">
+          <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor" opacity=".4"/><rect x="4.5" y="5" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/><rect x="9" y="2.5" width="3" height="9.5" rx="1" fill="currentColor" opacity=".8"/><rect x="13.5" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 3.6c1.8 0 3.4.7 4.6 1.9l1.1-1.1C12.1 2.8 10.1 2 8 2s-4.1.8-5.7 2.4L3.4 5.5C4.6 4.3 6.2 3.6 8 3.6z" fill="currentColor" opacity=".5"/><path d="M8 6.4c1.2 0 2.2.5 3 1.2l1.1-1.1C11 5.4 9.6 4.8 8 4.8s-3 .6-4.1 1.7L5 7.6c.8-.7 1.8-1.2 3-1.2z" fill="currentColor" opacity=".7"/><path d="M8 9.2c.6 0 1.2.3 1.6.7L8 11.5 6.4 9.9c.4-.4 1-.7 1.6-.7z" fill="currentColor"/></svg>
+          <div class="battery-shell"><div class="battery-body"></div><div class="cap"></div></div>
+        </div>
+      </div>
+      <div class="lock-icon">
+        <svg viewBox="0 0 24 28"><path d="M12 0C8.7 0 6 2.7 6 6v4H4a2 2 0 00-2 2v14a2 2 0 002 2h16a2 2 0 002-2V12a2 2 0 00-2-2h-2V6c0-3.3-2.7-6-6-6zm-4 6c0-2.2 1.8-4 4-4s4 1.8 4 4v4H8V6z"/></svg>
+      </div>
+      <div class="lock-time" id="lockTime">9:41</div>
+      <div class="lock-date" id="lockDate">Saturday, March 7</div>
+      <div class="lock-bottom">
+        <div class="lock-shortcuts">
+          <div class="lock-shortcut">
+            <svg viewBox="0 0 24 24"><path d="M9 2h6l1 3h-8l1-3zM8 6h8v2H8V6zM9 9h6v10a2 2 0 01-2 2h-2a2 2 0 01-2-2V9z"/><rect x="10.5" y="9" width="3" height="5" rx="1" fill="rgba(0,0,0,.3)"/></svg>
+          </div>
+          <div class="lock-shortcut">
+            <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="3" fill="white"/><circle cx="12" cy="13" r="4" stroke="rgba(0,0,0,.3)" stroke-width="1.5" fill="none"/><circle cx="12" cy="13" r="1.5" fill="rgba(0,0,0,.3)"/><rect x="14" y="8" width="4" height="2" rx="1" fill="rgba(0,0,0,.2)"/></svg>
+          </div>
+        </div>
+        <div class="swipe-text">Swipe up to open</div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- ═══ HOME SCREEN ═══ -->
+    <div class="view home-screen" id="homeScreen">
+      <div class="status-bar">
+        <div class="status-left"><span>9:41</span></div>
+        <div class="status-right">
+          <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor" opacity=".4"/><rect x="4.5" y="5" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/><rect x="9" y="2.5" width="3" height="9.5" rx="1" fill="currentColor" opacity=".8"/><rect x="13.5" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 3.6c1.8 0 3.4.7 4.6 1.9l1.1-1.1C12.1 2.8 10.1 2 8 2s-4.1.8-5.7 2.4L3.4 5.5C4.6 4.3 6.2 3.6 8 3.6z" fill="currentColor" opacity=".5"/><path d="M8 6.4c1.2 0 2.2.5 3 1.2l1.1-1.1C11 5.4 9.6 4.8 8 4.8s-3 .6-4.1 1.7L5 7.6c.8-.7 1.8-1.2 3-1.2z" fill="currentColor" opacity=".7"/><path d="M8 9.2c.6 0 1.2.3 1.6.7L8 11.5 6.4 9.9c.4-.4 1-.7 1.6-.7z" fill="currentColor"/></svg>
+          <div class="battery-shell"><div class="battery-body"></div><div class="cap"></div></div>
+        </div>
+      </div>
+      <div class="home-search">
+        <svg viewBox="0 0 20 20"><path d="M8 2a6 6 0 104.5 10.1l4.7 4.7a1 1 0 001.4-1.4l-4.7-4.7A6 6 0 008 2zm0 2a4 4 0 110 8 4 4 0 010-8z"/></svg>
+        <span>Search</span>
+      </div>
+      <div class="home-pages-wrapper">
+        <div class="home-pages" id="homePages">
+          <!-- Page 1 -->
+          <div class="home-page" id="homePage1">
+            <!-- Row 1 -->
+            <div class="app-icon">
+              <div class="icon-img ig-facetime">
+                <svg width="32" height="22" viewBox="0 0 32 22" fill="none"><rect x="1" y="3" width="20" height="16" rx="4" fill="white"/><path d="M23 7l7-3v14l-7-3V7z" fill="white"/></svg>
+              </div>
+              <span class="icon-label">FaceTime</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img icon-calendar">
+                <div class="cal-top">SAT</div>
+                <div class="cal-day">7</div>
+              </div>
+              <span class="icon-label">Calendar</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-white" style="padding:6px">
+                <svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="14" r="6" fill="#FF3B30"/><circle cx="14" cy="23" r="6" fill="#FFD60A"/><circle cx="26" cy="23" r="6" fill="#007AFF"/><circle cx="20" cy="20" r="6" fill="#30D158"/><circle cx="16" cy="17" r="5" fill="#FF9500"/><circle cx="24" cy="17" r="5" fill="#AF52DE"/></svg>
+              </div>
+              <span class="icon-label">Photos</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-gray">
+                <svg width="30" height="26" viewBox="0 0 30 26" fill="none"><rect x="1" y="5" width="28" height="20" rx="4" fill="white" opacity=".95"/><rect x="9" y="0" width="12" height="7" rx="3" fill="white" opacity=".95"/><circle cx="15" cy="15" r="5" stroke="white" stroke-width="2" fill="none" opacity=".6"/><circle cx="15" cy="15" r="2.5" fill="white" opacity=".6"/></svg>
+              </div>
+              <span class="icon-label">Camera</span>
+            </div>
+            <!-- Row 2 -->
+            <div class="app-icon">
+              <div class="icon-img ig-blue">
+                <svg width="28" height="22" viewBox="0 0 28 22" fill="none"><rect x="1" y="1" width="26" height="20" rx="3" stroke="white" stroke-width="2" fill="none"/><path d="M1 4l13 9 13-9" stroke="white" stroke-width="2" fill="none"/></svg>
+              </div>
+              <span class="icon-label">Mail</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-dark">
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none"><circle cx="15" cy="15" r="12" stroke="white" stroke-width="2"/><line x1="15" y1="15" x2="15" y2="7" stroke="white" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="15" x2="22" y2="15" stroke="white" stroke-width="1.5" stroke-linecap="round"/><circle cx="15" cy="15" r="1.5" fill="white"/></svg>
+              </div>
+              <span class="icon-label">Clock</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-ltblue">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="11" cy="10" r="5" fill="white" opacity=".9"/><path d="M18 14a7 7 0 01-14 0" fill="white" opacity=".6"/><path d="M20 8l4-3v12l-4-3V8z" fill="white" opacity=".8"/></svg>
+              </div>
+              <span class="icon-label">Weather</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img" style="background:linear-gradient(135deg,#34C759,#248A3D)">
+                <svg width="26" height="30" viewBox="0 0 26 30" fill="none"><path d="M13 2C9 2 2 8 2 16c0 4 2 8 4 10l2-2c2 2 4 4 5 4s3-2 5-4l2 2c2-2 4-6 4-10C24 8 17 2 13 2z" fill="white" opacity=".9"/><path d="M13 2c2-1 6 2 6 6" stroke="white" stroke-width="1.5" fill="none"/></svg>
+              </div>
+              <span class="icon-label">Maps</span>
+            </div>
+            <!-- Row 3 -->
+            <div class="app-icon">
+              <div class="icon-img" style="background:linear-gradient(180deg,#fff 55%,#FFD60A 55%)">
+                <svg width="24" height="28" viewBox="0 0 24 28" fill="none"><line x1="4" y1="12" x2="20" y2="12" stroke="#ccc" stroke-width="1"/><line x1="4" y1="16" x2="20" y2="16" stroke="#ccc" stroke-width="1"/><line x1="4" y1="20" x2="16" y2="20" stroke="#ccc" stroke-width="1"/></svg>
+              </div>
+              <span class="icon-label">Notes</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-white">
+                <svg width="26" height="28" viewBox="0 0 26 28" fill="none"><circle cx="7" cy="8" r="3.5" stroke="#FF3B30" stroke-width="2.5" fill="none"/><circle cx="7" cy="16" r="3.5" stroke="#AF52DE" stroke-width="2.5" fill="none"/><circle cx="7" cy="24" r="3.5" stroke="#30D158" stroke-width="2.5" fill="none"/><line x1="12" y1="8" x2="24" y2="8" stroke="#ccc" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="16" x2="20" y2="16" stroke="#ccc" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="24" x2="22" y2="24" stroke="#ccc" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <span class="icon-label">Reminders</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-gray">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="10" stroke="white" stroke-width="2.5"/><path d="M14 4V6M14 22v2M4 14H6M22 14h2" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="14" r="3" fill="white"/><path d="M14 11l1.5-3M17 14l3-1.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </div>
+              <span class="icon-label">Settings</span>
+            </div>
+            <div class="app-icon" id="appStoreIcon" data-app="appstore">
+              <div class="icon-img ig-appstore">
+                <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M13 2L6 22h3.5l2-5.5h5L19 22h3.5L13 2zm0 6l3 8.5h-6L13 8z" fill="white" stroke="white" stroke-width=".5"/><line x1="3" y1="17" x2="23" y2="17" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <span class="icon-label">App Store</span>
+            </div>
+            <!-- Row 4 -->
+            <div class="app-icon">
+              <div class="icon-img ig-white">
+                <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M13 5c-3 0-6 3-6 7 0 5 6 12 6 12s6-7 6-12c0-4-3-7-6-7z" fill="#FF2D55"/></svg>
+              </div>
+              <span class="icon-label">Health</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-dark">
+                <svg width="28" height="22" viewBox="0 0 28 22" fill="none"><rect x="2" y="1" width="24" height="16" rx="3" fill="white" opacity=".2"/><rect x="1" y="3" width="26" height="16" rx="3" fill="white" opacity=".4"/><rect x="0" y="5" width="28" height="16" rx="3" fill="white" opacity=".8"/></svg>
+              </div>
+              <span class="icon-label">Wallet</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-music">
+                <svg width="20" height="26" viewBox="0 0 20 26" fill="none"><path d="M7 22V6l12-4v16" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle cx="5" cy="22" r="4" fill="white"/><circle cx="17" cy="18" r="4" fill="white"/></svg>
+              </div>
+              <span class="icon-label">Music</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-purple">
+                <svg width="24" height="26" viewBox="0 0 24 26" fill="none"><path d="M12 22c-1 0-2-.5-2-1.5V8l8-5v13.5c0 1-.9 1.5-2 1.5" stroke="white" stroke-width="2" fill="none"/><circle cx="8" cy="20.5" r="3.5" stroke="white" stroke-width="2" fill="none"/><circle cx="20" cy="16.5" r="3.5" stroke="white" stroke-width="2" fill="none"/></svg>
+              </div>
+              <span class="icon-label">Podcasts</span>
+            </div>
+            <!-- Row 5 -->
+            <div class="app-icon">
+              <div class="icon-img ig-blue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" fill="white"/><rect x="13" y="3" width="8" height="8" rx="2" fill="white"/><rect x="3" y="13" width="8" height="8" rx="2" fill="white"/><rect x="13" y="13" width="8" height="8" rx="2" fill="white" opacity=".4"/></svg>
+              </div>
+              <span class="icon-label">Shortcuts</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-tiktok">
+                <svg width="22" height="26" viewBox="0 0 22 26" fill="none"><path d="M9 24V10c0-1 0-2 1-3 1-2 3-3 5-3v4c-2 0-3 1-3 3v13c0 2-3 3-5 1.5" fill="#25F4EE"/><path d="M11 24V10c0-1 0-2 1-3 1-2 3-3 5-3v4c-2 0-3 1-3 3v13c0 2-3 3-5 1.5" fill="#FE2C55" opacity=".8"/><circle cx="9" cy="20" r="4" fill="white"/></svg>
+              </div>
+              <span class="icon-label">TikTok</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-insta">
+                <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect x="3" y="3" width="20" height="20" rx="6" stroke="white" stroke-width="2"/><circle cx="13" cy="13" r="5" stroke="white" stroke-width="2"/><circle cx="19.5" cy="6.5" r="1.5" fill="white"/></svg>
+              </div>
+              <span class="icon-label">Instagram</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img" style="background:linear-gradient(135deg,#5856D6,#007AFF)">
+                <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="9" stroke="white" stroke-width="2"/><path d="M13 4v3M13 19v3M4 13h3M19 13h3" stroke="white" stroke-width="1.5" stroke-linecap="round"/><polygon points="13,7 15,12 13,13 11,12" fill="white"/><polygon points="13,19 11,14 13,13 15,14" fill="rgba(255,255,255,.5)"/></svg>
+              </div>
+              <span class="icon-label">Safari</span>
+            </div>
+          </div>
+          <!-- Page 2 -->
+          <div class="home-page" id="homePage2">
+            <div class="app-icon">
+              <div class="icon-img ig-orange">
+                <svg width="24" height="26" viewBox="0 0 24 26" fill="none"><path d="M3 4h18v16a3 3 0 01-3 3H6a3 3 0 01-3-3V4z" fill="white" opacity=".9"/><rect x="1" y="2" width="22" height="5" rx="1" fill="white"/></svg>
+              </div>
+              <span class="icon-label">Books</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img" style="background:linear-gradient(135deg,#FFD60A,#FF9F0A)">
+                <svg width="24" height="28" viewBox="0 0 24 28" fill="none"><circle cx="12" cy="14" r="8" stroke="white" stroke-width="2.5"/><path d="M12 6V3" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M8 8l-2-2M16 8l2-2" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <span class="icon-label">Tips</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-blue">
+                <svg width="26" height="22" viewBox="0 0 26 22" fill="none"><rect x="1" y="3" width="24" height="16" rx="3" fill="white" opacity=".9"/><path d="M3 8h20M3 12h14" stroke="#007AFF" stroke-width="1.5" opacity=".3"/></svg>
+              </div>
+              <span class="icon-label">Files</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-dark" style="background:linear-gradient(180deg,#333 0%,#1c1c1e 100%)">
+                <svg width="24" height="26" viewBox="0 0 24 26" fill="none"><text x="4" y="10" font-size="8" fill="#FF9500" font-weight="700" font-family="sans-serif">AC</text><text x="4" y="20" font-size="9" fill="white" font-weight="400" font-family="sans-serif">789</text><text x="4" y="28" font-size="9" fill="white" font-weight="400" font-family="sans-serif">456</text></svg>
+              </div>
+              <span class="icon-label">Calculator</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-teal">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z" fill="white" opacity=".3"/><circle cx="12" cy="12" r="4" fill="white"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="white" stroke-width="2" stroke-linecap="round" opacity=".7"/></svg>
+              </div>
+              <span class="icon-label">Find My</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img ig-gray">
+                <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="9" r="5" fill="white"/><path d="M4 23c0-5 4-9 9-9s9 4 9 9" fill="white"/></svg>
+              </div>
+              <span class="icon-label">Contacts</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img" style="background:linear-gradient(135deg,#007AFF,#5856D6)">
+                <svg width="26" height="24" viewBox="0 0 26 24" fill="none"><path d="M3 4h8v8H3zM15 4h8v8h-8zM3 14h20v6H3z" fill="white" opacity=".85" rx="2"/></svg>
+              </div>
+              <span class="icon-label">Translate</span>
+            </div>
+            <div class="app-icon">
+              <div class="icon-img" style="background:linear-gradient(135deg,#FF6B6B,#FF3B30)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" stroke="white" stroke-width="2"/><path d="M7 12h10M12 7v10" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <span class="icon-label">News</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-dots">
+        <div class="page-dot active" id="dot0"></div>
+        <div class="page-dot" id="dot1"></div>
+      </div>
+      <div class="dock">
+        <div class="app-icon">
+          <div class="icon-img ig-green" style="background:linear-gradient(135deg,#32D74B,#248A3D)">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M20 17c-.5 1.5-1.5 3-3 4.5-1 1-2 1.5-3 1.5s-2-.5-3-1.5c-1.5-1.5-3-3.5-3-6 0-2 1-4 3-4 1 0 2 .5 3 1.5 1-1 2-1.5 3-1.5 2 0 3 2 3 4 0 .5 0 1 0 1.5z" fill="white" opacity=".9"/><path d="M8 8c0-2 2-4 5-4l-1 4" stroke="white" stroke-width="1.5" fill="none"/></svg>
+          </div>
+          <span class="icon-label">Phone</span>
+        </div>
+        <div class="app-icon">
+          <div class="icon-img" style="background:linear-gradient(135deg,#5856D6,#007AFF)">
+            <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="13" r="9" stroke="white" stroke-width="2"/><polygon points="13,5 15,12 13,13 11,12" fill="#FF3B30"/><polygon points="13,21 11,14 13,13 15,14" fill="white"/></svg>
+          </div>
+          <span class="icon-label">Safari</span>
+        </div>
+        <div class="app-icon">
+          <div class="icon-img ig-green" style="background:linear-gradient(135deg,#32D74B,#248A3D)">
+            <svg width="28" height="24" viewBox="0 0 28 24" fill="none"><path d="M4 3h20a2 2 0 012 2v12a2 2 0 01-2 2H8l-6 4V5a2 2 0 012-2z" fill="white" opacity=".9"/></svg>
+          </div>
+          <span class="icon-label">Messages</span>
+        </div>
+        <div class="app-icon">
+          <div class="icon-img ig-music">
+            <svg width="20" height="24" viewBox="0 0 20 24" fill="none"><path d="M7 20V5l10-3v14" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle cx="5" cy="20" r="3.5" fill="white"/><circle cx="15" cy="16" r="3.5" fill="white"/></svg>
+          </div>
+          <span class="icon-label">Music</span>
+        </div>
+        <div class="home-indicator dark" style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%)"></div>
+      </div>
+    </div>
+
+    <!-- ═══ APP STORE SCREEN ═══ -->
+    <div class="view appstore-screen" id="appstoreScreen">
+      <div class="status-bar dark-text" style="background:#f2f2f7;z-index:91">
+        <div class="status-left" style="color:#000"><span>9:41</span></div>
+        <div class="status-right" style="color:#000">
+          <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor" opacity=".4"/><rect x="4.5" y="5" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/><rect x="9" y="2.5" width="3" height="9.5" rx="1" fill="currentColor" opacity=".8"/><rect x="13.5" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 3.6c1.8 0 3.4.7 4.6 1.9l1.1-1.1C12.1 2.8 10.1 2 8 2s-4.1.8-5.7 2.4L3.4 5.5C4.6 4.3 6.2 3.6 8 3.6z" fill="currentColor" opacity=".5"/><path d="M8 6.4c1.2 0 2.2.5 3 1.2l1.1-1.1C11 5.4 9.6 4.8 8 4.8s-3 .6-4.1 1.7L5 7.6c.8-.7 1.8-1.2 3-1.2z" fill="currentColor" opacity=".7"/><path d="M8 9.2c.6 0 1.2.3 1.6.7L8 11.5 6.4 9.9c.4-.4 1-.7 1.6-.7z" fill="currentColor"/></svg>
+          <div class="battery-shell"><div class="battery-body"></div><div class="cap"></div></div>
+        </div>
+      </div>
+      <div class="status-bar-bg"></div>
+      <div class="as-nav">
+        <button class="as-back" id="asBack">
+          <svg viewBox="0 0 12 20"><path d="M10 2L2 10l8 8" stroke="#007AFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back
+        </button>
+      </div>
+      <div class="as-scroll">
+        <div class="as-title">Games</div>
+        <div class="as-search-bar">
+          <svg viewBox="0 0 20 20"><path d="M8 2a6 6 0 104.5 10.1l4.7 4.7a1 1 0 001.4-1.4l-4.7-4.7A6 6 0 008 2zm0 2a4 4 0 110 8 4 4 0 010-8z" fill="#8e8e93"/></svg>
+          <span>Search Games</span>
+        </div>
+
+        <!-- Featured: Eva's Game -->
+        <div class="as-featured" id="evaGameCard">
+          <div class="as-featured-inner">
+            <div class="as-featured-label">Featured</div>
+            <div class="as-featured-name">Eva's Game</div>
+            <div class="as-featured-desc">A special surprise made just for you. Scratch to reveal your gifts!</div>
+            <div class="as-featured-bottom">
+              <div class="as-featured-icon">🎰</div>
+              <div class="as-featured-meta">
+                <div class="name">Eva's Game</div>
+                <div class="sub">Entertainment</div>
+              </div>
+              <button class="btn-get" id="btnGetEva">GET</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other Games -->
+        <div class="as-section">
+          <div class="as-section-title">You Might Also Like</div>
+          <div class="as-game-item">
+            <div class="as-game-icon" style="background:linear-gradient(135deg,#FF6B6B,#ee5a24)">🍳</div>
+            <div class="as-game-info">
+              <div class="name">Cooking Mama: Let's Cook!</div>
+              <div class="sub">Cooking simulation game</div>
+              <div class="sub2">⭐ 4.8 · #1 in Cooking</div>
+            </div>
+            <button class="btn-get-sm">GET</button>
+          </div>
+          <div class="as-game-item">
+            <div class="as-game-icon" style="background:linear-gradient(135deg,#f9ca24,#f0932b)">🧁</div>
+            <div class="as-game-info">
+              <div class="name">Cooking Fever: Restaurant</div>
+              <div class="sub">Time management & cooking</div>
+              <div class="sub2">⭐ 4.6 · #3 in Cooking</div>
+            </div>
+            <button class="btn-get-sm">GET</button>
+          </div>
+          <div class="as-game-item">
+            <div class="as-game-icon" style="background:linear-gradient(135deg,#6c5ce7,#a29bfe)">🍰</div>
+            <div class="as-game-info">
+              <div class="name">Cooking Diary: Restaurant</div>
+              <div class="sub">Cook & design your cafe</div>
+              <div class="sub2">⭐ 4.5 · #5 in Cooking</div>
+            </div>
+            <button class="btn-get-sm">GET</button>
+          </div>
+          <div class="as-game-item">
+            <div class="as-game-icon ig-tiktok" style="padding:0;overflow:hidden">
+              <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><path d="M16 30V14c0-1 0-2.5 1.5-4C19 8.5 21 8 22.5 8v5c-2 0-3.5 1.5-3.5 3.5V30c0 2-3.5 3-5.5 1" fill="#25F4EE"/><path d="M18 30V14c0-1 0-2.5 1.5-4C21 8.5 23 8 24.5 8v5c-2 0-3.5 1.5-3.5 3.5V30c0 2-3.5 3-5.5 1" fill="#FE2C55" opacity=".7"/><circle cx="15" cy="26" r="5" fill="white"/></svg>
+            </div>
+            <div class="as-game-info">
+              <div class="name">TikTok</div>
+              <div class="sub">Videos, Lives & Effects</div>
+              <div class="sub2">⭐ 4.7 · #1 in Entertainment</div>
+            </div>
+            <button class="btn-get-sm">GET</button>
+          </div>
+        </div>
+        <div style="height:30px"></div>
+      </div>
+      <div class="home-indicator dark" style="margin:6px auto 8px"></div>
+    </div>
+
+    <!-- ═══ DOWNLOAD OVERLAY ═══ -->
+    <div class="download-overlay" id="downloadOverlay">
+      <div class="dl-icon">🎰</div>
+      <div class="dl-name">Eva's Game</div>
+      <div class="dl-sub">Installing...</div>
+      <div class="dl-progress-bar"><div class="dl-progress-fill" id="dlFill"></div></div>
+      <div class="dl-percent" id="dlPercent">0%</div>
+      <button class="btn-open-game" id="btnOpenGame">Open</button>
+    </div>
+
+    <!-- ═══ EVA SCRATCHERS GAME ═══ -->
+    <div class="view game-screen" id="gameScreen">
+      <div class="status-bar">
+        <div class="status-left"><span>9:41</span></div>
+        <div class="status-right">
+          <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor" opacity=".4"/><rect x="4.5" y="5" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/><rect x="9" y="2.5" width="3" height="9.5" rx="1" fill="currentColor" opacity=".8"/><rect x="13.5" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 3.6c1.8 0 3.4.7 4.6 1.9l1.1-1.1C12.1 2.8 10.1 2 8 2s-4.1.8-5.7 2.4L3.4 5.5C4.6 4.3 6.2 3.6 8 3.6z" fill="currentColor" opacity=".5"/><path d="M8 6.4c1.2 0 2.2.5 3 1.2l1.1-1.1C11 5.4 9.6 4.8 8 4.8s-3 .6-4.1 1.7L5 7.6c.8-.7 1.8-1.2 3-1.2z" fill="currentColor" opacity=".7"/><path d="M8 9.2c.6 0 1.2.3 1.6.7L8 11.5 6.4 9.9c.4-.4 1-.7 1.6-.7z" fill="currentColor"/></svg>
+          <div class="battery-shell"><div class="battery-body"></div><div class="cap"></div></div>
+        </div>
+      </div>
+
+      <div class="game-header">
+        <div class="game-logo">EVA SCRATCHERS</div>
+        <div class="game-subtitle">Scratch to reveal your surprises!</div>
+      </div>
+
+      <div class="game-tickets">
+        <!-- Ticket 1: Gold -->
+        <div class="scratch-ticket">
+          <div class="ticket-bg gold">
+            <div class="ticket-top">
+              <div class="ticket-num">TICKET #001</div>
+              <div class="ticket-title">⭐ LUCKY STAR ⭐</div>
+            </div>
+            <div class="prize-area" id="prize1">
+              <div class="prize-content">
+                <div class="prize-emoji">🎁</div>
+                <div class="prize-text">Amazon Gift Card - $50</div>
+                <div class="prize-code">AMZN-EVA-LOVE-2026</div>
+              </div>
+              <canvas class="scratch-canvas" id="scratch1"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ticket 2: Silver -->
+        <div class="scratch-ticket">
+          <div class="ticket-bg silver">
+            <div class="ticket-top">
+              <div class="ticket-num">TICKET #002</div>
+              <div class="ticket-title">💎 DIAMOND PRIZE 💎</div>
+            </div>
+            <div class="prize-area" id="prize2">
+              <div class="prize-content">
+                <div class="prize-emoji">🧸</div>
+                <div class="prize-text">Giant Stuffed Bear from Amazon!</div>
+                <div class="prize-code">AMZN-BEAR-EVA-2026</div>
+              </div>
+              <canvas class="scratch-canvas" id="scratch2"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ticket 3: Rose -->
+        <div class="scratch-ticket">
+          <div class="ticket-bg rose">
+            <div class="ticket-top">
+              <div class="ticket-num">TICKET #003</div>
+              <div class="ticket-title">💖 HEART OF GOLD 💖</div>
+            </div>
+            <div class="prize-area" id="prize3">
+              <div class="prize-content">
+                <div class="prize-emoji">💆‍♀️</div>
+                <div class="prize-text">Spa Day Package!</div>
+                <div class="prize-code">AMZN-SPA-EVA-2026</div>
+              </div>
+              <canvas class="scratch-canvas" id="scratch3"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:40px;flex-shrink:0"></div>
+      <div class="home-indicator" style="position:fixed;bottom:8px;left:50%;transform:translateX(-50%)"></div>
+    </div>
+
+  </div><!-- /screen -->
+</div><!-- /iphone -->
+
+<script>
+(function(){
+  'use strict';
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
+
+  /* ── Update clock ── */
+  function updateTime(){
+    const now = new Date();
+    let h = now.getHours(), m = now.getMinutes();
+    const time = `${h}:${m.toString().padStart(2,'0')}`;
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const dateStr = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+    if($('#lockTime')) $('#lockTime').textContent = time;
+    if($('#lockDate')) $('#lockDate').textContent = dateStr;
+    $$('.status-left span').forEach(el => el.textContent = time);
+  }
+  updateTime();
+  setInterval(updateTime, 10000);
+
+  /* ── Screen Navigation ── */
+  let currentView = 'lockScreen';
+  function showView(id, opts = {}){
+    const prev = $(`#${currentView}`);
+    const next = $(`#${id}`);
+    if(prev) prev.classList.remove('active');
+    if(next){
+      next.classList.add('active');
+      if(opts.animation) next.classList.add(opts.animation);
+    }
+    currentView = id;
+  }
+
+  /* ── Lock Screen Swipe ── */
+  const lockScreen = $('#lockScreen');
+  let lockStartY = 0, lockSwiping = false;
+
+  function onLockStart(e){
+    lockSwiping = true;
+    lockStartY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+  }
+  function onLockMove(e){
+    if(!lockSwiping) return;
+    const y = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+    const diff = lockStartY - y;
+    if(diff > 60) unlock();
+  }
+  function onLockEnd(){
+    lockSwiping = false;
+  }
+  let unlocked = false;
+  function unlock(){
+    if(unlocked) return;
+    unlocked = true;
+    lockSwiping = false;
+    $('#homeScreen').classList.add('active');
+    $('#homeScreen').style.zIndex = '1';
+    lockScreen.style.zIndex = '2';
+    lockScreen.classList.add('unlocking');
+    setTimeout(()=>{
+      lockScreen.classList.remove('active','unlocking');
+      lockScreen.style.zIndex = '';
+      $('#homeScreen').style.zIndex = '';
+      currentView = 'homeScreen';
+    }, 500);
+  }
+
+  lockScreen.addEventListener('mousedown', onLockStart);
+  lockScreen.addEventListener('mousemove', onLockMove);
+  lockScreen.addEventListener('mouseup', onLockEnd);
+  lockScreen.addEventListener('touchstart', onLockStart, {passive:true});
+  lockScreen.addEventListener('touchmove', onLockMove, {passive:true});
+  lockScreen.addEventListener('touchend', onLockEnd);
+  lockScreen.addEventListener('click', function(e){
+    if(e.target.closest('.lock-shortcut')) return;
+    unlock();
+  });
+
+  /* ── Home Screen Page Swipe ── */
+  const homePages = $('#homePages');
+  let homePage = 0, homeStartX = 0, homeSwipeActive = false;
+
+  function updateDots(){
+    $$('.page-dot').forEach((d,i)=> d.classList.toggle('active', i===homePage));
+  }
+
+  const homePagesWrapper = document.querySelector('.home-pages-wrapper');
+  homePagesWrapper.addEventListener('mousedown', e=>{homeSwipeActive=true;homeStartX=e.clientX});
+  homePagesWrapper.addEventListener('touchstart', e=>{homeSwipeActive=true;homeStartX=e.touches[0].clientX},{passive:true});
+
+  function homeSwipeEnd(endX){
+    if(!homeSwipeActive) return;
+    homeSwipeActive = false;
+    const diff = homeStartX - endX;
+    if(diff > 50 && homePage < 1){ homePage = 1; }
+    else if(diff < -50 && homePage > 0){ homePage = 0; }
+    homePages.style.transform = `translateX(-${homePage * 50}%)`;
+    updateDots();
+  }
+  homePagesWrapper.addEventListener('mouseup', e=>homeSwipeEnd(e.clientX));
+  homePagesWrapper.addEventListener('touchend', e=>homeSwipeEnd(e.changedTouches[0].clientX));
+
+  /* ── App Store Open ── */
+  const appStoreIcon = $('#appStoreIcon');
+  appStoreIcon.addEventListener('click', function(){
+    $('#appstoreScreen').classList.add('active');
+    currentView = 'appstoreScreen';
+  });
+
+  /* ── App Store Back ── */
+  $('#asBack').addEventListener('click', function(){
+    $('#appstoreScreen').classList.remove('active');
+    currentView = 'homeScreen';
+  });
+
+  /* ── Eva's Game GET / Download ── */
+  const btnGet = $('#btnGetEva');
+  const dlOverlay = $('#downloadOverlay');
+  const dlFill = $('#dlFill');
+  const dlPercent = $('#dlPercent');
+  const btnOpenGame = $('#btnOpenGame');
+
+  btnGet.addEventListener('click', function(e){
+    e.stopPropagation();
+    if(btnGet.dataset.state === 'open'){
+      startGame();
+      return;
+    }
+    startDownload();
+  });
+
+  function startDownload(){
+    if(btnGet.dataset.state) return;
+    btnGet.dataset.state = 'downloading';
+    btnGet.textContent = '';
+    btnGet.classList.add('downloading');
+
+    dlOverlay.classList.add('active');
+    let progress = 0;
+    const interval = setInterval(()=>{
+      progress += Math.random() * 4 + 1;
+      if(progress >= 100){
+        progress = 100;
+        clearInterval(interval);
+        finishDownload();
+      }
+      dlFill.style.width = progress + '%';
+      dlPercent.textContent = Math.floor(progress) + '%';
+    }, 80);
+  }
+
+  function finishDownload(){
+    dlPercent.textContent = 'Installed!';
+    document.querySelector('.dl-sub').textContent = 'Ready to play';
+    btnGet.classList.remove('downloading');
+    btnGet.textContent = 'OPEN';
+    btnGet.classList.add('open');
+    btnGet.dataset.state = 'open';
+    btnOpenGame.classList.add('show');
+  }
+
+  btnOpenGame.addEventListener('click', startGame);
+
+  function startGame(){
+    dlOverlay.classList.remove('active');
+    setTimeout(()=>{
+      $('#appstoreScreen').classList.remove('active');
+      $('#homeScreen').classList.remove('active');
+      $('#gameScreen').classList.add('active');
+      currentView = 'gameScreen';
+      setTimeout(initAllScratchCards, 400);
+    }, 300);
+  }
+
+  /* ── Featured card tap ── */
+  $('#evaGameCard').addEventListener('click', function(e){
+    if(e.target.closest('.btn-get')) return;
+    if(btnGet.dataset.state === 'open') startGame();
+  });
+
+  /* ── Confetti ── */
+  function showConfetti(container){
+    const colors = ['#FFD700','#FF6B6B','#4ECDC4','#45B7D1','#FF3366','#96CEB4','#FFEAA7','#DDA0DD'];
+    for(let i = 0; i < 40; i++){
+      const p = document.createElement('div');
+      p.className = 'confetti-particle ' + (Math.random()>.5?'square':'circle');
+      p.style.setProperty('--x', (Math.random()*240-120)+'px');
+      p.style.setProperty('--y', (Math.random()*-180-40)+'px');
+      p.style.setProperty('--r', (Math.random()*720-360)+'deg');
+      p.style.background = colors[Math.floor(Math.random()*colors.length)];
+      p.style.left = (Math.random()*100)+'%';
+      p.style.top = (Math.random()*100)+'%';
+      p.style.width = (Math.random()*6+4)+'px';
+      p.style.height = (Math.random()*6+4)+'px';
+      container.appendChild(p);
+      setTimeout(()=>p.remove(),1300);
+    }
+  }
+
+  /* ── Scratch Card Engine ── */
+  function initScratchCard(canvasId, prizeId, colors){
+    const canvas = document.getElementById(canvasId);
+    const prizeArea = document.getElementById(prizeId);
+    if(!canvas || canvas.dataset.init) return;
+    canvas.dataset.init = '1';
+
+    const rect = prizeArea.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = prizeArea.offsetWidth;
+    const h = prizeArea.offsetHeight;
+
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const grad = ctx.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, colors[0]);
+    grad.addColorStop(0.5, colors[1]);
+    grad.addColorStop(1, colors[2]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    for(let i = 0; i < 30; i++){
+      ctx.beginPath();
+      ctx.arc(Math.random()*w, Math.random()*h, Math.random()*8+2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = colors[3] || 'rgba(0,0,0,0.25)';
+    ctx.font = 'bold 14px -apple-system,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✦ SCRATCH HERE ✦', w/2, h/2);
+
+    let scratching = false;
+    let totalPixels = w * h;
+    let revealed = false;
+
+    function getPos(e){
+      const r = canvas.getBoundingClientRect();
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+      return {
+        x: (clientX - r.left) * (canvas.width / dpr) / r.width,
+        y: (clientY - r.top) * (canvas.height / dpr) / r.height
+      };
+    }
+
+    function scratch(x, y){
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(x, y, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    function checkReveal(){
+      if(revealed) return;
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+      let transparent = 0;
+      for(let i = 3; i < pixels.length; i += 16){
+        if(pixels[i] === 0) transparent++;
+      }
+      const totalSampled = pixels.length / 16;
+      if(transparent / totalSampled > 0.45){
+        revealed = true;
+        canvas.style.transition = 'opacity .5s';
+        canvas.style.opacity = '0';
+        prizeArea.classList.add('revealed');
+        showConfetti(prizeArea.closest('.scratch-ticket'));
+        setTimeout(()=> canvas.style.display = 'none', 500);
+      }
+    }
+
+    canvas.addEventListener('mousedown', e=>{
+      scratching = true;
+      const p = getPos(e);
+      scratch(p.x, p.y);
+    });
+    canvas.addEventListener('mousemove', e=>{
+      if(!scratching) return;
+      const p = getPos(e);
+      scratch(p.x, p.y);
+    });
+    canvas.addEventListener('mouseup', ()=>{scratching=false;checkReveal()});
+    canvas.addEventListener('mouseleave', ()=>{scratching=false;checkReveal()});
+
+    canvas.addEventListener('touchstart', e=>{
+      e.preventDefault();
+      scratching = true;
+      const p = getPos(e);
+      scratch(p.x, p.y);
+    }, {passive:false});
+    canvas.addEventListener('touchmove', e=>{
+      e.preventDefault();
+      if(!scratching) return;
+      const p = getPos(e);
+      scratch(p.x, p.y);
+    }, {passive:false});
+    canvas.addEventListener('touchend', ()=>{scratching=false;checkReveal()});
+  }
+
+  function initAllScratchCards(){
+    initScratchCard('scratch1','prize1',['#C9A84C','#E8D48B','#B8942E','rgba(80,60,0,0.35)']);
+    initScratchCard('scratch2','prize2',['#A0A0A0','#D0D0D0','#888888','rgba(0,0,0,0.3)']);
+    initScratchCard('scratch3','prize3',['#E8789A','#F4A0B8','#D4567A','rgba(100,0,30,0.3)']);
+  }
+
+})();
+</script>
+</body>
+</html>

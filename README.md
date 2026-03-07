@@ -1,58 +1,33 @@
-# Subnautica-Inspired Underwater Slice
+# Eva's Virtual Phone - Scratch-Off Gift Experience
 
-This repository is now a **Unity 6.3 LTS** prototype focused on building the look and feel of a
-Subnautica-style underwater scene. The goal is a strong visual vertical slice rather than a full
-survival sandbox.
+A fully interactive virtual iPhone experience built as a personalized gift. Open `index.html` in any browser to start.
 
-## What is included
+## How It Works
 
-- First-person underwater swimming with buoyant acceleration
-- Procedurally generated seafloor, reef dressing, and coral silhouettes
-- Graphics-focused underwater atmosphere:
-  - depth fog
-  - animated caustic light patterns
-  - water surface shimmer
-  - drifting particulates and bubbles
-  - fullscreen underwater post effect
-- Scanner tool presentation in the lower-right of the view
-- Ambient fish schools plus a larger distant creature silhouette
-- A light scan loop with several scannable targets
+1. **Lock Screen** - Swipe up (or tap) to unlock the phone
+2. **Home Screen** - Browse through realistic iOS app icons, swipe between pages
+3. **App Store** - Tap the App Store icon to open it. Find "Eva's Game" featured at the top
+4. **Download** - Tap "GET" to watch the download animation
+5. **Eva Scratchers** - Scratch off three lottery-style tickets to reveal surprise gifts
 
-## Unity version
+## Features
 
-- **Unity 6.3 LTS**
-- Project version file targets **6000.3.3f1**
+- Pixel-perfect iPhone 15 Pro frame with Dynamic Island
+- Realistic iOS home screen with recognizable app icons
+- Smooth swipe gestures and page transitions
+- App Store with featured game card and placeholder games
+- Animated download progress bar
+- Three scratch-off tickets with confetti reveal effects
+- Fully responsive - works on desktop and mobile browsers
+- Touch support for mobile devices
+- No dependencies - single HTML file
 
-If your local Unity patch is slightly newer within the 6000.3 line, importing the project should
-still be fine.
+## Customization
 
-## How to open
+To customize the prizes, edit the prize content inside each `.prize-content` div in `index.html`:
 
-1. Open Unity Hub.
-2. Add this repository as a project.
-3. Open it with Unity **6000.3.x**.
-4. Open the scene at `Assets/Scenes/SubnauticaSlice.unity`.
-5. Press **Play**.
+- **Ticket 1** (Gold - Lucky Star): Amazon Gift Card
+- **Ticket 2** (Silver - Diamond Prize): Giant Stuffed Bear
+- **Ticket 3** (Rose - Heart of Gold): Spa Day Package
 
-The scene itself is intentionally minimal; most of the environment is built at runtime by the
-bootstrap scripts.
-
-## Controls
-
-- `WASD` - swim
-- `Mouse` - look
-- `Space` - ascend
-- `Left Ctrl` or `C` - descend
-- `Left Shift` - burst swim
-- `E` - scan highlighted targets
-
-## Scan objective
-
-Swim through the reef and scan nearby flora/fauna targets. The objective text and scanner HUD update
-as progress increases.
-
-## Notes
-
-- This prototype is **graphics-first**. The emphasis is on underwater mood, color, composition, and
-  motion in the scene.
-- The world is assembled procedurally in code to keep the repository lightweight and easy to extend.
+Each ticket has a `.prize-text` (the prize name) and `.prize-code` (a gift code).
