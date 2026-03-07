@@ -1,3 +1,4 @@
+using SubnauticaClone.GiftPhone;
 using UnityEngine;
 
 namespace SubnauticaClone.Bootstrap
@@ -7,13 +8,14 @@ namespace SubnauticaClone.Bootstrap
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsurePrototypeBootstrap()
         {
-            if (Object.FindFirstObjectByType<PrototypeBootstrap>() != null)
+            if (Object.FindFirstObjectByType<GiftPhoneBootstrap>() != null ||
+                Object.FindFirstObjectByType<PrototypeBootstrap>() != null)
             {
                 return;
             }
 
-            var bootstrapObject = new GameObject("Subnautica Prototype Bootstrap");
-            bootstrapObject.AddComponent<PrototypeBootstrap>();
+            var bootstrapObject = new GameObject("Gift Phone Bootstrap");
+            bootstrapObject.AddComponent<GiftPhoneBootstrap>();
         }
     }
 }
