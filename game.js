@@ -19,6 +19,7 @@
     const BULLET_SPEED = 880;
     const SHOT_COOLDOWN = 0.23;
     const MAX_DT = 1 / 30;
+    const BOOST_MONSTER_CLEARANCE = 280;
 
     const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
     const randomRange = (min, max) => min + Math.random() * (max - min);
@@ -504,6 +505,16 @@
                     alpha: 0.38,
                     color: this.player.boostType === "jetpack" ? "rgba(255, 169, 84, 0.65)" : "rgba(255,255,255,0.5)",
                 });
+                this.effects.push({
+                    kind: "burst",
+                    x: this.player.x,
+                    y: this.player.y + 16,
+                    vy: -30,
+                    life: 0.14,
+                    radius: this.player.boostType === "jetpack" ? 46 : 34,
+                    alpha: 0.22,
+                    color: this.player.boostType === "jetpack" ? "rgba(255, 200, 128, 0.65)" : "rgba(255,255,255,0.55)",
+                });
             }
 
             if (this.input.shoot && this.player.shootCooldown <= 0) {
@@ -627,8 +638,9 @@
                     if (platform.type === "white") {
                         platform.active = false;
                         platform.vanishTimer = 0.08;
-                        this.audio.play("poof", 0.36);
-                        this.effects.push({ x: platform.x, y: platform.y + 14, vy: 18, life: 0.28, text: "POOF!" });
+                        this.audio.play("poof", 0.7);
+                        this.effects.push({ x: platform.x, y: platform.y + 14, vy: 18, life: 0.3, text: "POOF!" });
+                        this.effects.push({ kind: "burst", x: platform.x, y: platform.y + 8, vy: 0, life: 0.18, radius: 30, alpha: 0.34, color: "rgba(255,255,255,0.85)" });
                     }
 
                     this.player.y = platform.y;
@@ -699,14 +711,20 @@
 
             if (this.player.boostTimer > 0) {
                 for (const monster of this.monsters) {
+                    const verticalDelta = monster.y - this.player.y;
+                    const horizontalDelta = Math.abs(monster.x - this.player.x);
                     const overlapX = Math.min(this.player.x + this.player.width / 2, monster.x + monster.width / 2) -
                         Math.max(this.player.x - this.player.width / 2, monster.x - monster.width / 2);
                     const overlapY = Math.min(this.player.y + this.player.height, monster.y + monster.height) -
                         Math.max(this.player.y, monster.y);
 
-                    if (overlapX > 10 && overlapY > 6) {
+                    if (
+                        (verticalDelta > -60 && verticalDelta < BOOST_MONSTER_CLEARANCE && horizontalDelta < 90) ||
+                        (overlapX > 10 && overlapY > 6)
+                    ) {
                         monster.dead = true;
                         this.effects.push({ x: monster.x, y: monster.y + 20, vy: 24, life: 0.32, text: "WHOOSH!" });
+                        this.effects.push({ kind: "burst", x: monster.x, y: monster.y + 12, vy: 6, life: 0.18, radius: 28, alpha: 0.25, color: "rgba(255,245,220,0.7)" });
                     }
                 }
 
@@ -829,7 +847,7 @@
 
             if (!isEarly && (type === "brown" || type === "white")) {
                 const supportWidth = randomRange(76, 92);
-                const supportMinDx = type === "brown" ? 34 : 24;
+                const supportMinDx = type === "brown" ? 56 : 38;
                 const supportOffsetBase = type === "brown" ? randomRange(42, 76) : randomRange(28, 56);
                 const supportDirection = chance(0.5) ? -1 : 1;
                 let supportX = clamp(
@@ -1196,6 +1214,16 @@
                     this.ctx.beginPath();
                     this.ctx.moveTo(effect.x, screenY - effect.size * 0.2);
                     this.ctx.lineTo(effect.x, screenY + effect.size);
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                    continue;
+                }
+                if (effect.kind === "burst") {
+                    this.ctx.save();
+                    this.ctx.strokeStyle = effect.color ?? "rgba(255,255,255,0.6)";
+                    this.ctx.lineWidth = 5;
+                    this.ctx.beginPath();
+                    this.ctx.arc(effect.x, screenY, effect.radius, 0, Math.PI * 2);
                     this.ctx.stroke();
                     this.ctx.restore();
                     continue;
