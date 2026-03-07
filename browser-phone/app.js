@@ -2,7 +2,7 @@ const realIcons = {
   facetime:
     "https://commons.wikimedia.org/wiki/Special:FilePath/FaceTime_iOS.svg",
   calendar:
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Calendar_Icon.png",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Calendar_(iOS).svg",
   photos:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Foto_(iOS).png",
   camera:
@@ -22,7 +22,7 @@ const realIcons = {
   safari:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Safari-icon-1024.png",
   music:
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Music_icon.svg",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Music_icon_iOS_26.svg",
   phone:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Phone_iOS.png"
 };
@@ -47,15 +47,6 @@ const homePagesData = [
     { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230", src: realIcons.safari }
   ],
   [
-    {
-      name: "Eva Scratchers",
-      glyph: "E",
-      bg: "#ff75a7",
-      type: "text",
-      action: "game",
-      hiddenUntilInstalled: true,
-      installedApp: true
-    },
     { name: "Health", glyph: "H", bg: "#ffffff", type: "health", fg: "#1d2230" },
     { name: "Wallet", glyph: "W", bg: "#141821", type: "wallet" },
     { name: "Books", glyph: "BK", bg: "#f78c43", type: "books" },
@@ -68,27 +59,18 @@ const homePagesData = [
     { name: "TV", glyph: "TV", bg: "#111216", type: "tv" },
     { name: "Journal", glyph: "JR", bg: "#4c86f5", type: "journal" },
     { name: "Contacts", glyph: "CT", bg: "#f3f5f8", type: "contacts", fg: "#1d2230" },
+    {
+      name: "Eva Scratchers",
+      glyph: "E",
+      bg: "#ff75a7",
+      type: "text",
+      action: "game",
+      hiddenUntilInstalled: true,
+      installedApp: true
+    },
     { name: "Shortcuts", glyph: "SC", bg: "#eb7832", type: "text" },
     { name: "Find My", glyph: "FM", bg: "#1ed18f", type: "text" },
     { name: "Tips", glyph: "!", bg: "#f4d33b", type: "tips", fg: "#1d2230" }
-  ],
-  [
-    { name: "Memories", glyph: "ME", bg: "#f686ac", type: "text" },
-    { name: "Dreams", glyph: "DR", bg: "#7c60ff", type: "text" },
-    { name: "Gallery", glyph: "GL", bg: "#46a5ff", type: "text" },
-    { name: "Love", glyph: "L", bg: "#ff648d", type: "text" },
-    { name: "Games", glyph: "GM", bg: "#7d4cff", type: "text" },
-    { name: "Food", glyph: "FD", bg: "#ff9c38", type: "text" },
-    { name: "Reels", glyph: "RL", bg: "#20232b", type: "text" },
-    { name: "Photos 2", glyph: "P2", bg: "#ef5ab8", type: "text" },
-    { name: "Wishlist", glyph: "WL", bg: "#2ec76f", type: "text" },
-    { name: "Trips", glyph: "TRP", bg: "#55a8ff", type: "text" },
-    { name: "Mood", glyph: "MD", bg: "#8e6fff", type: "text" },
-    { name: "Magic", glyph: "MG", bg: "#ffb44a", type: "text" },
-    { name: "Memes", glyph: "MM", bg: "#1f2230", type: "text" },
-    { name: "Snacks", glyph: "SN", bg: "#f47945", type: "text" },
-    { name: "Date", glyph: "DT", bg: "#ff74a5", type: "text" },
-    { name: "Secret", glyph: "?", bg: "#167efb", type: "text" }
   ]
 ];
 
