@@ -213,21 +213,6 @@ button {
     0 0 0 0.08rem rgba(16, 19, 26, 0.7);
 }
 
-.phone-screen::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 0.92rem;
-  width: 7.8rem;
-  height: 0.34rem;
-  border-radius: 999px;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.95);
-  z-index: 55;
-  transition: opacity 220ms ease;
-  pointer-events: none;
-}
-
 .status-bar {
   position: absolute;
   top: 0;
@@ -362,6 +347,7 @@ button {
   pointer-events: none;
   transition: opacity 240ms ease;
   overflow: hidden;
+  transform-origin: center bottom;
 }
 
 .screen.is-visible {
@@ -1622,14 +1608,38 @@ button {
 
 .phone-screen.is-sleeping .screen,
 .phone-screen.is-sleeping .status-bar,
-.phone-screen.is-sleeping .home-indicator,
-.phone-screen.is-sleeping::after {
+.phone-screen.is-sleeping .home-indicator {
   opacity: 0;
   pointer-events: none;
 }
 
 .home-indicator {
-  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: 0.48rem;
+  width: 9rem;
+  height: 1.1rem;
+  transform: translateX(-50%);
+  z-index: 55;
+  touch-action: none;
+}
+
+.home-indicator::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0.22rem;
+  width: 7.8rem;
+  height: 0.34rem;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0.08rem 0.2rem rgba(0, 0, 0, 0.12);
+}
+
+.screen.is-gesture-active {
+  transition: none;
+  will-change: transform, border-radius, filter;
 }
 
 @media (max-width: 460px) {

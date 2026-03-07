@@ -153,6 +153,7 @@ const unlockSlider = document.querySelector("[data-unlock-slider]");
 const unlockCopy = document.querySelector("[data-unlock-copy]");
 const phoneScreen = document.querySelector(".phone-screen");
 const sideButton = document.querySelector("[data-side-button]");
+const homeIndicator = document.querySelector(".home-indicator");
 const homePages = document.querySelector("[data-home-pages]");
 const pageDots = document.querySelector("[data-page-dots]");
 const dock = document.querySelector("[data-dock]");
@@ -173,6 +174,7 @@ let homeTrack = null;
 let unlockResetFrame = null;
 let isSleeping = false;
 let installedAppTile = null;
+let homeGesture = null;
 
 const installState = {
   installed: false,
@@ -218,6 +220,25 @@ function showScreen(name) {
       element.scrollTop = 0;
     }
   });
+}
+
+function getActiveAppScreen() {
+  if (activeScreen === "store" || activeScreen === "game") {
+    return screenElements[activeScreen];
+  }
+
+  return null;
+}
+
+function resetActiveAppTransform(target) {
+  if (!target) {
+    return;
+  }
+
+  target.classList.remove("is-gesture-active");
+  target.style.transform = "";
+  target.style.borderRadius = "";
+  target.style.filter = "";
 }
 
 function goToPage(index, smooth = true) {
@@ -1046,6 +1067,75 @@ function buildTickets() {
   });
 }
 
+function bindHomeGesture() {
+  if (!homeIndicator) {
+    return;
+  }
+
+  homeIndicator.addEventListener("pointerdown", (event) => {
+    const targetScreen = getActiveAppScreen();
+    if (!targetScreen || isSleeping) {
+      return;
+    }
+
+    homeGesture = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      targetScreen,
+      progress: 0
+    };
+
+    screenElements.home.classList.add("is-visible");
+    screenElements.home.style.pointerEvents = "none";
+    targetScreen.classList.add("is-gesture-active");
+    homeIndicator.setPointerCapture?.(event.pointerId);
+  });
+
+  homeIndicator.addEventListener("pointermove", (event) => {
+    if (!homeGesture || homeGesture.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const delta = Math.max(0, homeGesture.startY - event.clientY);
+    const progress = Math.max(0, Math.min(1, delta / 160));
+    homeGesture.progress = progress;
+
+    const translateY = -progress * 26;
+    const scale = 1 - progress * 0.1;
+    const radius = progress * 28;
+    homeGesture.targetScreen.style.transform = `translateY(${translateY}px) scale(${scale})`;
+    homeGesture.targetScreen.style.borderRadius = `${radius}px`;
+    homeGesture.targetScreen.style.filter = `brightness(${1 - progress * 0.04})`;
+  });
+
+  const endGesture = (event) => {
+    if (!homeGesture) {
+      return;
+    }
+
+    if (event.pointerId !== undefined && homeGesture.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const { targetScreen, progress } = homeGesture;
+    homeGesture = null;
+
+    if (progress > 0.42) {
+      resetActiveAppTransform(targetScreen);
+      screenElements.home.style.pointerEvents = "";
+      showScreen("home");
+      return;
+    }
+
+    resetActiveAppTransform(targetScreen);
+    screenElements.home.style.pointerEvents = "";
+    showScreen(activeScreen);
+  };
+
+  homeIndicator.addEventListener("pointerup", endGesture);
+  homeIndicator.addEventListener("pointercancel", endGesture);
+}
+
 function bindNav() {
   document.querySelectorAll("[data-go-home]").forEach((button) => {
     button.addEventListener("click", () => showScreen("home"));
@@ -1091,6 +1181,7 @@ function init() {
   buildHomePages();
   buildStoreRows();
   buildTickets();
+  bindHomeGesture();
   bindNav();
   refreshInstallUi();
   goToPage(0, false);
