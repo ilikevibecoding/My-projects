@@ -12,7 +12,7 @@ const realIcons = {
   clock:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Clock_(iOS).png",
   maps:
-    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple_Maps_Logo.png",
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Apple%20Maps%20iOS%2026%20icon.png",
   messages:
     "https://commons.wikimedia.org/wiki/Special:FilePath/IMessage_icon.png",
   appstore:
@@ -47,6 +47,15 @@ const homePagesData = [
     { name: "Safari", glyph: "SAF", bg: "#ffffff", type: "safari", fg: "#1d2230", src: realIcons.safari }
   ],
   [
+    {
+      name: "Eva Scratchers",
+      glyph: "E",
+      bg: "#ff75a7",
+      type: "text",
+      action: "game",
+      hiddenUntilInstalled: true,
+      installedApp: true
+    },
     { name: "Health", glyph: "H", bg: "#ffffff", type: "health", fg: "#1d2230" },
     { name: "Wallet", glyph: "W", bg: "#141821", type: "wallet" },
     { name: "Books", glyph: "BK", bg: "#f78c43", type: "books" },
@@ -61,8 +70,7 @@ const homePagesData = [
     { name: "Contacts", glyph: "CT", bg: "#f3f5f8", type: "contacts", fg: "#1d2230" },
     { name: "Shortcuts", glyph: "SC", bg: "#eb7832", type: "text" },
     { name: "Find My", glyph: "FM", bg: "#1ed18f", type: "text" },
-    { name: "Tips", glyph: "!", bg: "#f4d33b", type: "tips", fg: "#1d2230" },
-    { name: "Stocks", glyph: "ST", bg: "#17191f", type: "text" }
+    { name: "Tips", glyph: "!", bg: "#f4d33b", type: "tips", fg: "#1d2230" }
   ],
   [
     { name: "Memories", glyph: "ME", bg: "#f686ac", type: "text" },
@@ -179,8 +187,10 @@ const finalReveal = document.querySelector("[data-final-reveal]");
 let activeScreen = "lock";
 let currentPage = 0;
 let homeScroller = null;
+let homeTrack = null;
 let unlockResetFrame = null;
 let isSleeping = false;
+let installedAppTile = null;
 
 const installState = {
   installed: false,
@@ -216,6 +226,19 @@ function showScreen(name) {
     if (screenName === name && (screenName === "store" || screenName === "game")) {
       element.scrollTop = 0;
     }
+  });
+}
+
+function goToPage(index, smooth = true) {
+  if (!homeScroller) {
+    return;
+  }
+
+  currentPage = Math.max(0, Math.min(homePagesData.length - 1, index));
+  syncPageDots();
+  homeScroller.scrollTo({
+    left: homeScroller.clientWidth * currentPage,
+    behavior: smooth ? "smooth" : "auto"
   });
 }
 
@@ -485,15 +508,25 @@ function buildIconMarkup(icon) {
 }
 
 function buildAppTile(icon, isDockIcon = false) {
-  const tile =
-    icon.action === "store"
-      ? document.createElement("button")
-      : document.createElement(isDockIcon ? "div" : "div");
-  tile.className = `app-tile${icon.action ? " buttonish" : ""}`;
+  const tile = icon.action ? document.createElement("button") : document.createElement("div");
+  tile.className = `app-tile${icon.action ? " buttonish" : ""}${icon.hiddenUntilInstalled ? " is-hidden" : ""}${icon.installedApp ? " installed-app" : ""}`;
+
+  if (icon.action) {
+    tile.type = "button";
+  }
 
   if (icon.action === "store") {
-    tile.type = "button";
     tile.addEventListener("click", () => showScreen("store"));
+  }
+
+  if (icon.action === "game") {
+    tile.addEventListener("click", () => {
+      if (!installState.installed) {
+        return;
+      }
+
+      showScreen("game");
+    });
   }
 
   tile.append(buildIconMarkup(icon));
@@ -505,16 +538,23 @@ function buildAppTile(icon, isDockIcon = false) {
     tile.append(label);
   }
 
+  if (icon.installedApp) {
+    installedAppTile = tile;
+  }
+
   return tile;
 }
 
 function buildHomePages() {
   const track = document.createElement("div");
   track.className = "home-pages-track";
+  track.style.width = `${homePagesData.length * 100}%`;
 
   homePagesData.forEach((page) => {
     const pageElement = document.createElement("div");
     pageElement.className = "home-page";
+    pageElement.style.width = `${100 / homePagesData.length}%`;
+    pageElement.style.flex = `0 0 ${100 / homePagesData.length}%`;
     page.forEach((app) => {
       pageElement.append(buildAppTile(app));
     });
@@ -523,6 +563,7 @@ function buildHomePages() {
 
   homePages.append(track);
   homeScroller = homePages;
+  homeTrack = track;
 
   homePagesData.forEach((_, index) => {
     const dot = document.createElement("span");
@@ -549,12 +590,77 @@ function buildHomePages() {
       }
     });
   });
+
+  let pointerId = null;
+  let dragStartX = 0;
+  let dragStartScrollLeft = 0;
+  let moved = false;
+
+  homeScroller.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    pointerId = event.pointerId;
+    dragStartX = event.clientX;
+    dragStartScrollLeft = homeScroller.scrollLeft;
+    moved = false;
+    homeScroller.classList.add("is-dragging");
+    homeScroller.setPointerCapture?.(event.pointerId);
+  });
+
+  homeScroller.addEventListener("pointermove", (event) => {
+    if (pointerId !== event.pointerId) {
+      return;
+    }
+
+    const delta = event.clientX - dragStartX;
+    if (Math.abs(delta) > 4) {
+      moved = true;
+    }
+
+    homeScroller.scrollLeft = dragStartScrollLeft - delta;
+  });
+
+  const finishDrag = (event) => {
+    if (pointerId === null) {
+      return;
+    }
+
+    if (event.pointerId !== undefined && pointerId !== event.pointerId) {
+      return;
+    }
+
+    pointerId = null;
+    homeScroller.classList.remove("is-dragging");
+    const pageWidth = homeScroller.clientWidth || 1;
+    const targetPage = moved ? Math.round(homeScroller.scrollLeft / pageWidth) : currentPage;
+    goToPage(targetPage);
+  };
+
+  homeScroller.addEventListener("pointerup", finishDrag);
+  homeScroller.addEventListener("pointercancel", finishDrag);
 }
 
 function syncPageDots() {
   [...pageDots.children].forEach((dot, index) => {
     dot.classList.toggle("active", index === currentPage);
   });
+}
+
+function revealInstalledApp() {
+  if (!installedAppTile) {
+    return;
+  }
+
+  installedAppTile.classList.remove("is-hidden");
+  requestAnimationFrame(() => {
+    installedAppTile.classList.add("is-installed");
+  });
+
+  window.setTimeout(() => {
+    installedAppTile.classList.remove("is-installed");
+  }, 900);
 }
 
 function buildStoreRows() {
@@ -634,9 +740,13 @@ function startInstallFlow() {
     installState.installing = false;
     installState.installed = true;
     installState.progress = 1;
+    revealInstalledApp();
     refreshInstallUi();
-    featureStatus.textContent = "Installed. Opening Eva Scratchers...";
-    setTimeout(() => showScreen("game"), 420);
+    featureStatus.textContent = "Installed. Eva Scratchers is now on page two.";
+    setTimeout(() => {
+      showScreen("home");
+      goToPage(1);
+    }, 420);
   };
 
   requestAnimationFrame(tick);
@@ -880,6 +990,7 @@ function init() {
   buildTickets();
   bindNav();
   refreshInstallUi();
+  goToPage(0, false);
 
   unlockSlider.addEventListener("input", handleUnlockInput);
   ["mouseup", "touchend", "pointerup", "keyup"].forEach((eventName) => {
