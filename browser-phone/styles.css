@@ -1132,8 +1132,8 @@ button {
   padding: 0.95rem 1rem 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-auto-rows: 6.9rem;
-  row-gap: 1rem;
+  grid-auto-rows: 7.55rem;
+  row-gap: 1.08rem;
   column-gap: 0.1rem;
 }
 
@@ -1141,7 +1141,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.38rem;
   color: inherit;
   text-decoration: none;
   user-select: none;
@@ -1493,9 +1493,13 @@ button {
 
 .app-label {
   width: 100%;
+  max-width: 5.1rem;
+  min-height: 1.6rem;
   text-align: center;
-  font-size: 0.74rem;
-  line-height: 1.08;
+  font-size: 0.68rem;
+  line-height: 1.12;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
   text-shadow: 0 0.1rem 0.25rem rgba(0, 0, 0, 0.3);
 }
 
@@ -2183,6 +2187,24 @@ button {
 @media (max-width: 460px) {
   .phone-shell {
     width: min(96vw, calc(94vh * 393 / 852), 24rem);
+  }
+
+  .home-page {
+    grid-auto-rows: 7.85rem;
+    row-gap: 1.2rem;
+    column-gap: 0.18rem;
+  }
+
+  .app-icon-wrap {
+    width: 3.72rem;
+    height: 3.72rem;
+  }
+
+  .app-label {
+    max-width: 4.8rem;
+    min-height: 1.78rem;
+    font-size: 0.63rem;
+    line-height: 1.08;
   }
 
   .feature-copy {
