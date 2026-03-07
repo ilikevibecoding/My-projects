@@ -1,58 +1,28 @@
-# Subnautica-Inspired Underwater Slice
+# Eva's Gift - Virtual iPhone Scratchers
 
-This repository is now a **Unity 6.3 LTS** prototype focused on building the look and feel of a
-Subnautica-style underwater scene. The goal is a strong visual vertical slice rather than a full
-survival sandbox.
+A virtual iPhone experience built as a surprise gift. Open `index.html` in any browser to run it.
 
-## What is included
+## How it works
 
-- First-person underwater swimming with buoyant acceleration
-- Procedurally generated seafloor, reef dressing, and coral silhouettes
-- Graphics-focused underwater atmosphere:
-  - depth fog
-  - animated caustic light patterns
-  - water surface shimmer
-  - drifting particulates and bubbles
-  - fullscreen underwater post effect
-- Scanner tool presentation in the lower-right of the view
-- Ambient fish schools plus a larger distant creature silhouette
-- A light scan loop with several scannable targets
+1. **Lock Screen** - Swipe up to unlock the phone
+2. **Home Screen** - Browse through iOS-style app icons across two pages (swipe left/right)
+3. **App Store** - Tap the App Store icon in the dock to open it
+4. **Eva's Game** - Tap the featured "Eva's Game" card or the GET button to start downloading
+5. **Download** - Watch the download animation complete
+6. **Eva Scratchers** - Scratch off three lottery tickets to reveal Amazon gift codes
 
-## Unity version
+## Customization
 
-- **Unity 6.3 LTS**
-- Project version file targets **6000.3.3f1**
+Open `index.html` and find the `ticketData` array near the bottom of the `<script>` section to customize:
 
-If your local Unity patch is slightly newer within the 6000.3 line, importing the project should
-still be fine.
+- **Prize names** (`prize` field)
+- **Gift codes** (`code` field)
+- **Ticket labels** (`label` field)
 
-## How to open
+## Technical details
 
-1. Open Unity Hub.
-2. Add this repository as a project.
-3. Open it with Unity **6000.3.x**.
-4. Open the scene at `Assets/Scenes/SubnauticaSlice.unity`.
-5. Press **Play**.
-
-The scene itself is intentionally minimal; most of the environment is built at runtime by the
-bootstrap scripts.
-
-## Controls
-
-- `WASD` - swim
-- `Mouse` - look
-- `Space` - ascend
-- `Left Ctrl` or `C` - descend
-- `Left Shift` - burst swim
-- `E` - scan highlighted targets
-
-## Scan objective
-
-Swim through the reef and scan nearby flora/fauna targets. The objective text and scanner HUD update
-as progress increases.
-
-## Notes
-
-- This prototype is **graphics-first**. The emphasis is on underwater mood, color, composition, and
-  motion in the scene.
-- The world is assembled procedurally in code to keep the repository lightweight and easy to extend.
+- Single self-contained HTML file, no dependencies
+- Works on desktop and mobile (touch + mouse support)
+- Canvas-based scratch-off with realistic metallic texture
+- CSS animations for all transitions
+- Responsive: fills the screen on mobile devices

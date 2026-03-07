@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Eva's Gift</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+
+  :root {
+    --phone-w: 390px;
+    --phone-h: 844px;
+    --radius: 54px;
+    --bezel: 12px;
+    --screen-radius: 44px;
+  }
+
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at center, #111 0%, #000 100%);
+    font-family: -apple-system, 'Inter', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* ── iPhone Frame ─────────────────────────────────────────── */
+  .iphone {
+    position: relative;
+    width: var(--phone-w);
+    height: var(--phone-h);
+    border-radius: var(--radius);
+    background: linear-gradient(145deg, #2c2c2e 0%, #1c1c1e 50%, #0a0a0a 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.06),
+      0 0 0 1.5px #333,
+      0 0 0 3px #111,
+      0 0 0 4px rgba(255,255,255,.03),
+      0 40px 100px rgba(0,0,0,.9),
+      0 10px 40px rgba(0,0,0,.6);
+    overflow: visible;
+  }
+
+  .iphone::after {
+    content: '';
+    position: absolute;
+    top: 1px; left: 1px; right: 1px;
+    height: 40%;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);
+    pointer-events: none;
+    z-index: 101;
+  }
+
+  .btn-side-right {
+    position: absolute; right: -2.5px; top: 190px;
+    width: 3px; height: 90px;
+    background: linear-gradient(180deg, #3a3a3c, #2c2c2e, #3a3a3c);
+    border-radius: 0 2px 2px 0;
+    z-index: 200;
+    box-shadow: 1px 0 2px rgba(0,0,0,.5);
+  }
+  .btn-side-left-1 {
+    position: absolute; left: -2.5px; top: 155px;
+    width: 3px; height: 30px;
+    background: linear-gradient(180deg, #3a3a3c, #2c2c2e, #3a3a3c);
+    border-radius: 2px 0 0 2px; z-index: 200;
+    box-shadow: -1px 0 2px rgba(0,0,0,.5);
+  }
+  .btn-side-left-2 {
+    position: absolute; left: -2.5px; top: 205px;
+    width: 3px; height: 55px;
+    background: linear-gradient(180deg, #3a3a3c, #2c2c2e, #3a3a3c);
+    border-radius: 2px 0 0 2px; z-index: 200;
+    box-shadow: -1px 0 2px rgba(0,0,0,.5);
+  }
+  .btn-side-left-3 {
+    position: absolute; left: -2.5px; top: 275px;
+    width: 3px; height: 55px;
+    background: linear-gradient(180deg, #3a3a3c, #2c2c2e, #3a3a3c);
+    border-radius: 2px 0 0 2px; z-index: 200;
+    box-shadow: -1px 0 2px rgba(0,0,0,.5);
+  }
+
+  .screen {
+    position: absolute;
+    top: var(--bezel); left: var(--bezel); right: var(--bezel); bottom: var(--bezel);
+    border-radius: var(--screen-radius);
+    overflow: hidden;
+    background: #000;
+    z-index: 1;
+  }
+
+  /* Dynamic Island */
+  .dynamic-island {
+    position: absolute;
+    top: 11px; left: 50%; transform: translateX(-50%);
+    width: 126px; height: 37px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 90;
+    box-shadow: 0 0 0 0.5px rgba(0,0,0,.8);
+  }
+
+  /* ── Status Bar ─────────────────────────────────────────── */
+  .status-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 54px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding: 0 32px 8px;
+    z-index: 80;
+    color: #fff; font-size: 14px; font-weight: 600;
+  }
+  .status-time { font-weight: 700; font-size: 16px; letter-spacing: .3px; }
+  .status-icons { display: flex; align-items: center; gap: 5px; }
+  .status-icons svg { width: 18px; height: 12px; }
+  .battery-icon { width: 27px !important; height: 13px !important; }
+
+  /* ── Screens ─────────────────────────────────────────── */
+  .phone-screen {
+    position: absolute; inset: 0;
+    opacity: 0; pointer-events: none;
+    transition: opacity .45s cubic-bezier(.4,0,.2,1), transform .45s cubic-bezier(.4,0,.2,1);
+    will-change: opacity, transform;
+  }
+  .phone-screen.active { opacity: 1; pointer-events: auto; }
+
+  /* ── Lock Screen ─────────────────────────────────────── */
+  .lock-screen {
+    display: flex; flex-direction: column; align-items: center;
+    overflow: hidden;
+  }
+  .lock-wallpaper {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 120% 80% at 50% 110%, rgba(168,85,247,.5), transparent 70%),
+      radial-gradient(ellipse 80% 50% at 20% 30%, rgba(99,102,241,.4), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 20%, rgba(236,72,153,.3), transparent 50%),
+      linear-gradient(170deg, #0c0014 0%, #1a0533 30%, #2e1065 55%, #581c87 75%, #a855f7 95%);
+  }
+  .lock-wallpaper .orb {
+    position: absolute; border-radius: 50%; filter: blur(60px);
+    animation: orbFloat 8s ease-in-out infinite alternate;
+  }
+  .lock-wallpaper .orb-1 {
+    width: 200px; height: 200px; top: 40%; left: -20%;
+    background: rgba(147,51,234,.4);
+  }
+  .lock-wallpaper .orb-2 {
+    width: 180px; height: 180px; top: 20%; right: -15%;
+    background: rgba(236,72,153,.3);
+    animation-delay: -3s;
+  }
+  .lock-wallpaper .orb-3 {
+    width: 160px; height: 160px; bottom: 15%; left: 30%;
+    background: rgba(99,102,241,.3);
+    animation-delay: -5s;
+  }
+  @keyframes orbFloat {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(20px, -20px) scale(1.15); }
+  }
+
+  .lock-time {
+    margin-top: 74px;
+    font-size: 86px; font-weight: 700; color: #fff;
+    letter-spacing: -3px; line-height: 1;
+    z-index: 2;
+    text-shadow: 0 4px 30px rgba(0,0,0,.3);
+  }
+  .lock-date {
+    font-size: 18px; font-weight: 500;
+    color: rgba(255,255,255,.82);
+    margin-top: 4px; z-index: 2;
+    text-shadow: 0 2px 12px rgba(0,0,0,.2);
+  }
+
+  .lock-camera, .lock-flashlight {
+    position: absolute; bottom: 50px; z-index: 10;
+    width: 50px; height: 50px; border-radius: 50%;
+    background: rgba(255,255,255,.12);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .lock-flashlight { left: 46px; }
+  .lock-camera { right: 46px; }
+
+  .swipe-area {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 80px;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-end; padding-bottom: 10px; z-index: 10;
+  }
+  .swipe-text {
+    color: rgba(255,255,255,.65); font-size: 13px; font-weight: 400;
+    letter-spacing: .3px; margin-bottom: 8px;
+    animation: pulse-text 2.8s ease-in-out infinite;
+  }
+  @keyframes pulse-text {
+    0%, 100% { opacity: .4; }
+    50% { opacity: .9; }
+  }
+
+  .lock-screen.unlocking {
+    transform: translateY(-100%); opacity: 0;
+    transition: transform .55s cubic-bezier(.32,.72,.37,1.02), opacity .4s ease;
+  }
+
+  /* ── Home Screen ─────────────────────────────────────── */
+  .home-screen { overflow: hidden; }
+  .home-wallpaper {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 120% 80% at 50% 110%, rgba(168,85,247,.5), transparent 70%),
+      radial-gradient(ellipse 80% 50% at 20% 30%, rgba(99,102,241,.4), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 20%, rgba(236,72,153,.3), transparent 50%),
+      linear-gradient(170deg, #0c0014 0%, #1a0533 30%, #2e1065 55%, #581c87 75%, #a855f7 95%);
+  }
+
+  .home-pages-wrapper {
+    position: absolute; top: 58px; left: 0; right: 0; bottom: 108px;
+    overflow: hidden; z-index: 2;
+  }
+  .home-pages-track {
+    display: flex; width: 200%; height: 100%;
+    transition: transform .4s cubic-bezier(.25,.1,.25,1);
+  }
+  .home-page {
+    width: 50%; padding: 14px 22px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(6, auto);
+    gap: 22px 0;
+    align-content: start; justify-items: center;
+  }
+
+  .app-icon-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .12s ease;
+  }
+  .app-icon-wrap:active { transform: scale(.85); }
+
+  .app-icon {
+    width: 60px; height: 60px; border-radius: 13.5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; color: #fff;
+    position: relative;
+    box-shadow: 0 1px 4px rgba(0,0,0,.25), inset 0 0.5px 0 rgba(255,255,255,.15);
+    overflow: hidden;
+  }
+  .app-label {
+    font-size: 11px; color: #fff; font-weight: 400;
+    text-align: center; max-width: 74px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(0,0,0,.5);
+  }
+
+  .page-dots {
+    position: absolute; bottom: 104px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 8px; z-index: 5;
+  }
+  .page-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(255,255,255,.3);
+    transition: all .3s ease; cursor: pointer;
+  }
+  .page-dot.active { background: #fff; transform: scale(1.2); }
+
+  /* Dock */
+  .dock {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 100px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 20px; z-index: 5;
+  }
+  .dock::before {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(255,255,255,.1);
+    backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border-top: 0.5px solid rgba(255,255,255,.12);
+  }
+  .dock .app-icon-wrap { z-index: 1; }
+
+  .home-indicator {
+    position: absolute; bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 134px; height: 5px;
+    background: rgba(255,255,255,.35);
+    border-radius: 3px; z-index: 90;
+  }
+
+  .notif-badge {
+    position: absolute; top: -3px; right: -3px;
+    min-width: 18px; height: 18px; border-radius: 9px;
+    background: #ff3b30; color: #fff;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+    border: 2px solid transparent;
+    box-shadow: 0 1px 4px rgba(255,59,48,.5);
+  }
+
+  /* ── App Store Screen ─────────────────────────────────── */
+  .appstore-screen { background: #000; }
+
+  .appstore-nav {
+    padding: 58px 20px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 2; position: relative;
+  }
+  .appstore-back {
+    font-size: 17px; color: #0a84ff; cursor: pointer;
+    display: flex; align-items: center; gap: 3px;
+    background: none; border: none; font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity .15s;
+  }
+  .appstore-back:active { opacity: .5; }
+  .appstore-back svg { width: 9px; height: 16px; flex-shrink: 0; }
+  .appstore-nav-title {
+    font-size: 17px; font-weight: 600; color: #fff;
+    position: absolute; left: 50%; transform: translateX(-50%);
+  }
+  .appstore-profile {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: linear-gradient(135deg, #c084fc, #f0abfc);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff;
+  }
+
+  .appstore-content {
+    padding: 8px 20px 100px;
+    overflow-y: auto;
+    height: calc(100% - 90px);
+    position: relative; z-index: 2;
+    -webkit-overflow-scrolling: touch;
+  }
+  .appstore-content::-webkit-scrollbar { display: none; }
+
+  .featured-card {
+    border-radius: 16px; overflow: hidden;
+    margin-bottom: 28px; cursor: pointer;
+    position: relative;
+    background: linear-gradient(135deg, #0c0020, #1a0533, #3b0764, #6b21a8);
+    padding: 24px 20px; min-height: 210px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    transition: transform .12s ease;
+  }
+  .featured-card:active { transform: scale(.97); }
+  .featured-card::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 85% 15%, rgba(251,191,36,.25), transparent 45%),
+      radial-gradient(circle at 15% 85%, rgba(168,85,247,.4), transparent 55%);
+  }
+  .featured-card::after {
+    content: ''; position: absolute; inset: 0;
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 16px; pointer-events: none;
+  }
+  .featured-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #fbbf24;
+    margin-bottom: 8px; position: relative;
+  }
+  .featured-name {
+    font-size: 28px; font-weight: 800; color: #fff;
+    line-height: 1.1; margin-bottom: 6px; position: relative;
+  }
+  .featured-sub {
+    font-size: 15px; color: rgba(255,255,255,.65);
+    font-weight: 400; position: relative;
+  }
+  .featured-icon-wrap {
+    position: absolute; top: 20px; right: 20px;
+    width: 72px; height: 72px; border-radius: 16px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b, #d97706);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    box-shadow: 0 6px 20px rgba(251,191,36,.35), inset 0 1px 0 rgba(255,255,255,.2);
+  }
+  .featured-get {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 7px 22px; border-radius: 16px;
+    background: rgba(255,255,255,.18);
+    backdrop-filter: blur(10px);
+    color: #fff; font-size: 15px; font-weight: 700;
+    border: none; cursor: pointer; font-family: inherit;
+    margin-top: 14px; align-self: flex-start;
+    position: relative;
+    transition: all .12s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .featured-get:active { transform: scale(.92); background: rgba(255,255,255,.25); }
+
+  .section-title {
+    font-size: 22px; font-weight: 800; color: #fff;
+    margin-bottom: 14px; margin-top: 4px;
+  }
+
+  .game-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 0;
+    border-bottom: 0.5px solid rgba(255,255,255,.07);
+  }
+  .game-item:last-child { border-bottom: none; }
+  .game-icon {
+    width: 62px; height: 62px; border-radius: 14px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2), inset 0 0.5px 0 rgba(255,255,255,.1);
+  }
+  .game-info { flex: 1; min-width: 0; }
+  .game-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+  .game-category { font-size: 13px; color: rgba(255,255,255,.4); }
+  .game-stars { font-size: 11px; color: rgba(255,255,255,.3); margin-top: 2px; }
+  .game-get-btn {
+    padding: 6px 20px; border-radius: 16px;
+    background: rgba(255,255,255,.12);
+    color: #0a84ff; font-size: 15px; font-weight: 700;
+    border: none; cursor: pointer; font-family: inherit;
+    flex-shrink: 0; transition: all .12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .game-get-btn:active { transform: scale(.9); }
+
+  .appstore-tabs {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 83px;
+    background: rgba(18,18,18,.88);
+    backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+    border-top: 0.5px solid rgba(255,255,255,.08);
+    display: flex; align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 7px; z-index: 5;
+  }
+  .tab-item {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px; font-size: 10px; font-weight: 500;
+    color: rgba(255,255,255,.35); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab-item.active { color: #0a84ff; }
+  .tab-item svg { width: 22px; height: 22px; }
+
+  /* ── Download Screen ─────────────────────────────────── */
+  .download-screen {
+    background: #000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .dl-icon-wrap {
+    position: relative;
+    width: 120px; height: 120px;
+    margin-bottom: 28px;
+  }
+  .dl-icon {
+    width: 100%; height: 100%;
+    border-radius: 28px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b, #d97706);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 54px;
+    box-shadow: 0 10px 40px rgba(251,191,36,.3), inset 0 1px 0 rgba(255,255,255,.2);
+  }
+  .dl-ring {
+    position: absolute; inset: -10px;
+  }
+  .dl-ring circle { fill: none; stroke-width: 3.5; stroke-linecap: round; }
+  .dl-ring .bg { stroke: rgba(255,255,255,.1); }
+  .dl-ring .fg {
+    stroke: #c084fc;
+    stroke-dasharray: 440; stroke-dashoffset: 440;
+    transform: rotate(-90deg); transform-origin: center;
+    filter: drop-shadow(0 0 6px rgba(192,132,252,.5));
+  }
+  .dl-title { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .dl-status { font-size: 15px; color: rgba(255,255,255,.5); margin-bottom: 24px; }
+  .dl-bar-track {
+    width: 220px; height: 4px; background: rgba(255,255,255,.1);
+    border-radius: 2px; overflow: hidden;
+  }
+  .dl-bar-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #a855f7, #c084fc, #e879f9);
+    border-radius: 2px;
+  }
+  .dl-percent {
+    margin-top: 10px;
+    font-size: 13px; color: rgba(255,255,255,.35); font-weight: 500;
+  }
+
+  /* ── Eva Scratchers ─────────────────────────────────── */
+  .scratchers-screen {
+    background: linear-gradient(175deg, #070714 0%, #0f0f2d 40%, #1a103a 70%, #0d0d1f 100%);
+    overflow: hidden;
+  }
+  .scratchers-bg-glow {
+    position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(251,191,36,.08), transparent),
+      radial-gradient(ellipse 60% 30% at 50% 100%, rgba(168,85,247,.1), transparent);
+  }
+
+  .scratchers-header {
+    padding: 62px 20px 12px; text-align: center;
+    position: relative; z-index: 2;
+  }
+  .scratchers-logo {
+    font-size: 30px; font-weight: 900;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 40%, #fde68a 60%, #fbbf24 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 2px;
+    animation: shimmer 3s linear infinite;
+    text-shadow: none;
+    filter: drop-shadow(0 2px 8px rgba(251,191,36,.3));
+  }
+  @keyframes shimmer {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+  }
+  .scratchers-sub {
+    font-size: 13px; color: rgba(255,255,255,.45);
+    margin-top: 4px; font-weight: 400;
+    letter-spacing: .5px;
+  }
+
+  .tickets-container {
+    padding: 10px 20px 40px;
+    display: flex; flex-direction: column; gap: 16px;
+    position: relative; z-index: 2;
+    overflow-y: auto; height: calc(100% - 116px);
+    -webkit-overflow-scrolling: touch;
+  }
+  .tickets-container::-webkit-scrollbar { display: none; }
+
+  .ticket {
+    border-radius: 18px; overflow: hidden; position: relative;
+    box-shadow: 0 6px 24px rgba(0,0,0,.5), 0 0 0 0.5px rgba(255,255,255,.06);
+    transition: box-shadow .5s ease;
+  }
+  .ticket-body {
+    padding: 18px 18px 16px; position: relative;
+  }
+  .ticket-1 .ticket-body { background: linear-gradient(135deg, #6d28d9, #8b5cf6, #a78bfa); }
+  .ticket-2 .ticket-body { background: linear-gradient(135deg, #047857, #059669, #34d399); }
+  .ticket-3 .ticket-body { background: linear-gradient(135deg, #b91c1c, #dc2626, #f87171); }
+
+  .ticket-deco {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  }
+  .ticket-deco::before {
+    content: ''; position: absolute;
+    top: -40%; right: -20%;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.06);
+  }
+  .ticket-deco::after {
+    content: ''; position: absolute;
+    bottom: -50%; left: -15%;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.04);
+  }
+  .ticket-pattern {
+    position: absolute; inset: 0; pointer-events: none; opacity: .03;
+    background-image: repeating-linear-gradient(
+      45deg, transparent, transparent 10px, rgba(255,255,255,.5) 10px, rgba(255,255,255,.5) 11px
+    );
+  }
+
+  .ticket-number {
+    font-size: 10px; font-weight: 700;
+    color: rgba(255,255,255,.45);
+    letter-spacing: 2.5px; text-transform: uppercase;
+    margin-bottom: 6px; position: relative;
+  }
+  .ticket-prize-label {
+    font-size: 12px; color: rgba(255,255,255,.75);
+    font-weight: 500; margin-bottom: 2px; position: relative;
+  }
+  .ticket-prize-name {
+    font-size: 19px; font-weight: 800; color: #fff;
+    margin-bottom: 12px; position: relative; line-height: 1.2;
+  }
+  .ticket-stars {
+    position: absolute; top: 14px; right: 14px;
+    font-size: 18px; opacity: .5;
+  }
+
+  .scratch-area-wrap {
+    position: relative; height: 68px;
+    border-radius: 10px; overflow: hidden;
+  }
+  .scratch-reveal {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,.15);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px dashed rgba(255,255,255,.2);
+  }
+  .scratch-code {
+    font-size: 17px; font-weight: 800;
+    color: #fbbf24; letter-spacing: 2.5px;
+    text-shadow: 0 0 16px rgba(251,191,36,.5);
+    text-align: center; line-height: 1.3;
+  }
+  .scratch-canvas {
+    position: absolute; inset: 0;
+    border-radius: 10px; cursor: crosshair;
+    z-index: 2; touch-action: none;
+  }
+  .scratch-hint {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+    color: rgba(80,80,80,.8);
+    z-index: 3; pointer-events: none;
+    transition: opacity .3s ease;
+    letter-spacing: 1px;
+  }
+  .scratch-hint.hidden { opacity: 0; }
+
+  .ticket.revealed {
+    box-shadow: 0 6px 24px rgba(0,0,0,.5), 0 0 30px rgba(251,191,36,.15);
+  }
+
+  /* ── Confetti & Celebration ─────────────────────────── */
+  .confetti-piece {
+    position: absolute; z-index: 999; pointer-events: none;
+    animation: confettiFall var(--dur, 2s) ease-out forwards;
+    animation-delay: var(--delay, 0s);
+  }
+  @keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translateY(60vh) rotate(720deg) scale(.3); opacity: 0; }
+  }
+  .celebration-text {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 22px; font-weight: 900; color: #fbbf24;
+    text-shadow: 0 0 30px rgba(251,191,36,.5);
+    z-index: 100; pointer-events: none;
+    opacity: 0;
+    animation: celebPop .8s ease forwards;
+  }
+  @keyframes celebPop {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(.3); }
+    40% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4) translateY(-25px); }
+  }
+
+  .app-open-anim {
+    animation: appOpen .4s cubic-bezier(.32,.72,.37,1.02) forwards;
+  }
+  @keyframes appOpen {
+    from { opacity: 0; transform: scale(.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Responsive scaling for smaller viewports */
+  @media (max-height: 900px) {
+    :root { --phone-h: 760px; }
+    .lock-time { font-size: 72px; margin-top: 64px; }
+  }
+  @media (max-width: 420px) {
+    :root { --phone-w: 100vw; --phone-h: 100vh; --radius: 0px; --bezel: 0px; --screen-radius: 0px; }
+    .iphone { box-shadow: none; }
+    .btn-side-right, .btn-side-left-1, .btn-side-left-2, .btn-side-left-3 { display: none; }
+    .iphone::after { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="iphone">
+  <div class="btn-side-right"></div>
+  <div class="btn-side-left-1"></div>
+  <div class="btn-side-left-2"></div>
+  <div class="btn-side-left-3"></div>
+
+  <div class="screen" id="screen">
+    <div class="dynamic-island"></div>
+
+    <div class="status-bar" id="statusBar">
+      <span class="status-time">9:41</span>
+      <div class="status-icons">
+        <svg viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="5" width="3" height="7" rx=".5"/><rect x="4.5" y="3.5" width="3" height="8.5" rx=".5"/><rect x="9" y="1.5" width="3" height="10.5" rx=".5"/><rect x="13.5" y="0" width="3" height="12" rx=".5"/></svg>
+        <svg viewBox="0 0 16 12" fill="currentColor"><path d="M8 3.6c1.8 0 3.4.7 4.6 1.8l1.2-1.2C12.2 2.7 10.2 1.8 8 1.8S3.8 2.7 2.2 4.2l1.2 1.2C4.6 4.3 6.2 3.6 8 3.6zm0 3.6c1 0 1.9.4 2.6 1l1.2-1.2c-.9-.9-2.3-1.5-3.8-1.5s-2.8.6-3.8 1.5l1.2 1.2C6.1 7.6 7 7.2 8 7.2zm0 3.6l2-2c-.5-.5-1.2-.8-2-.8s-1.5.3-2 .8l2 2z"/></svg>
+        <svg class="battery-icon" viewBox="0 0 27 13" fill="currentColor"><rect x="0" y="0" width="24" height="12" rx="2.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="1.8" y="1.8" width="19" height="8.4" rx="1.2"/><path d="M25 4v4.5a1.5 1.5 0 001.5-1.5v-1.5A1.5 1.5 0 0025 4z"/></svg>
+      </div>
+    </div>
+
+    <!-- ══ Lock Screen ══ -->
+    <div class="phone-screen lock-screen active" id="lockScreen">
+      <div class="lock-wallpaper">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+      </div>
+      <div class="lock-time" id="lockTime">9:41</div>
+      <div class="lock-date" id="lockDate">Saturday, March 7</div>
+      <div class="lock-flashlight">🔦</div>
+      <div class="lock-camera">📷</div>
+      <div class="swipe-area">
+        <div class="swipe-text">Swipe up to open</div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+
+    <!-- ══ Home Screen ══ -->
+    <div class="phone-screen home-screen" id="homeScreen">
+      <div class="home-wallpaper"></div>
+      <div class="home-pages-wrapper" id="homePagesWrapper">
+        <div class="home-pages-track" id="homePagesTrack">
+          <div class="home-page" id="homePage1"></div>
+          <div class="home-page" id="homePage2"></div>
+        </div>
+      </div>
+      <div class="page-dots" id="pageDots">
+        <div class="page-dot active" data-page="0"></div>
+        <div class="page-dot" data-page="1"></div>
+      </div>
+      <div class="dock" id="dock"></div>
+      <div class="home-indicator"></div>
+    </div>
+
+    <!-- ══ App Store ══ -->
+    <div class="phone-screen appstore-screen" id="appstoreScreen">
+      <div class="appstore-nav">
+        <button class="appstore-back" id="appstoreBack">
+          <svg viewBox="0 0 10 17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1L1.5 8.5L9 16"/></svg>
+        </button>
+        <span class="appstore-nav-title">Games</span>
+        <div class="appstore-profile">E</div>
+      </div>
+      <div class="appstore-content" id="appstoreContent"></div>
+      <div class="appstore-tabs">
+        <div class="tab-item active">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
+          <span>Today</span>
+        </div>
+        <div class="tab-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-5"/></svg>
+          <span>Games</span>
+        </div>
+        <div class="tab-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+          <span>Apps</span>
+        </div>
+        <div class="tab-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Arcade</span>
+        </div>
+        <div class="tab-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span>Search</span>
+        </div>
+      </div>
+      <div class="home-indicator" style="background:rgba(255,255,255,.2)"></div>
+    </div>
+
+    <!-- ══ Download Screen ══ -->
+    <div class="phone-screen download-screen" id="downloadScreen">
+      <div class="dl-icon-wrap">
+        <div class="dl-icon">🎰</div>
+        <svg class="dl-ring" viewBox="0 0 140 140">
+          <circle class="bg" cx="70" cy="70" r="65"/>
+          <circle class="fg" id="dlRing" cx="70" cy="70" r="65"/>
+        </svg>
+      </div>
+      <div class="dl-title">Eva's Game</div>
+      <div class="dl-status" id="dlStatus">Waiting...</div>
+      <div class="dl-bar-track">
+        <div class="dl-bar-fill" id="dlBar"></div>
+      </div>
+      <div class="dl-percent" id="dlPercent">0%</div>
+      <div class="home-indicator" style="background:rgba(255,255,255,.2)"></div>
+    </div>
+
+    <!-- ══ Eva Scratchers ══ -->
+    <div class="phone-screen scratchers-screen" id="scratchersScreen">
+      <div class="scratchers-bg-glow"></div>
+      <div class="scratchers-header">
+        <div class="scratchers-logo">EVA SCRATCHERS</div>
+        <div class="scratchers-sub">Scratch to reveal your prizes!</div>
+      </div>
+      <div class="tickets-container" id="ticketsContainer"></div>
+      <div class="home-indicator" style="background:rgba(255,255,255,.2)"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  /* ── Clock ────────────────────────────────────────────── */
+  function tick() {
+    const d = new Date();
+    let h = d.getHours(), m = d.getMinutes();
+    if (h > 12) h -= 12;
+    if (h === 0) h = 12;
+    const t = `${h}:${String(m).padStart(2,'0')}`;
+    $$('.status-time').forEach(el => el.textContent = t);
+    const lock = $('#lockTime');
+    if (lock) lock.textContent = t;
+
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const mons = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const ld = $('#lockDate');
+    if (ld) ld.textContent = `${days[d.getDay()]}, ${mons[d.getMonth()]} ${d.getDate()}`;
+  }
+  tick();
+  setInterval(tick, 15000);
+
+  /* ── Screen Navigation ────────────────────────────────── */
+  let scratchersInited = false;
+
+  function showScreen(id, anim) {
+    $$('.phone-screen').forEach(s => {
+      s.classList.remove('active', 'app-open-anim');
+    });
+    const el = $(`#${id}`);
+    if (anim) el.classList.add('app-open-anim');
+    el.classList.add('active');
+
+    if (id === 'scratchersScreen' && !scratchersInited) {
+      scratchersInited = true;
+      requestAnimationFrame(() => {
+        setTimeout(() => initAllCanvases(), 60);
+      });
+    }
+  }
+
+  /* ── Lock Screen ──────────────────────────────────────── */
+  const lockEl = $('#lockScreen');
+  let sy = 0, swiping = false;
+
+  function swStart(e) { swiping = true; sy = (e.touches ? e.touches[0] : e).clientY; }
+  function swMove(e) {
+    if (!swiping) return;
+    const cy = (e.touches ? e.touches[0] : e).clientY;
+    if (sy - cy > 50) { swiping = false; unlock(); }
+  }
+  function swEnd() { swiping = false; }
+
+  lockEl.addEventListener('touchstart', swStart, {passive:true});
+  lockEl.addEventListener('touchmove', swMove, {passive:true});
+  lockEl.addEventListener('touchend', swEnd);
+  lockEl.addEventListener('mousedown', swStart);
+  lockEl.addEventListener('mousemove', swMove);
+  lockEl.addEventListener('mouseup', swEnd);
+
+  function unlock() {
+    lockEl.classList.add('unlocking');
+    setTimeout(() => {
+      lockEl.classList.remove('active','unlocking');
+      showScreen('homeScreen');
+    }, 500);
+  }
+
+  /* ── Home Screen Apps ─────────────────────────────────── */
+  const p1 = [
+    {n:'Messages',  i:'💬', bg:'linear-gradient(135deg,#34c759,#30d158)'},
+    {n:'Calendar',  i:'📅', bg:'linear-gradient(135deg,#fff,#f2f2f7)', c:'#000'},
+    {n:'Photos',    i:'🌈', bg:'linear-gradient(135deg,#fff,#f2f2f7)'},
+    {n:'Camera',    i:'📷', bg:'linear-gradient(135deg,#48484a,#636366)'},
+    {n:'Weather',   i:'🌤️', bg:'linear-gradient(135deg,#5ac8fa,#007aff)'},
+    {n:'Clock',     i:'🕐', bg:'linear-gradient(135deg,#1c1c1e,#000)'},
+    {n:'Maps',      i:'🗺️', bg:'linear-gradient(135deg,#34c759,#30d158)'},
+    {n:'Notes',     i:'📝', bg:'linear-gradient(135deg,#ffd60a,#ffcc00)'},
+    {n:'Reminders', i:'📋', bg:'linear-gradient(135deg,#fff,#f2f2f7)', c:'#000'},
+    {n:'Stocks',    i:'📈', bg:'linear-gradient(135deg,#1c1c1e,#000)'},
+    {n:'News',      i:'📰', bg:'linear-gradient(135deg,#fc3d39,#ff2d55)'},
+    {n:'Health',    i:'❤️', bg:'linear-gradient(135deg,#fff,#f2f2f7)'},
+    {n:'Wallet',    i:'💳', bg:'linear-gradient(135deg,#1c1c1e,#000)'},
+    {n:'Settings',  i:'⚙️', bg:'linear-gradient(135deg,#8e8e93,#636366)'},
+    {n:'Files',     i:'📁', bg:'linear-gradient(135deg,#007aff,#5ac8fa)'},
+    {n:'Music',     i:'🎵', bg:'linear-gradient(135deg,#fc3d39,#ff2d55)'},
+    {n:'FaceTime',  i:'📹', bg:'linear-gradient(135deg,#34c759,#30d158)'},
+    {n:'Tips',      i:'💡', bg:'linear-gradient(135deg,#ffd60a,#ffcc00)'},
+    {n:'Translate', i:'🌐', bg:'linear-gradient(135deg,#007aff,#5ac8fa)'},
+    {n:'Podcasts',  i:'🎙️', bg:'linear-gradient(135deg,#8944ab,#a855f7)'},
+    {n:'Find My',   i:'📍', bg:'linear-gradient(135deg,#34c759,#30d158)'},
+    {n:'Shortcuts', i:'⚡', bg:'linear-gradient(135deg,#007aff,#5856d6)'},
+    {n:'Books',     i:'📚', bg:'linear-gradient(135deg,#ff9500,#ffcc00)'},
+    {n:'Calculator',i:'🔢', bg:'linear-gradient(135deg,#48484a,#636366)'},
+  ];
+  const p2 = [
+    {n:'TV',          i:'📺', bg:'linear-gradient(135deg,#1c1c1e,#2c2c2e)'},
+    {n:'Fitness',     i:'🏋️', bg:'linear-gradient(135deg,#fc3d39,#ff2d55)'},
+    {n:'Magnifier',   i:'🔍', bg:'linear-gradient(135deg,#1c1c1e,#48484a)'},
+    {n:'Compass',     i:'🧭', bg:'linear-gradient(135deg,#1c1c1e,#000)'},
+    {n:'Contacts',    i:'👥', bg:'linear-gradient(135deg,#8e8e93,#636366)'},
+    {n:'Voice Memos', i:'🎤', bg:'linear-gradient(135deg,#1c1c1e,#2c2c2e)'},
+    {n:'Home',        i:'🏠', bg:'linear-gradient(135deg,#ff9500,#ffcc00)'},
+    {n:'Measure',     i:'📐', bg:'linear-gradient(135deg,#1c1c1e,#000)'},
+  ];
+  const dockApps = [
+    {n:'Phone',     i:'📞', bg:'linear-gradient(135deg,#34c759,#30d158)'},
+    {n:'Safari',    i:'🧭', bg:'linear-gradient(135deg,#007aff,#5ac8fa)'},
+    {n:'Mail',      i:'✉️', bg:'linear-gradient(135deg,#007aff,#5ac8fa)', badge:3},
+    {n:'App Store', i:'A',  bg:'linear-gradient(135deg,#007aff,#5ac8fa)', action:'appstore', isAS:true},
+  ];
+
+  function mkIcon(a) {
+    const w = document.createElement('div');
+    w.className = 'app-icon-wrap';
+    if (a.action) w.dataset.action = a.action;
+
+    const ic = document.createElement('div');
+    ic.className = 'app-icon';
+    ic.style.background = a.bg;
+    if (a.c) ic.style.color = a.c;
+
+    if (a.isAS) {
+      ic.innerHTML = `<svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <g stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 28L18 6l7 22"/>
+          <path d="M13.5 20h9"/>
+        </g>
+      </svg>`;
+    } else {
+      ic.textContent = a.i;
+    }
+    if (a.badge) {
+      const b = document.createElement('div');
+      b.className = 'notif-badge';
+      b.textContent = a.badge;
+      ic.appendChild(b);
+    }
+    const lb = document.createElement('div');
+    lb.className = 'app-label';
+    lb.textContent = a.n;
+    w.appendChild(ic);
+    w.appendChild(lb);
+    return w;
+  }
+
+  p1.forEach(a => $('#homePage1').appendChild(mkIcon(a)));
+  p2.forEach(a => $('#homePage2').appendChild(mkIcon(a)));
+  dockApps.forEach(a => $('#dock').appendChild(mkIcon(a)));
+
+  /* ── Page Swiping ─────────────────────────────────────── */
+  let curPage = 0;
+  const track = $('#homePagesTrack');
+  const wrap = $('#homePagesWrapper');
+  let psx = 0, psw = false;
+
+  function pgStart(e) { psx = (e.touches ? e.touches[0] : e).clientX; psw = true; }
+  function pgMove(e) {
+    if (!psw) return;
+    const cx = (e.touches ? e.touches[0] : e).clientX;
+    const dx = psx - cx;
+    if (Math.abs(dx) > 50) {
+      psw = false;
+      if (dx > 0 && curPage < 1) setPage(1);
+      else if (dx < 0 && curPage > 0) setPage(0);
+    }
+  }
+  function pgEnd() { psw = false; }
+
+  wrap.addEventListener('touchstart', pgStart, {passive:true});
+  wrap.addEventListener('touchmove', pgMove, {passive:true});
+  wrap.addEventListener('touchend', pgEnd);
+  wrap.addEventListener('mousedown', pgStart);
+  wrap.addEventListener('mousemove', pgMove);
+  wrap.addEventListener('mouseup', pgEnd);
+
+  $$('.page-dot').forEach(d => d.addEventListener('click', () => setPage(+d.dataset.page)));
+
+  function setPage(n) {
+    curPage = n;
+    track.style.transform = `translateX(-${n * 50}%)`;
+    $$('.page-dot').forEach((d, i) => d.classList.toggle('active', i === n));
+  }
+
+  /* ── Icon Actions ─────────────────────────────────────── */
+  document.addEventListener('click', e => {
+    const w = e.target.closest('.app-icon-wrap');
+    if (!w) return;
+    if (w.dataset.action === 'appstore') showScreen('appstoreScreen', true);
+  });
+
+  /* ── App Store ────────────────────────────────────────── */
+  (function buildStore() {
+    const ct = $('#appstoreContent');
+
+    const fc = document.createElement('div');
+    fc.className = 'featured-card';
+    fc.innerHTML = `
+      <div class="featured-icon-wrap">🎰</div>
+      <span class="featured-label">Made for Eva</span>
+      <div class="featured-name">Eva's Game</div>
+      <div class="featured-sub">A special surprise just for you ✨</div>
+      <button class="featured-get" id="evaGetBtn">GET</button>
+    `;
+    ct.appendChild(fc);
+
+    const sec = document.createElement('div');
+    sec.innerHTML = `<div class="section-title">Recommended</div>`;
+    ct.appendChild(sec);
+
+    const games = [
+      {n:'Cooking Mama: Cuisine!', cat:'Simulation',       ic:'🍳', bg:'linear-gradient(135deg,#ff6b6b,#ee5a24)', stars:'★★★★★'},
+      {n:'Cooking Fever',          cat:'Time Management',   ic:'🍔', bg:'linear-gradient(135deg,#ff9f43,#ee5a24)', stars:'★★★★☆'},
+      {n:'Cooking Diary',          cat:'Casual',            ic:'🧁', bg:'linear-gradient(135deg,#ff6348,#ff4757)', stars:'★★★★☆'},
+      {n:'TikTok',                 cat:'Entertainment',     ic:'🎵', bg:'linear-gradient(135deg,#010101,#333)',    stars:'★★★★★'},
+      {n:'Candy Crush Saga',       cat:'Puzzle',            ic:'🍬', bg:'linear-gradient(135deg,#5f27cd,#a855f7)', stars:'★★★★☆'},
+      {n:'Among Us',               cat:'Party',             ic:'🚀', bg:'linear-gradient(135deg,#0abde3,#48dbfb)', stars:'★★★★★'},
+    ];
+
+    games.forEach(g => {
+      const it = document.createElement('div');
+      it.className = 'game-item';
+      it.innerHTML = `
+        <div class="game-icon" style="background:${g.bg}">${g.ic}</div>
+        <div class="game-info">
+          <div class="game-name">${g.n}</div>
+          <div class="game-category">${g.cat}</div>
+          <div class="game-stars">${g.stars}</div>
+        </div>
+        <button class="game-get-btn">GET</button>
+      `;
+      ct.appendChild(it);
+    });
+  })();
+
+  $('#appstoreBack').addEventListener('click', () => showScreen('homeScreen'));
+
+  $('#appstoreContent').addEventListener('click', e => {
+    const btn = e.target.closest('#evaGetBtn') || e.target.closest('.featured-card');
+    if (btn) startDownload();
+  });
+
+  /* ── Download Animation ───────────────────────────────── */
+  async function startDownload() {
+    showScreen('downloadScreen', true);
+    const ring = $('#dlRing');
+    const bar = $('#dlBar');
+    const status = $('#dlStatus');
+    const pct = $('#dlPercent');
+    const circ = 2 * Math.PI * 65;
+
+    ring.style.strokeDasharray = circ;
+    ring.style.strokeDashoffset = circ;
+    bar.style.width = '0%';
+    bar.style.transition = 'none';
+    status.textContent = 'Connecting...';
+    pct.textContent = '0%';
+
+    await wait(600);
+
+    const steps = 100;
+    for (let i = 0; i <= steps; i++) {
+      const p = i / steps;
+      ring.style.strokeDashoffset = circ * (1 - p);
+      bar.style.width = (p * 100) + '%';
+      pct.textContent = Math.round(p * 100) + '%';
+
+      if (p < .15) status.textContent = 'Downloading...';
+      else if (p < .5) status.textContent = 'Downloading...';
+      else if (p < .75) status.textContent = 'Installing...';
+      else if (p < .95) status.textContent = 'Almost ready...';
+      else status.textContent = 'Opening...';
+
+      const delay = p < .1 ? 60 : p < .5 ? 30 : p < .8 ? 25 : 40;
+      await wait(delay);
+    }
+    await wait(500);
+    showScreen('scratchersScreen', true);
+  }
+
+  /* ── Eva Scratchers ───────────────────────────────────── */
+  const ticketData = [
+    { num:'TICKET #001', label:'Grand Prize',   prize:'Stanley Cup Tumbler', code:'AMZN-STAN-8842', cls:'ticket-1', stars:'⭐⭐⭐' },
+    { num:'TICKET #002', label:'Bonus Prize',    prize:'Cozy Blanket Set',    code:'AMZN-COZY-2291', cls:'ticket-2', stars:'🌟🌟' },
+    { num:'TICKET #003', label:'Mystery Prize',  prize:'Surprise Gift!',      code:'AMZN-SURP-5567', cls:'ticket-3', stars:'💎✨' },
+  ];
+
+  (function buildTickets() {
+    const ct = $('#ticketsContainer');
+    ticketData.forEach((t, i) => {
+      const el = document.createElement('div');
+      el.className = `ticket ${t.cls}`;
+      el.innerHTML = `
+        <div class="ticket-body">
+          <div class="ticket-deco"></div>
+          <div class="ticket-pattern"></div>
+          <div class="ticket-stars">${t.stars}</div>
+          <div class="ticket-number">${t.num}</div>
+          <div class="ticket-prize-label">${t.label}</div>
+          <div class="ticket-prize-name">${t.prize}</div>
+          <div class="scratch-area-wrap" id="scratchWrap${i}">
+            <div class="scratch-reveal">
+              <div class="scratch-code">${t.code}</div>
+            </div>
+            <canvas class="scratch-canvas" id="sc${i}"></canvas>
+            <div class="scratch-hint" id="sh${i}">SCRATCH HERE</div>
+          </div>
+        </div>
+      `;
+      ct.appendChild(el);
+    });
+  })();
+
+  function initAllCanvases() {
+    ticketData.forEach((_, i) => initScratch(i));
+  }
+
+  function initScratch(idx) {
+    const canvas = $(`#sc${idx}`);
+    const hint = $(`#sh${idx}`);
+    const wrapEl = $(`#scratchWrap${idx}`);
+    if (!canvas || !wrapEl) return;
+
+    const r = wrapEl.getBoundingClientRect();
+    const W = Math.max(r.width, 280);
+    const H = Math.max(r.height, 68);
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+
+    const ctx = canvas.getContext('2d');
+
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#b8b8b8');
+    g.addColorStop(.25, '#d1d1d1');
+    g.addColorStop(.5, '#c0c0c0');
+    g.addColorStop(.75, '#d8d8d8');
+    g.addColorStop(1, '#aaa');
+    ctx.fillStyle = g;
+    rrect(ctx, 0, 0, W, H, 10);
+    ctx.fill();
+
+    ctx.globalAlpha = .06;
+    for (let x = 0; x < W; x += 6) {
+      ctx.fillStyle = x % 12 === 0 ? '#fff' : '#999';
+      ctx.fillRect(x, 0, 3, H);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = 'rgba(0,0,0,.12)';
+    ctx.font = 'bold 13px -apple-system, Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SCRATCH ME', W / 2, H / 2);
+
+    let active = false, hintGone = false, done = false;
+
+    function scratch(x, y) {
+      const sx = x * (W / canvas.clientWidth);
+      const sy = y * (H / canvas.clientHeight);
+
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+      ctx.fill();
+      for (let j = 0; j < 4; j++) {
+        ctx.beginPath();
+        ctx.arc(
+          sx + (Math.random() - .5) * 18,
+          sy + (Math.random() - .5) * 18,
+          7 + Math.random() * 7, 0, Math.PI * 2
+        );
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+
+      if (!hintGone) { hintGone = true; hint.classList.add('hidden'); }
+      checkDone();
+    }
+
+    function checkDone() {
+      if (done) return;
+      const d = ctx.getImageData(0, 0, W, H).data;
+      let clear = 0;
+      for (let i = 3; i < d.length; i += 16) {
+        if (d[i] < 128) clear++;
+      }
+      if (clear / (d.length / 16) > .45) {
+        done = true;
+        canvas.style.transition = 'opacity .6s ease';
+        canvas.style.opacity = '0';
+        setTimeout(() => {
+          canvas.style.display = 'none';
+          const ticket = canvas.closest('.ticket');
+          ticket.classList.add('revealed');
+          confetti(ticket);
+        }, 600);
+      }
+    }
+
+    function pos(e) {
+      const cr = canvas.getBoundingClientRect();
+      const cx = (e.touches ? e.touches[0].clientX : e.clientX);
+      const cy = (e.touches ? e.touches[0].clientY : e.clientY);
+      return { x: cx - cr.left, y: cy - cr.top };
+    }
+
+    canvas.addEventListener('mousedown',  e => { active = true; const p = pos(e); scratch(p.x, p.y); });
+    canvas.addEventListener('mousemove',  e => { if (active) { const p = pos(e); scratch(p.x, p.y); } });
+    canvas.addEventListener('mouseup',    () => active = false);
+    canvas.addEventListener('mouseleave', () => active = false);
+
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); active = true; const p = pos(e); scratch(p.x, p.y); }, {passive:false});
+    canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (active) { const p = pos(e); scratch(p.x, p.y); } }, {passive:false});
+    canvas.addEventListener('touchend',   () => active = false);
+  }
+
+  function rrect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y);
+    ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+    ctx.lineTo(x+w, y+h-r);
+    ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    ctx.lineTo(x+r, y+h);
+    ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+    ctx.lineTo(x, y+r);
+    ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.closePath();
+  }
+
+  function confetti(parent) {
+    const colors = ['#fbbf24','#f59e0b','#c084fc','#f0abfc','#34d399','#ff6b6b','#60a5fa','#fde68a'];
+    const screen = parent.closest('.phone-screen');
+    const sr = screen.getBoundingClientRect();
+    const pr = parent.getBoundingClientRect();
+    const cx = pr.left - sr.left + pr.width / 2;
+    const cy = pr.top - sr.top + pr.height / 2;
+
+    for (let i = 0; i < 40; i++) {
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.left = (cx + (Math.random() - .5) * pr.width) + 'px';
+      p.style.top = cy + 'px';
+      p.style.width = (3 + Math.random() * 7) + 'px';
+      p.style.height = (3 + Math.random() * 7) + 'px';
+      p.style.borderRadius = Math.random() > .5 ? '50%' : '1px';
+      p.style.setProperty('--dur', (1.2 + Math.random() * 1.5) + 's');
+      p.style.setProperty('--delay', (Math.random() * .25) + 's');
+      screen.appendChild(p);
+      setTimeout(() => p.remove(), 4000);
+    }
+
+    const cel = document.createElement('div');
+    cel.className = 'celebration-text';
+    cel.textContent = '🎉 WINNER! 🎉';
+    screen.appendChild(cel);
+    setTimeout(() => cel.remove(), 1500);
+  }
+
+})();
+</script>
+</body>
+</html>
