@@ -205,10 +205,27 @@ button {
   height: 100%;
   border-radius: 2.5rem;
   overflow: hidden;
+  isolation: isolate;
+  clip-path: inset(0 round 2.5rem);
   background: #000;
   box-shadow:
     inset 0 0 0 0.08rem rgba(255, 255, 255, 0.08),
     0 0 0 0.08rem rgba(16, 19, 26, 0.7);
+}
+
+.phone-screen::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0.92rem;
+  width: 7.8rem;
+  height: 0.34rem;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 55;
+  transition: opacity 220ms ease;
+  pointer-events: none;
 }
 
 .status-bar {
@@ -1042,6 +1059,7 @@ button {
   overflow: hidden;
   box-shadow: 0 1.4rem 2.8rem rgba(44, 43, 85, 0.16);
   text-align: left;
+  cursor: pointer;
 }
 
 .feature-gradient {
@@ -1324,6 +1342,21 @@ button {
   overscroll-behavior: contain;
 }
 
+.game-app-shell {
+  position: relative;
+  z-index: 2;
+  padding: 1rem 0.9rem 1rem;
+  border-radius: 1.9rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.82)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 22%);
+  color: #2a2140;
+  box-shadow:
+    inset 0 0.08rem 0 rgba(255, 255, 255, 0.7),
+    0 1.25rem 2rem rgba(42, 13, 71, 0.18);
+  border: 0.06rem solid rgba(255, 255, 255, 0.22);
+}
+
 .game-header {
   position: relative;
   z-index: 2;
@@ -1334,6 +1367,7 @@ button {
   font-size: 2.2rem;
   line-height: 1;
   letter-spacing: -0.06em;
+  color: #281d3d;
 }
 
 .game-subtitle {
@@ -1341,6 +1375,7 @@ button {
   padding: 1rem 1.1rem;
   font-size: 0.95rem;
   line-height: 1.35;
+  color: #fff;
 }
 
 .ticket-list {
@@ -1355,23 +1390,50 @@ button {
 .ticket {
   position: relative;
   min-height: 9.5rem;
-  padding: 1rem;
-  border-radius: 1.55rem;
+  padding: 1rem 1rem 1.05rem;
+  border-radius: 1.35rem;
   overflow: hidden;
-  box-shadow: 0 1.1rem 1.8rem rgba(42, 13, 71, 0.18);
+  box-shadow:
+    inset 0 0.08rem 0 rgba(255, 255, 255, 0.28),
+    0 0.95rem 1.45rem rgba(42, 13, 71, 0.14);
 }
 
 .ticket-background {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, var(--ticket-a), var(--ticket-b));
+  background:
+    linear-gradient(135deg, var(--ticket-a), var(--ticket-b)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 34%);
+}
+
+.ticket-background::before,
+.ticket-background::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  opacity: 0.7;
+}
+
+.ticket-background::before {
+  left: -0.5rem;
+}
+
+.ticket-background::after {
+  right: -0.5rem;
 }
 
 .ticket::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 36%);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 36%),
+    radial-gradient(circle at 85% 18%, rgba(255, 255, 255, 0.22), transparent 18%);
   pointer-events: none;
 }
 
@@ -1398,7 +1460,7 @@ button {
 .ticket-badge {
   padding: 0.28rem 0.7rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.22);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -1411,10 +1473,18 @@ button {
 }
 
 .ticket-label {
-  margin-top: 0.72rem;
   font-size: 0.8rem;
   font-weight: 600;
   opacity: 0.76;
+}
+
+.ticket-prize-panel {
+  margin-top: 0.72rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.18);
+  border: 0.06rem dashed rgba(255, 255, 255, 0.44);
+  box-shadow: inset 0 0.08rem 0 rgba(255, 255, 255, 0.12);
 }
 
 .ticket-code {
@@ -1434,8 +1504,8 @@ button {
 
 .ticket-overlay {
   position: absolute;
-  inset: 0.38rem;
-  border-radius: 1.2rem;
+  inset: 0.34rem;
+  border-radius: 1.12rem;
   overflow: hidden;
 }
 
@@ -1460,6 +1530,7 @@ button {
   display: block;
   font-size: 1.05rem;
   letter-spacing: 0.08em;
+  text-shadow: 0 0.08rem 0.18rem rgba(0, 0, 0, 0.18);
 }
 
 .overlay-copy span {
@@ -1512,21 +1583,14 @@ button {
 
 .phone-screen.is-sleeping .screen,
 .phone-screen.is-sleeping .status-bar,
-.phone-screen.is-sleeping .home-indicator {
+.phone-screen.is-sleeping .home-indicator,
+.phone-screen.is-sleeping::after {
   opacity: 0;
   pointer-events: none;
 }
 
 .home-indicator {
-  position: absolute;
-  left: 50%;
-  bottom: 1rem;
-  width: 8rem;
-  height: 0.34rem;
-  border-radius: 999px;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.92);
-  z-index: 40;
+  display: none;
 }
 
 @media (max-width: 460px) {

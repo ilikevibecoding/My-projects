@@ -101,7 +101,13 @@
                 <h2>App Store</h2>
               </header>
 
-              <button class="feature-card" type="button" data-install-card>
+              <article
+                class="feature-card"
+                data-install-card
+                role="button"
+                tabindex="0"
+                aria-label="Open Eva's game"
+              >
                 <div class="feature-gradient"></div>
                 <div class="feature-copy">
                   <p class="feature-kicker">Featured for Eva</p>
@@ -147,7 +153,7 @@
                     </span>
                   </button>
                 </div>
-              </button>
+              </article>
 
               <section class="store-list">
                 <div class="section-title-row">
@@ -168,19 +174,21 @@
                 <span>H</span>
               </button>
 
-              <header class="game-header">
-                <h2>Eva Scratchers</h2>
-                <div class="game-subtitle glass-card">
-                  Scratch all three tickets to reveal the surprise Amazon codes
-                  inside.
+              <div class="game-app-shell">
+                <header class="game-header">
+                  <h2>Eva Scratchers</h2>
+                  <div class="game-subtitle glass-card">
+                    Scratch all three tickets to reveal the surprise Amazon
+                    codes inside.
+                  </div>
+                </header>
+
+                <div class="ticket-list" data-ticket-list></div>
+
+                <div class="final-reveal glass-card" data-final-reveal>
+                  All three tickets are open. Replace the placeholders with her
+                  real Amazon gifts whenever you're ready.
                 </div>
-              </header>
-
-              <div class="ticket-list" data-ticket-list></div>
-
-              <div class="final-reveal glass-card" data-final-reveal>
-                All three tickets are open. Replace the placeholders with her
-                real Amazon gifts whenever you're ready.
               </div>
             </section>
 

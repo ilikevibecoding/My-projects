@@ -637,24 +637,41 @@ class ScratchCard {
   drawCover() {
     const { width, height } = this.canvas.getBoundingClientRect();
     const gradient = this.ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, this.colors[0]);
-    gradient.addColorStop(1, this.colors[1]);
+    gradient.addColorStop(0, "#e6ebf1");
+    gradient.addColorStop(0.35, "#b8bec9");
+    gradient.addColorStop(0.7, "#f4f7fb");
+    gradient.addColorStop(1, "#9198a8");
 
     this.ctx.globalCompositeOperation = "source-over";
     this.ctx.clearRect(0, 0, width, height);
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, width, height);
 
-    for (let i = 0; i < 180; i += 1) {
+    for (let i = 0; i < 260; i += 1) {
       const x = Math.random() * width;
       const y = Math.random() * height;
-      const alpha = 0.05 + Math.random() * 0.09;
-      const radius = 0.8 + Math.random() * 2.8;
+      const alpha = 0.03 + Math.random() * 0.1;
+      const radius = 0.4 + Math.random() * 2.2;
       this.ctx.fillStyle = `rgba(255,255,255,${alpha})`;
       this.ctx.beginPath();
       this.ctx.arc(x, y, radius, 0, Math.PI * 2);
       this.ctx.fill();
     }
+
+    this.ctx.save();
+    this.ctx.transform(1, 0.22, -0.18, 1, 0, 0);
+    this.ctx.fillStyle = "rgba(255,255,255,0.09)";
+    for (let i = -height; i < width + height; i += 18) {
+      this.ctx.fillRect(i, -height, 6, height * 3);
+    }
+    this.ctx.restore();
+
+    const sheen = this.ctx.createLinearGradient(0, 0, width, 0);
+    sheen.addColorStop(0, "rgba(255,255,255,0)");
+    sheen.addColorStop(0.5, "rgba(255,255,255,0.16)");
+    sheen.addColorStop(1, "rgba(255,255,255,0)");
+    this.ctx.fillStyle = sheen;
+    this.ctx.fillRect(0, 0, width, height);
   }
 
   bind() {
@@ -749,8 +766,10 @@ function buildTickets() {
           <span class="ticket-badge">locked</span>
         </div>
         <h3>${ticket.title}</h3>
-        <div class="ticket-label">Amazon code</div>
-        <div class="ticket-code">${ticket.code}</div>
+        <div class="ticket-prize-panel">
+          <div class="ticket-label">Amazon code</div>
+          <div class="ticket-code">${ticket.code}</div>
+        </div>
         <div class="ticket-note">${ticket.note}</div>
       </div>
       <div class="ticket-overlay">
@@ -797,6 +816,12 @@ function bindNav() {
   });
 
   installCard.addEventListener("click", startInstallFlow);
+  installCard.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      startInstallFlow();
+    }
+  });
 
   sideButton.addEventListener("click", () => {
     if (isSleeping) {
