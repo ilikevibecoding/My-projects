@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>Eva's Game Phone</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-a"></div>
+    <div class="ambient ambient-b"></div>
+    <div class="ambient ambient-c"></div>
+
+    <main class="stage">
+      <section class="phone-shell" aria-label="Interactive phone gift">
+        <div class="phone-side-buttons" aria-hidden="true">
+          <span class="phone-button left top"></span>
+          <span class="phone-button left middle"></span>
+          <span class="phone-button left bottom"></span>
+          <span class="phone-button right"></span>
+        </div>
+
+        <div class="phone-shadow"></div>
+
+        <div class="phone-frame">
+          <div class="phone-screen">
+            <div class="status-bar">
+              <span class="status-time" data-clock-time>9:41</span>
+              <div class="dynamic-island" aria-hidden="true"></div>
+              <div class="status-icons" aria-hidden="true">
+                <span class="signal-bars">
+                  <i></i><i></i><i></i><i></i>
+                </span>
+                <span class="wifi-icon"></span>
+                <span class="battery-icon"><b></b></span>
+              </div>
+            </div>
+
+            <section class="screen screen-lock is-visible" data-screen="lock">
+              <div class="wallpaper wallpaper-lock"></div>
+              <div class="screen-gloss"></div>
+
+              <div class="lock-content">
+                <p class="lock-state">LOCKED</p>
+                <h1 class="lock-time" data-lock-time>9:41</h1>
+                <p class="lock-date" data-lock-date>Saturday, March 7</p>
+
+                <div class="lock-note glass-card">
+                  <p>A tiny App Store surprise waits inside.</p>
+                </div>
+              </div>
+
+              <div class="unlock-tray glass-pill">
+                <p class="unlock-copy" data-unlock-copy>swipe to unlock</p>
+                <input
+                  class="unlock-slider"
+                  data-unlock-slider
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="0"
+                  aria-label="Swipe to unlock"
+                />
+              </div>
+
+              <div class="quick-actions" aria-hidden="true">
+                <div class="quick-action">LIGHT</div>
+                <div class="quick-action">CAM</div>
+              </div>
+            </section>
+
+            <section class="screen screen-home" data-screen="home">
+              <div class="wallpaper wallpaper-home"></div>
+              <div class="screen-gloss"></div>
+
+              <div class="home-pages" data-home-pages></div>
+
+              <div class="page-dots" data-page-dots aria-hidden="true"></div>
+
+              <div class="dock glass-pill" data-dock></div>
+            </section>
+
+            <section class="screen screen-store" data-screen="store">
+              <div class="store-backdrop"></div>
+              <div class="screen-gloss subtle"></div>
+
+              <button class="top-button left" type="button" data-go-home>
+                <span>&lsaquo;</span>
+              </button>
+
+              <header class="store-header">
+                <p class="store-kicker">Today</p>
+                <h2>App Store</h2>
+              </header>
+
+              <button class="feature-card" type="button" data-install-card>
+                <div class="feature-gradient"></div>
+                <div class="feature-copy">
+                  <p class="feature-kicker">Featured for Eva</p>
+                  <h3>Eva's game</h3>
+                  <p class="feature-body">
+                    Tap get, watch it download, then open a scratch-off surprise
+                    made just for her.
+                  </p>
+                  <p class="feature-status" data-feature-status>
+                    A custom mini-game hidden inside the phone.
+                  </p>
+                </div>
+
+                <div class="feature-icon" aria-hidden="true">
+                  <span>E</span>
+                </div>
+
+                <div class="feature-install">
+                  <button
+                    class="install-button"
+                    type="button"
+                    data-install-button
+                    aria-label="Install Eva's game"
+                  >
+                    <span class="install-arrow" data-install-arrow>
+                      <i></i><i></i><i></i>
+                    </span>
+                    <span class="install-label" data-install-label>GET</span>
+                    <span class="install-progress" data-install-progress>
+                      <svg viewBox="0 0 40 40" aria-hidden="true">
+                        <circle class="track" cx="20" cy="20" r="15"></circle>
+                        <circle
+                          class="progress-ring"
+                          cx="20"
+                          cy="20"
+                          r="15"
+                          data-progress-ring
+                        ></circle>
+                      </svg>
+                      <span class="ring-arrow">
+                        <i></i><i></i><i></i>
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </button>
+
+              <section class="store-list">
+                <div class="section-title-row">
+                  <h3>For Eva</h3>
+                </div>
+                <div data-store-list></div>
+              </section>
+            </section>
+
+            <section class="screen screen-game" data-screen="game">
+              <div class="game-backdrop"></div>
+              <div class="screen-gloss"></div>
+
+              <button class="top-button left" type="button" data-go-store>
+                <span>&lsaquo;</span>
+              </button>
+              <button class="top-button right" type="button" data-go-home>
+                <span>H</span>
+              </button>
+
+              <header class="game-header">
+                <h2>Eva Scratchers</h2>
+                <div class="game-subtitle glass-card">
+                  Scratch all three tickets to reveal the surprise Amazon codes
+                  inside.
+                </div>
+              </header>
+
+              <div class="ticket-list" data-ticket-list></div>
+
+              <div class="final-reveal glass-card" data-final-reveal>
+                All three tickets are open. Replace the placeholders with her
+                real Amazon gifts whenever you're ready.
+              </div>
+            </section>
+
+            <div class="home-indicator" aria-hidden="true"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
