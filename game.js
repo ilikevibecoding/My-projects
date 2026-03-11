@@ -766,6 +766,17 @@
                     this.player.prevY >= platform.y &&
                     this.player.y <= platform.y
                 ) {
+                    if (platform.type === "portalLine") {
+                        this.player.y = platform.y;
+                        this.player.vx = 0;
+                        this.player.vy = 0;
+                        this.portalDoor.active = true;
+                        this.state = "door";
+                        this.effects.push({ x: platform.x, y: platform.y + 26, vy: 0, life: 0.5, text: "ENTER" });
+                        this.setOverlay();
+                        return;
+                    }
+
                     if (platform.type === "brown") {
                         platform.active = false;
                         platform.brokenTimer = 0.28;
@@ -1013,6 +1024,9 @@
             this.elements.hudScore.textContent = this.score.toLocaleString();
             this.elements.soundToggle.textContent = this.muted ? "🔇" : "🔊";
             this.elements.soundToggle.setAttribute("aria-pressed", String(!this.muted));
+            this.elements.hudMode.textContent = this.variant === "starwars"
+                ? (this.state === "flappy" ? "Death Star Run" : "Star Wars Version")
+                : "Classic";
         }
 
         worldToScreen(y) {
@@ -1022,6 +1036,38 @@
         drawBackground() {
             const ctx = this.ctx;
             ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+            if (this.state === "flappy") {
+                ctx.fillStyle = "#0f111a";
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+                ctx.fillStyle = "#1b2038";
+                ctx.fillRect(0, TOP_BAR_HEIGHT, WIDTH, HEIGHT - TOP_BAR_HEIGHT);
+                ctx.strokeStyle = "rgba(255,255,255,0.08)";
+                for (let i = 0; i < 42; i += 1) {
+                    const x = (i * 41 + (this.time * 18)) % (WIDTH + 40);
+                    const y = TOP_BAR_HEIGHT + ((i * 73) % (HEIGHT - TOP_BAR_HEIGHT));
+                    ctx.beginPath();
+                    ctx.arc(x, y, (i % 3) + 1, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.save();
+                ctx.globalAlpha = 0.92;
+                ctx.fillStyle = "#b7c2d4";
+                ctx.beginPath();
+                ctx.arc(WIDTH * 0.8, HEIGHT * 0.22, 96, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "#6f7788";
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.arc(WIDTH * 0.8, HEIGHT * 0.22, 44, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(WIDTH * 0.72, HEIGHT * 0.26);
+                ctx.lineTo(WIDTH * 0.9, HEIGHT * 0.16);
+                ctx.stroke();
+                ctx.restore();
+                return;
+            }
 
             ctx.fillStyle = "#eef4f2";
             ctx.fillRect(0, 0, WIDTH, TOP_BAR_HEIGHT);
@@ -1091,7 +1137,9 @@
                             ? this.assets.platformBlue
                             : platform.type === "brown"
                                 ? (platform.brokenTimer > 0 ? this.assets.platformBrownBroken : this.assets.platformBrown)
-                                : this.assets.platformWhite;
+                                : platform.type === "portalLine"
+                                    ? null
+                                    : this.assets.platformWhite;
 
                 this.drawImageOrFallback(
                     image,
@@ -1114,7 +1162,16 @@
                         if (!platform.active && platform.type === "white") {
                             this.ctx.globalAlpha = clamp(platform.vanishTimer / 0.18, 0, 1);
                         }
-                        this.ctx.fillStyle = platform.type === "green" ? "#79c937" : platform.type === "blue" ? "#6bb8f2" : platform.type === "brown" ? "#8d6338" : "#ffffff";
+                        this.ctx.fillStyle =
+                            platform.type === "green"
+                                ? "#79c937"
+                                : platform.type === "blue"
+                                    ? "#6bb8f2"
+                                    : platform.type === "brown"
+                                        ? "#8d6338"
+                                        : platform.type === "portalLine"
+                                            ? "#0b0b10"
+                                            : "#ffffff";
                         this.ctx.strokeStyle = "#191511";
                         this.ctx.lineWidth = 2;
                         this.ctx.beginPath();
@@ -1124,6 +1181,20 @@
                         this.ctx.restore();
                     },
                 );
+
+                if (platform.type === "portalLine" && this.portalDoor?.active) {
+                    this.ctx.save();
+                    this.ctx.fillStyle = "#18161f";
+                    this.ctx.strokeStyle = "#bdb7ff";
+                    this.ctx.lineWidth = 3;
+                    this.ctx.fillRect(platform.x - 18, screenY - 74, 36, 58);
+                    this.ctx.strokeRect(platform.x - 18, screenY - 74, 36, 58);
+                    this.ctx.beginPath();
+                    this.ctx.arc(platform.x + 10, screenY - 44, 3, 0, Math.PI * 2);
+                    this.ctx.fillStyle = "#f4cf33";
+                    this.ctx.fill();
+                    this.ctx.restore();
+                }
 
                 if (platform.pickup && !platform.pickup.used) {
                     this.drawPickup(platform);
@@ -1248,6 +1319,26 @@
         }
 
         drawPlayer() {
+            if (this.state === "flappy") {
+                const birdY = this.flappy.birdY;
+                const flapTilt = clamp(this.flappy.birdVy / 320, -0.8, 0.8);
+                this.ctx.save();
+                this.ctx.translate(this.flappy.birdX, birdY);
+                this.ctx.rotate(flapTilt);
+                this.drawImageOrFallback(
+                    this.assets.playerRight,
+                    (img) => this.ctx.drawImage(img, -28, -28, 56, 56),
+                    () => {
+                        this.ctx.fillStyle = "#8bcf32";
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    },
+                );
+                this.ctx.restore();
+                return;
+            }
+
             const screenY = this.worldToScreen(this.player.y);
             const ascending = this.player.vy > 0;
             const shooting = this.input.shoot && this.player.shootCooldown > SHOT_COOLDOWN - 0.1;
@@ -1376,9 +1467,23 @@
 
         render() {
             this.drawBackground();
-            this.drawPlatforms();
-            this.drawMonsters();
-            this.drawBullets();
+            if (this.state === "flappy") {
+                for (const pipe of this.flappy.pipes) {
+                    this.ctx.fillStyle = "#3f7d2d";
+                    this.ctx.strokeStyle = "#161616";
+                    this.ctx.lineWidth = 3;
+                    const topHeight = pipe.gapY - pipe.gapHeight / 2 - TOP_BAR_HEIGHT;
+                    const bottomY = pipe.gapY + pipe.gapHeight / 2;
+                    this.ctx.fillRect(pipe.x, TOP_BAR_HEIGHT, pipe.width, topHeight);
+                    this.ctx.strokeRect(pipe.x, TOP_BAR_HEIGHT, pipe.width, topHeight);
+                    this.ctx.fillRect(pipe.x, bottomY, pipe.width, HEIGHT - bottomY);
+                    this.ctx.strokeRect(pipe.x, bottomY, pipe.width, HEIGHT - bottomY);
+                }
+            } else {
+                this.drawPlatforms();
+                this.drawMonsters();
+                this.drawBullets();
+            }
             this.drawPlayer();
             this.drawEffects();
         }

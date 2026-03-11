@@ -155,6 +155,7 @@ async function main() {
         })(),
         soundToggle: document.getElementById("soundToggle")?.textContent ?? null,
         buttonText: document.getElementById("startButton")?.textContent ?? null,
+        starButtonText: document.getElementById("startStarButton")?.textContent ?? null,
         assetCount: Object.values(window.doodleJumpParody.assets).filter(Boolean).length
     }))()`);
 
@@ -317,6 +318,31 @@ async function main() {
         return { hazardCount: hazards.length, hazardConflictCount };
     })()`);
 
+    const starWarsTransitionTest = await client.evaluate(`(() => {
+        const game = window.doodleJumpParody;
+        game.startRun('starwars');
+        game.spawnPortalLine();
+        const portal = game.platforms.find((platform) => platform.type === 'portalLine');
+        if (!portal) {
+            return { hasPortal: false };
+        }
+        game.player.x = portal.x;
+        game.player.prevY = portal.y + 30;
+        game.player.y = portal.y - 2;
+        game.player.vy = -120;
+        game.handlePlatformCollisions();
+        const stateAfterLand = game.state;
+        const doorActive = Boolean(game.portalDoor?.active);
+        game.enterStarDoor();
+        return {
+            hasPortal: true,
+            stateAfterLand,
+            doorActive,
+            stateAfterEnter: game.state,
+            hudMode: document.getElementById('hudMode')?.textContent ?? null
+        };
+    })()`);
+
     await client.evaluate(`(() => {
         const game = window.doodleJumpParody;
         game.resetWorld();
@@ -476,6 +502,7 @@ async function main() {
         whitePlatformTest,
         boostProtectionTest,
         supportSpacingTest,
+        starWarsTransitionTest,
         midRun,
         runtime,
         gameOverSummary,
