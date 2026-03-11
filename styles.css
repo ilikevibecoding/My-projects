@@ -133,6 +133,21 @@ body {
     text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.75);
 }
 
+.hud-mode {
+    position: absolute;
+    left: 50%;
+    top: 4px;
+    transform: translateX(-50%);
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(31, 27, 23, 0.16);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
 .hud-buttons {
     display: flex;
     gap: 8px;
@@ -238,6 +253,25 @@ body {
     opacity: 0.7;
 }
 
+.main-button-alt {
+    background: linear-gradient(180deg, #3c3b56, #1f2033);
+}
+
+.main-button-dark {
+    background: linear-gradient(180deg, #232326, #101013);
+}
+
+.mode-choice-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.mode-choice-row .main-button {
+    margin-top: 0;
+}
+
 .result-stack {
     display: grid;
     gap: 10px;
@@ -330,5 +364,9 @@ code {
 
     .run-note {
         display: none;
+    }
+
+    .mode-choice-row {
+        grid-template-columns: 1fr;
     }
 }
