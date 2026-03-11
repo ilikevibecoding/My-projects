@@ -598,6 +598,11 @@
             this.score = Math.max(0, Math.floor(this.maxY - 120));
             this.cameraY = Math.max(this.cameraY, this.player.y - CAMERA_THRESHOLD);
 
+            if (this.variant === "starwars" && this.score >= 1000 && !this.portalThresholdReached) {
+                this.portalThresholdReached = true;
+                this.spawnPortalLine();
+            }
+
             if (this.player.y < this.cameraY - DEATH_BUFFER) {
                 this.gameOver();
                 return;
@@ -606,6 +611,85 @@
             this.cleanupWorld();
             this.ensureWorld();
             this.updateHud();
+        }
+
+        updateFlappy(dt) {
+            this.time += dt;
+            this.flappy.introTimer = Math.max(0, this.flappy.introTimer - dt);
+
+            if (this.input.consumeShootTap()) {
+                this.flappy.birdVy = this.flappy.flapVelocity;
+                this.audio.play("jump", 0.34);
+            }
+
+            this.flappy.birdVy += this.flappy.gravity * dt;
+            this.flappy.birdY += this.flappy.birdVy * dt;
+            this.flappy.spawnTimer -= dt;
+
+            if (this.flappy.spawnTimer <= 0) {
+                this.flappy.spawnTimer = 1.45;
+                this.flappy.pipes.push({
+                    x: WIDTH + 60,
+                    gapY: randomRange(220, HEIGHT - 220),
+                    gapHeight: 182,
+                    width: 70,
+                    counted: false,
+                });
+            }
+
+            for (const pipe of this.flappy.pipes) {
+                pipe.x -= 176 * dt;
+                if (!pipe.counted && pipe.x + pipe.width < this.flappy.birdX) {
+                    pipe.counted = true;
+                    this.flappy.score += 1;
+                    this.score = Math.max(this.score, 1000 + this.flappy.score * 120);
+                }
+            }
+
+            this.flappy.pipes = this.flappy.pipes.filter((pipe) => pipe.x + pipe.width > -40);
+
+            if (this.flappy.birdY < TOP_BAR_HEIGHT + 18 || this.flappy.birdY > HEIGHT - 18) {
+                this.gameOver();
+                return;
+            }
+
+            for (const pipe of this.flappy.pipes) {
+                const withinX = this.flappy.birdX + 22 > pipe.x && this.flappy.birdX - 22 < pipe.x + pipe.width;
+                const outsideGap = this.flappy.birdY - 18 < pipe.gapY - pipe.gapHeight / 2 || this.flappy.birdY + 18 > pipe.gapY + pipe.gapHeight / 2;
+                if (withinX && outsideGap) {
+                    this.gameOver();
+                    return;
+                }
+            }
+
+            this.updateHud();
+        }
+
+        spawnPortalLine() {
+            if (this.portalLineSpawned) {
+                return;
+            }
+
+            const portalPlatform = {
+                x: clamp(this.spawnAnchorX + randomRange(-40, 40), 88, WIDTH - 88),
+                y: this.highestPlatformY + 78,
+                width: 112,
+                type: "portalLine",
+                active: true,
+                vx: 0,
+                brokenTimer: 0,
+                vanishTimer: 0,
+                pickup: null,
+            };
+
+            this.platforms.push(portalPlatform);
+            this.highestPlatformY = portalPlatform.y;
+            this.portalLineSpawned = true;
+            this.portalDoor = {
+                x: portalPlatform.x,
+                y: portalPlatform.y + 52,
+                active: false,
+            };
         }
 
         updatePlatforms(dt) {
