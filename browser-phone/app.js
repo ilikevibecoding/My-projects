@@ -448,7 +448,7 @@ function renderNativeApp(appId) {
     ),
     tv: nativeAppLayout(
       "Apple TV",
-      `<div class="tv-hero"><div class="tv-pill">Up Next</div><h3 style="margin:0.7rem 0 0;">Movie night with Eva</h3><p style="margin:0.45rem 0 0; opacity:0.82;">A cozy queue waiting for you two.</p></div>`
+      `<div class="tv-hero"><div class="tv-pill">Movie Night with Eva</div><h3 style="margin:0.7rem 0 0;">Haunted House</h3><p style="margin:0.45rem 0 0; opacity:0.82;">Queued up and ready to watch together.</p></div>`
     ),
     calculator: nativeAppLayout(
       "Calculator",
