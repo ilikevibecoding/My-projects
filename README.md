@@ -6,6 +6,9 @@ The project uses plain HTML, CSS, and JavaScript and now bundles local sprite/au
 
 ## Features
 
+- Two playable versions from the start screen:
+  - Classic parody mode
+  - Star Wars version
 - Portrait graph-paper playfield
 - Score in the top-left and pause in the top-right
 - Automatic jumping / bouncing
@@ -25,6 +28,10 @@ The project uses plain HTML, CSS, and JavaScript and now bundles local sprite/au
 - Keyboard and touch controls
 - Persistent best score and sound setting with `localStorage`
 - Local bundled assets under `assets/images` and `assets/audio`
+- Star Wars version extras:
+  - special black portal line after 1000 score
+  - click-to-enter door transition
+  - Death Star-style flappy finale
 
 ## Run locally
 
@@ -54,7 +61,7 @@ Opening `index.html` directly can work, but a local server is recommended.
 
 - `A` / `D` — move left / right
 - `←` / `→` — move left / right
-- `Space` — shoot upward
+- `Space` — shoot upward / flap in Death Star mode
 - `P` or `Esc` — pause / resume
 - `Enter` — start a run from the start or game-over screen
 - `R` — quick restart from the start or game-over screen
@@ -71,6 +78,7 @@ Opening `index.html` directly can work, but a local server is recommended.
 - Brown platforms break after one bounce.
 - White platforms disappear after contact.
 - Stomp monsters from above or shoot them.
+- In the Star Wars version, reaching 1000 score unlocks the black portal line and a click-to-enter transition into the flappy section.
 
 ## Project files
 
