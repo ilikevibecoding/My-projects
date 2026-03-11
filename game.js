@@ -239,12 +239,16 @@
 
             this.elements = {
                 hudScore: document.getElementById("hudScore"),
+                hudMode: document.getElementById("hudMode"),
                 soundToggle: document.getElementById("soundToggle"),
                 pauseButton: document.getElementById("pauseButton"),
                 startScreen: document.getElementById("startScreen"),
+                doorScreen: document.getElementById("doorScreen"),
                 pauseScreen: document.getElementById("pauseScreen"),
                 gameOverScreen: document.getElementById("gameOverScreen"),
                 startButton: document.getElementById("startButton"),
+                startStarButton: document.getElementById("startStarButton"),
+                enterDoorButton: document.getElementById("enterDoorButton"),
                 resumeButton: document.getElementById("resumeButton"),
                 restartButton: document.getElementById("restartButton"),
                 finalScore: document.getElementById("finalScore"),
@@ -270,6 +274,11 @@
             this.spawnAnchorX = WIDTH / 2;
             this.highestPlatformY = 0;
             this.time = 0;
+            this.variant = "classic";
+            this.portalThresholdReached = false;
+            this.portalLineSpawned = false;
+            this.portalDoor = null;
+            this.flappy = null;
             this.player = this.createPlayer();
 
             this.restore();
@@ -302,16 +311,20 @@
         }
 
         bindUi() {
-            this.elements.startButton.addEventListener("click", () => this.startRun());
+            this.elements.startButton.addEventListener("click", () => this.startRun("classic"));
+            this.elements.startStarButton.addEventListener("click", () => this.startRun("starwars"));
+            this.elements.enterDoorButton.addEventListener("click", () => this.enterStarDoor());
             this.elements.resumeButton.addEventListener("click", () => this.resume());
-            this.elements.restartButton.addEventListener("click", () => this.startRun());
+            this.elements.restartButton.addEventListener("click", () => this.startRun(this.variant));
             this.elements.pauseButton.addEventListener("click", () => {
                 if (this.state === "playing") {
+                    this.pause();
+                } else if (this.state === "flappy") {
                     this.pause();
                 } else if (this.state === "paused") {
                     this.resume();
                 } else if (this.state === "start" || this.state === "gameOver") {
-                    this.startRun();
+                    this.startRun(this.variant);
                 }
             });
             this.elements.soundToggle.addEventListener("click", () => {
@@ -361,6 +374,7 @@
                     this.state = "start";
                     this.elements.startButton.disabled = false;
                     this.elements.startButton.textContent = "Play";
+                    this.elements.startStarButton.disabled = false;
                     this.elements.loadingLabel.textContent = "Closer movement, classic platforms, shooting, boosts, and sound.";
                     this.resetWorld();
                     this.setOverlay();
@@ -382,6 +396,20 @@
             this.spawnAnchorX = WIDTH / 2;
             this.highestPlatformY = 0;
             this.time = 0;
+            this.portalThresholdReached = false;
+            this.portalLineSpawned = false;
+            this.portalDoor = null;
+            this.flappy = {
+                birdX: 112,
+                birdY: HEIGHT * 0.5,
+                birdVy: 0,
+                gravity: 1280,
+                flapVelocity: -360,
+                pipes: [],
+                spawnTimer: 0,
+                score: 0,
+                introTimer: 0.6,
+            };
 
             this.platforms.push({
                 x: WIDTH / 2,
@@ -406,15 +434,17 @@
 
         setOverlay() {
             this.elements.startScreen.classList.toggle("is-hidden", this.state !== "start");
+            this.elements.doorScreen.classList.toggle("is-hidden", this.state !== "door");
             this.elements.pauseScreen.classList.toggle("is-hidden", this.state !== "paused");
             this.elements.gameOverScreen.classList.toggle("is-hidden", this.state !== "gameOver");
             this.elements.pauseButton.textContent = this.state === "paused" ? "▶" : "Ⅱ";
         }
 
-        startRun() {
+        startRun(mode = "classic") {
             if (this.state === "loading") {
                 return;
             }
+            this.variant = mode;
             this.audio.setEnabled(!this.muted);
             this.resetWorld();
             this.state = "playing";
@@ -433,7 +463,23 @@
             if (this.state !== "paused") {
                 return;
             }
-            this.state = "playing";
+            this.state = this.portalDoor?.active && this.variant === "starwars" ? "door" : (this.flappy && this.flappy.modeActive ? "flappy" : "playing");
+            this.setOverlay();
+        }
+
+        enterStarDoor() {
+            if (this.state !== "door") {
+                return;
+            }
+            this.flappy.modeActive = true;
+            this.flappy.introTimer = 0.7;
+            this.flappy.birdX = 112;
+            this.flappy.birdY = HEIGHT * 0.52;
+            this.flappy.birdVy = 0;
+            this.flappy.pipes = [];
+            this.flappy.spawnTimer = 0.4;
+            this.flappy.score = 0;
+            this.state = "flappy";
             this.setOverlay();
         }
 
@@ -455,17 +501,21 @@
             if (this.input.consumePause()) {
                 if (this.state === "playing") {
                     this.pause();
+                } else if (this.state === "flappy") {
+                    this.pause();
                 } else if (this.state === "paused") {
                     this.resume();
                 }
             }
 
             if (this.input.consumeStart() && (this.state === "start" || this.state === "gameOver")) {
-                this.startRun();
+                this.startRun(this.variant);
             }
 
             if (this.state === "playing") {
                 this.update(dt);
+            } else if (this.state === "flappy") {
+                this.updateFlappy(dt);
             }
 
             this.render();
