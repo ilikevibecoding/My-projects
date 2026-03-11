@@ -28,6 +28,7 @@
 
                 <div class="top-ui" aria-live="polite">
                     <div id="hudScore" class="hud-score">0</div>
+                    <div id="hudMode" class="hud-mode">Classic</div>
                     <div class="hud-buttons">
                         <button id="soundToggle" class="hud-button" type="button" aria-pressed="false" title="Toggle sound">🔇</button>
                         <button id="pauseButton" class="hud-button" type="button" title="Pause">Ⅱ</button>
@@ -39,10 +40,21 @@
                 <section id="startScreen" class="overlay-screen">
                     <div class="overlay-card">
                         <h2>Doodle Jump Parody V4</h2>
-                        <p>Bounce, wrap, shoot upward, and climb with a feel tuned closer to the original.</p>
-                        <p class="control-line">Move: A / D / ← / → · Shoot: Space · Pause: P</p>
-                        <button id="startButton" class="main-button" type="button" disabled>Loading…</button>
+                        <p>Bounce, wrap, shoot upward, and climb with a feel tuned closer to the original — or jump into the Star Wars version and unlock a flappy transition at 1K.</p>
+                        <p class="control-line">Move: A / D / ← / → · Shoot/Flap: Space · Pause: P</p>
+                        <div class="mode-choice-row">
+                            <button id="startButton" class="main-button" type="button" disabled>Loading…</button>
+                            <button id="startStarButton" class="main-button main-button-alt" type="button" disabled>Star Wars Version</button>
+                        </div>
                         <p id="loadingLabel" class="loading-label">Loading sprites and sounds…</p>
+                    </div>
+                </section>
+
+                <section id="doorScreen" class="overlay-screen is-hidden">
+                    <div class="overlay-card overlay-card-door">
+                        <h2>Portal Unlocked</h2>
+                        <p>Land on the black line, enter the door, and switch into the Star Wars flappy gauntlet.</p>
+                        <button id="enterDoorButton" class="main-button main-button-dark" type="button">Enter Door</button>
                     </div>
                 </section>
 
