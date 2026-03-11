@@ -131,6 +131,7 @@
             this.left = false;
             this.right = false;
             this.shoot = false;
+            this.shootTapRequested = false;
             this.pauseRequested = false;
             this.startRequested = false;
         }
@@ -151,6 +152,7 @@
                 if (event.key === " " || event.key === "Spacebar") {
                     event.preventDefault();
                     this.shoot = true;
+                    this.shootTapRequested = true;
                 }
                 if (["p", "P", "Escape"].includes(event.key)) {
                     this.pauseRequested = true;
@@ -180,6 +182,9 @@
                 const down = (event) => {
                     event.preventDefault();
                     setPressed(key, true, element);
+                    if (key === "shoot") {
+                        this.shootTapRequested = true;
+                    }
                 };
                 const up = (event) => {
                     event.preventDefault();
@@ -214,6 +219,12 @@
         consumeStart() {
             const value = this.startRequested;
             this.startRequested = false;
+            return value;
+        }
+
+        consumeShootTap() {
+            const value = this.shootTapRequested;
+            this.shootTapRequested = false;
             return value;
         }
     }
