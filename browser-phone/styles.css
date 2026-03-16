@@ -1993,6 +1993,32 @@ button {
   opacity: 0.82;
 }
 
+.scratcher-code-panel {
+  margin-top: 0.85rem;
+  padding: 0.72rem 0.82rem;
+  border-radius: 1rem;
+  background: rgba(20, 24, 52, 0.18);
+  border: 0.06rem dashed rgba(255, 255, 255, 0.3);
+}
+
+.scratcher-code-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.84;
+}
+
+.scratcher-code-value {
+  margin-top: 0.26rem;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.scratcher-code-panel:not(.is-visible) .scratcher-code-value {
+  letter-spacing: 0.12em;
+  opacity: 0.78;
+}
+
 .ticket-stage {
   margin-top: 0.95rem;
 }

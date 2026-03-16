@@ -140,7 +140,7 @@ const scratcherTickets = [
     tag: "TICKET 01",
     title: "Cashword Cutie",
     subtitle: "Scratch the board letter by letter",
-    code: "CW-228",
+    code: "AMZ-EVA-WORD-01",
     colors: ["#6a5cff", "#ff76b1"],
     scratch: ["#d8dde7", "#959db0"],
     words: ["EVA", "HAPPY", "BLUE", "BIRTHDAY"],
@@ -162,7 +162,7 @@ const scratcherTickets = [
     tag: "TICKET 02",
     title: "7 11 21 Tripler",
     subtitle: "Scratch each game row",
-    code: "209",
+    code: "AMZ-TRIPLER-LOVE-02",
     colors: ["#2443d7", "#7a34ff"],
     scratch: ["#d8dde7", "#959db0"],
     rows: [
@@ -178,7 +178,7 @@ const scratcherTickets = [
     tag: "TICKET 03",
     title: "Lucky Prize Match",
     subtitle: "Match 3 amounts to win",
-    code: "314",
+    code: "AMZ-PRIZE-BDAY-03",
     colors: ["#35c0ff", "#56ebbf"],
     scratch: ["#d8dde7", "#959db0"],
     amounts: [
@@ -1616,6 +1616,9 @@ class ScratchCard {
 function markTicketComplete(ticketId) {
   scratcherState.completed[ticketId] = true;
   renderTicketSelector();
+  if (activeScratcherTicketId === ticketId) {
+    renderActiveTicket();
+  }
   if (scratcherTickets.every((ticket) => scratcherState.completed[ticket.id])) {
     finalReveal.classList.add("is-visible");
   }
@@ -1634,7 +1637,7 @@ function renderTicketSelector() {
     button.innerHTML = `
       <span class="ticket-chip-tag">${ticket.tag}</span>
       <strong>${ticket.title}</strong>
-      <span class="ticket-chip-subtitle">${ticket.subtitle}</span>
+      <span class="ticket-chip-subtitle">${scratcherState.completed[ticket.id] ? "Code unlocked" : ticket.subtitle}</span>
     `;
     button.addEventListener("click", () => openScratcherTicket(ticket.id));
     ticketSelector.append(button);
@@ -1855,7 +1858,10 @@ function renderCashwordTicket(ticket) {
           )
           .join("")}
       </div>
-      <div class="cashword-prize-banner">Prize code: <strong>${ticket.code}</strong></div>
+      <div class="scratcher-code-panel${scratcherState.completed[ticket.id] ? " is-visible" : ""}">
+        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? "Secret code unlocked" : "Complete ticket to reveal code"}</div>
+        <div class="scratcher-code-value">${scratcherState.completed[ticket.id] ? ticket.code : "••••••••••••••"}</div>
+      </div>
     </article>
   `;
 
@@ -1948,6 +1954,10 @@ function renderTriplerTicket(ticket) {
               </div>`
           )
           .join("")}
+      </div>
+      <div class="scratcher-code-panel${scratcherState.completed[ticket.id] ? " is-visible" : ""}">
+        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? "Loser ticket secret code" : "Finish all 4 games to reveal code"}</div>
+        <div class="scratcher-code-value">${scratcherState.completed[ticket.id] ? ticket.code : "••••••••••••••"}</div>
       </div>
     </article>
   `;
@@ -2048,6 +2058,10 @@ function renderPrizeMatchTicket(ticket) {
           <div class="treat-prize" data-prize-amount="$100">$100</div>
           <div class="treat-prize" data-prize-amount="$10,000">$10,000</div>
         </div>
+      </div>
+      <div class="scratcher-code-panel${scratcherState.completed[ticket.id] ? " is-visible" : ""}">
+        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? "Loser ticket secret code" : "Scratch every amount to reveal code"}</div>
+        <div class="scratcher-code-value">${scratcherState.completed[ticket.id] ? ticket.code : "••••••••••••••"}</div>
       </div>
     </article>
   `;
