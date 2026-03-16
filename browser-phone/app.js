@@ -143,18 +143,19 @@ const scratcherTickets = [
     code: "CW-228",
     colors: ["#6a5cff", "#ff76b1"],
     scratch: ["#d8dde7", "#959db0"],
-    words: ["EVA", "CHRISTIAN", "BLUE", "BANANA", "CHOCOLATE", "COOKIES", "STARBUCKS"],
+    words: ["EVA", "CHRISTIAN", "BLUE", "BANANA"],
     grid: [
-      "EVABANANAX",
-      "QCHRISTIAN",
-      "STARBUCKSZ",
-      "CHOCOLATEQ",
-      "COOKIESLMN",
-      "BLUEHEARTS",
-      "SWEETLOVEX",
-      "GIGGLESJOY"
+      "EVAXCXXXBX",
+      "XXXXHXXXLX",
+      "XXXXRXXXUX",
+      "XXXXIXXXEX",
+      "XXXXSXXXXX",
+      "XXXXTXXXXX",
+      "XXXXIXXXXX",
+      "XXXXAXXXXX",
+      "BANANAXXXX"
     ],
-    letters: ["E", "V", "A", "C", "H", "R", "I", "S", "T", "N", "B", "L", "U", "O", "K"]
+    letters: ["E", "V", "A", "C", "H", "R", "I", "S", "T", "N", "B", "L", "U", "Q", "X"]
   },
   {
     id: "tripler",
@@ -1775,9 +1776,9 @@ function updateCashwordUi(ticket, root) {
   });
   const counter = root.querySelector("[data-cashword-counter]");
   if (counter) {
-    counter.textContent = `${foundWords.length} / 8 words found • ${scratcherState.cashword.revealedBank.size} / ${ticket.letters.length} letters scratched`;
+    counter.textContent = `${foundWords.length} / ${ticket.words.length} words found • need 5 to win`;
   }
-  if (scratcherState.cashword.revealedBank.size === ticket.letters.length) {
+  if (foundWords.length === ticket.words.length) {
     markTicketComplete(ticket.id);
   }
 }
@@ -1814,7 +1815,7 @@ function renderCashwordTicket(ticket) {
             .join("")}
         </div>
         <div class="cashword-sidebar">
-          <div class="cashword-counter" data-cashword-counter>0 / ${ticket.words.length} words found • need 8 to win</div>
+          <div class="cashword-counter" data-cashword-counter>0 / ${ticket.words.length} words found • need 5 to win</div>
           <div class="cashword-word-list">
             ${ticket.words.map((word) => `<div class="cashword-word" data-cashword-word="${word}">${word}</div>`).join("")}
           </div>
