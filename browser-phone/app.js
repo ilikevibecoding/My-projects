@@ -133,30 +133,65 @@ const storeRows = [
   favoriteApps[3]
 ];
 
-const tickets = [
+const scratcherTickets = [
   {
+    id: "cashword",
+    kind: "cashword",
     tag: "TICKET 01",
-    title: "Cozy kitchen pick",
-    code: "AMZ-KITCHEN-LOVE-01",
-    note: "Swap this placeholder for a real Amazon code or item note later.",
-    colors: ["#ff9a6b", "#ffd070"],
-    scratch: ["#ff9e67", "#ff6c68"]
+    title: "Cashword Cutie",
+    subtitle: "Find the fun words",
+    code: "AMZ-WORD-LOVE-01",
+    colors: ["#6a5cff", "#ff76b1"],
+    scratch: ["#d8dde7", "#959db0"],
+    words: ["EVA", "CHRISTIAN", "BLUE", "BANANA", "CHOCOLATE", "COOKIES", "STARBUCKS"],
+    grid: [
+      "EVABANANAX",
+      "QCHRISTIAN",
+      "STARBUCKSZ",
+      "CHOCOLATEQ",
+      "COOKIESLMN",
+      "BLUEHEARTS",
+      "SWEETLOVEX",
+      "GIGGLESJOY"
+    ],
+    letters: ["E", "V", "A", "C", "H", "R", "I", "S", "T", "N", "B", "L", "U", "O", "K"]
   },
   {
+    id: "tripler",
+    kind: "tripler",
     tag: "TICKET 02",
-    title: "Self-care wishlist pick",
-    code: "AMZ-SWEET-GLOW-02",
-    note: "This is another placeholder that is easy to replace with the real surprise.",
-    colors: ["#ff75c1", "#c588ff"],
-    scratch: ["#ff8bc8", "#8f6bff"]
+    title: "7 11 21 Tripler",
+    subtitle: "Scratch each play row",
+    code: "AMZ-TRIPLER-NIGHT-02",
+    colors: ["#2443d7", "#7a34ff"],
+    scratch: ["#d8dde7", "#959db0"],
+    rows: [
+      { symbol: "7", prize: "$25 gift", result: "Single prize" },
+      { symbol: "11", prize: "$50 gift", result: "Double prize" },
+      { symbol: "Cherry", prize: "No win", result: "Missed" },
+      { symbol: "21", prize: "$15 gift", result: "Triple prize" }
+    ]
   },
   {
+    id: "treat-match",
+    kind: "match",
     tag: "TICKET 03",
-    title: "Cute date-night pick",
-    code: "AMZ-DATE-NIGHT-03",
-    note: "Replace this text with the final reveal for the third ticket whenever you are ready.",
-    colors: ["#58b6ff", "#55ecb8"],
-    scratch: ["#4eb4ff", "#53e2ef"]
+    title: "Treat Match",
+    subtitle: "Scratch all 9 treats",
+    code: "AMZ-TREAT-SURPRISE-03",
+    colors: ["#35c0ff", "#56ebbf"],
+    scratch: ["#d8dde7", "#959db0"],
+    cells: [
+      "STARBUCKS",
+      "COOKIES",
+      "CHOCOLATE",
+      "STARBUCKS",
+      "COOKIES",
+      "CHOCOLATE",
+      "STARBUCKS",
+      "COOKIES",
+      "CHOCOLATE"
+    ]
   }
 ];
 
@@ -186,7 +221,8 @@ const installArrow = document.querySelector("[data-install-arrow]");
 const featureStatus = document.querySelector("[data-feature-status]");
 const progressRing = document.querySelector("[data-progress-ring]");
 const storeList = document.querySelector("[data-store-list]");
-const ticketList = document.querySelector("[data-ticket-list]");
+const ticketSelector = document.querySelector("[data-ticket-selector]");
+const ticketStage = document.querySelector("[data-ticket-stage]");
 const finalReveal = document.querySelector("[data-final-reveal]");
 const notificationStack = document.querySelector("[data-notification-stack]");
 const nativeAppContent = document.querySelector("[data-native-content]");
@@ -201,6 +237,7 @@ let installedAppTile = null;
 let homeGesture = null;
 let currentNativeAppId = null;
 let faceTimeStream = null;
+let activeScratcherTicketId = "cashword";
 
 const installState = {
   installed: false,
@@ -215,6 +252,19 @@ const scratchAudio = {
   source: null,
   noiseBuffer: null,
   activePointers: 0
+};
+
+const scratcherState = {
+  completed: {},
+  cashword: {
+    revealedLetters: new Set()
+  },
+  tripler: {
+    revealed: {}
+  },
+  "treat-match": {
+    revealed: {}
+  }
 };
 
 const notificationState = {
@@ -1411,14 +1461,16 @@ function startChristianNotifications() {
 }
 
 class ScratchCard {
-  constructor({ canvas, colors, onReveal }) {
+  constructor({ canvas, colors, onReveal, brushRadius = 22, threshold = 0.38, coverRenderer = null }) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { willReadFrequently: true });
     this.colors = colors;
     this.onReveal = onReveal;
+    this.coverRenderer = coverRenderer;
     this.isDrawing = false;
     this.revealed = false;
-    this.brushRadius = 22;
+    this.brushRadius = brushRadius;
+    this.threshold = threshold;
 
     this.resize();
     this.drawCover();
@@ -1436,6 +1488,13 @@ class ScratchCard {
 
   drawCover() {
     const { width, height } = this.canvas.getBoundingClientRect();
+    if (this.coverRenderer) {
+      this.ctx.globalCompositeOperation = "source-over";
+      this.ctx.clearRect(0, 0, width, height);
+      this.coverRenderer(this.ctx, width, height, this.colors);
+      return;
+    }
+
     const gradient = this.ctx.createLinearGradient(0, 0, width, height);
     gradient.addColorStop(0, "#e6ebf1");
     gradient.addColorStop(0.35, "#b8bec9");
@@ -1542,7 +1601,7 @@ class ScratchCard {
       }
     }
 
-    if (transparent / total < 0.38) {
+    if (transparent / total < this.threshold) {
       return;
     }
 
@@ -1552,56 +1611,377 @@ class ScratchCard {
   }
 }
 
-function buildTickets() {
-  let revealedCount = 0;
+function markTicketComplete(ticketId) {
+  scratcherState.completed[ticketId] = true;
+  renderTicketSelector();
+  if (scratcherTickets.every((ticket) => scratcherState.completed[ticket.id])) {
+    finalReveal.classList.add("is-visible");
+  }
+}
 
-  tickets.forEach((ticket) => {
-    const card = document.createElement("article");
-    card.className = "ticket";
-    card.style.setProperty("--ticket-a", ticket.colors[0]);
-    card.style.setProperty("--ticket-b", ticket.colors[1]);
+function renderTicketSelector() {
+  if (!ticketSelector) {
+    return;
+  }
 
-    card.innerHTML = `
-      <div class="ticket-background"></div>
-      <div class="ticket-content">
-        <div class="ticket-topline">
-          <span class="ticket-tag">${ticket.tag}</span>
-          <span class="ticket-badge">locked</span>
-        </div>
-        <h3>${ticket.title}</h3>
-        <div class="ticket-prize-panel">
-          <div class="ticket-label">Amazon code</div>
-          <div class="ticket-code">${ticket.code}</div>
-        </div>
-        <div class="ticket-note">${ticket.note}</div>
+  ticketSelector.innerHTML = "";
+  scratcherTickets.forEach((ticket) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `ticket-chip${ticket.id === activeScratcherTicketId ? " is-active" : ""}${scratcherState.completed[ticket.id] ? " is-complete" : ""}`;
+    button.innerHTML = `
+      <span class="ticket-chip-tag">${ticket.tag}</span>
+      <strong>${ticket.title}</strong>
+      <span class="ticket-chip-subtitle">${ticket.subtitle}</span>
+    `;
+    button.addEventListener("click", () => openScratcherTicket(ticket.id));
+    ticketSelector.append(button);
+  });
+}
+
+function openScratcherTicket(ticketId) {
+  activeScratcherTicketId = ticketId;
+  renderTicketSelector();
+  renderActiveTicket();
+}
+
+function renderSilverFoil(ctx, width, height) {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#eef2f7");
+  gradient.addColorStop(0.36, "#bcc3cf");
+  gradient.addColorStop(0.7, "#ffffff");
+  gradient.addColorStop(1, "#949cad");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+  ctx.save();
+  ctx.transform(1, 0.22, -0.18, 1, 0, 0);
+  ctx.fillStyle = "rgba(255,255,255,0.11)";
+  for (let i = -height; i < width + height; i += 18) {
+    ctx.fillRect(i, -height, 6, height * 3);
+  }
+  ctx.restore();
+}
+
+function renderBlueFoil(ctx, width, height) {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#1430b9");
+  gradient.addColorStop(1, "#6434ff");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  for (let i = 0; i < 4; i += 1) {
+    const y = 8 + i * (height / 4.5);
+    ctx.fillRect(10, y, width - 20, 10);
+  }
+}
+
+function renderCandyFoil(ctx, width, height) {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#ff8fd1");
+  gradient.addColorStop(0.5, "#a67cff");
+  gradient.addColorStop(1, "#6de6ff");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+  for (let i = 0; i < 16; i += 1) {
+    ctx.fillStyle = `rgba(255,255,255,${0.06 + (i % 3) * 0.04})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * width, Math.random() * height, 6 + Math.random() * 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function getCashwordFoundWords(ticket) {
+  return ticket.words.filter((word) =>
+    [...new Set(word.split(""))].every((letter) =>
+      scratcherState.cashword.revealedLetters.has(letter)
+    )
+  );
+}
+
+function updateCashwordUi(ticket, root) {
+  const foundWords = getCashwordFoundWords(ticket);
+  root.querySelectorAll("[data-cashword-char]").forEach((cell) => {
+    cell.classList.toggle(
+      "is-revealed",
+      scratcherState.cashword.revealedLetters.has(cell.dataset.cashwordChar)
+    );
+  });
+  root.querySelectorAll("[data-cashword-word]").forEach((item) => {
+    item.classList.toggle("is-found", foundWords.includes(item.dataset.cashwordWord));
+  });
+  const counter = root.querySelector("[data-cashword-counter]");
+  if (counter) {
+    counter.textContent = `${foundWords.length} / ${ticket.words.length} words found`;
+  }
+  if (foundWords.length === ticket.words.length) {
+    markTicketComplete(ticket.id);
+  }
+}
+
+function renderCashwordTicket(ticket) {
+  if (!ticketStage) {
+    return;
+  }
+
+  ticketStage.innerHTML = `
+    <article class="scratch-stage-card cashword-ticket">
+      <div class="cashword-hero">
+        <div class="cashword-logo">CASHWORD</div>
+        <div class="cashword-jackpot">WIN UP TO $10,000!</div>
       </div>
-      <div class="ticket-overlay">
-        <canvas></canvas>
-        <div class="overlay-copy">
-          <div>
-            <strong>SCRATCH TO REVEAL</strong>
-            <span>three hidden gifts inside</span>
+      <div class="cashword-board">
+        <div class="cashword-grid">
+          ${ticket.grid
+            .map(
+              (row) => `
+                <div class="cashword-grid-row">
+                  ${row
+                    .split("")
+                    .map((char) => `<div class="cashword-cell" data-cashword-char="${char}">${char}</div>`)
+                    .join("")}
+                </div>`
+            )
+            .join("")}
+        </div>
+        <div class="cashword-sidebar">
+          <div class="cashword-counter" data-cashword-counter>0 / ${ticket.words.length} words found</div>
+          <div class="cashword-word-list">
+            ${ticket.words.map((word) => `<div class="cashword-word" data-cashword-word="${word}">${word}</div>`).join("")}
           </div>
         </div>
       </div>
-    `;
+      <div class="cashword-letters-title">Scratch your letters</div>
+      <div class="cashword-letters">
+        ${ticket.letters
+          .map(
+            (letter, index) => `
+              <button class="cashword-letter" type="button">
+                <span class="cashword-letter-value">${letter}</span>
+                <canvas data-cashword-letter="${letter}" data-cashword-index="${index}"></canvas>
+              </button>`
+          )
+          .join("")}
+      </div>
+      <div class="cashword-prize-banner">Prize code: <strong>${ticket.code}</strong></div>
+    </article>
+  `;
 
-    const badge = card.querySelector(".ticket-badge");
-    const canvas = card.querySelector("canvas");
-    ticketList.append(card);
-
+  const root = ticketStage.firstElementChild;
+  root.querySelectorAll("[data-cashword-letter]").forEach((canvas) => {
+    const letter = canvas.dataset.cashwordLetter;
+    if (scratcherState.cashword.revealedLetters.has(letter)) {
+      canvas.parentElement.classList.add("is-revealed", "revealed");
+      canvas.style.opacity = "0";
+      canvas.style.pointerEvents = "none";
+      return;
+    }
     new ScratchCard({
       canvas,
       colors: ticket.scratch,
+      brushRadius: 12,
+      threshold: 0.26,
+      coverRenderer: renderSilverFoil,
       onReveal: () => {
-        badge.textContent = "open";
-        revealedCount += 1;
-        if (revealedCount === tickets.length) {
-          finalReveal.classList.add("is-visible");
+        scratcherState.cashword.revealedLetters.add(letter);
+        canvas.parentElement.classList.add("is-revealed");
+        updateCashwordUi(ticket, root);
+      }
+    });
+  });
+
+  updateCashwordUi(ticket, root);
+}
+
+function renderTriplerTicket(ticket) {
+  if (!ticketStage) {
+    return;
+  }
+
+  ticketStage.innerHTML = `
+    <article class="scratch-stage-card tripler-ticket">
+      <div class="tripler-head">
+        <div class="tripler-price">$1</div>
+        <div>
+          <div class="tripler-title">7 . 11 . 21</div>
+          <div class="tripler-subtitle">TRIPLER</div>
+        </div>
+        <div class="tripler-badge">${ticket.code}</div>
+      </div>
+      <div class="tripler-rules">Reveal a 7 to win, 11 to double, and 21 to triple the prize shown for that row.</div>
+      <div class="tripler-plays">
+        ${ticket.rows
+          .map(
+            (row, index) => `
+              <div class="tripler-row" data-tripler-row="${index}">
+                <div class="tripler-row-label">Game ${index + 1}</div>
+                <div class="tripler-box">
+                  <div class="tripler-hidden tripler-symbol">${row.symbol}</div>
+                  <canvas data-tripler-scratch="${index}-symbol"></canvas>
+                </div>
+                <div class="tripler-box tripler-prize">
+                  <div class="tripler-hidden">${row.prize}</div>
+                  <canvas data-tripler-scratch="${index}-prize"></canvas>
+                </div>
+                <div class="tripler-row-result">${row.result}</div>
+              </div>`
+          )
+          .join("")}
+      </div>
+    </article>
+  `;
+
+  const root = ticketStage.firstElementChild;
+  const rows = ticket.rows.length;
+  root.querySelectorAll("[data-tripler-scratch]").forEach((canvas) => {
+    const [rowIndexString, part] = canvas.dataset.triplerScratch.split("-");
+    const rowIndex = Number(rowIndexString);
+    if (scratcherState.tripler.revealed[`${rowIndex}-${part}`]) {
+      canvas.parentElement.classList.add("revealed");
+      canvas.style.opacity = "0";
+      canvas.style.pointerEvents = "none";
+      const row = root.querySelector(`[data-tripler-row="${rowIndex}"]`);
+      if (
+        scratcherState.tripler.revealed[`${rowIndex}-symbol`] &&
+        scratcherState.tripler.revealed[`${rowIndex}-prize`]
+      ) {
+        row.classList.add("is-complete");
+      }
+      return;
+    }
+    new ScratchCard({
+      canvas,
+      colors: ticket.scratch,
+      brushRadius: 16,
+      threshold: 0.24,
+      coverRenderer: renderBlueFoil,
+      onReveal: () => {
+        scratcherState.tripler.revealed[`${rowIndex}-${part}`] = true;
+        canvas.parentElement.classList.add("is-revealed");
+        const row = root.querySelector(`[data-tripler-row="${rowIndex}"]`);
+        const done =
+          scratcherState.tripler.revealed[`${rowIndex}-symbol`] &&
+          scratcherState.tripler.revealed[`${rowIndex}-prize`];
+        if (done) {
+          row.classList.add("is-complete");
+        }
+        const completedRows = Array.from({ length: rows }, (_, i) =>
+          scratcherState.tripler.revealed[`${i}-symbol`] &&
+          scratcherState.tripler.revealed[`${i}-prize`]
+        ).filter(Boolean).length;
+        if (completedRows === rows) {
+          markTicketComplete(ticket.id);
         }
       }
     });
   });
+}
+
+function updateTreatMatchUi(ticket, root) {
+  const counts = {};
+  Object.values(scratcherState["treat-match"].revealed).forEach((value) => {
+    counts[value] = (counts[value] || 0) + 1;
+  });
+  root.querySelectorAll("[data-treat-name]").forEach((item) => {
+    item.classList.toggle("is-found", (counts[item.dataset.treatName] || 0) >= 3);
+  });
+  const revealedCount = Object.keys(scratcherState["treat-match"].revealed).length;
+  const counter = root.querySelector("[data-treat-counter]");
+  if (counter) {
+    counter.textContent = `${revealedCount} / ${ticket.cells.length} spots scratched`;
+  }
+  if (revealedCount === ticket.cells.length) {
+    markTicketComplete(ticket.id);
+  }
+}
+
+function renderTreatMatchTicket(ticket) {
+  if (!ticketStage) {
+    return;
+  }
+
+  ticketStage.innerHTML = `
+    <article class="scratch-stage-card treat-ticket">
+      <div class="treat-head">
+        <div>
+          <div class="treat-title">Treat Match</div>
+          <div class="treat-subtitle">Scratch all 9 treats and match the vibe</div>
+        </div>
+        <div class="treat-code">${ticket.code}</div>
+      </div>
+      <div class="treat-grid">
+        ${ticket.cells
+          .map(
+            (cell, index) => `
+              <button class="treat-cell" type="button">
+                <div class="treat-cell-value">${cell}</div>
+                <canvas data-treat-cell="${index}" data-treat-name="${cell}"></canvas>
+              </button>`
+          )
+          .join("")}
+      </div>
+      <div class="treat-summary">
+        <div class="treat-counter" data-treat-counter>0 / ${ticket.cells.length} spots scratched</div>
+        <div class="treat-prizes">
+          <div class="treat-prize" data-treat-name="STARBUCKS">STARBUCKS</div>
+          <div class="treat-prize" data-treat-name="COOKIES">COOKIES</div>
+          <div class="treat-prize" data-treat-name="CHOCOLATE">CHOCOLATE</div>
+        </div>
+      </div>
+    </article>
+  `;
+
+  const root = ticketStage.firstElementChild;
+  root.querySelectorAll("[data-treat-cell]").forEach((canvas) => {
+    const index = Number(canvas.dataset.treatCell);
+    const value = canvas.dataset.treatName;
+    if (Object.prototype.hasOwnProperty.call(scratcherState["treat-match"].revealed, index)) {
+      canvas.parentElement.classList.add("revealed");
+      canvas.style.opacity = "0";
+      canvas.style.pointerEvents = "none";
+      return;
+    }
+    new ScratchCard({
+      canvas,
+      colors: ticket.scratch,
+      brushRadius: 14,
+      threshold: 0.24,
+      coverRenderer: renderCandyFoil,
+      onReveal: () => {
+        scratcherState["treat-match"].revealed[index] = value;
+        canvas.parentElement.classList.add("is-revealed");
+        updateTreatMatchUi(ticket, root);
+      }
+    });
+  });
+
+  updateTreatMatchUi(ticket, root);
+}
+
+function renderActiveTicket() {
+  const ticket = scratcherTickets.find((item) => item.id === activeScratcherTicketId);
+  if (!ticket || !ticketStage) {
+    return;
+  }
+
+  switch (ticket.kind) {
+    case "cashword":
+      renderCashwordTicket(ticket);
+      break;
+    case "tripler":
+      renderTriplerTicket(ticket);
+      break;
+    case "match":
+      renderTreatMatchTicket(ticket);
+      break;
+    default:
+      ticketStage.innerHTML = "";
+      break;
+  }
+}
+
+function buildTickets() {
+  renderTicketSelector();
+  renderActiveTicket();
 }
 
 function bindHomeGesture() {

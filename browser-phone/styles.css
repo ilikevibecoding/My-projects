@@ -1945,138 +1945,190 @@ button {
   color: #fff;
 }
 
-.ticket-list {
-  position: relative;
-  z-index: 2;
-  margin-top: 1.2rem;
+.ticket-selector {
   display: grid;
-  gap: 0.78rem;
-  padding-bottom: 0.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 1.15rem;
 }
 
-.ticket {
-  position: relative;
-  min-height: 9.5rem;
-  padding: 1rem 1rem 1.05rem;
+.ticket-chip {
+  padding: 0.72rem 0.7rem;
+  border-radius: 1rem;
+  text-align: left;
+  background: rgba(23, 28, 38, 0.06);
+  color: #2a2140;
+  box-shadow: inset 0 0.06rem 0 rgba(255,255,255,0.36);
+}
+
+.ticket-chip.is-active {
+  background: linear-gradient(135deg, #765cff, #ff79b0);
+  color: #fff;
+}
+
+.ticket-chip.is-complete {
+  box-shadow:
+    inset 0 0 0 0.12rem rgba(80, 216, 132, 0.8),
+    inset 0 0.06rem 0 rgba(255,255,255,0.36);
+}
+
+.ticket-chip-tag {
+  display: block;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.ticket-chip strong {
+  display: block;
+  margin-top: 0.28rem;
+  font-size: 0.9rem;
+  letter-spacing: -0.03em;
+}
+
+.ticket-chip-subtitle {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  opacity: 0.82;
+}
+
+.ticket-stage {
+  margin-top: 0.95rem;
+}
+
+.scratch-stage-card {
   border-radius: 1.35rem;
   overflow: hidden;
-  box-shadow:
-    inset 0 0.08rem 0 rgba(255, 255, 255, 0.28),
-    0 0.95rem 1.45rem rgba(42, 13, 71, 0.14);
+  box-shadow: 0 1rem 1.8rem rgba(42, 13, 71, 0.14);
 }
 
-.ticket-background {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(135deg, var(--ticket-a), var(--ticket-b)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 34%);
+.cashword-ticket {
+  background: linear-gradient(180deg, #4668ff, #9e53ff);
+  padding: 0.85rem;
+  color: #fff;
 }
 
-.ticket-background::before,
-.ticket-background::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  width: 1rem;
-  height: 1rem;
-  margin-top: -0.5rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-  opacity: 0.7;
-}
-
-.ticket-background::before {
-  left: -0.5rem;
-}
-
-.ticket-background::after {
-  right: -0.5rem;
-}
-
-.ticket::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 36%),
-    radial-gradient(circle at 85% 18%, rgba(255, 255, 255, 0.22), transparent 18%);
-  pointer-events: none;
-}
-
-.ticket-content,
-.ticket-overlay {
-  position: relative;
-  z-index: 1;
-}
-
-.ticket-topline {
+.cashword-hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
 }
 
-.ticket-tag {
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  opacity: 0.88;
+.cashword-logo {
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  text-shadow: 0 0.1rem 0 rgba(31, 18, 86, 0.22);
 }
 
-.ticket-badge {
-  padding: 0.28rem 0.7rem;
+.cashword-jackpot {
+  padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-}
-
-.ticket h3 {
-  margin: 0.72rem 0 0;
-  font-size: 1.18rem;
-  letter-spacing: -0.04em;
-}
-
-.ticket-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  opacity: 0.76;
-}
-
-.ticket-prize-panel {
-  margin-top: 0.72rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 0.95rem;
-  background: rgba(255, 255, 255, 0.18);
-  border: 0.06rem dashed rgba(255, 255, 255, 0.44);
-  box-shadow: inset 0 0.08rem 0 rgba(255, 255, 255, 0.12);
-}
-
-.ticket-code {
-  margin-top: 0.2rem;
-  font-size: 1.08rem;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-}
-
-.ticket-note {
-  margin-top: 0.58rem;
-  max-width: 82%;
+  background: rgba(255,255,255,0.16);
   font-size: 0.72rem;
-  line-height: 1.32;
-  opacity: 0.84;
+  font-weight: 700;
 }
 
-.ticket-overlay {
-  position: absolute;
-  inset: 0.34rem;
-  border-radius: 1.12rem;
+.cashword-board {
+  margin-top: 0.8rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.cashword-grid {
+  padding: 0.6rem;
+  border-radius: 1rem;
+  background: #d9853f;
+  border: 0.18rem solid #7f451c;
+}
+
+.cashword-grid-row {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
+.cashword-cell {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  font-size: 0.83rem;
+  font-weight: 800;
+  color: rgba(76, 35, 12, 0.26);
+  border: 0.06rem solid rgba(98, 50, 19, 0.22);
+}
+
+.cashword-cell.is-revealed {
+  color: #fff7dc;
+  background: rgba(53, 20, 7, 0.18);
+}
+
+.cashword-sidebar {
+  padding: 0.7rem;
+  border-radius: 1rem;
+  background: rgba(255,255,255,0.14);
+}
+
+.cashword-counter {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.cashword-word-list {
+  display: grid;
+  gap: 0.42rem;
+  margin-top: 0.6rem;
+}
+
+.cashword-word {
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.8rem;
+  background: rgba(255,255,255,0.08);
+  font-size: 0.76rem;
+  letter-spacing: 0.02em;
+}
+
+.cashword-word.is-found {
+  background: rgba(92, 235, 164, 0.26);
+  color: #effff7;
+}
+
+.cashword-letters-title {
+  margin-top: 0.82rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cashword-letters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+
+.cashword-letter {
+  position: relative;
+  border-radius: 0.88rem;
+  background: rgba(255,255,255,0.16);
+  min-height: 3rem;
   overflow: hidden;
 }
 
-.ticket-overlay canvas {
+.cashword-letter-value {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #2b215a;
+}
+
+.cashword-letter canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -2084,33 +2136,225 @@ button {
   touch-action: none;
 }
 
-.overlay-copy {
+.cashword-letter.is-revealed {
+  box-shadow: inset 0 0 0 0.12rem rgba(255,255,255,0.55);
+}
+
+.cashword-letter.revealed canvas,
+.tripler-box.revealed canvas,
+.treat-cell.revealed canvas {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.cashword-prize-banner {
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.92rem;
+  background: rgba(22, 28, 55, 0.3);
+  font-size: 0.84rem;
+}
+
+.tripler-ticket {
+  background: linear-gradient(180deg, #2738be, #5f31ff);
+  padding: 0.9rem;
+  color: #fff;
+}
+
+.tripler-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.tripler-price,
+.tripler-badge {
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.75rem;
+  background: rgba(255,255,255,0.16);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.tripler-title {
+  font-size: 1.9rem;
+  font-weight: 900;
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+}
+
+.tripler-subtitle {
+  margin-top: 0.1rem;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.tripler-rules {
+  margin-top: 0.75rem;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  opacity: 0.92;
+}
+
+.tripler-plays {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.tripler-row {
+  display: grid;
+  grid-template-columns: auto 5rem 1fr;
+  gap: 0.55rem;
+  align-items: stretch;
+}
+
+.tripler-row-label {
+  display: grid;
+  place-items: center;
+  padding: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tripler-box {
+  position: relative;
+  min-height: 3.6rem;
+  border-radius: 0.95rem;
+  overflow: hidden;
+  background: rgba(255,255,255,0.18);
+  display: grid;
+  place-items: center;
+}
+
+.tripler-hidden {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 1rem;
+  text-align: center;
+  padding: 0.4rem;
+}
+
+.tripler-symbol {
+  font-size: 1.45rem;
+}
+
+.tripler-box canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.tripler-row-result {
+  grid-column: 2 / 4;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+}
+
+.tripler-row.is-complete .tripler-row-result {
+  color: #fff9b5;
+}
+
+.treat-ticket {
+  background: linear-gradient(180deg, #40b7ff, #63e2be);
+  padding: 0.9rem;
+  color: #14314b;
+}
+
+.treat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.treat-title {
+  font-size: 1.7rem;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+}
+
+.treat-subtitle,
+.treat-code {
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.treat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.treat-cell {
+  position: relative;
+  min-height: 4.2rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(255,255,255,0.18);
+}
+
+.treat-cell-value {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   text-align: center;
-  pointer-events: none;
-}
-
-.overlay-copy strong {
-  display: block;
-  font-size: 1.05rem;
-  letter-spacing: 0.08em;
-  text-shadow: 0 0.08rem 0.18rem rgba(0, 0, 0, 0.18);
-}
-
-.overlay-copy span {
-  display: block;
-  margin-top: 0.25rem;
+  padding: 0.4rem;
   font-size: 0.78rem;
-  opacity: 0.8;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #14314b;
 }
 
-.ticket-overlay.revealed {
-  opacity: 0;
-  transition: opacity 220ms ease;
-  pointer-events: none;
+.treat-cell canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.treat-summary {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.treat-counter {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.treat-prizes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.treat-prize {
+  padding: 0.5rem 0.3rem;
+  border-radius: 0.8rem;
+  background: rgba(255,255,255,0.18);
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.treat-prize.is-found {
+  background: rgba(255,255,255,0.34);
 }
 
 .final-reveal {
