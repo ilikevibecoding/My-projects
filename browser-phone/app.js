@@ -257,7 +257,9 @@ const scratchAudio = {
 const scratcherState = {
   completed: {},
   cashword: {
-    revealedCells: new Set()
+    revealedCells: new Set(),
+    revealedLetters: new Set(),
+    revealedBank: new Set()
   },
   tripler: {
     revealed: {}
@@ -1749,19 +1751,33 @@ function getCashwordFoundWords(ticket) {
 function updateCashwordUi(ticket, root) {
   const foundWords = getCashwordFoundWords(ticket);
   root.querySelectorAll("[data-cashword-cell]").forEach((cell) => {
+    const char = cell.dataset.cashwordChar;
+    const canvas = cell.querySelector("canvas");
+    const unlocked = scratcherState.cashword.revealedLetters.has(char);
+    cell.classList.toggle("is-unlocked", unlocked);
+    cell.classList.toggle("is-locked", !unlocked);
     cell.classList.toggle(
       "is-revealed",
       scratcherState.cashword.revealedCells.has(cell.dataset.cashwordCell)
     );
+    if (canvas && !scratcherState.cashword.revealedCells.has(cell.dataset.cashwordCell)) {
+      canvas.style.pointerEvents = unlocked ? "auto" : "none";
+    }
   });
   root.querySelectorAll("[data-cashword-word]").forEach((item) => {
     item.classList.toggle("is-found", foundWords.includes(item.dataset.cashwordWord));
   });
+  root.querySelectorAll("[data-cashword-bank]").forEach((item) => {
+    item.classList.toggle(
+      "is-revealed",
+      scratcherState.cashword.revealedBank.has(item.dataset.cashwordIndex)
+    );
+  });
   const counter = root.querySelector("[data-cashword-counter]");
   if (counter) {
-    counter.textContent = `${foundWords.length} / ${ticket.words.length} words found • need 8 to win`;
+    counter.textContent = `${foundWords.length} / 8 words found • ${scratcherState.cashword.revealedBank.size} / ${ticket.letters.length} letters scratched`;
   }
-  if (foundWords.length === ticket.words.length) {
+  if (scratcherState.cashword.revealedBank.size === ticket.letters.length) {
     markTicketComplete(ticket.id);
   }
 }
@@ -1804,12 +1820,12 @@ function renderCashwordTicket(ticket) {
           </div>
         </div>
       </div>
-      <div class="cashword-letters-title">Bonus letters</div>
+      <div class="cashword-letters-title">Scratch your letters first</div>
       <div class="cashword-letters">
         ${ticket.letters
           .map(
             (letter, index) => `
-              <button class="cashword-letter" type="button">
+              <button class="cashword-letter" type="button" data-cashword-bank data-cashword-index="${index}">
                 <span class="cashword-letter-value">${letter}</span>
                 <canvas data-cashword-letter="${letter}" data-cashword-index="${index}"></canvas>
               </button>`
@@ -1823,6 +1839,8 @@ function renderCashwordTicket(ticket) {
   const root = ticketStage.firstElementChild;
   root.querySelectorAll("[data-cashword-cell]").forEach((cell) => {
     const coord = cell.dataset.cashwordCell;
+    const char = cell.querySelector(".cashword-cell-value")?.textContent || "";
+    cell.dataset.cashwordChar = char;
     const canvas = cell.querySelector("canvas");
     if (scratcherState.cashword.revealedCells.has(coord)) {
       cell.classList.add("is-revealed", "revealed");
@@ -1846,6 +1864,7 @@ function renderCashwordTicket(ticket) {
 
   root.querySelectorAll("[data-cashword-letter]").forEach((canvas) => {
     const stateKey = `bank-${canvas.dataset.cashwordIndex}`;
+    const letter = canvas.dataset.cashwordLetter;
     if (scratcherState.cashword.revealedCells.has(stateKey)) {
       canvas.parentElement.classList.add("is-revealed", "revealed");
       canvas.style.opacity = "0";
@@ -1860,7 +1879,11 @@ function renderCashwordTicket(ticket) {
       coverRenderer: renderSilverFoil,
       onReveal: () => {
         scratcherState.cashword.revealedCells.add(stateKey);
+        scratcherState.cashword.revealedBank.add(canvas.dataset.cashwordIndex);
+        scratcherState.cashword.revealedLetters.add(letter);
         canvas.parentElement.classList.add("is-revealed");
+        canvas.parentElement.classList.add("revealed");
+        updateCashwordUi(ticket, root);
       }
     });
   });

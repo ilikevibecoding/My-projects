@@ -2063,6 +2063,14 @@ button {
   overflow: hidden;
 }
 
+.cashword-cell.is-locked {
+  opacity: 0.65;
+}
+
+.cashword-cell.is-unlocked {
+  box-shadow: inset 0 0 0 0.08rem rgba(255, 245, 196, 0.36);
+}
+
 .cashword-cell-value {
   position: absolute;
   inset: 0;
