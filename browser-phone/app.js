@@ -143,19 +143,18 @@ const scratcherTickets = [
     code: "CW-228",
     colors: ["#6a5cff", "#ff76b1"],
     scratch: ["#d8dde7", "#959db0"],
-    words: ["EVA", "CHRISTIAN", "BLUE", "BANANA"],
+    words: ["EVA", "HAPPY", "BLUE", "BIRTHDAY"],
     grid: [
-      "EVAXCXXXBX",
-      "XXXXHXXXLX",
-      "XXXXRXXXUX",
-      "XXXXIXXXEX",
-      "XXXXSXXXXX",
-      "XXXXTXXXXX",
-      "XXXXIXXXXX",
-      "XXXXAXXXXX",
-      "BANANAXXXX"
+      "QBMNKEVABZ",
+      "JITORCSWLP",
+      "GROWTHIOUA",
+      "ATBRPNYCED",
+      "XHAPPYLOMV",
+      "EDKEYCATQS",
+      "QAXSMORETZ",
+      "BYZQPHOTOX"
     ],
-    letters: ["E", "V", "A", "C", "H", "R", "I", "S", "T", "N", "B", "L", "U", "Q", "X"]
+    letters: ["E", "Q", "V", "A", "X", "H", "P", "M", "Y", "B", "L", "O", "U", "I", "R", "G", "T", "D"]
   },
   {
     id: "tripler",
@@ -1762,6 +1761,7 @@ function updateCashwordUi(ticket, root) {
       scratcherState.cashword.revealedCells.has(cell.dataset.cashwordCell)
     );
     if (canvas && !scratcherState.cashword.revealedCells.has(cell.dataset.cashwordCell)) {
+      canvas.style.opacity = unlocked ? "1" : "0";
       canvas.style.pointerEvents = unlocked ? "auto" : "none";
     }
   });
@@ -1776,7 +1776,7 @@ function updateCashwordUi(ticket, root) {
   });
   const counter = root.querySelector("[data-cashword-counter]");
   if (counter) {
-    counter.textContent = `${foundWords.length} / ${ticket.words.length} words found • need 5 to win`;
+    counter.textContent = `${foundWords.length} / ${ticket.words.length} words found`;
   }
   if (foundWords.length === ticket.words.length) {
     markTicketComplete(ticket.id);
@@ -1815,9 +1815,16 @@ function renderCashwordTicket(ticket) {
             .join("")}
         </div>
         <div class="cashword-sidebar">
-          <div class="cashword-counter" data-cashword-counter>0 / ${ticket.words.length} words found • need 5 to win</div>
+          <div class="cashword-counter" data-cashword-counter>0 / ${ticket.words.length} words found</div>
           <div class="cashword-word-list">
             ${ticket.words.map((word) => `<div class="cashword-word" data-cashword-word="${word}">${word}</div>`).join("")}
+          </div>
+          <div class="cashword-legend">
+            <div class="cashword-legend-title">Prize legend</div>
+            <div>1 word = $1</div>
+            <div>2 words = $5</div>
+            <div>3 words = $10</div>
+            <div>4 words = Special Prize</div>
           </div>
         </div>
       </div>

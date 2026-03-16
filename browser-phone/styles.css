@@ -2057,14 +2057,14 @@ button {
   place-items: center;
   font-size: 0.83rem;
   font-weight: 800;
-  color: rgba(76, 35, 12, 0.18);
+  color: #2f1607;
   border: 0.06rem solid rgba(98, 50, 19, 0.22);
   background: rgba(124, 67, 28, 0.08);
   overflow: hidden;
 }
 
 .cashword-cell.is-locked {
-  opacity: 0.65;
+  opacity: 1;
 }
 
 .cashword-cell.is-unlocked {
@@ -2106,6 +2106,23 @@ button {
   display: grid;
   gap: 0.42rem;
   margin-top: 0.6rem;
+}
+
+.cashword-legend {
+  margin-top: 0.7rem;
+  padding: 0.65rem 0.72rem;
+  border-radius: 0.9rem;
+  background: rgba(23, 28, 55, 0.18);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.cashword-legend-title {
+  margin-bottom: 0.3rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .cashword-word {
