@@ -2051,13 +2051,31 @@ button {
 }
 
 .cashword-cell {
+  position: relative;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
   font-size: 0.83rem;
   font-weight: 800;
-  color: rgba(76, 35, 12, 0.26);
+  color: rgba(76, 35, 12, 0.18);
   border: 0.06rem solid rgba(98, 50, 19, 0.22);
+  background: rgba(124, 67, 28, 0.08);
+  overflow: hidden;
+}
+
+.cashword-cell-value {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.cashword-cell canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
 }
 
 .cashword-cell.is-revealed {
@@ -2154,6 +2172,14 @@ button {
   border-radius: 0.92rem;
   background: rgba(22, 28, 55, 0.3);
   font-size: 0.84rem;
+}
+
+.cashword-prize-banner::after {
+  content: "No win if you only find 7.";
+  display: block;
+  margin-top: 0.28rem;
+  font-size: 0.72rem;
+  opacity: 0.84;
 }
 
 .tripler-ticket {
@@ -2262,7 +2288,7 @@ button {
 }
 
 .tripler-row.is-complete .tripler-row-result {
-  color: #fff9b5;
+  color: #ffd7d7;
 }
 
 .treat-ticket {
@@ -2313,7 +2339,7 @@ button {
   place-items: center;
   text-align: center;
   padding: 0.4rem;
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 900;
   letter-spacing: 0.02em;
   color: #14314b;
