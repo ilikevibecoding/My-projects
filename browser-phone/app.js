@@ -1750,6 +1750,12 @@ function getCashwordFoundWords(ticket) {
 
 function updateCashwordUi(ticket, root) {
   const foundWords = getCashwordFoundWords(ticket);
+  const placements = getCashwordPlacements(ticket);
+  const foundCoords = new Set(
+    placements
+      .filter((entry) => foundWords.includes(entry.word))
+      .flatMap((entry) => entry.coords)
+  );
   root.querySelectorAll("[data-cashword-cell]").forEach((cell) => {
     const char = cell.dataset.cashwordChar;
     const canvas = cell.querySelector("canvas");
@@ -1760,13 +1766,17 @@ function updateCashwordUi(ticket, root) {
       "is-revealed",
       scratcherState.cashword.revealedCells.has(cell.dataset.cashwordCell)
     );
+    cell.classList.toggle("is-word-found", foundCoords.has(cell.dataset.cashwordCell));
     if (canvas && !scratcherState.cashword.revealedCells.has(cell.dataset.cashwordCell)) {
       canvas.style.opacity = unlocked ? "1" : "0";
       canvas.style.pointerEvents = unlocked ? "auto" : "none";
     }
   });
   root.querySelectorAll("[data-cashword-word]").forEach((item) => {
-    item.classList.toggle("is-found", foundWords.includes(item.dataset.cashwordWord));
+    const word = item.dataset.cashwordWord;
+    const found = foundWords.includes(word);
+    item.classList.toggle("is-found", found);
+    item.textContent = found ? word : item.dataset.cashwordPlaceholder;
   });
   root.querySelectorAll("[data-cashword-bank]").forEach((item) => {
     item.classList.toggle(
@@ -1817,7 +1827,12 @@ function renderCashwordTicket(ticket) {
         <div class="cashword-sidebar">
           <div class="cashword-counter" data-cashword-counter>0 / ${ticket.words.length} words found</div>
           <div class="cashword-word-list">
-            ${ticket.words.map((word) => `<div class="cashword-word" data-cashword-word="${word}">${word}</div>`).join("")}
+            ${ticket.words
+              .map(
+                (word, index) =>
+                  `<div class="cashword-word" data-cashword-word="${word}" data-cashword-placeholder="Mystery word ${index + 1}">Mystery word ${index + 1}</div>`
+              )
+              .join("")}
           </div>
           <div class="cashword-legend">
             <div class="cashword-legend-title">Prize legend</div>
