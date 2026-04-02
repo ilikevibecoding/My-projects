@@ -210,6 +210,8 @@ const unlockSlider = document.querySelector("[data-unlock-slider]");
 const unlockCopy = document.querySelector("[data-unlock-copy]");
 const phoneScreen = document.querySelector(".phone-screen");
 const sideButton = document.querySelector("[data-side-button]");
+const lightToggle = document.querySelector("[data-light-toggle]");
+const flashlightOverlay = document.querySelector("[data-flashlight-overlay]");
 const homeIndicator = document.querySelector(".home-indicator");
 const homePages = document.querySelector("[data-home-pages]");
 const pageDots = document.querySelector("[data-page-dots]");
@@ -233,6 +235,7 @@ let homeScroller = null;
 let homeTrack = null;
 let unlockResetFrame = null;
 let isSleeping = false;
+let flashlightOn = false;
 let installedAppTile = null;
 let homeGesture = null;
 let currentNativeAppId = null;
@@ -354,6 +357,17 @@ function stopFaceTimePreview() {
 
   faceTimeStream.getTracks().forEach((track) => track.stop());
   faceTimeStream = null;
+}
+
+function setFlashlight(on) {
+  flashlightOn = on;
+  phoneScreen.classList.toggle("is-flashlight-on", on);
+  if (lightToggle) {
+    lightToggle.classList.toggle("is-active", on);
+  }
+  if (flashlightOverlay) {
+    flashlightOverlay.setAttribute("aria-hidden", on ? "false" : "true");
+  }
 }
 
 function showScreen(name) {
@@ -703,6 +717,7 @@ function setSleeping(value) {
 }
 
 function lockPhone() {
+  setFlashlight(false);
   resetUnlockSlider();
   showScreen("lock");
 }
@@ -2223,6 +2238,14 @@ function bindNav() {
     }
 
     setSleeping(true);
+  });
+
+  lightToggle?.addEventListener("click", () => {
+    if (activeScreen !== "lock" || isSleeping) {
+      return;
+    }
+
+    setFlashlight(!flashlightOn);
   });
 }
 
