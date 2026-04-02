@@ -970,20 +970,11 @@ button {
   display: flex;
 }
 
-.bubble-row.me {
-  justify-content: flex-end;
-}
-
 .bubble {
   max-width: 78%;
   padding: 0.75rem 0.95rem;
   border-radius: 1.1rem;
   background: rgba(23, 28, 38, 0.08);
-}
-
-.bubble-row.me .bubble {
-  background: #1fd15f;
-  color: #fff;
 }
 
 .voice-wave {
