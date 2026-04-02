@@ -276,7 +276,6 @@ const notificationState = {
 
 const christianMessages = [
   "dont forget to take your meds",
-  "Love you(:",
   "Love you(:"
 ];
 
@@ -492,7 +491,7 @@ function renderNativeApp(appId) {
     ),
     messages: nativeAppLayout(
       "Messages",
-      `<div class="messages-thread"><div class="bubble-row"><div class="bubble">dont forget to take your meds</div></div><div class="bubble-row me"><div class="bubble">Love you(:</div></div><div class="bubble-row me"><div class="bubble">Love you(:</div></div></div>`
+      `<div class="messages-thread"><div class="bubble-row"><div class="bubble">dont forget to take your meds</div></div><div class="bubble-row me"><div class="bubble">Love you(:</div></div></div>`
     ),
     voicememos: nativeAppLayout(
       "Voice Memos",
