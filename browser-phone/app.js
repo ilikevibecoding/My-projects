@@ -2047,7 +2047,7 @@ function updatePrizeMatchUi(ticket, root) {
   const revealedCount = Object.keys(scratcherState.prizeMatch.revealed).length;
   const counter = root.querySelector("[data-prize-counter]");
   if (counter) {
-    counter.textContent = `${revealedCount} / ${ticket.cells.length} spots scratched • ${giftHits} / 3 gift boxes`;
+    counter.textContent = `${giftHits} / 3 gift boxes found`;
   }
   if (giftHits === 3) {
     markTicketComplete(ticket.id);
@@ -2064,7 +2064,7 @@ function renderPrizeMatchTicket(ticket) {
       <div class="treat-head">
         <div>
           <div class="treat-title">Lucky Prize Match</div>
-          <div class="treat-subtitle">Match 3 amounts or find 3 gift boxes to win special prize.</div>
+          <div class="treat-subtitle">Scratch the spots and find all 3 gift boxes.</div>
         </div>
         <div class="treat-code">PetSmart</div>
       </div>
@@ -2073,15 +2073,14 @@ function renderPrizeMatchTicket(ticket) {
           .map(
             (cell, index) => `
               <button class="treat-cell" type="button">
-                <div class="treat-cell-value">${cell.amount}</div>
-                ${cell.gift ? '<div class="treat-gift-icon">Gift</div>' : ""}
+                <div class="treat-cell-value">${cell.gift ? "GIFT" : cell.amount}</div>
                 <canvas data-treat-cell="${index}" data-prize-amount="${cell.amount}" data-gift-hit="${cell.gift ? "1" : "0"}"></canvas>
               </button>`
           )
           .join("")}
       </div>
       <div class="treat-summary">
-        <div class="treat-counter" data-prize-counter>0 / ${ticket.cells.length} spots scratched • 0 / 3 gift boxes</div>
+        <div class="treat-counter" data-prize-counter>0 / 3 gift boxes found</div>
         <div class="gift-boxes">
           <div class="gift-box-chip" data-gift-box="1">Gift Box 1</div>
           <div class="gift-box-chip" data-gift-box="4">Gift Box 2</div>
