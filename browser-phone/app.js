@@ -272,7 +272,8 @@ const scratcherState = {
   cashwords: {},
   prizeMatch: {
     revealed: {},
-    gifts: {}
+    gifts: {},
+    opened: false
   }
 };
 
@@ -1710,6 +1711,18 @@ function renderCandyFoil(ctx, width, height) {
   }
 }
 
+function getGiftOutlineMarkup() {
+  return `
+    <span class="gift-outline" aria-hidden="true">
+      <span class="gift-outline-bow left"></span>
+      <span class="gift-outline-bow right"></span>
+      <span class="gift-outline-box"></span>
+      <span class="gift-outline-ribbon-v"></span>
+      <span class="gift-outline-ribbon-h"></span>
+    </span>
+  `;
+}
+
 function getCashwordPlacements(ticket) {
   if (ticket.placements) {
     return ticket.placements;
@@ -2051,11 +2064,15 @@ function updatePrizeMatchUi(ticket, root) {
     counter.textContent = `${giftHits} / 3 gift boxes found`;
   }
   if (revealButton) {
-    revealButton.disabled = giftHits !== 3;
-    revealButton.classList.toggle("is-ready", giftHits === 3);
+    revealButton.disabled = giftHits !== 3 || scratcherState.prizeMatch.opened;
+    revealButton.classList.toggle("is-ready", giftHits === 3 && !scratcherState.prizeMatch.opened);
+    revealButton.classList.toggle("is-opened", scratcherState.prizeMatch.opened);
   }
-  if (giftHits === 3) {
+  if (giftHits === 3 && root) {
     root.classList.add("is-ready");
+  }
+  if (scratcherState.prizeMatch.opened) {
+    markTicketComplete(ticket.id);
   }
 }
 
@@ -2094,13 +2111,13 @@ function renderPrizeMatchTicket(ticket) {
         <div class="gift-goal-banner">Find all 3 gift boxes to unlock special prize.</div>
       </div>
       <div class="special-prize-wrap">
-        <button class="special-prize-box${scratcherState.completed[ticket.id] ? " is-open" : ""}" type="button" data-gift-reveal ${scratcherState.completed[ticket.id] ? "" : "disabled"}>
-          <span>${scratcherState.completed[ticket.id] ? "✨" : "🎁"}</span>
+        <button class="special-prize-box${scratcherState.prizeMatch.opened ? " is-opened" : ""}" type="button" data-gift-reveal ${Object.values(scratcherState.prizeMatch.gifts).filter(Boolean).length === 3 && !scratcherState.prizeMatch.opened ? "" : "disabled"}>
+          ${getGiftOutlineMarkup()}
         </button>
       </div>
-      <div class="scratcher-code-panel${scratcherState.completed[ticket.id] ? " is-visible" : ""}">
-        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? "Special prize unlocked" : "Open the gift after finding all 3 boxes"}</div>
-        <div class="scratcher-code-value">${scratcherState.completed[ticket.id] ? ticket.code : "••••••••••••••"}</div>
+      <div class="scratcher-code-panel${scratcherState.prizeMatch.opened ? " is-visible" : ""}">
+        <div class="scratcher-code-label">${scratcherState.prizeMatch.opened ? "Special prize unlocked" : "Open the gift after finding all 3 boxes"}</div>
+        <div class="scratcher-code-value">${scratcherState.prizeMatch.opened ? ticket.code : "••••••••••••••"}</div>
       </div>
     </article>
   `;
@@ -2138,8 +2155,15 @@ function renderPrizeMatchTicket(ticket) {
       if (Object.values(scratcherState.prizeMatch.gifts).filter(Boolean).length !== 3) {
         return;
       }
-      revealButton.classList.add("is-open");
-      markTicketComplete(ticket.id);
+      if (scratcherState.prizeMatch.opened) {
+        return;
+      }
+      revealButton.classList.add("is-opening");
+      window.setTimeout(() => {
+        scratcherState.prizeMatch.opened = true;
+        revealButton.classList.remove("is-opening");
+        updatePrizeMatchUi(ticket, root);
+      }, 640);
     });
   }
 
