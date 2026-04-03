@@ -1918,7 +1918,7 @@ button {
     radial-gradient(circle at 15% 15%, rgba(255, 226, 236, 0.28), transparent 20%),
     radial-gradient(circle at 80% 70%, rgba(255, 190, 136, 0.22), transparent 24%),
     linear-gradient(180deg, #302b87 0%, #8d2f88 46%, #ff885b 100%);
-  padding: 5.2rem 1rem 5.35rem;
+  padding: 5.9rem 1rem 5.35rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   min-height: 100%;
@@ -1928,7 +1928,7 @@ button {
   position: relative;
   z-index: 2;
   min-height: calc(100% - 0.4rem);
-  padding: 1.15rem 0.95rem 1rem;
+  padding: 1.55rem 0.95rem 1rem;
   border-radius: 1.9rem;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.82)),
@@ -1943,11 +1943,11 @@ button {
 .game-header {
   position: relative;
   z-index: 2;
-  padding: 0 2.8rem 0 0.15rem;
+  padding: 0 3.2rem 0 0.2rem;
 }
 
 .game-header h2 {
-  margin: 0;
+  margin: 0.15rem 0 0;
   font-size: 2.1rem;
   line-height: 1;
   letter-spacing: -0.06em;
@@ -1959,11 +1959,11 @@ button {
   padding: 0.95rem 1rem;
   font-size: 0.88rem;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.96);
-  background: linear-gradient(135deg, rgba(129, 100, 255, 0.78), rgba(255, 123, 171, 0.74));
+  color: rgba(42, 33, 64, 0.78);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(244, 239, 252, 0.94));
   box-shadow:
-    inset 0 0.06rem 0 rgba(255,255,255,0.22),
-    0 0.5rem 1.2rem rgba(82, 48, 145, 0.14);
+    inset 0 0.06rem 0 rgba(255,255,255,0.55),
+    0 0.5rem 1.2rem rgba(82, 48, 145, 0.08);
 }
 
 .ticket-selector {
