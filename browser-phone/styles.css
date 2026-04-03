@@ -2420,6 +2420,11 @@ button {
   color: #14314b;
 }
 
+.treat-cell.is-gift .treat-cell-value {
+  font-size: 1.55rem;
+  color: #ff6a7d;
+}
+
 .treat-cell canvas {
   position: absolute;
   inset: 0;
@@ -2439,14 +2444,14 @@ button {
   font-weight: 700;
 }
 
-.treat-prizes {
+.gift-boxes {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
 }
 
-.treat-prize {
-  padding: 0.5rem 0.3rem;
+.gift-box-chip {
+  padding: 0.55rem 0.3rem;
   border-radius: 0.8rem;
   background: rgba(255,255,255,0.18);
   text-align: center;
@@ -2454,8 +2459,17 @@ button {
   font-weight: 800;
 }
 
-.treat-prize.is-found {
+.gift-box-chip.is-found {
   background: rgba(255,255,255,0.34);
+}
+
+.gift-goal-banner {
+  margin-top: 0.72rem;
+  padding: 0.62rem 0.72rem;
+  border-radius: 0.92rem;
+  background: rgba(14, 52, 74, 0.16);
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .final-reveal {

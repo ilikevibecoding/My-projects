@@ -135,12 +135,13 @@ const storeRows = [
 
 const scratcherTickets = [
   {
-    id: "cashword",
+    id: "cashword-target",
     kind: "cashword",
     tag: "TICKET 01",
     title: "Cashword Cutie",
     subtitle: "Scratch the board letter by letter",
-    code: "AMZ-EVA-WORD-01",
+    code: "TARGET-LOVE-01",
+    source: "Target",
     colors: ["#6a5cff", "#ff76b1"],
     scratch: ["#d8dde7", "#959db0"],
     words: ["EVA", "HAPPY", "BLUE", "BIRTHDAY"],
@@ -157,40 +158,49 @@ const scratcherTickets = [
     letters: ["E", "Q", "V", "A", "X", "H", "P", "M", "Y", "B", "L", "O", "U", "I", "R", "G", "T", "D"]
   },
   {
-    id: "tripler",
-    kind: "tripler",
+    id: "cashword-dogs",
+    kind: "cashword",
     tag: "TICKET 02",
-    title: "7 11 21 Tripler",
-    subtitle: "Scratch each game row",
-    code: "AMZ-TRIPLER-LOVE-02",
+    title: "Birthday Words",
+    subtitle: "Scratch the doggo words",
+    code: "AMZN-BDAY-PUP-02",
+    source: "Amazon",
     colors: ["#2443d7", "#7a34ff"],
     scratch: ["#d8dde7", "#959db0"],
-    rows: [
-      { symbol: "STAR", prize: "$25", result: "No win" },
-      { symbol: "HEART", prize: "$50", result: "No win" },
-      { symbol: "BELL", prize: "$10", result: "No win" },
-      { symbol: "MOON", prize: "$100", result: "No win" }
+    words: ["DEXTER", "REX", "BILLY", "AUGUST"],
+    grid: [
+      "DQREXMNOPA",
+      "EJACSWLPBQ",
+      "XGROWTHIIO",
+      "TTBRPNYCLD",
+      "EAKEYCATLS",
+      "RQXSMOREYV",
+      "BYZQPHOTOX",
+      "QGAUGUSTXZ"
     ]
+    ,
+    letters: ["D", "Q", "R", "E", "X", "J", "A", "C", "S", "W", "L", "P", "B", "G", "O", "T", "H", "I", "Y", "M", "N", "U", "V"]
   },
   {
     id: "prize-match",
     kind: "prizematch",
     tag: "TICKET 03",
     title: "Lucky Prize Match",
-    subtitle: "Match 3 amounts to win",
-    code: "AMZ-PRIZE-BDAY-03",
+    subtitle: "Find 3 gift boxes",
+    code: "PETSMART-GIFT-03",
+    source: "PetSmart",
     colors: ["#35c0ff", "#56ebbf"],
     scratch: ["#d8dde7", "#959db0"],
-    amounts: [
-      "$2",
-      "$5",
-      "$10",
-      "$25",
-      "$50",
-      "$100",
-      "$500",
-      "$1000",
-      "$10,000"
+    cells: [
+      { amount: "$2", gift: false },
+      { amount: "$5", gift: true },
+      { amount: "$10", gift: false },
+      { amount: "$25", gift: false },
+      { amount: "$50", gift: true },
+      { amount: "$100", gift: false },
+      { amount: "$500", gift: false },
+      { amount: "$1,000", gift: true },
+      { amount: "$10,000", gift: false }
     ]
   }
 ];
@@ -259,16 +269,10 @@ const scratchAudio = {
 
 const scratcherState = {
   completed: {},
-  cashword: {
-    revealedCells: new Set(),
-    revealedLetters: new Set(),
-    revealedBank: new Set()
-  },
-  tripler: {
-    revealed: {}
-  },
-  "prize-match": {
-    revealed: {}
+  cashwords: {},
+  prizeMatch: {
+    revealed: {},
+    gifts: {}
   }
 };
 
@@ -1630,9 +1634,6 @@ class ScratchCard {
 function markTicketComplete(ticketId) {
   scratcherState.completed[ticketId] = true;
   renderTicketSelector();
-  if (activeScratcherTicketId === ticketId) {
-    renderActiveTicket();
-  }
   if (scratcherTickets.every((ticket) => scratcherState.completed[ticket.id])) {
     finalReveal.classList.add("is-visible");
   }
@@ -1756,16 +1757,30 @@ function getCashwordPlacements(ticket) {
   return ticket.placements;
 }
 
+function getCashwordState(ticketId) {
+  if (!scratcherState.cashwords[ticketId]) {
+    scratcherState.cashwords[ticketId] = {
+      revealedCells: new Set(),
+      revealedLetters: new Set(),
+      revealedBank: new Set()
+    };
+  }
+
+  return scratcherState.cashwords[ticketId];
+}
+
 function getCashwordFoundWords(ticket) {
+  const state = getCashwordState(ticket.id);
   return getCashwordPlacements(ticket)
     .filter((entry) =>
       entry.coords.length > 0 &&
-      entry.coords.every((coord) => scratcherState.cashword.revealedCells.has(coord))
+      entry.coords.every((coord) => state.revealedCells.has(coord))
     )
     .map((entry) => entry.word);
 }
 
 function updateCashwordUi(ticket, root) {
+  const state = getCashwordState(ticket.id);
   const foundWords = getCashwordFoundWords(ticket);
   const placements = getCashwordPlacements(ticket);
   const foundCoords = new Set(
@@ -1776,15 +1791,15 @@ function updateCashwordUi(ticket, root) {
   root.querySelectorAll("[data-cashword-cell]").forEach((cell) => {
     const char = cell.dataset.cashwordChar;
     const canvas = cell.querySelector("canvas");
-    const unlocked = scratcherState.cashword.revealedLetters.has(char);
+    const unlocked = state.revealedLetters.has(char);
     cell.classList.toggle("is-unlocked", unlocked);
     cell.classList.toggle("is-locked", !unlocked);
     cell.classList.toggle(
       "is-revealed",
-      scratcherState.cashword.revealedCells.has(cell.dataset.cashwordCell)
+      state.revealedCells.has(cell.dataset.cashwordCell)
     );
     cell.classList.toggle("is-word-found", foundCoords.has(cell.dataset.cashwordCell));
-    if (canvas && !scratcherState.cashword.revealedCells.has(cell.dataset.cashwordCell)) {
+    if (canvas && !state.revealedCells.has(cell.dataset.cashwordCell)) {
       canvas.style.opacity = unlocked ? "1" : "0";
       canvas.style.pointerEvents = unlocked ? "auto" : "none";
     }
@@ -1798,7 +1813,7 @@ function updateCashwordUi(ticket, root) {
   root.querySelectorAll("[data-cashword-bank]").forEach((item) => {
     item.classList.toggle(
       "is-revealed",
-      scratcherState.cashword.revealedBank.has(item.dataset.cashwordIndex)
+      state.revealedBank.has(item.dataset.cashwordIndex)
     );
   });
   const counter = root.querySelector("[data-cashword-counter]");
@@ -1880,12 +1895,13 @@ function renderCashwordTicket(ticket) {
   `;
 
   const root = ticketStage.firstElementChild;
+  const state = getCashwordState(ticket.id);
   root.querySelectorAll("[data-cashword-cell]").forEach((cell) => {
     const coord = cell.dataset.cashwordCell;
     const char = cell.querySelector(".cashword-cell-value")?.textContent || "";
     cell.dataset.cashwordChar = char;
     const canvas = cell.querySelector("canvas");
-    if (scratcherState.cashword.revealedCells.has(coord)) {
+    if (state.revealedCells.has(coord)) {
       cell.classList.add("is-revealed", "revealed");
       canvas.style.opacity = "0";
       canvas.style.pointerEvents = "none";
@@ -1898,7 +1914,7 @@ function renderCashwordTicket(ticket) {
       threshold: 0.22,
       coverRenderer: renderSilverFoil,
       onReveal: () => {
-        scratcherState.cashword.revealedCells.add(coord);
+        state.revealedCells.add(coord);
         cell.classList.add("is-revealed", "revealed");
         updateCashwordUi(ticket, root);
       }
@@ -1908,7 +1924,7 @@ function renderCashwordTicket(ticket) {
   root.querySelectorAll("[data-cashword-letter]").forEach((canvas) => {
     const stateKey = `bank-${canvas.dataset.cashwordIndex}`;
     const letter = canvas.dataset.cashwordLetter;
-    if (scratcherState.cashword.revealedCells.has(stateKey)) {
+    if (state.revealedCells.has(stateKey)) {
       canvas.parentElement.classList.add("is-revealed", "revealed");
       canvas.style.opacity = "0";
       canvas.style.pointerEvents = "none";
@@ -1921,9 +1937,9 @@ function renderCashwordTicket(ticket) {
       threshold: 0.26,
       coverRenderer: renderSilverFoil,
       onReveal: () => {
-        scratcherState.cashword.revealedCells.add(stateKey);
-        scratcherState.cashword.revealedBank.add(canvas.dataset.cashwordIndex);
-        scratcherState.cashword.revealedLetters.add(letter);
+        state.revealedCells.add(stateKey);
+        state.revealedBank.add(canvas.dataset.cashwordIndex);
+        state.revealedLetters.add(letter);
         canvas.parentElement.classList.add("is-revealed");
         canvas.parentElement.classList.add("revealed");
         updateCashwordUi(ticket, root);
@@ -2023,19 +2039,17 @@ function renderTriplerTicket(ticket) {
 }
 
 function updatePrizeMatchUi(ticket, root) {
-  const counts = {};
-  Object.values(scratcherState["prize-match"].revealed).forEach((value) => {
-    counts[value] = (counts[value] || 0) + 1;
+  const giftHits = Object.values(scratcherState.prizeMatch.gifts).filter(Boolean).length;
+  root.querySelectorAll("[data-gift-box]").forEach((item) => {
+    const found = scratcherState.prizeMatch.gifts[item.dataset.giftBox] === true;
+    item.classList.toggle("is-found", found);
   });
-  root.querySelectorAll("[data-prize-amount]").forEach((item) => {
-    item.classList.toggle("is-found", (counts[item.dataset.prizeAmount] || 0) >= 3);
-  });
-  const revealedCount = Object.keys(scratcherState["prize-match"].revealed).length;
+  const revealedCount = Object.keys(scratcherState.prizeMatch.revealed).length;
   const counter = root.querySelector("[data-prize-counter]");
   if (counter) {
-    counter.textContent = `${revealedCount} / ${ticket.amounts.length} spots scratched • no 3 match yet`;
+    counter.textContent = `${revealedCount} / ${ticket.cells.length} spots scratched • ${giftHits} / 3 gift boxes`;
   }
-  if (revealedCount === ticket.amounts.length) {
+  if (giftHits === 3) {
     markTicketComplete(ticket.id);
   }
 }
@@ -2050,31 +2064,33 @@ function renderPrizeMatchTicket(ticket) {
       <div class="treat-head">
         <div>
           <div class="treat-title">Lucky Prize Match</div>
-          <div class="treat-subtitle">Scratch all 9 amounts. Match 3 to win.</div>
+          <div class="treat-subtitle">Match 3 amounts or find 3 gift boxes to win special prize.</div>
         </div>
-        <div class="treat-code">${ticket.code}</div>
+        <div class="treat-code">PetSmart</div>
       </div>
       <div class="treat-grid">
-        ${ticket.amounts
+        ${ticket.cells
           .map(
-            (amount, index) => `
+            (cell, index) => `
               <button class="treat-cell" type="button">
-                <div class="treat-cell-value">${amount}</div>
-                <canvas data-treat-cell="${index}" data-prize-amount="${amount}"></canvas>
+                <div class="treat-cell-value">${cell.amount}</div>
+                ${cell.gift ? '<div class="treat-gift-icon">Gift</div>' : ""}
+                <canvas data-treat-cell="${index}" data-prize-amount="${cell.amount}" data-gift-hit="${cell.gift ? "1" : "0"}"></canvas>
               </button>`
           )
           .join("")}
       </div>
       <div class="treat-summary">
-        <div class="treat-counter" data-prize-counter>0 / ${ticket.amounts.length} spots scratched • no 3 match yet</div>
-        <div class="treat-prizes">
-          <div class="treat-prize" data-prize-amount="$25">$25</div>
-          <div class="treat-prize" data-prize-amount="$100">$100</div>
-          <div class="treat-prize" data-prize-amount="$10,000">$10,000</div>
+        <div class="treat-counter" data-prize-counter>0 / ${ticket.cells.length} spots scratched • 0 / 3 gift boxes</div>
+        <div class="gift-boxes">
+          <div class="gift-box-chip" data-gift-box="1">Gift Box 1</div>
+          <div class="gift-box-chip" data-gift-box="4">Gift Box 2</div>
+          <div class="gift-box-chip" data-gift-box="7">Gift Box 3</div>
         </div>
+        <div class="gift-goal-banner">Find all 3 gift boxes to unlock the PetSmart prize code.</div>
       </div>
       <div class="scratcher-code-panel${scratcherState.completed[ticket.id] ? " is-visible" : ""}">
-        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? "Loser ticket secret code" : "Scratch every amount to reveal code"}</div>
+        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? "PetSmart code unlocked" : "Find all 3 gift boxes to reveal code"}</div>
         <div class="scratcher-code-value">${scratcherState.completed[ticket.id] ? ticket.code : "••••••••••••••"}</div>
       </div>
     </article>
@@ -2084,7 +2100,7 @@ function renderPrizeMatchTicket(ticket) {
   root.querySelectorAll("[data-treat-cell]").forEach((canvas) => {
     const index = Number(canvas.dataset.treatCell);
     const value = canvas.dataset.prizeAmount;
-    if (Object.prototype.hasOwnProperty.call(scratcherState["prize-match"].revealed, index)) {
+    if (Object.prototype.hasOwnProperty.call(scratcherState.prizeMatch.revealed, index)) {
       canvas.parentElement.classList.add("revealed");
       canvas.style.opacity = "0";
       canvas.style.pointerEvents = "none";
@@ -2097,7 +2113,10 @@ function renderPrizeMatchTicket(ticket) {
       threshold: 0.24,
       coverRenderer: renderCandyFoil,
       onReveal: () => {
-        scratcherState["prize-match"].revealed[index] = value;
+        scratcherState.prizeMatch.revealed[index] = value;
+        if (canvas.dataset.giftHit === "1") {
+          scratcherState.prizeMatch.gifts[index] = true;
+        }
         canvas.parentElement.classList.add("is-revealed");
         updatePrizeMatchUi(ticket, root);
       }
