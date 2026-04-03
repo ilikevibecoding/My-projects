@@ -163,7 +163,7 @@ const scratcherTickets = [
     tag: "TICKET 02",
     title: "Birthday Words",
     subtitle: "Scratch the doggo words",
-    code: "AMZN-BDAY-PUP-02",
+    code: "042601159711642",
     source: "Amazon",
     colors: ["#2443d7", "#7a34ff"],
     scratch: ["#d8dde7", "#959db0"],
