@@ -187,16 +187,16 @@ const scratcherTickets = [
     tag: "TICKET 03",
     title: "Lucky Prize Match",
     subtitle: "Find 3 gift boxes",
-    code: "PETSMART-GIFT-03",
-    source: "PetSmart",
+    code: "GIFT-BOX-03",
+    source: "Special Prize",
     colors: ["#35c0ff", "#56ebbf"],
     scratch: ["#d8dde7", "#959db0"],
     cells: [
-      { amount: "$2", gift: false },
-      { amount: "$5", gift: true },
-      { amount: "$10", gift: false },
+      { amount: "$2", gift: true },
+      { amount: "$5", gift: false },
+      { amount: "$10", gift: true },
       { amount: "$25", gift: false },
-      { amount: "$50", gift: true },
+      { amount: "$50", gift: false },
       { amount: "$100", gift: false },
       { amount: "$500", gift: false },
       { amount: "$1,000", gift: true },
@@ -2040,6 +2040,7 @@ function renderTriplerTicket(ticket) {
 
 function updatePrizeMatchUi(ticket, root) {
   const giftHits = Object.values(scratcherState.prizeMatch.gifts).filter(Boolean).length;
+  const revealButton = root.querySelector("[data-gift-reveal]");
   root.querySelectorAll("[data-gift-box]").forEach((item) => {
     const found = scratcherState.prizeMatch.gifts[item.dataset.giftBox] === true;
     item.classList.toggle("is-found", found);
@@ -2049,8 +2050,12 @@ function updatePrizeMatchUi(ticket, root) {
   if (counter) {
     counter.textContent = `${giftHits} / 3 gift boxes found`;
   }
+  if (revealButton) {
+    revealButton.disabled = giftHits !== 3;
+    revealButton.classList.toggle("is-ready", giftHits === 3);
+  }
   if (giftHits === 3) {
-    markTicketComplete(ticket.id);
+    root.classList.add("is-ready");
   }
 }
 
@@ -2066,14 +2071,14 @@ function renderPrizeMatchTicket(ticket) {
           <div class="treat-title">Lucky Prize Match</div>
           <div class="treat-subtitle">Scratch the spots and find all 3 gift boxes.</div>
         </div>
-        <div class="treat-code">PetSmart</div>
+        <div class="treat-code">Special Prize</div>
       </div>
       <div class="treat-grid">
         ${ticket.cells
           .map(
             (cell, index) => `
               <button class="treat-cell" type="button">
-                <div class="treat-cell-value">${cell.gift ? "GIFT" : cell.amount}</div>
+                <div class="treat-cell-value">${cell.gift ? "🎁" : cell.amount}</div>
                 <canvas data-treat-cell="${index}" data-prize-amount="${cell.amount}" data-gift-hit="${cell.gift ? "1" : "0"}"></canvas>
               </button>`
           )
@@ -2082,14 +2087,19 @@ function renderPrizeMatchTicket(ticket) {
       <div class="treat-summary">
         <div class="treat-counter" data-prize-counter>0 / 3 gift boxes found</div>
         <div class="gift-boxes">
-          <div class="gift-box-chip" data-gift-box="1">Gift Box 1</div>
-          <div class="gift-box-chip" data-gift-box="4">Gift Box 2</div>
-          <div class="gift-box-chip" data-gift-box="7">Gift Box 3</div>
+          <div class="gift-box-chip" data-gift-box="1">🎁</div>
+          <div class="gift-box-chip" data-gift-box="4">🎁</div>
+          <div class="gift-box-chip" data-gift-box="7">🎁</div>
         </div>
-        <div class="gift-goal-banner">Find all 3 gift boxes to unlock the PetSmart prize code.</div>
+        <div class="gift-goal-banner">Find all 3 gift boxes to unlock special prize.</div>
+      </div>
+      <div class="special-prize-wrap">
+        <button class="special-prize-box${scratcherState.completed[ticket.id] ? " is-open" : ""}" type="button" data-gift-reveal ${scratcherState.completed[ticket.id] ? "" : "disabled"}>
+          <span>${scratcherState.completed[ticket.id] ? "✨" : "🎁"}</span>
+        </button>
       </div>
       <div class="scratcher-code-panel${scratcherState.completed[ticket.id] ? " is-visible" : ""}">
-        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? "PetSmart code unlocked" : "Find all 3 gift boxes to reveal code"}</div>
+        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? "Special prize unlocked" : "Open the gift after finding all 3 boxes"}</div>
         <div class="scratcher-code-value">${scratcherState.completed[ticket.id] ? ticket.code : "••••••••••••••"}</div>
       </div>
     </article>
@@ -2121,6 +2131,17 @@ function renderPrizeMatchTicket(ticket) {
       }
     });
   });
+
+  const revealButton = root.querySelector("[data-gift-reveal]");
+  if (revealButton) {
+    revealButton.addEventListener("click", () => {
+      if (Object.values(scratcherState.prizeMatch.gifts).filter(Boolean).length !== 3) {
+        return;
+      }
+      revealButton.classList.add("is-open");
+      markTicketComplete(ticket.id);
+    });
+  }
 
   updatePrizeMatchUi(ticket, root);
 }

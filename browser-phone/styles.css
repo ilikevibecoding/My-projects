@@ -2388,6 +2388,9 @@ button {
   background: linear-gradient(180deg, #40b7ff, #63e2be);
   padding: 0.9rem;
   color: #14314b;
+  box-shadow:
+    0 0 0 0.12rem rgba(255,255,255,0.16),
+    0 0 1.4rem rgba(74, 255, 196, 0.18);
 }
 
 .treat-head {
@@ -2440,7 +2443,7 @@ button {
 
 .treat-cell.is-gift .treat-cell-value {
   font-size: 1.3rem;
-  color: #ff6a7d;
+  color: #18202a;
 }
 
 .treat-cell canvas {
@@ -2488,6 +2491,85 @@ button {
   background: rgba(14, 52, 74, 0.16);
   font-size: 0.76rem;
   font-weight: 700;
+}
+
+.treat-ticket.is-ready {
+  box-shadow:
+    0 0 0 0.14rem rgba(255,255,255,0.18),
+    0 0 1.8rem rgba(104, 255, 177, 0.3);
+}
+
+.special-prize-wrap {
+  margin-top: 0.85rem;
+  display: flex;
+  justify-content: center;
+}
+
+.special-prize-box {
+  width: 7rem;
+  height: 7rem;
+  border-radius: 1.5rem;
+  background: linear-gradient(180deg, #171a22, #0f1117);
+  color: #fff;
+  box-shadow:
+    inset 0 0.08rem 0 rgba(255,255,255,0.08),
+    0 0.9rem 1.6rem rgba(27, 36, 44, 0.24);
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.special-prize-box::before,
+.special-prize-box::after {
+  content: "";
+  position: absolute;
+  background: rgba(255,255,255,0.9);
+}
+
+.special-prize-box::before {
+  width: 0.36rem;
+  height: 100%;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.special-prize-box::after {
+  height: 0.36rem;
+  width: 100%;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.special-prize-box span {
+  position: relative;
+  z-index: 2;
+  font-size: 2rem;
+}
+
+.special-prize-box.is-open {
+  animation: prizeBoxOpen 360ms ease forwards;
+}
+
+.special-prize-box.is-open::before,
+.special-prize-box.is-open::after {
+  opacity: 0.15;
+}
+
+@keyframes prizeBoxOpen {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.08) rotate(-2deg);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .final-reveal {
