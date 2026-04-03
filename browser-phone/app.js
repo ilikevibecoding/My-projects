@@ -144,18 +144,18 @@ const scratcherTickets = [
     source: "Target",
     colors: ["#6a5cff", "#ff76b1"],
     scratch: ["#d8dde7", "#959db0"],
-    words: ["EVA", "HAPPY", "BLUE", "BIRTHDAY"],
+    words: ["EVA", "HAPPY", "BLUE", "PURPLE"],
     grid: [
-      "QBMNKEVABZ",
-      "JITORCSWLP",
-      "GROWTHIOUA",
-      "ATBRPNYCED",
-      "XHAPPYLOMV",
-      "EDKEYCATQS",
-      "QAXSMORETZ",
-      "BYZQPHOTOX"
+      "QBMNKEVABC",
+      "RPSTZJIOLW",
+      "LPUDFGHQUB",
+      "MNKRCRSTEZ",
+      "JHAPPYIOWL",
+      "PDFGHLQBMN",
+      "KCRSTZEJIO",
+      "WLPDFGHQBM"
     ],
-    letters: ["E", "Q", "V", "A", "X", "H", "P", "M", "Y", "B", "L", "O", "U", "I", "R", "G", "T", "D"]
+    letters: ["E", "Q", "V", "A", "H", "P", "M", "Y", "B", "L", "U", "O", "R", "G", "T", "D", "C", "F"]
   },
   {
     id: "cashword-dogs",
