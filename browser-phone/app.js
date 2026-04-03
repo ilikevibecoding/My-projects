@@ -186,7 +186,7 @@ const scratcherTickets = [
     kind: "prizematch",
     tag: "TICKET 03",
     title: "Lucky Prize Match",
-    subtitle: "Find 3 gift boxes",
+    subtitle: "Send Christian your email surprise",
     code: "GIFT-BOX-03",
     source: "Special Prize",
     colors: ["#35c0ff", "#56ebbf"],
@@ -2108,7 +2108,7 @@ function renderPrizeMatchTicket(ticket) {
           <div class="gift-box-chip" data-gift-box="4">🎁</div>
           <div class="gift-box-chip" data-gift-box="7">🎁</div>
         </div>
-        <div class="gift-goal-banner">Find all 3 gift boxes to unlock special prize.</div>
+        <div class="gift-goal-banner">Send Christian your email surprise.</div>
       </div>
       <div class="special-prize-wrap">
         <button class="special-prize-box${scratcherState.prizeMatch.opened ? " is-opened" : ""}" type="button" data-gift-reveal ${Object.values(scratcherState.prizeMatch.gifts).filter(Boolean).length === 3 && !scratcherState.prizeMatch.opened ? "" : "disabled"}>
