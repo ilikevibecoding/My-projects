@@ -141,7 +141,7 @@ const scratcherTickets = [
     title: "Cashword Cutie",
     subtitle: "Scratch the board letter by letter",
     code: "AQYQ-9EC7TZ-68HAC",
-    source: "Amazon",
+    source: "Amazon gift card!",
     colors: ["#6a5cff", "#ff76b1"],
     scratch: ["#d8dde7", "#959db0"],
     words: ["EVA", "HAPPY", "BLUE", "PURPLE"],
@@ -164,7 +164,7 @@ const scratcherTickets = [
     title: "Birthday Words",
     subtitle: "Scratch the doggo words",
     code: "042601159711642",
-    source: "Amazon",
+    source: "Target gift card!",
     colors: ["#2443d7", "#7a34ff"],
     scratch: ["#d8dde7", "#959db0"],
     words: ["DEXTER", "REX", "BILLY", "AUGUST"],
@@ -1965,7 +1965,7 @@ function renderCashwordTicket(ticket) {
           .join("")}
       </div>
       <div class="scratcher-code-panel${scratcherState.completed[ticket.id] ? " is-visible" : ""}">
-        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? "Secret code unlocked" : "Complete ticket to reveal code"}</div>
+        <div class="scratcher-code-label">${scratcherState.completed[ticket.id] ? ticket.source : "Complete ticket to reveal code"}</div>
         <div class="scratcher-code-value">${scratcherState.completed[ticket.id] ? ticket.code : "••••••••••••••"}</div>
       </div>
     </article>
