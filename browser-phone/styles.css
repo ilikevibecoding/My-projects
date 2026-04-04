@@ -389,9 +389,8 @@ button {
 
 .wallpaper-home {
   background:
-    radial-gradient(circle at 74% 18%, rgba(255, 219, 237, 0.4), transparent 22%),
-    radial-gradient(circle at 22% 72%, rgba(255, 188, 149, 0.28), transparent 26%),
-    linear-gradient(180deg, #171f49 0%, #68256b 46%, #f96e6d 100%);
+    linear-gradient(180deg, rgba(20, 18, 40, 0.12), rgba(20, 18, 40, 0.22)),
+    url("./assets/home-wallpaper.jpg") center / cover no-repeat;
 }
 
 .store-backdrop {
