@@ -851,12 +851,22 @@ function createGlyph(icon) {
       `);
     case "safari":
       return svg(`
-        <circle cx="32" cy="32" r="21" fill="#f3f8ff"/>
-        <circle cx="32" cy="32" r="17.8" fill="#42a5ff"/>
-        <circle cx="32" cy="32" r="13.8" fill="#7dc8ff"/>
-        <path d="M32 17 37 31 32 47 27 33Z" fill="#ff5c55"/>
-        <path d="M32 17 27 33 32 47 37 31Z" fill="#fff"/>
-        <circle cx="32" cy="32" r="3.4" fill="#fff"/>
+        <circle cx="32" cy="32" r="22" fill="#f7f9ff"/>
+        <circle cx="32" cy="32" r="18.5" fill="url(#safariBlue)"/>
+        <circle cx="32" cy="32" r="18.5" fill="none" stroke="#ffffff" stroke-width="1.4" opacity="0.55"/>
+        <g stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" opacity="0.88">
+          <path d="M32 12.5v4.5"/><path d="M32 47v4.5"/><path d="M12.5 32h4.5"/><path d="M47 32h4.5"/>
+          <path d="m18.8 18.8 3.2 3.2"/><path d="m42 42 3.2 3.2"/><path d="m45.2 18.8-3.2 3.2"/><path d="m22 42-3.2 3.2"/>
+        </g>
+        <path d="M32 18.5 39.8 30.2 32 45 24.2 33.8Z" fill="#ff5c55"/>
+        <path d="M32 18.5 24.2 33.8 32 45 39.8 30.2Z" fill="#ffffff"/>
+        <circle cx="32" cy="32" r="3" fill="#ffffff"/>
+        <defs>
+          <linearGradient id="safariBlue" x1="15" y1="15" x2="49" y2="49" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#3cc3ff"/>
+            <stop offset="1" stop-color="#3b7cff"/>
+          </linearGradient>
+        </defs>
       `);
     case "phone":
       return svg(`

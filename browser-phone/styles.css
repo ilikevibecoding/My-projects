@@ -1609,7 +1609,7 @@ button {
 .store-header {
   position: relative;
   z-index: 2;
-  padding: 0 0.1rem;
+  padding: 0 0.1rem 0 3.5rem;
 }
 
 .store-kicker {
