@@ -1435,14 +1435,14 @@ async function playPrizePopChime() {
   const now = context.currentTime;
   const gain = context.createGain();
   gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+  gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
   gain.connect(context.destination);
 
   const osc = context.createOscillator();
   osc.type = "triangle";
-  osc.frequency.setValueAtTime(932, now);
-  osc.frequency.exponentialRampToValueAtTime(1244, now + 0.14);
+  osc.frequency.setValueAtTime(1046.5, now);
+  osc.frequency.exponentialRampToValueAtTime(1567.98, now + 0.16);
   osc.connect(gain);
   osc.start(now);
   osc.stop(now + 0.22);
@@ -1458,8 +1458,8 @@ async function playPrizeUnlockChime() {
   const now = context.currentTime;
   const master = context.createGain();
   master.gain.setValueAtTime(0.0001, now);
-  master.gain.exponentialRampToValueAtTime(0.18, now + 0.03);
-  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+  master.gain.exponentialRampToValueAtTime(0.24, now + 0.03);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.78);
   master.connect(context.destination);
 
   const notes = [1046.5, 1318.5, 1567.98];
@@ -1469,8 +1469,8 @@ async function playPrizeUnlockChime() {
     osc.type = "sine";
     osc.frequency.setValueAtTime(freq, now + index * 0.09);
     gain.gain.setValueAtTime(0.0001, now + index * 0.09);
-    gain.gain.exponentialRampToValueAtTime(0.11, now + index * 0.09 + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.09 + 0.26);
+    gain.gain.exponentialRampToValueAtTime(0.14, now + index * 0.09 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.09 + 0.3);
     osc.connect(gain);
     gain.connect(master);
     osc.start(now + index * 0.09);
