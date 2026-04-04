@@ -383,9 +383,8 @@ button {
 
 .wallpaper-lock {
   background:
-    radial-gradient(circle at 72% 20%, rgba(255, 219, 237, 0.46), transparent 22%),
-    radial-gradient(circle at 24% 64%, rgba(255, 191, 173, 0.3), transparent 23%),
-    linear-gradient(180deg, #182049 0%, #5d2374 42%, #ff7f68 100%);
+    linear-gradient(180deg, rgba(20, 18, 40, 0.14), rgba(20, 18, 40, 0.28)),
+    url("./assets/lockscreen.jpg") center / cover no-repeat;
 }
 
 .wallpaper-home {
