@@ -186,9 +186,10 @@ const scratcherTickets = [
     kind: "prizematch",
     tag: "TICKET 03",
     title: "Lucky Prize Match",
-    subtitle: "Send Christian your email surprise",
+    subtitle: "Find 3 gift boxes",
     code: "GIFT-BOX-03",
     source: "Special Prize",
+    rewardText: "$100 PetSmart gift card",
     colors: ["#35c0ff", "#56ebbf"],
     scratch: ["#d8dde7", "#959db0"],
     cells: [
@@ -1424,6 +1425,59 @@ async function playNotificationDing() {
   }
 }
 
+async function playPrizePopChime() {
+  const context = ensureNotificationAudioContext();
+  if (!context) {
+    return;
+  }
+
+  await context.resume();
+  const now = context.currentTime;
+  const gain = context.createGain();
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+  gain.connect(context.destination);
+
+  const osc = context.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(932, now);
+  osc.frequency.exponentialRampToValueAtTime(1244, now + 0.14);
+  osc.connect(gain);
+  osc.start(now);
+  osc.stop(now + 0.22);
+}
+
+async function playPrizeUnlockChime() {
+  const context = ensureNotificationAudioContext();
+  if (!context) {
+    return;
+  }
+
+  await context.resume();
+  const now = context.currentTime;
+  const master = context.createGain();
+  master.gain.setValueAtTime(0.0001, now);
+  master.gain.exponentialRampToValueAtTime(0.18, now + 0.03);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+  master.connect(context.destination);
+
+  const notes = [1046.5, 1318.5, 1567.98];
+  notes.forEach((freq, index) => {
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, now + index * 0.09);
+    gain.gain.setValueAtTime(0.0001, now + index * 0.09);
+    gain.gain.exponentialRampToValueAtTime(0.11, now + index * 0.09 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.09 + 0.26);
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(now + index * 0.09);
+    osc.stop(now + index * 0.09 + 0.28);
+  });
+}
+
 function refreshNotificationStack() {
   if (!notificationStack) {
     return;
@@ -2118,7 +2172,7 @@ function renderPrizeMatchTicket(ticket) {
           <div class="gift-box-chip" data-gift-box="4">🎁</div>
           <div class="gift-box-chip" data-gift-box="7">🎁</div>
         </div>
-        <div class="gift-goal-banner">Send Christian your email surprise.</div>
+        <div class="gift-goal-banner">Find all 3 gift boxes to unlock special prize.</div>
       </div>
       <div class="special-prize-wrap">
         <button class="special-prize-box${scratcherState.prizeMatch.opened ? " is-opened" : ""}" type="button" data-gift-reveal ${Object.values(scratcherState.prizeMatch.gifts).filter(Boolean).length === 3 && !scratcherState.prizeMatch.opened ? "" : "disabled"}>
@@ -2127,7 +2181,7 @@ function renderPrizeMatchTicket(ticket) {
       </div>
       <div class="scratcher-code-panel${scratcherState.prizeMatch.opened ? " is-visible" : ""}">
         <div class="scratcher-code-label">${scratcherState.prizeMatch.opened ? "Special prize unlocked" : "Open the gift after finding all 3 boxes"}</div>
-        <div class="scratcher-code-value">${scratcherState.prizeMatch.opened ? ticket.code : "••••••••••••••"}</div>
+        <div class="scratcher-code-value">${scratcherState.prizeMatch.opened ? ticket.rewardText : "••••••••••••••"}</div>
       </div>
     </article>
   `;
@@ -2146,12 +2200,13 @@ function renderPrizeMatchTicket(ticket) {
       canvas,
       colors: ticket.scratch,
       brushRadius: 14,
-      threshold: 0.24,
+      threshold: 0.16,
       coverRenderer: renderCandyFoil,
       onReveal: () => {
         scratcherState.prizeMatch.revealed[index] = value;
         if (canvas.dataset.giftHit === "1") {
           scratcherState.prizeMatch.gifts[index] = true;
+          playPrizePopChime();
         }
         canvas.parentElement.classList.add("is-revealed");
         updatePrizeMatchUi(ticket, root);
@@ -2172,6 +2227,7 @@ function renderPrizeMatchTicket(ticket) {
       window.setTimeout(() => {
         scratcherState.prizeMatch.opened = true;
         revealButton.classList.remove("is-opening");
+        playPrizeUnlockChime();
         updatePrizeMatchUi(ticket, root);
       }, 640);
     });
