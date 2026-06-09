@@ -413,6 +413,30 @@
     }
   };
 
+  // poison/burn chip damage at the end of each full turn
+  BattleScene.prototype.endOfTurn = async function () {
+    if (this.done) return;
+    for (const side of ["player", "enemy"]) {
+      const mon = side === "player" ? this.player : this.enemy;
+      if (!mon || mon.hp <= 0) continue;
+      if (mon.status === "psn") {
+        mon.hp = Math.max(0, mon.hp - Math.max(1, Math.floor(mon.stats.hp / 8)));
+        AudioSys.sfx("hit-weak");
+        await this.say(`${mon.name} is hurt by poison!`);
+        await this.hpSettled();
+      } else if (mon.status === "brn") {
+        mon.hp = Math.max(0, mon.hp - Math.max(1, Math.floor(mon.stats.hp / 16)));
+        AudioSys.sfx("hit-weak");
+        await this.say(`${mon.name} is hurt by its burn!`);
+        await this.hpSettled();
+      }
+      if (mon.hp <= 0) {
+        const fainted = await this.afterMoveFaintChecks();
+        if (fainted || this.done) return;
+      }
+    }
+  };
+
   BattleScene.prototype.pickEnemyMove = function () {
     const usable = this.enemy.moves.filter((m) => m.pp > 0);
     if (usable.length === 0) return { ...STRUGGLE };
@@ -963,17 +987,17 @@
 
     // player info box
     if (this.player) {
-      UI.drawBox(ctx, 126, 86, 110, 36);
-      UI.text(ctx, this.player.name.slice(0, 11), 132, 91);
-      UI.text(ctx, "L" + this.player.level, 208, 91);
-      UI.drawHPBar(ctx, 132, 102, 86, this.fx.dispPlayerHP / this.player.stats.hp);
-      UI.text(ctx, `${Math.round(this.fx.dispPlayerHP)}/${this.player.stats.hp}`, 148, 109);
-      if (this.player.status) UI.text(ctx, window.Mon.statusLabel(this.player.status), 132, 109, "#d23b3b");
+      UI.drawBox(ctx, 126, 76, 110, 38);
+      UI.text(ctx, this.player.name.slice(0, 11), 132, 81);
+      UI.text(ctx, "L" + this.player.level, 208, 81);
+      UI.drawHPBar(ctx, 132, 92, 86, this.fx.dispPlayerHP / this.player.stats.hp);
+      UI.text(ctx, `${Math.round(this.fx.dispPlayerHP)}/${this.player.stats.hp}`, 148, 99);
+      if (this.player.status) UI.text(ctx, window.Mon.statusLabel(this.player.status), 132, 99, "#d23b3b");
       // exp bar
       ctx.fillStyle = "#21232b";
-      ctx.fillRect(132, 117, 86, 3);
+      ctx.fillRect(132, 108, 86, 3);
       ctx.fillStyle = "#48a0e8";
-      ctx.fillRect(133, 118, Math.round(84 * this.fx.dispExp), 1);
+      ctx.fillRect(133, 109, Math.round(84 * this.fx.dispExp), 1);
     }
 
     // menus
@@ -999,8 +1023,8 @@
       });
       const sel = this.menu.options[this.menu.index];
       const sd = window.MOVES[sel.id];
-      UI.drawBox(ctx, 150, 96, 90, 24);
-      UI.text(ctx, `${sd.type.toUpperCase().slice(0, 7)} ${sel.pp}/${sel.maxpp}`, 157, 104);
+      UI.drawBox(ctx, 4, 88, 96, 24);
+      UI.text(ctx, `${sd.type.toUpperCase().slice(0, 8)} ${sel.pp}/${sel.maxpp}`, 11, 96);
     }
 
     window.Dialog.draw(ctx);
