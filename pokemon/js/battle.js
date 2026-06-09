@@ -828,9 +828,8 @@
       await this.say(`${st.playerName} is out of usable Pokémon!`);
       if (this.trainer) {
         await this.say(this.trainer.victory);
-        const loss = Math.min(st.money, Math.floor(st.money / 2));
-        st.money -= loss;
       }
+      // (money penalty is applied once, inside game.blackout())
       await this.say(`${st.playerName} blacked out!`);
       this.finish(false);
       return;
