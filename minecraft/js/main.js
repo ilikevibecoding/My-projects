@@ -385,6 +385,9 @@ function animate() {
   renderer.render(scene, camera);
 }
 
+// Debug/testing handle.
+window.blockcraft = { world, player, sky, camera };
+
 // Warm up the area around spawn before the first frame renders.
 world.update(player.position.x, player.position.z);
 animate();

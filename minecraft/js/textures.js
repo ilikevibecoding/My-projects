@@ -3,8 +3,12 @@ import { mulberry32 } from './rng.js';
 import { Tiles } from './blocks.js';
 
 export const TILE_PX = 16;
+// Each tile sits in a larger cell with edge-replicated gutters so that MSAA
+// sample extrapolation / glancing-angle sampling never bleeds into neighbors.
+export const GUTTER_PX = 8;
+export const CELL_PX = TILE_PX + GUTTER_PX * 2;
 export const ATLAS_COLS = 8;
-export const ATLAS_ROWS = 8;
+export const ATLAS_ROWS = 4;
 
 function clamp255(v) {
   return Math.max(0, Math.min(255, Math.round(v)));
@@ -236,23 +240,34 @@ const painters = {
 export class TextureAtlas {
   constructor() {
     const canvas = document.createElement('canvas');
-    canvas.width = ATLAS_COLS * TILE_PX;
-    canvas.height = ATLAS_ROWS * TILE_PX;
+    canvas.width = ATLAS_COLS * CELL_PX;
+    canvas.height = ATLAS_ROWS * CELL_PX;
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
 
-    // Fallback magenta so missing tiles are obvious.
-    ctx.fillStyle = '#f0f';
+    ctx.fillStyle = '#777';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    const t = TILE_PX;
+    const g = GUTTER_PX;
     for (const [tileStr, paint] of Object.entries(painters)) {
       const tile = Number(tileStr);
       const col = tile % ATLAS_COLS;
       const row = Math.floor(tile / ATLAS_COLS);
-      const ox = col * TILE_PX;
-      const oy = row * TILE_PX;
-      ctx.clearRect(ox, oy, TILE_PX, TILE_PX);
+      ctx.clearRect(col * CELL_PX, row * CELL_PX, CELL_PX, CELL_PX);
+      const ox = col * CELL_PX + g;
+      const oy = row * CELL_PX + g;
       paint(new TilePainter(ctx, ox, oy, mulberry32(1234 + tile * 7919)));
+
+      // Replicate tile edges into the gutters.
+      ctx.drawImage(canvas, ox, oy, t, 1, ox, oy - g, t, g);
+      ctx.drawImage(canvas, ox, oy + t - 1, t, 1, ox, oy + t, t, g);
+      ctx.drawImage(canvas, ox, oy, 1, t, ox - g, oy, g, t);
+      ctx.drawImage(canvas, ox + t - 1, oy, 1, t, ox + t, oy, g, t);
+      ctx.drawImage(canvas, ox, oy, 1, 1, ox - g, oy - g, g, g);
+      ctx.drawImage(canvas, ox + t - 1, oy, 1, 1, ox + t, oy - g, g, g);
+      ctx.drawImage(canvas, ox, oy + t - 1, 1, 1, ox - g, oy + t, g, g);
+      ctx.drawImage(canvas, ox + t - 1, oy + t - 1, 1, 1, ox + t, oy + t, g, g);
     }
 
     this.canvas = canvas;
@@ -270,19 +285,26 @@ export class TextureAtlas {
   uvRect(tile) {
     const col = tile % ATLAS_COLS;
     const row = Math.floor(tile / ATLAS_COLS);
-    const inset = 0.02;
-    const u0 = (col + inset) / ATLAS_COLS;
-    const u1 = (col + 1 - inset) / ATLAS_COLS;
+    const w = ATLAS_COLS * CELL_PX;
+    const h = ATLAS_ROWS * CELL_PX;
+    const inset = 0.5;
+    const u0 = (col * CELL_PX + GUTTER_PX + inset) / w;
+    const u1 = (col * CELL_PX + GUTTER_PX + TILE_PX - inset) / w;
     // CanvasTexture flips Y, so v=1 is the canvas top.
-    const v1 = 1 - (row + inset) / ATLAS_ROWS;
-    const v0 = 1 - (row + 1 - inset) / ATLAS_ROWS;
+    const v1 = 1 - (row * CELL_PX + GUTTER_PX + inset) / h;
+    const v0 = 1 - (row * CELL_PX + GUTTER_PX + TILE_PX - inset) / h;
     return [u0, v0, u1, v1];
   }
 
   averageColor(tile) {
     const col = tile % ATLAS_COLS;
     const row = Math.floor(tile / ATLAS_COLS);
-    const data = this.ctx.getImageData(col * TILE_PX, row * TILE_PX, TILE_PX, TILE_PX).data;
+    const data = this.ctx.getImageData(
+      col * CELL_PX + GUTTER_PX,
+      row * CELL_PX + GUTTER_PX,
+      TILE_PX,
+      TILE_PX
+    ).data;
     let r = 0;
     let g = 0;
     let b = 0;
@@ -315,7 +337,17 @@ export class TextureAtlas {
       cc.imageSmoothingEnabled = false;
       const col = tile % ATLAS_COLS;
       const row = Math.floor(tile / ATLAS_COLS);
-      cc.drawImage(this.canvas, col * t, row * t, t, t, 0, 0, t, t);
+      cc.drawImage(
+        this.canvas,
+        col * CELL_PX + GUTTER_PX,
+        row * CELL_PX + GUTTER_PX,
+        t,
+        t,
+        0,
+        0,
+        t,
+        t
+      );
       if (brightness < 1) {
         cc.globalCompositeOperation = 'source-atop';
         cc.fillStyle = `rgba(0,0,0,${1 - brightness})`;
