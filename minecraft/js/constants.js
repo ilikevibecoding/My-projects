@@ -5,7 +5,9 @@ export const SEA_LEVEL = 30;
 // Chunk radius around the player that gets meshed and rendered.
 export const RENDER_DISTANCE = 6;
 export const UNLOAD_DISTANCE = RENDER_DISTANCE + 2;
-export const CHUNKS_PER_FRAME = 2;
+// Max milliseconds per frame spent generating/meshing chunks (at least one
+// chunk is always processed so loading can never stall).
+export const MESH_TIME_BUDGET_MS = 6;
 
 export const GRAVITY = 26;
 export const JUMP_SPEED = 8.6;

@@ -15,6 +15,12 @@ import { Blocks, isSolid } from './blocks.js';
 
 const EPS = 0.001;
 
+// Upward speed applied while pressing into a wall in water with jump held,
+// so the player can climb out onto a shoreline block (like Minecraft's
+// out-of-water hop). Reapplied every frame, so it sustains until the ledge
+// is cleared.
+const WATER_CLIMB_SPEED = 7.4;
+
 export class Player {
   constructor(world) {
     this.world = world;
@@ -26,6 +32,8 @@ export class Player {
     this.flying = false;
     this.inWater = false;
     this.headInWater = false;
+    this.againstWall = false;
+    this.waterExitTimer = 0;
   }
 
   get eyePosition() {
@@ -81,6 +89,10 @@ export class Player {
     this.inWater = feetBlock === Blocks.WATER || headBlock === Blocks.WATER;
     this.headInWater = headBlock === Blocks.WATER;
 
+    // Grace period after leaving water so a climb-out can finish.
+    if (this.inWater) this.waterExitTimer = 0.25;
+    else this.waterExitTimer = Math.max(0, this.waterExitTimer - dt);
+
     // Wish direction in world space from input axes.
     const sinY = Math.sin(this.yaw);
     const cosY = Math.cos(this.yaw);
@@ -113,6 +125,15 @@ export class Player {
       vel.y -= GRAVITY * 0.16 * dt;
       if (input.jump) vel.y += GRAVITY * 0.42 * dt + 9 * dt;
       vel.y = Math.max(-4.5, Math.min(4.5, vel.y));
+      if (input.jump) {
+        if (this.onGround) {
+          // Standing on the bottom in shallow water: do a real jump.
+          vel.y = JUMP_SPEED * 0.9;
+        } else if (this.againstWall) {
+          // Pressing into a wall: climb out of the water.
+          vel.y = Math.max(vel.y, WATER_CLIMB_SPEED);
+        }
+      }
     } else {
       const speed = input.sprint ? SPRINT_SPEED : WALK_SPEED;
       const control = this.onGround ? 14 : 3.2;
@@ -125,9 +146,15 @@ export class Player {
         vel.y = JUMP_SPEED;
         this.onGround = false;
       }
+      // Let an in-progress climb out of water finish even though the body
+      // has already left the water volume.
+      if (input.jump && this.againstWall && this.waterExitTimer > 0) {
+        vel.y = Math.max(vel.y, WATER_CLIMB_SPEED);
+      }
     }
 
     this.onGround = false;
+    this.againstWall = false;
     this.moveAxis(0, vel.x * dt);
     this.moveAxis(1, vel.y * dt);
     this.moveAxis(2, vel.z * dt);
@@ -180,6 +207,7 @@ export class Player {
       if (amount > 0) pos.x = Math.floor(maxX) - hw - EPS;
       else pos.x = Math.floor(minX) + 1 + hw + EPS;
       vel.x = 0;
+      this.againstWall = true;
     } else if (axis === 1) {
       if (amount > 0) {
         pos.y = Math.floor(maxY - EPS) - PLAYER_HEIGHT - EPS;
@@ -193,6 +221,7 @@ export class Player {
       if (amount > 0) pos.z = Math.floor(maxZ) - hw - EPS;
       else pos.z = Math.floor(minZ) + 1 + hw + EPS;
       vel.z = 0;
+      this.againstWall = true;
     }
   }
 

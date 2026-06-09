@@ -4,7 +4,7 @@ import {
   WORLD_HEIGHT,
   RENDER_DISTANCE,
   UNLOAD_DISTANCE,
-  CHUNKS_PER_FRAME,
+  MESH_TIME_BUDGET_MS,
 } from './constants.js';
 import { Blocks, BLOCK_DEFS, isOpaque, tileForFace } from './blocks.js';
 import { WorldGen } from './worldgen.js';
@@ -98,6 +98,7 @@ class Chunk {
     this.transMesh = null;
     this.hasMesh = false;
     this.dirty = false;
+    this.inDirtyQueue = false;
   }
 }
 
@@ -110,6 +111,7 @@ export class World {
     this.chunks = new Map();
     this.edits = new Map(); // chunkKey -> Map(localIdx -> blockId)
     this.loadQueue = [];
+    this.dirtyQueue = [];
     this.lastCenter = null;
     this.unloadCounter = 0;
     this.saveTimer = null;
@@ -254,10 +256,10 @@ export class World {
       chunk.heights[hIdx] = top;
     }
 
-    chunk.dirty = true;
+    this.markDirty(chunk);
     const markNeighbor = (dx, dz) => {
       const n = this.getChunk(cx + dx, cz + dz);
-      if (n && n.hasMesh) n.dirty = true;
+      if (n && n.hasMesh) this.markDirty(n);
     };
     if (lx === 0) markNeighbor(-1, 0);
     if (lx === CS - 1) markNeighbor(1, 0);
@@ -274,16 +276,17 @@ export class World {
 
   // ---------------------------------------------------------------- update
 
+  markDirty(chunk) {
+    chunk.dirty = true;
+    if (!chunk.inDirtyQueue) {
+      chunk.inDirtyQueue = true;
+      this.dirtyQueue.push(chunk);
+    }
+  }
+
   update(px, pz) {
     const pcx = Math.floor(px / CS);
     const pcz = Math.floor(pz / CS);
-
-    // Edited chunks get rebuilt right away for snappy feedback.
-    for (const chunk of this.chunks.values()) {
-      if (chunk.dirty && chunk.hasMesh) {
-        this.buildChunkMesh(chunk);
-      }
-    }
 
     const center = pcx + ',' + pcz;
     if (center !== this.lastCenter) {
@@ -301,8 +304,27 @@ export class World {
       this.loadQueue.sort((a, b) => b.d - a.d);
     }
 
+    // Mesh building is time-budgeted so it never tanks the frame rate.
+    const start = performance.now();
     let built = 0;
-    while (built < CHUNKS_PER_FRAME && this.loadQueue.length > 0) {
+
+    // Edited chunks first, for snappy block break/place feedback.
+    while (
+      this.dirtyQueue.length > 0 &&
+      (built === 0 || performance.now() - start < MESH_TIME_BUDGET_MS)
+    ) {
+      const chunk = this.dirtyQueue.shift();
+      chunk.inDirtyQueue = false;
+      if (!chunk.dirty) continue;
+      if (this.chunks.get(chunkKey(chunk.cx, chunk.cz)) !== chunk) continue;
+      this.buildChunkMesh(chunk);
+      built++;
+    }
+
+    while (
+      this.loadQueue.length > 0 &&
+      (built === 0 || performance.now() - start < MESH_TIME_BUDGET_MS)
+    ) {
       const { cx, cz } = this.loadQueue.pop();
       if (Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) > RENDER_DISTANCE) continue;
       const chunk = this.ensureChunkData(cx, cz);

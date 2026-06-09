@@ -31,7 +31,11 @@ const { seed, seedStr } = resolveSeed();
 // ----------------------------------------------------------------- three
 
 const canvas = document.getElementById('game');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  powerPreference: 'high-performance',
+});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -128,9 +132,19 @@ window.addEventListener('blur', () => {
   refreshAxes();
 });
 
+// Some browsers emit a bogus, huge movement delta right after the pointer is
+// locked (and occasionally mid-session); skip the first events and clamp
+// spikes so the camera never jolts.
+let skipMouseEvents = 0;
 document.addEventListener('mousemove', (e) => {
   if (!locked) return;
-  player.rotate(e.movementX, e.movementY, 0.0022);
+  if (skipMouseEvents > 0) {
+    skipMouseEvents--;
+    return;
+  }
+  const dx = Math.max(-350, Math.min(350, e.movementX));
+  const dy = Math.max(-350, Math.min(350, e.movementY));
+  player.rotate(dx, dy, 0.0022);
 });
 
 // ------------------------------------------------------- block interaction
@@ -276,11 +290,21 @@ statusLabel.classList.remove('visible');
 // ----------------------------------------------------------- pointer lock
 
 function requestLock() {
+  // unadjustedMovement disables OS mouse acceleration for smoother, more
+  // predictable aiming; fall back gracefully where unsupported.
+  const plainLock = () => {
+    try {
+      const p = canvas.requestPointerLock();
+      if (p && p.catch) p.catch(() => {});
+    } catch {
+      /* ignored */
+    }
+  };
   try {
-    const p = canvas.requestPointerLock();
-    if (p && p.catch) p.catch(() => {});
+    const p = canvas.requestPointerLock({ unadjustedMovement: true });
+    if (p && p.catch) p.catch(plainLock);
   } catch {
-    /* ignored */
+    plainLock();
   }
 }
 
@@ -309,7 +333,9 @@ document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
   overlay.classList.toggle('hidden', locked);
   hud.classList.toggle('paused', !locked);
-  if (!locked) {
+  if (locked) {
+    skipMouseEvents = 2;
+  } else {
     stopAction();
     keys.clear();
     refreshAxes();
