@@ -28,9 +28,14 @@ jobs:
 
       - name: Prepare site
         run: |
-          mkdir -p dist
+          mkdir -p dist/downloads
           cp -R index.html browser-phone dist/
+          cp -R pokemon dist/pokemon
           cp CNAME dist/CNAME
+          # offline PC build: unzip anywhere and open index.html
+          cd pokemon
+          zip -rq ../dist/downloads/pokemon-pc.zip index.html css js data assets README.md
+          cd ..
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
