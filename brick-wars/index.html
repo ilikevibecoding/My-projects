@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brick Wars: Spirit Quest</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hud" hidden>
+      <div class="hud-top">
+        <div class="hud-pill hud-studs">
+          <span class="stud-icon" aria-hidden="true"></span>
+          <span id="stud-count">0</span>
+        </div>
+        <div class="hud-pill hud-spirits">
+          <span class="spirit-icon" aria-hidden="true"></span>
+          <span><span id="spirit-count">0</span>&thinsp;/&thinsp;<span id="spirit-total">7</span></span>
+        </div>
+      </div>
+      <div id="toast" class="toast" hidden></div>
+      <div id="build-prompt" class="build-prompt" hidden>
+        <span class="key-cap">E</span> Hold to build
+        <div class="build-bar"><div id="build-bar-fill" class="build-bar-fill"></div></div>
+      </div>
+      <div id="hint" class="hint">Find the glowing spirits scattered across the flats</div>
+    </div>
+
+    <!-- Title screen -->
+    <div id="title-screen" class="overlay">
+      <div class="overlay-card title-card">
+        <p class="kicker">A long time ago, in a toy box far, far away&hellip;</p>
+        <h1 class="game-title"><span>BRICK</span> WARS</h1>
+        <h2 class="game-subtitle">Spirit Quest</h2>
+        <p class="title-blurb">
+          The spirits of fallen master builders drift over the Brickooine Flats.
+          Find all <strong>7 spirits</strong>, smash crates for studs, and build your way up.
+        </p>
+        <div class="controls-grid">
+          <div><span class="key-cap">W A S D</span> move</div>
+          <div><span class="key-cap">Mouse</span> look</div>
+          <div><span class="key-cap">Space</span> jump</div>
+          <div><span class="key-cap">Click / F</span> swing sword</div>
+          <div><span class="key-cap">E</span> build</div>
+          <div><span class="key-cap">Esc</span> release mouse</div>
+        </div>
+        <button id="play-button" class="play-button" type="button">Click to Play</button>
+        <p class="disclaimer">
+          Unofficial fan parody for personal, non-commercial use. Not affiliated with, endorsed
+          by, or connected to the LEGO Group or Lucasfilm. All assets are original and generated
+          procedurally.
+        </p>
+      </div>
+    </div>
+
+    <!-- Win screen -->
+    <div id="win-screen" class="overlay" hidden>
+      <div class="overlay-card win-card">
+        <h1 class="win-title">The spirits are with you!</h1>
+        <p class="win-blurb">All 7 spirits of the master builders have joined your cause.</p>
+        <div class="win-stats">
+          <div class="win-stat"><span id="win-studs">0</span><label>studs</label></div>
+          <div class="win-stat"><span id="win-smashed">0</span><label>smashed</label></div>
+          <div class="win-stat"><span id="win-time">0:00</span><label>time</label></div>
+        </div>
+        <button id="restart-button" class="play-button" type="button">Play Again</button>
+      </div>
+    </div>
+
+    <div id="error-banner" class="error-banner" hidden></div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
