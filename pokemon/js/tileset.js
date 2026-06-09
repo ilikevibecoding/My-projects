@@ -236,6 +236,28 @@
         "................",
       ], { o: P.rock3, r: P.rock1, h: P.white, d: P.rock2 });
     }),
+    // indoor boulder (gym)
+    k: maker((c, x, y) => {
+      PAINTERS["="](c, x, y);
+      template(c, x, y, [
+        "................",
+        "................",
+        "....ooooo.......",
+        "...orrhhro......",
+        "..orrhhrrro.....",
+        ".orrrrrrrrro....",
+        ".orrrrrddrro....",
+        "orrhrrrrrddro...",
+        "orrrrrrrrddro...",
+        "orrrrdddrrrro...",
+        ".orrrrrrddro....",
+        "..oorrrddoo.....",
+        "....ooooo.......",
+        "................",
+        "................",
+        "................",
+      ], { o: P.rock3, r: P.rock1, h: P.white, d: P.rock2 });
+    }),
     // sign
     s: maker((c, x, y) => {
       fillTile(c, x, y, P.grass1);
@@ -308,17 +330,17 @@
       ], { w: P.white });
     }),
     g: maker((c, x, y) => {
+      // gym: stone-brick wall
       fillTile(c, x, y, P.gym1);
-      speckle(c, x, y, P.gym2, 11, 2);
-      px(c, x, y, 0, 14, P.wallEdge, 16, 2);
-      px(c, x, y, 2, 3, P.rock3, 12, 8);
-      px(c, x, y, 3, 4, P.roofTan1, 10, 6);
-      // "GYM" G
-      px(c, x, y, 5, 5, P.dark, 3, 1);
-      px(c, x, y, 5, 6, P.dark, 1, 2);
-      px(c, x, y, 5, 8, P.dark, 3, 1);
-      px(c, x, y, 7, 7, P.dark, 1, 1);
-      px(c, x, y, 9, 5, P.dark, 1, 4);
+      c.fillStyle = P.gym2;
+      c.fillRect(x, y + 4, 16, 1);
+      c.fillRect(x, y + 9, 16, 1);
+      c.fillRect(x, y + 14, 16, 1);
+      c.fillRect(x + 4, y, 1, 4);
+      c.fillRect(x + 11, y + 5, 1, 4);
+      c.fillRect(x + 6, y + 10, 1, 4);
+      speckle(c, x, y, "#dcd2bc", 19, 6);
+      px(c, x, y, 0, 15, P.wallEdge, 16, 1);
     }),
     // interior
     "#": maker((c, x, y) => {
@@ -458,7 +480,7 @@
     c.fillRect(x, y, 16, 1);
   }
 
-  const SOLID = new Set(["T", "P", "w", "F", "r", "s", "R", "Y", "A", "W", "o", "+", "M", "g",
+  const SOLID = new Set(["T", "P", "w", "F", "r", "k", "s", "R", "Y", "A", "W", "o", "+", "M", "g",
     "#", "c", "B", "b", "x", "V", "p", "C", "L", "H"]);
   const WALK_BEHIND = new Set(); // (kept simple: no overhang tiles)
 

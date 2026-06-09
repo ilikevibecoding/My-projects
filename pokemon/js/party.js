@@ -84,9 +84,11 @@
       }
       const icon = window.Sprites.icon(mon.species);
       if (window.Sprites.ready(icon)) {
-        // icons are 2-frame sheets; draw first frame area
-        const fw = icon.naturalWidth > icon.naturalHeight ? icon.naturalWidth / 2 : icon.naturalWidth;
-        ctx.drawImage(icon, 0, 0, fw, icon.naturalHeight, 8, y - 3, 28, 28 * (icon.naturalHeight / fw));
+        // scale the icon to fit the 22px row, preserving aspect
+        const scale = Math.min(26 / icon.naturalWidth, 26 / icon.naturalHeight);
+        const w = Math.round(icon.naturalWidth * scale);
+        const hh = Math.round(icon.naturalHeight * scale);
+        ctx.drawImage(icon, 10 + Math.round((26 - w) / 2), y + Math.round((22 - hh) / 2), w, hh);
       }
       UI.text(ctx, mon.name, 40, y + 3);
       UI.text(ctx, "L" + mon.level, 124, y + 3);
@@ -159,7 +161,7 @@
     });
     if (mon.moves.length === 0) UI.text(ctx, "No moves!", 12, 106);
     const toNext = window.Mon.expToNext(mon);
-    UI.text(ctx, `EXP ${mon.exp}  NEXT ${toNext}`, 12, 148, "#6a7a9a");
+    UI.text(ctx, `EXP ${mon.exp}  NEXT ${toNext}`, 12, 144, "#6a7a9a");
   };
 
   window.PartyScene = PartyScene;

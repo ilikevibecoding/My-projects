@@ -11,9 +11,9 @@ eval(readFileSync(join(ROOT, "data/trainers.js"), "utf8"));
 eval(readFileSync(join(ROOT, "data/encounters.js"), "utf8"));
 
 const MAPS = global.window.MAPS;
-const SOLID = new Set(["T", "P", "w", "F", "r", "s", "R", "Y", "A", "W", "o", "+", "M", "g",
+const SOLID = new Set(["T", "P", "w", "F", "r", "k", "s", "R", "Y", "A", "W", "o", "+", "M", "g",
   "#", "c", "B", "b", "x", "V", "p", "C", "L", "H"]);
-const KNOWN = new Set([".", "t", "f", ",", "n", "w", "T", "P", "l", "F", "r", "s",
+const KNOWN = new Set([".", "t", "f", ",", "n", "w", "T", "P", "l", "F", "r", "k", "s",
   "R", "Y", "A", "W", "D", "o", "+", "M", "g",
   "#", "=", "-", "c", "B", "b", "x", "h", "V", "p", "C", "L", "H", "~"]);
 
