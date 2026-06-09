@@ -1,0 +1,100 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: radial-gradient(circle at 30% 20%, #2c3e66 0%, #141a2e 70%);
+  font-family: "Courier New", monospace;
+  color: #cfd6ee;
+  overflow: hidden;
+}
+
+.shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+}
+
+.console-frame {
+  position: relative;
+  background: #20284a;
+  border: 3px solid #4a5a8f;
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+
+canvas#game {
+  display: block;
+  width: min(calc(100vw - 60px), calc((100vh - 130px) * 1.5));
+  aspect-ratio: 3 / 2;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #000;
+  border-radius: 4px;
+  outline: none;
+}
+
+.page-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  opacity: 0.85;
+  text-align: center;
+}
+.page-footer .links a {
+  color: #8fd0ff;
+  margin: 0 8px;
+}
+.page-footer .disclaimer {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* ---- touch controls (shown on coarse pointers) ---- */
+.touch-controls { display: none; }
+
+@media (pointer: coarse) {
+  .touch-controls {
+    display: block;
+    position: fixed;
+    inset: auto 0 0 0;
+    height: 180px;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .touch-controls button {
+    pointer-events: auto;
+    position: absolute;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    background: rgba(40, 50, 90, 0.65);
+    color: #e8ecff;
+    font-family: inherit;
+    font-weight: bold;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .dpad .pad { width: 52px; height: 52px; font-size: 18px; }
+  .dpad .up    { left: 64px;  bottom: 112px; border-radius: 8px 8px 0 0; }
+  .dpad .down  { left: 64px;  bottom: 8px;   border-radius: 0 0 8px 8px; }
+  .dpad .left  { left: 12px;  bottom: 60px;  border-radius: 8px 0 0 8px; }
+  .dpad .right { left: 116px; bottom: 60px;  border-radius: 0 8px 8px 0; }
+  .ab .round {
+    width: 58px; height: 58px; border-radius: 50%; font-size: 20px;
+  }
+  .ab .a { right: 16px; bottom: 86px; background: rgba(180, 40, 60, 0.7); }
+  .ab .b { right: 84px; bottom: 30px; background: rgba(40, 90, 180, 0.7); }
+  .start-row .pill {
+    left: 50%; transform: translateX(-50%); bottom: 6px;
+    width: 90px; height: 30px; border-radius: 15px; font-size: 12px;
+  }
+  .page-footer { display: none; }
+  canvas#game { width: min(calc(100vw - 30px), calc((100vh - 220px) * 1.5)); }
+}
