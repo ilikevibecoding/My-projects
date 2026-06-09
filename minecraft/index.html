@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BlockCraft — a browser voxel sandbox</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='6' fill='%237cbd4b'/%3E%3Crect y='6' width='16' height='10' fill='%23866043'/%3E%3C/svg%3E"
+    />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.min.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="hud">
+      <div id="info"></div>
+      <div id="crosshair"></div>
+      <div id="status"></div>
+      <div id="hotbar"></div>
+      <div id="underwater"></div>
+    </div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1>BlockCraft</h1>
+        <p class="tagline">An infinite voxel sandbox that runs in your browser.</p>
+
+        <div class="controls">
+          <div><span class="key">W A S D</span> move</div>
+          <div><span class="key">Mouse</span> look around</div>
+          <div><span class="key">Left click</span> break block</div>
+          <div><span class="key">Right click</span> place block</div>
+          <div><span class="key">Middle click</span> pick block</div>
+          <div><span class="key">Space</span> jump / swim up</div>
+          <div><span class="key">Shift</span> sprint / fly down</div>
+          <div><span class="key">F</span> toggle flying</div>
+          <div><span class="key">1–9 / wheel</span> select block</div>
+          <div><span class="key">Esc</span> pause</div>
+        </div>
+
+        <button id="play-button" type="button">Play</button>
+
+        <div class="secondary-actions">
+          <button id="new-world-button" type="button">New world</button>
+          <button id="reset-button" type="button">Reset changes</button>
+        </div>
+
+        <p id="seed-label" class="seed"></p>
+        <p class="footnote">
+          Your block edits are saved locally per world seed. Built with three.js —
+          procedural terrain, textures and sounds, no assets required.
+        </p>
+      </div>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>
