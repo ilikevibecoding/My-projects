@@ -88,6 +88,48 @@ function chunkKey(cx, cz) {
   return cx + ',' + cz;
 }
 
+function grow(arr, minLen) {
+  const next = new arr.constructor(Math.max(minLen, arr.length * 2));
+  next.set(arr);
+  return next;
+}
+
+// Reusable scratch buffers for mesh building. Persisting these across chunk
+// rebuilds avoids re-allocating millions of array slots per build, which
+// otherwise causes GC hitches while flying around.
+class MeshBuilder {
+  constructor() {
+    this.positions = new Float32Array(16384 * 3);
+    this.normals = new Float32Array(16384 * 3);
+    this.uvs = new Float32Array(16384 * 2);
+    this.colors = new Float32Array(16384 * 3);
+    this.indices = new Uint32Array(24576);
+    this.vertexCount = 0;
+    this.indexCount = 0;
+  }
+
+  reset() {
+    this.vertexCount = 0;
+    this.indexCount = 0;
+  }
+
+  ensureQuad() {
+    const v = this.vertexCount + 4;
+    if (v * 3 > this.positions.length) {
+      this.positions = grow(this.positions, v * 3);
+      this.normals = grow(this.normals, v * 3);
+      this.colors = grow(this.colors, v * 3);
+      this.uvs = grow(this.uvs, v * 2);
+    }
+    if (this.indexCount + 6 > this.indices.length) {
+      this.indices = grow(this.indices, this.indexCount + 6);
+    }
+  }
+}
+
+const solidBuilder = new MeshBuilder();
+const transBuilder = new MeshBuilder();
+
 class Chunk {
   constructor(cx, cz, data, heights) {
     this.cx = cx;
@@ -112,6 +154,7 @@ export class World {
     this.edits = new Map(); // chunkKey -> Map(localIdx -> blockId)
     this.loadQueue = [];
     this.dirtyQueue = [];
+    this.freshMeshes = [];
     this.lastCenter = null;
     this.unloadCounter = 0;
     this.saveTimer = null;
@@ -165,7 +208,12 @@ export class World {
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => {
       this.saveTimer = null;
-      this.saveEdits();
+      // Serialize during idle time so a big edit log never steals a frame.
+      if (window.requestIdleCallback) {
+        requestIdleCallback(() => this.saveEdits(), { timeout: 3000 });
+      } else {
+        this.saveEdits();
+      }
     }, 1500);
   }
 
@@ -288,6 +336,13 @@ export class World {
     const pcx = Math.floor(px / CS);
     const pcz = Math.floor(pz / CS);
 
+    // Meshes added last frame have been uploaded to the GPU by now; let the
+    // frustum cull them normally again.
+    if (this.freshMeshes.length > 0) {
+      for (const mesh of this.freshMeshes) mesh.frustumCulled = true;
+      this.freshMeshes.length = 0;
+    }
+
     const center = pcx + ',' + pcz;
     if (center !== this.lastCenter) {
       this.lastCenter = center;
@@ -333,13 +388,17 @@ export class World {
       built++;
     }
 
-    if (++this.unloadCounter >= 90) {
+    // Unload far-away chunks, a few at a time to avoid disposal bursts when
+    // flying across the world quickly.
+    if (++this.unloadCounter >= 30) {
       this.unloadCounter = 0;
+      let disposed = 0;
       for (const [key, chunk] of this.chunks) {
         const d = Math.max(Math.abs(chunk.cx - pcx), Math.abs(chunk.cz - pcz));
         if (d > UNLOAD_DISTANCE) {
           this.disposeChunkMeshes(chunk);
           this.chunks.delete(key);
+          if (++disposed >= 8) break;
         }
       }
     }
@@ -392,8 +451,10 @@ export class World {
     const sampler = this.makeSampler(chunk.cx, chunk.cz);
     const x0 = chunk.cx * CS;
     const z0 = chunk.cz * CS;
-    const solid = { positions: [], normals: [], uvs: [], colors: [], indices: [] };
-    const trans = { positions: [], normals: [], uvs: [], colors: [], indices: [] };
+    const solid = solidBuilder;
+    const trans = transBuilder;
+    solid.reset();
+    trans.reset();
     const data = chunk.data;
     const ao = [0, 0, 0, 0];
 
@@ -434,7 +495,9 @@ export class World {
             else light = Math.max(0.32, 1 - (hcol - ny) * 0.08);
             const base = light * face.shade;
 
-            const startIndex = target.positions.length / 3;
+            target.ensureQuad();
+            const vBase = target.vertexCount;
+            const { positions, normals, uvs, colors, indices } = target;
 
             for (let ci = 0; ci < 4; ci++) {
               const corner = face.corners[ci];
@@ -443,12 +506,17 @@ export class World {
               let vy = y + p[1];
               if (isWater && p[1] === 1 && dir[1] >= 0) vy -= waterTopOffset;
 
-              target.positions.push(lx + p[0], vy, lz + p[2]);
-              target.normals.push(dir[0], dir[1], dir[2]);
-              target.uvs.push(
-                u0 + (u1 - u0) * corner.uv[0],
-                v0 + (v1 - v0) * corner.uv[1]
-              );
+              const vi = (vBase + ci) * 3;
+              positions[vi] = lx + p[0];
+              positions[vi + 1] = vy;
+              positions[vi + 2] = lz + p[2];
+              normals[vi] = dir[0];
+              normals[vi + 1] = dir[1];
+              normals[vi + 2] = dir[2];
+
+              const ti = (vBase + ci) * 2;
+              uvs[ti] = u0 + (u1 - u0) * corner.uv[0];
+              uvs[ti + 1] = v0 + (v1 - v0) * corner.uv[1];
 
               let brightness = base;
               if (!def.translucent) {
@@ -485,21 +553,30 @@ export class World {
                 ao[ci] = 3;
               }
 
-              target.colors.push(brightness, brightness, brightness);
+              colors[vi] = brightness;
+              colors[vi + 1] = brightness;
+              colors[vi + 2] = brightness;
             }
 
             // Flip the quad diagonal when it reduces AO interpolation artifacts.
+            const ii = target.indexCount;
             if (ao[0] + ao[3] > ao[1] + ao[2]) {
-              target.indices.push(
-                startIndex, startIndex + 1, startIndex + 3,
-                startIndex, startIndex + 3, startIndex + 2
-              );
+              indices[ii] = vBase;
+              indices[ii + 1] = vBase + 1;
+              indices[ii + 2] = vBase + 3;
+              indices[ii + 3] = vBase;
+              indices[ii + 4] = vBase + 3;
+              indices[ii + 5] = vBase + 2;
             } else {
-              target.indices.push(
-                startIndex, startIndex + 1, startIndex + 2,
-                startIndex + 2, startIndex + 1, startIndex + 3
-              );
+              indices[ii] = vBase;
+              indices[ii + 1] = vBase + 1;
+              indices[ii + 2] = vBase + 2;
+              indices[ii + 3] = vBase + 2;
+              indices[ii + 4] = vBase + 1;
+              indices[ii + 5] = vBase + 3;
             }
+            target.vertexCount += 4;
+            target.indexCount += 6;
           }
         }
       }
@@ -511,20 +588,32 @@ export class World {
     chunk.dirty = false;
   }
 
-  replaceMesh(chunk, slot, arrays, material, x0, z0, renderOrder) {
+  replaceMesh(chunk, slot, builder, material, x0, z0, renderOrder) {
     if (chunk[slot]) {
       this.scene.remove(chunk[slot]);
       chunk[slot].geometry.dispose();
       chunk[slot] = null;
     }
-    if (arrays.indices.length === 0) return;
+    if (builder.indexCount === 0) return;
 
+    const vc = builder.vertexCount;
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(arrays.positions, 3));
-    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(arrays.normals, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(arrays.uvs, 2));
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(arrays.colors, 3));
-    geometry.setIndex(arrays.indices);
+    geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(builder.positions.slice(0, vc * 3), 3)
+    );
+    geometry.setAttribute(
+      'normal',
+      new THREE.BufferAttribute(builder.normals.slice(0, vc * 3), 3)
+    );
+    geometry.setAttribute('uv', new THREE.BufferAttribute(builder.uvs.slice(0, vc * 2), 2));
+    geometry.setAttribute(
+      'color',
+      new THREE.BufferAttribute(builder.colors.slice(0, vc * 3), 3)
+    );
+    geometry.setIndex(
+      new THREE.BufferAttribute(builder.indices.slice(0, builder.indexCount), 1)
+    );
     geometry.computeBoundingSphere();
 
     const mesh = new THREE.Mesh(geometry, material);
@@ -532,6 +621,11 @@ export class World {
     mesh.renderOrder = renderOrder;
     mesh.matrixAutoUpdate = false;
     mesh.updateMatrix();
+    // Render un-culled for one frame so the GPU upload happens now, not on
+    // the first frame the camera happens to turn toward this chunk (which
+    // would cause a visible hitch while looking around).
+    mesh.frustumCulled = false;
+    this.freshMeshes.push(mesh);
     this.scene.add(mesh);
     chunk[slot] = mesh;
   }
