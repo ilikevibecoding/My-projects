@@ -31,7 +31,7 @@
         "T.www..,,......www.T", // 16
         "TTTTTTT,,TTTTTTTTTTT", // 17
       ],
-      edges: { north: { map: "route1", alignX: 0 } },
+      edges: { north: { map: "route1", alignX: 3 } },
       warps: [
         { x: 4, y: 4, to: { map: "player_home", x: 5, y: 6, dir: "up" } },
         { x: 14, y: 4, to: { map: "rival_home", x: 5, y: 6, dir: "up" } },
@@ -177,8 +177,8 @@
         "TTTTTTTTTTT,,TTTTTTT", // 29
       ],
       edges: {
-        north: { map: "city", alignX: 0 },
-        south: { map: "pallet", alignX: 0 },
+        north: { map: "city", alignX: 2 },
+        south: { map: "pallet", alignX: -3 },
       },
       warps: [],
       signs: [],
@@ -229,7 +229,7 @@
         "TTTTTTTTTT,,TTTTTTTTTTTT", // 19
       ],
       edges: {
-        south: { map: "route1", alignX: 0 },
+        south: { map: "route1", alignX: -2 },
         north: { map: "route2", alignX: 0 },
       },
       warps: [
@@ -251,6 +251,8 @@
           id: "city_girl", variant: "girl", x: 7, y: 16, dir: "down", movement: "wander",
           dialog: ["The POKéMON CENTER heals your team for free. The shop with the blue roof sells supplies."],
         },
+        // appears outside the gym after you win the badge
+        { id: "rival_city", variant: "rival", x: 16, y: 14, dir: "down", movement: "static", script: "rival_city" },
       ],
       triggers: [],
     },
