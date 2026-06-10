@@ -147,14 +147,38 @@ export class PlayerControls {
 
   /** Places the camera on its orbit and returns the look target. */
   applyCamera(camera, dt, firstFrame = false) {
-    const dist = 10.5;
+    let dist = 10.5;
     const target = _target.set(this.position.x, this.position.y + 3.4, this.position.z);
+
+    // pull the camera in when a prop (hut, rock, tower…) blocks the orbit,
+    // so we never end up inside geometry
+    const dirX = Math.sin(this.yaw);
+    const dirZ = Math.cos(this.yaw);
+    for (let t = 2.5; t < dist; t += 0.75) {
+      const sx = target.x + dirX * t;
+      const sz = target.z + dirZ * t;
+      let blocked = false;
+      for (const c of this.world.colliders) {
+        const rr = c.r + 0.7;
+        const dx = sx - c.x;
+        const dz = sz - c.z;
+        if (dx * dx + dz * dz < rr * rr) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) {
+        dist = Math.max(2.2, t - 0.75);
+        break;
+      }
+    }
+
     const offY = Math.sin(this.pitch) * dist + 1.4;
     const offH = Math.cos(this.pitch) * dist;
     _desired.set(
-      target.x + Math.sin(this.yaw) * offH,
+      target.x + dirX * offH,
       target.y + offY,
-      target.z + Math.cos(this.yaw) * offH
+      target.z + dirZ * offH
     );
     // keep camera above terrain
     const camGround = this.world.groundHeight(_desired.x, _desired.z) + 1.2;
