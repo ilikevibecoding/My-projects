@@ -8,12 +8,12 @@ const STATIONS = {
     look: new THREE.Vector3(0, 1.3, -3),
   },
   doorL: {
-    pos: new THREE.Vector3(-(ROOM.W / 2 - 0.95), 1.5, ROOM.DOOR_Z + 0.05),
-    look: new THREE.Vector3(-12, 1.1, ROOM.DOOR_Z),
+    pos: new THREE.Vector3(-(ROOM.W / 2 - 0.55), 1.5, ROOM.DOOR_Z),
+    look: new THREE.Vector3(-12, 1.15, ROOM.DOOR_Z),
   },
   doorR: {
-    pos: new THREE.Vector3((ROOM.W / 2 - 0.95), 1.5, ROOM.DOOR_Z + 0.05),
-    look: new THREE.Vector3(12, 1.1, ROOM.DOOR_Z),
+    pos: new THREE.Vector3((ROOM.W / 2 - 0.55), 1.5, ROOM.DOOR_Z),
+    look: new THREE.Vector3(12, 1.15, ROOM.DOOR_Z),
   },
   closet: {
     pos: new THREE.Vector3(0, 1.5, -1.55),
@@ -58,8 +58,9 @@ export class Player {
     this.onArrive = null;
     this.onMoveStart = null;
 
-    // flashlight
-    this.flash = new THREE.SpotLight(0xfff2d8, 0, 18, 0.46, 0.55, 1.3);
+    // flashlight — decay < 1 is deliberately non-physical so the beam
+    // carries down the long halls like the classic game flashlight
+    this.flash = new THREE.SpotLight(0xfff2d8, 0, 30, 0.54, 0.45, 0.7);
     this.flash.castShadow = true;
     this.flash.shadow.mapSize.set(512, 512);
     camera.add(this.flash);
@@ -100,10 +101,9 @@ export class Player {
     this.fromPos.copy(this.camera.position);
     this.toPos.copy(s.pos);
     this.fromQuat.copy(this.camera.quaternion);
-    const tmp = new THREE.Object3D();
-    tmp.position.copy(s.pos);
-    tmp.lookAt(s.look);
-    this.toQuat.copy(tmp.quaternion);
+    // camera-style lookAt (camera faces -z, so use Matrix4.lookAt)
+    const m = new THREE.Matrix4().lookAt(s.pos, s.look, new THREE.Vector3(0, 1, 0));
+    this.toQuat.setFromRotationMatrix(m);
     this.moving = true;
     this.moveT = 0;
     // turning to the bed is a quick spin; door dashes are a touch longer
@@ -161,11 +161,11 @@ export class Player {
     // flashlight (instant click on/off + hand wobble)
     if (this.flashWant !== this.flashOn) {
       this.flashOn = this.flashWant;
-      this.flash.intensity = this.flashOn ? 38 : 0;
+      this.flash.intensity = this.flashOn ? 95 : 0;
       if (this.audio.ctx) this.audio.flashClick();
     }
     if (this.flashOn) {
-      this.flash.intensity = 36 + Math.sin(this.time * 31) * 1.6 + Math.sin(this.time * 7.3) * 1.2;
+      this.flash.intensity = 92 + Math.sin(this.time * 31) * 4 + Math.sin(this.time * 7.3) * 3;
       this.flashTarget.position.x = Math.sin(this.time * 1.9) * 0.05;
       this.flashTarget.position.y = -0.06 + Math.sin(this.time * 2.6) * 0.04;
     }

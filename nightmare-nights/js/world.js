@@ -33,7 +33,7 @@ export function buildWorld(scene) {
   scene.add(root);
   world.root = root;
 
-  scene.fog = new THREE.FogExp2(0x000000, 0.078);
+  scene.fog = new THREE.FogExp2(0x000000, 0.05);
   scene.background = new THREE.Color(0x000000);
 
   // ---------- materials ----------
@@ -139,9 +139,15 @@ export function buildWorld(scene) {
       g.add(f);
     }
     // faint end-of-hall night light (gives silhouette to approaching shapes)
-    const glow = new THREE.PointLight(0x2c3450, 2.4, 7, 2);
+    const glow = new THREE.PointLight(0x35406b, 7, 9, 1.5);
     glow.position.set(sign * (HALL_LEN / 2 - 0.6), 1.4, 0);
     g.add(glow);
+    // visible plug-in nightlight on the end wall — the eye-anchor of the hall
+    const nl = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.13),
+      new THREE.MeshStandardMaterial({ color: 0x222633, emissive: 0x8fa4e8, emissiveIntensity: 2.2 }));
+    nl.position.set(sign * (HALL_LEN / 2 - 0.09), 0.5, 0.2);
+    nl.rotation.y = sign * -Math.PI / 2;
+    g.add(nl);
     return g;
   }
   world.hallL = hallway(-1);
@@ -175,8 +181,9 @@ export function buildWorld(scene) {
     box(wallT + 0.1, DOOR_H + 0.1, 0.09, trimMat, 0, (DOOR_H + 0.1) / 2, (DOOR_W / 2 + 0.045), frame, false);
     root.add(frame);
 
-    // openAngle: door resting against hall wall; closed = blocking doorway
-    const openAngle = sign * Math.PI * 0.52;
+    // openAngle: door swings INTO the room (like a real bedroom door),
+    // resting ~108 deg open against the front wall; closed = blocking doorway
+    const openAngle = -sign * 1.88;
     let ratio = 0; // 0 open, 1 closed
     const api = {
       hinge, panel,
@@ -415,9 +422,9 @@ export function buildWorld(scene) {
   }
 
   // ---------- ambient lighting ----------
-  const amb = new THREE.AmbientLight(0x10121e, 1.35);
+  const amb = new THREE.AmbientLight(0x232b45, 4.2);
   scene.add(amb);
-  const moon = new THREE.PointLight(0x33405e, 3.2, 9, 1.8);
+  const moon = new THREE.PointLight(0x3d4c70, 9, 11, 1.5);
   moon.position.set(0, H - 0.4, 0.4);
   scene.add(moon);
   world.ambient = amb;

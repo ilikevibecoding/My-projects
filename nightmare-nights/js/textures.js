@@ -114,10 +114,10 @@ export function rugTexture() {
 // Hallway carpet.
 export function hallFloorTexture() {
   const [c, ctx] = makeCanvas(256, 256);
-  ctx.fillStyle = '#1c1620';
+  ctx.fillStyle = '#2e2436';
   ctx.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 280; i++) {
-    ctx.fillStyle = `rgba(${30 + Math.random() * 25}, ${22 + Math.random() * 18}, ${34 + Math.random() * 22}, 0.35)`;
+    ctx.fillStyle = `rgba(${48 + Math.random() * 30}, ${36 + Math.random() * 22}, ${56 + Math.random() * 28}, 0.35)`;
     ctx.fillRect(Math.random() * 256, Math.random() * 256, 3 + Math.random() * 6, 3 + Math.random() * 6);
   }
   grain(ctx, 256, 256, 0.05, 900);
