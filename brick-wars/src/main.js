@@ -87,33 +87,36 @@ if (!NO_BLOOM) {
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  composer?.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.needsUpdate = true;
+  applyQuality();
 });
 
 // ---------------------------------------------------------------------------
-// Adaptive quality — steps down when frames run slow so the game stays smooth
-// on weaker GPUs. Override with ?quality=high|med|low.
+// Adaptive quality — the game watches its own frame time and moves between
+// tiers so it stays smooth on weak GPUs. Each tier also carries an absolute
+// pixel budget: a 4K laptop should never rasterize 8 megapixels of bricks.
+// Override with ?quality=high|med|low.
 // ---------------------------------------------------------------------------
 const QUALITY_TIERS = [
-  { name: 'high', pixelRatio: 1.25, bloom: true, shadowEvery: 2 },
-  { name: 'med', pixelRatio: 1.0, bloom: true, shadowEvery: 3 },
-  { name: 'low', pixelRatio: 0.8, bloom: false, shadowEvery: 4 },
+  { name: 'high', pixelRatio: 1.25, maxPixels: 2.1e6, bloom: true, shadowEvery: 2 },
+  { name: 'med', pixelRatio: 1.0, maxPixels: 1.45e6, bloom: true, shadowEvery: 3 },
+  { name: 'low', pixelRatio: 0.8, maxPixels: 0.95e6, bloom: false, shadowEvery: 4 },
 ];
-let qualityIndex = Math.max(
-  0,
-  QUALITY_TIERS.findIndex((t) => t.name === params.get('quality'))
-);
-const qualityLocked = params.has('quality');
-let frameEma = 16;
-let qualityCooldown = 0;
+const requestedTier = QUALITY_TIERS.findIndex((t) => t.name === params.get('quality'));
+const qualityLocked = requestedTier >= 0;
+// start at "med"; fast machines get promoted to "high" within a few seconds
+let qualityIndex = qualityLocked ? requestedTier : 1;
+let frameEma = 1 / 60;
+let qualityCooldown = 3; // ignore the noisy first seconds after load
+let everSteppedDown = false;
 
 function applyQuality() {
   const t = QUALITY_TIERS[qualityIndex];
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, t.pixelRatio));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  composer?.setSize(window.innerWidth, window.innerHeight);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const budgetRatio = Math.sqrt(t.maxPixels / (w * h));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, t.pixelRatio, budgetRatio));
+  renderer.setSize(w, h);
+  composer?.setSize(w, h);
   bloomEnabled = !NO_BLOOM && t.bloom;
   renderer.shadowMap.needsUpdate = true;
 }
@@ -121,14 +124,22 @@ applyQuality();
 
 function updateQuality(rawDt) {
   if (qualityLocked) return;
-  frameEma += (rawDt - frameEma) * 0.05;
+  frameEma += (Math.min(rawDt, 0.25) - frameEma) * 0.05;
   qualityCooldown -= rawDt;
   if (qualityCooldown > 0) return;
   if (frameEma > 0.04 && qualityIndex < QUALITY_TIERS.length - 1) {
+    // struggling: drop a tier
     qualityIndex++;
+    everSteppedDown = true;
     applyQuality();
-    qualityCooldown = 4; // let the EMA settle before judging again
+    qualityCooldown = 4;
     frameEma = 0.025;
+  } else if (frameEma < 0.015 && qualityIndex > 0 && !everSteppedDown) {
+    // clearly fast and never struggled: promote (med -> high)
+    qualityIndex--;
+    applyQuality();
+    qualityCooldown = 5;
+    frameEma = 0.02;
   }
 }
 

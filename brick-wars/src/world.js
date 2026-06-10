@@ -114,7 +114,7 @@ export function buildWorld(scene) {
   scene.fog = new THREE.Fog(0xf0c490, 95, 320);
   scene.add(buildSky());
 
-  const hemi = new THREE.HemisphereLight(0xbdd6ff, 0xc9a36a, 0.32);
+  const hemi = new THREE.HemisphereLight(0xbdd6ff, 0xc9a36a, 0.42);
   scene.add(hemi);
 
   // azimuth chosen so shadows fall toward the default camera (player looks -Z)
@@ -134,9 +134,8 @@ export function buildWorld(scene) {
   scene.add(sun.target);
   world.sun = sun;
 
-  const sun2 = new THREE.DirectionalLight(0xffb37a, 0.45);
-  sun2.position.set(-60, 34, 40);
-  scene.add(sun2);
+  // (a second fill light was dropped for performance — every extra
+  //  directional light adds a full per-pixel lighting pass)
 
   // ---- The table under the diorama ----------------------------------------
   const table = new THREE.Mesh(
@@ -157,7 +156,13 @@ export function buildWorld(scene) {
   scene.add(basePlate);
 
   // ---- Terraced dunes (stacked 1x1 plates) + stud carpet -------------------
-  const plateField = new BrickField(brickGeometry(1, 1, 1, false));
+  // Only the top plate of each column gets the chamfered profile; buried
+  // layers are plain 12-triangle boxes (the chamfer is invisible there at
+  // gameplay distance). This single change removes ~700k triangles.
+  const plateTopField = new BrickField(brickGeometry(1, 1, 1, false));
+  const plainPlate = new THREE.BoxGeometry(1, PLATE, 1);
+  plainPlate.translate(0, PLATE / 2, 0);
+  const plateFillField = new BrickField(plainPlate);
   const studField = new BrickField(studGeometry());
 
   for (let iz = 0; iz < GRID; iz++) {
@@ -182,14 +187,16 @@ export function buildWorld(scene) {
       const nU = iz < GRID - 1 ? heights[(iz + 1) * GRID + ix] : 0;
       const lowestNeighbor = Math.min(nL, nR, nD, nU, n);
       const from = Math.max(0, lowestNeighbor - 1);
-      for (let layer = from; layer < n; layer++) {
-        plateField.add(cx, layer * PLATE, cz, baseColor, 0, 0.045);
+      for (let layer = from; layer < n - 1; layer++) {
+        plateFillField.add(cx, layer * PLATE, cz, baseColor, 0, 0.045);
       }
+      plateTopField.add(cx, (n - 1) * PLATE, cz, baseColor, 0, 0.045);
       studField.add(cx, n * PLATE, cz, baseColor, 0, 0.03);
     }
   }
 
-  scene.add(plateField.build({ castShadow: true, receiveShadow: true }));
+  scene.add(plateTopField.build({ castShadow: true, receiveShadow: true }));
+  scene.add(plateFillField.build({ castShadow: true, receiveShadow: true }));
   const studs = studField.build({ castShadow: false, receiveShadow: true });
   scene.add(studs);
 

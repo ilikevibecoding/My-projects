@@ -108,9 +108,73 @@ function mergeFlat(parts, useGroups = false) {
   return mergeGeometries(parts.map(flat), useGroups);
 }
 
+/**
+ * Flat-chamfered box — the injection-molded look at a fraction of the cost of
+ * RoundedBoxGeometry (44 triangles vs ~108). Origin at the box center.
+ * Built as 6 inset faces + 12 edge bevels + 8 corner triangles, with winding
+ * auto-corrected against the outward centroid direction.
+ */
+export function chamferedBoxGeometry(w, h, d, c) {
+  const hx = w / 2;
+  const hy = h / 2;
+  const hz = d / 2;
+  const ix = Math.max(hx - c, 0.01);
+  const iy = Math.max(hy - c, 0.01);
+  const iz = Math.max(hz - c, 0.01);
+
+  // three vertices per corner (one on each adjacent face plane)
+  const vx = (sx, sy, sz) => [sx * hx, sy * iy, sz * iz];
+  const vy = (sx, sy, sz) => [sx * ix, sy * hy, sz * iz];
+  const vz = (sx, sy, sz) => [sx * ix, sy * iy, sz * hz];
+
+  const polys = [];
+  // axis faces
+  for (const s of [1, -1]) {
+    polys.push([vx(s, 1, 1), vx(s, 1, -1), vx(s, -1, -1), vx(s, -1, 1)]);
+    polys.push([vy(1, s, 1), vy(1, s, -1), vy(-1, s, -1), vy(-1, s, 1)]);
+    polys.push([vz(1, 1, s), vz(1, -1, s), vz(-1, -1, s), vz(-1, 1, s)]);
+  }
+  // edge bevels
+  for (const sa of [1, -1]) {
+    for (const sb of [1, -1]) {
+      polys.push([vx(sa, sb, 1), vy(sa, sb, 1), vy(sa, sb, -1), vx(sa, sb, -1)]); // X/Y edges
+      polys.push([vx(sa, 1, sb), vz(sa, 1, sb), vz(sa, -1, sb), vx(sa, -1, sb)]); // X/Z edges
+      polys.push([vy(1, sa, sb), vz(1, sa, sb), vz(-1, sa, sb), vy(-1, sa, sb)]); // Y/Z edges
+    }
+  }
+  // corner triangles
+  for (const sx of [1, -1])
+    for (const sy of [1, -1])
+      for (const sz of [1, -1]) polys.push([vx(sx, sy, sz), vy(sx, sy, sz), vz(sx, sy, sz)]);
+
+  const positions = [];
+  const pushTri = (a, b, cc) => positions.push(...a, ...b, ...cc);
+  for (const poly of polys) {
+    // winding check: normal must point away from the origin
+    const [a, b, c2] = poly;
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const v = [c2[0] - a[0], c2[1] - a[1], c2[2] - a[2]];
+    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const centroid = poly
+      .reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1], acc[2] + p[2]], [0, 0, 0])
+      .map((x) => x / poly.length);
+    const ordered =
+      n[0] * centroid[0] + n[1] * centroid[1] + n[2] * centroid[2] >= 0
+        ? poly
+        : [...poly].reverse();
+    for (let i = 2; i < ordered.length; i++) pushTri(ordered[0], ordered[i - 1], ordered[i]);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((positions.length / 3) * 2), 2));
+  geo.computeVertexNormals();
+  return geo;
+}
+
 /** A single stud cylinder, origin at its base. Bottom cap is omitted —
  *  it is always buried inside a brick or baseplate. */
-export function studGeometry(segments = 10) {
+export function studGeometry(segments = 8) {
   return cached(`stud${segments}`, () => {
     const side = new THREE.CylinderGeometry(STUD_R, STUD_R, STUD_H, segments, 1, true);
     const cap = new THREE.CircleGeometry(STUD_R, segments);
@@ -134,7 +198,7 @@ export function studGeometry(segments = 10) {
 export function brickGeometry(sx, sz, plates = 3, studs = true) {
   return cached(`brick:${sx}x${sz}x${plates}:${studs}`, () => {
     const h = plates * PLATE;
-    const body = new RoundedBoxGeometry(sx, h, sz, 1, CHAMFER);
+    const body = chamferedBoxGeometry(sx, h, sz, CHAMFER);
     body.translate(0, h / 2, 0);
     const parts = [body];
     if (studs) {
