@@ -455,13 +455,15 @@ export class BossMonster {
 }
 
 // per-night difficulty: AI levels 0..20
+// On boss nights the bed swarm stays active — Grimm's little ones keep
+// gathering while he hunts, so you can't just camp the doors.
 export const NIGHTS = {
   1: { thump: 4,  peck: 3,  snatch: 0,  gnats: 3,  grimm: 0 },
   2: { thump: 6,  peck: 5,  snatch: 5,  gnats: 5,  grimm: 0 },
   3: { thump: 8,  peck: 8,  snatch: 7,  gnats: 7,  grimm: 0 },
-  4: { thump: 11, peck: 11, snatch: 10, gnats: 9,  grimm: 0 },
-  5: { thump: 0,  peck: 0,  snatch: 0,  gnats: 0,  grimm: 11 },
-  6: { thump: 0,  peck: 0,  snatch: 0,  gnats: 0,  grimm: 16 },
+  4: { thump: 10, peck: 10, snatch: 10, gnats: 9,  grimm: 0 },
+  5: { thump: 0,  peck: 0,  snatch: 0,  gnats: 5,  grimm: 11 },
+  6: { thump: 0,  peck: 0,  snatch: 0,  gnats: 8,  grimm: 16 },
 };
 
 export const NIGHT_LENGTH = 320;       // seconds, 12AM -> 6AM
