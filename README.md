@@ -1,3 +1,13 @@
+# My Projects
+
+## Galactic Battlefront (browser game)
+
+A Battlefront-style conquest shooter with ground-to-space combat lives in
+[`battlefront/`](battlefront/) — open `battlefront/index.html` in a desktop browser to play.
+See [`battlefront/README.md`](battlefront/README.md) for controls and details.
+
+---
+
 # Subnautica-Inspired Underwater Slice
 
 This repository is now a **Unity 6.3 LTS** prototype focused on building the look and feel of a

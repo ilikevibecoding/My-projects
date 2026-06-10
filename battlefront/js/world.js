@@ -250,10 +250,10 @@ const World = (() => {
 
     // sun lens flare
     const flare = new THREE.Lensflare();
-    flare.addElement(new THREE.LensflareElement(Assets.textures.flareMain, 420, 0));
-    flare.addElement(new THREE.LensflareElement(Assets.textures.flareRing, 90, 0.32));
-    flare.addElement(new THREE.LensflareElement(Assets.textures.flareRing, 140, 0.55));
-    flare.addElement(new THREE.LensflareElement(Assets.textures.flareRing, 60, 0.8));
+    flare.addElement(new THREE.LensflareElement(Assets.textures.flareMain, 120, 0));
+    flare.addElement(new THREE.LensflareElement(Assets.textures.flareRing, 42, 0.32));
+    flare.addElement(new THREE.LensflareElement(Assets.textures.flareRing, 64, 0.55));
+    flare.addElement(new THREE.LensflareElement(Assets.textures.flareRing, 30, 0.8));
     const flareLight = new THREE.PointLight(0xffffff, 0.0, 1);
     flareLight.position.set(-820, 920, 530);
     flareLight.add(flare);
@@ -263,8 +263,9 @@ const World = (() => {
   function setSpaceBlend(t) {
     if (skyDome) skyDome.material.uniforms.uSpace.value = t;
     if (scene.fog) {
-      scene.fog.near = CONFIG.world.fogNear + t * 2000;
-      scene.fog.far = CONFIG.world.fogFar + t * 4000;
+      scene.fog.near = CONFIG.world.fogNear + t * 480;
+      scene.fog.far = CONFIG.world.fogFar + t * 900;
+      scene.fog.color.setHex(t > 0.55 ? 0x0a0c14 : CONFIG.world.fogColor);
     }
     for (const m of moons) m.material.opacity = (m === moons[0] ? 0.7 : 0.45) * (1 - t);
     if (Graphics.hemi) Graphics.hemi.intensity = 0.55 * (1 - t * 0.75);

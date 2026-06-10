@@ -108,11 +108,17 @@ const Player = (() => {
     if (!soldier) { endFrame(); return; }
 
     if (!soldier.alive) {
-      // death cam: stay above body
-      _camPos.copy(soldier.position);
-      _camPos.y += 2.6;
-      camera.position.lerp(_camPos, Math.min(1, dt * 3));
-      camera.lookAt(soldier.position.x, soldier.position.y + 0.5, soldier.position.z);
+      // death cam: pull back and orbit slowly above the body
+      const a = Game.time * 0.25;
+      _camPos.set(
+        soldier.position.x + Math.cos(a) * 5.5,
+        soldier.position.y + 3.4,
+        soldier.position.z + Math.sin(a) * 5.5);
+      const cgy = World.getGroundHeight(_camPos.x, _camPos.z) + 0.6;
+      if (_camPos.y < cgy) _camPos.y = cgy;
+      camera.position.lerp(_camPos, Math.min(1, dt * 2.2));
+      camera.lookAt(soldier.position.x, soldier.position.y + 0.7, soldier.position.z);
+      soldier.model.visible = true;   // see your own body
       if (viewModel) viewModel.visible = false;
       endFrame();
       return;

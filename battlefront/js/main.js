@@ -284,6 +284,7 @@ const Game = {
     if (!ent || ent.health == null) return;
     if (ent.kind === 'soldier') {
       if (!ent.alive) return;
+      if (ent.isPlayer && Game.godMode) return;
       ent.health -= dmg;
       ent.lastDamageTime = Game.time;
       ent.lastAttacker = attacker;
@@ -500,6 +501,7 @@ const Game = {
         Game.player.position.set(r.x, World.getGroundHeight(r.x, r.z), r.z);
       }
     },
+    god(v) { Game.godMode = !!v; },
   };
 
   window.addEventListener('DOMContentLoaded', boot);
