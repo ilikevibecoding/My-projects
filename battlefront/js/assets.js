@@ -217,14 +217,37 @@ const Assets = (() => {
       textures.scorch = canvasTexture(cv, 1);
       textures.scorch.wrapS = textures.scorch.wrapT = THREE.ClampToEdgeWrapping;
     }
+    // -- dry shrub (alpha sprite-style) --
+    {
+      const size = 128;
+      const [cv, ctx] = makeCanvas(size);
+      ctx.clearRect(0, 0, size, size);
+      const rng = mulberry32(11);
+      for (let i = 0; i < 46; i++) {
+        ctx.strokeStyle = ['#7a6440', '#8d7448', '#665436', '#94805a'][(rng() * 4) | 0];
+        ctx.lineWidth = 1 + rng() * 1.8;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        const a = -Math.PI / 2 + (rng() - 0.5) * 1.9;
+        const lenS = 28 + rng() * 36;
+        ctx.moveTo(64 + (rng() - 0.5) * 16, 126);
+        const mx = 64 + Math.cos(a) * lenS * 0.5 + (rng() - 0.5) * 12;
+        const my = 126 + Math.sin(a) * lenS * 0.6;
+        ctx.quadraticCurveTo(mx, my, 64 + Math.cos(a) * lenS, 126 + Math.sin(a) * lenS);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      textures.shrub = canvasTexture(cv, 1);
+      textures.shrub.wrapS = textures.shrub.wrapT = THREE.ClampToEdgeWrapping;
+    }
     // -- lens flare elements --
     {
       const size = 128;
       const [cv, ctx] = makeCanvas(size);
       let g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-      g.addColorStop(0, 'rgba(255,244,220,1)');
-      g.addColorStop(0.2, 'rgba(255,230,180,0.55)');
-      g.addColorStop(0.5, 'rgba(255,210,150,0.14)');
+      g.addColorStop(0, 'rgba(255,244,220,0.85)');
+      g.addColorStop(0.16, 'rgba(255,230,180,0.32)');
+      g.addColorStop(0.42, 'rgba(255,210,150,0.07)');
       g.addColorStop(1, 'rgba(255,200,140,0)');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, size, size);
@@ -283,60 +306,101 @@ const Assets = (() => {
   }
 
   // ---------- model: trooper -----------------------------------
-  // Returns { group, parts:{ head, torso, lArm, rArm, lLeg, rLeg, gun } }
+  // Rounded, armoured trooper. Returns { group, parts:{...} }
   function buildTrooper(faction, cls) {
     const g = new THREE.Group();
     const armor = armorMat(faction);
     const accent = accentMat(faction);
+    const under = underSuitMat(faction);
     const visor = visorMat(faction);
     const pauldron = pauldronMat(cls);
     const dark = gunMat();
 
-    // torso
+    // ---- torso ----
     const torso = new THREE.Group();
-    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.5, 0.27), armor);
-    chest.position.y = 1.18;
-    const abdomen = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.22, 0.22), accent);
-    abdomen.position.y = 0.86;
-    const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.06), accent);
-    chestPlate.position.set(0, 1.24, 0.15);
-    // backpack greeble
-    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.36, 0.14), dark);
-    pack.position.set(0, 1.18, -0.2);
+    // rounded chest plate (flattened sphere)
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.27, 12, 10), armor);
+    chest.scale.set(1.0, 1.18, 0.72);
+    chest.position.y = 1.2;
+    // under-suit abdomen
+    const abdomen = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.26, 10), under);
+    abdomen.position.y = 0.92;
+    // belt + pouches
+    const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.09, 10), dark);
+    belt.position.y = 0.8;
+    const pouchL = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.1, 0.06), accent);
+    pouchL.position.set(-0.12, 0.78, 0.17);
+    const pouchR = pouchL.clone(); pouchR.position.x = 0.12;
+    // backpack with antenna
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.34, 0.13), dark);
+    pack.position.set(0, 1.2, -0.22);
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.3, 4), dark);
+    antenna.position.set(-0.11, 1.45, -0.24);
     const packLight = new THREE.Mesh(
-      new THREE.BoxGeometry(0.06, 0.06, 0.02),
+      new THREE.BoxGeometry(0.05, 0.05, 0.02),
       emissiveMat('packlight_' + faction, CONFIG.factions[faction].color, 1.6));
-    packLight.position.set(0.09, 1.3, -0.28);
-    torso.add(chest, abdomen, chestPlate, pack, packLight);
+    packLight.position.set(0.08, 1.3, -0.295);
+    torso.add(chest, abdomen, belt, pouchL, pouchR, pack, antenna, packLight);
 
-    // pauldron (class colour) on right shoulder
-    const pd = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.3), pauldron);
-    pd.position.set(0.3, 1.42, 0);
-    torso.add(pd);
+    // shoulder bells + class pauldron
+    const bellL = new THREE.Mesh(new THREE.SphereGeometry(0.105, 9, 7), armor);
+    bellL.position.set(-0.3, 1.42, 0);
+    const bellR = bellL.clone(); bellR.position.x = 0.3;
+    const pd = new THREE.Mesh(
+      new THREE.SphereGeometry(0.125, 9, 7, 0, Math.PI * 2, 0, Math.PI / 2), pauldron);
+    pd.position.set(0.3, 1.43, 0);
+    torso.add(bellL, bellR, pd);
 
-    // head
+    // ---- head ----
     const head = new THREE.Group();
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 10), armor);
-    helmet.scale.set(1, 1.12, 1.05);
-    const visorMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.055, 0.1), visor);
-    visorMesh.position.set(0, 0.015, 0.12);
-    const crest = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, 0.22), accent);
-    crest.position.set(0, 0.13, 0);
-    head.add(helmet, visorMesh, crest);
-    head.position.y = 1.62;
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.1, 8), under);
+    neck.position.y = -0.12;
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 11), armor);
+    helmet.scale.set(1, 1.08, 1.02);
+    const jaw = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.12, 0.12, 10), armor);
+    jaw.position.y = -0.08;
+    // T-visor
+    const visorH = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.045, 0.06), visor);
+    visorH.position.set(0, 0.02, 0.135);
+    const visorV = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.05), visor);
+    visorV.position.set(0, -0.05, 0.13);
+    const crest = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.07, 0.24), accent);
+    crest.position.set(0, 0.14, 0);
+    head.add(neck, helmet, jaw, visorH, visorV, crest);
+    head.position.y = 1.66;
 
-    // limbs (pivot at attachment point, mesh hangs below)
-    function limb(w, len, m) {
+    // ---- limbs: cylinders + armour plates, pivot at joint ----
+    function limb(r, len, isLeg) {
       const grp = new THREE.Group();
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, len, w), m);
-      mesh.position.y = -len / 2;
-      grp.add(mesh);
+      const upper = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.86, len * 0.48, 8), armor);
+      upper.position.y = -len * 0.26;
+      const joint = new THREE.Mesh(new THREE.SphereGeometry(r * 0.92, 8, 6), under);
+      joint.position.y = -len * 0.52;
+      const lower = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.84, r * 0.78, len * 0.46, 8), armor);
+      lower.position.y = -len * 0.76;
+      grp.add(upper, joint, lower);
+      if (isLeg) {
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(r * 2.1, r * 1.1, r * 3.1), accent);
+        boot.position.set(0, -len * 1.0, r * 0.5);
+        grp.add(boot);
+      } else {
+        const hand = new THREE.Mesh(new THREE.SphereGeometry(r * 0.8, 7, 5), dark);
+        hand.position.y = -len * 1.0;
+        grp.add(hand);
+      }
       return grp;
     }
-    const lArm = limb(0.13, 0.58, armor); lArm.position.set(-0.3, 1.4, 0);
-    const rArm = limb(0.13, 0.58, armor); rArm.position.set(0.3, 1.4, 0);
-    const lLeg = limb(0.16, 0.78, armor); lLeg.position.set(-0.13, 0.78, 0);
-    const rLeg = limb(0.16, 0.78, armor); rLeg.position.set(0.13, 0.78, 0);
+    const lArm = limb(0.072, 0.56, false); lArm.position.set(-0.31, 1.4, 0);
+    const rArm = limb(0.072, 0.56, false); rArm.position.set(0.31, 1.4, 0);
+    const lLeg = limb(0.092, 0.8, true); lLeg.position.set(-0.13, 0.8, 0);
+    const rLeg = limb(0.092, 0.8, true); rLeg.position.set(0.13, 0.8, 0);
+    // thigh plates
+    const thighL = new THREE.Mesh(new THREE.SphereGeometry(0.105, 8, 6), armor);
+    thighL.scale.set(1, 1.4, 1);
+    thighL.position.y = -0.16;
+    lLeg.add(thighL);
+    const thighR = thighL.clone();
+    rLeg.add(thighR);
 
     // gun in right hand
     const gun = buildBlaster(cls);
@@ -347,6 +411,16 @@ const Assets = (() => {
     g.add(torso, head, lArm, rArm, lLeg, rLeg);
     g.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
     return { group: g, parts: { head, torso, lArm, rArm, lLeg, rLeg, gun } };
+  }
+
+  function underSuitMat(faction) {
+    const key = 'under_' + faction;
+    if (matCache.has(key)) return matCache.get(key);
+    const F = CONFIG.factions[faction];
+    const c = new THREE.Color(F.armor).multiplyScalar(0.32);
+    const m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0.05 });
+    matCache.set(key, m);
+    return m;
   }
 
   function buildBlaster(cls) {
@@ -364,7 +438,12 @@ const Assets = (() => {
       emissiveMat('guntip', 0xff7733, 1.2));
     tip.rotation.x = Math.PI / 2;
     tip.position.set(0, 0.03, -len * 0.86);
-    g.add(body, barrel, grip, tip);
+    // stock + top sight for silhouette
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.1, 0.22), dark);
+    stock.position.set(0, -0.03, len * 0.52);
+    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.16), dark);
+    sight.position.set(0, 0.1, -len * 0.1);
+    g.add(body, barrel, grip, tip, stock, sight);
     g.userData.muzzleOffset = new THREE.Vector3(0, 0.03, -len * 0.9);
     return g;
   }
@@ -674,11 +753,61 @@ const Assets = (() => {
     return g;
   }
 
+  // ---------- instanced ground scatter geometries ----------------
+  function stoneGeometry() {
+    const geo = new THREE.IcosahedronGeometry(0.22, 0);
+    const rng = mulberry32(77);
+    const pos = geo.attributes.position;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i);
+      const n = 0.7 + rng() * 0.6;
+      pos.setXYZ(i, v.x * n, v.y * n * 0.55, v.z * n);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  function shrubGeometry() {
+    // two crossed planes merged into one non-indexed geometry (1 draw call when instanced)
+    const a = new THREE.PlaneGeometry(1.1, 1.1).toNonIndexed();
+    const b = new THREE.PlaneGeometry(1.1, 1.1).toNonIndexed();
+    b.applyMatrix4(new THREE.Matrix4().makeRotationY(Math.PI / 2));
+    const merged = new THREE.BufferGeometry();
+    for (const name of ['position', 'normal', 'uv']) {
+      const aa = a.attributes[name], bb = b.attributes[name];
+      const arr = new Float32Array(aa.array.length + bb.array.length);
+      arr.set(aa.array, 0);
+      arr.set(bb.array, aa.array.length);
+      merged.setAttribute(name, new THREE.BufferAttribute(arr, aa.itemSize));
+    }
+    merged.translate(0, 0.5, 0);
+    return merged;
+  }
+
+  function stoneMaterial() {
+    return mat('scatter_stone', {
+      color: 0xb8a285, roughness: 0.95, metalness: 0.02, map: textures.rock,
+    });
+  }
+
+  function shrubMaterial() {
+    const key = 'scatter_shrub';
+    if (matCache.has(key)) return matCache.get(key);
+    const m = new THREE.MeshStandardMaterial({
+      map: textures.shrub, transparent: true, alphaTest: 0.4,
+      side: THREE.DoubleSide, roughness: 0.9, metalness: 0,
+    });
+    matCache.set(key, m);
+    return m;
+  }
+
   return {
     buildTextures, textures, mulberry32,
     buildTrooper, buildBlaster, buildViewModel,
     buildVaporator, buildRock, buildBarricade, buildBunker, buildWallSegment, buildCrashedShip,
     buildCommandPost, buildSpeeder, buildTurret, buildStarfighter, buildCapitalShip,
+    stoneGeometry, shrubGeometry, stoneMaterial, shrubMaterial,
     mat, emissiveMat,
   };
 })();

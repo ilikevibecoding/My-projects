@@ -51,6 +51,9 @@ const Game = {
     Graphics.init(canvas, Game.scene, Game.camera, { preserveDrawingBuffer: Game.testMode });
     if (['high', 'medium', 'low'].includes(params.get('quality'))) {
       Graphics.applyQuality(params.get('quality'));
+    } else {
+      // pick a sane default for this machine (adaptive watchdog refines it live)
+      Graphics.applyQuality(Graphics.detectQuality());
     }
     Graphics.buildEnvMap();
     Graphics.buildLighting();
@@ -390,6 +393,7 @@ const Game = {
     lastTime = now;
     if (dt > 0.05) dt = 0.05;
     if (dt <= 0) return;
+    const rawDt = dt;
     dt *= Game.timeScale;
     Game.time += dt;
     Game.frame++;
@@ -466,7 +470,7 @@ const Game = {
     Effects.update(dt);
     World.updateDust(dt, Game.camera.position);
     Graphics.updateShadowFollow(Game.camera.position);
-    Graphics.update(dt);
+    Graphics.update(dt, rawDt);
     SynthAudio.setListener(Game.camera.position);
     HUD.update(dt);
 

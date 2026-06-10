@@ -163,6 +163,11 @@ const World = (() => {
           rockF += smoothstep(16.0, 30.0, vWPos.y) * 0.5;
           rockF = clamp(rockF, 0.0, 1.0);
           vec4 sampledDiffuseColor = mix(sandCol, rockCol, rockF);
+          // large-scale tonal patches so the desert isn't one flat colour
+          float macro = sin(vWPos.x * 0.011 + sin(vWPos.z * 0.013) * 2.1)
+                      * sin(vWPos.z * 0.009 + sin(vWPos.x * 0.014) * 1.7);
+          sampledDiffuseColor.rgb *= 0.94 + macro * 0.10;
+          sampledDiffuseColor.r *= 1.0 + macro * 0.05;
           // compacted darker path
           sampledDiffuseColor.rgb *= mix(1.0, 0.8, vPath);
           diffuseColor *= sampledDiffuseColor;`);
@@ -204,18 +209,19 @@ const World = (() => {
         }
         void main() {
           float h = clamp(vDir.y, -1.0, 1.0);
-          // day sky gradient
-          vec3 zenith = vec3(0.30, 0.46, 0.78);
-          vec3 mid = vec3(0.66, 0.62, 0.62);
-          vec3 horizon = vec3(0.96, 0.72, 0.46);
-          vec3 ground = vec3(0.55, 0.42, 0.28);
-          vec3 day = h > 0.32 ? mix(mid, zenith, smoothstep(0.32, 0.9, h))
-                   : h > 0.0  ? mix(horizon, mid, smoothstep(0.0, 0.32, h))
+          // day sky gradient — deep zenith, hot amber horizon
+          vec3 zenith = vec3(0.13, 0.30, 0.62);
+          vec3 mid = vec3(0.48, 0.52, 0.66);
+          vec3 horizon = vec3(1.00, 0.66, 0.34);
+          vec3 ground = vec3(0.52, 0.38, 0.24);
+          vec3 day = h > 0.30 ? mix(mid, zenith, smoothstep(0.30, 0.85, h))
+                   : h > 0.0  ? mix(horizon, mid, pow(smoothstep(0.0, 0.30, h), 0.8))
                    : mix(horizon, ground, smoothstep(0.0, -0.2, h));
           // sun glow
           float sunD = max(0.0, dot(vDir, uSunDir));
-          day += vec3(1.0, 0.78, 0.45) * pow(sunD, 220.0) * 1.6;
-          day += vec3(1.0, 0.62, 0.30) * pow(sunD, 14.0) * 0.32;
+          day += vec3(1.0, 0.80, 0.46) * pow(sunD, 260.0) * 2.0;
+          day += vec3(1.0, 0.58, 0.26) * pow(sunD, 22.0) * 0.3;
+          day += vec3(0.9, 0.42, 0.16) * pow(sunD, 5.0) * 0.1;
           // space sky
           vec3 space = mix(vec3(0.012, 0.014, 0.03), vec3(0.0, 0.0, 0.004), smoothstep(-0.4, 0.8, h));
           vec3 sd = floor(vDir * 290.0);
@@ -359,6 +365,44 @@ const World = (() => {
       rock.userData.collider = null;
       scene.add(rock);
     }
+
+    buildScatter(rng);
+  }
+
+  // instanced small stones + dry shrubs — fills the empty desert cheaply
+  function buildScatter(rng) {
+    const half = CONFIG.world.size * 0.62;
+    const m4 = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const eul = new THREE.Euler();
+    const s3 = new THREE.Vector3();
+    function scatterMesh(geo, mat, count, minS, maxS, alignGround) {
+      const im = new THREE.InstancedMesh(geo, mat, count);
+      let placed = 0, guard = 0;
+      while (placed < count && guard++ < count * 8) {
+        const x = (rng() - 0.5) * half * 2;
+        const z = (rng() - 0.5) * half * 2;
+        let bad = false;
+        for (const p of CONFIG.posts) {
+          if (Math.hypot(x - p.x, z - p.z) < p.radius + 4) { bad = true; break; }
+        }
+        if (bad) continue;
+        const s = minS + rng() * (maxS - minS);
+        eul.set(alignGround ? 0 : (rng() - 0.5) * 0.25, rng() * Math.PI * 2, alignGround ? 0 : (rng() - 0.5) * 0.25);
+        q.setFromEuler(eul);
+        s3.set(s, s * (0.8 + rng() * 0.5), s);
+        m4.compose(new THREE.Vector3(x, getGroundHeight(x, z), z), q, s3);
+        im.setMatrixAt(placed++, m4);
+      }
+      im.count = placed;
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = false;
+      im.receiveShadow = true;
+      im.frustumCulled = false;
+      scene.add(im);
+    }
+    scatterMesh(Assets.stoneGeometry(), Assets.stoneMaterial(), 260, 0.5, 2.4, false);
+    scatterMesh(Assets.shrubGeometry(), Assets.shrubMaterial(), 170, 0.7, 1.9, true);
   }
 
   // ---------- collision -------------------------------------------
@@ -552,7 +596,7 @@ const World = (() => {
 
   // ---------- ambient dust ------------------------------------------
   function buildDust() {
-    const N = 360;
+    const N = (CONFIG.quality[Graphics.quality] && CONFIG.quality[Graphics.quality].dust) || 360;
     const geo = new THREE.BufferGeometry();
     const posArr = new Float32Array(N * 3);
     dustVel = new Float32Array(N * 3);

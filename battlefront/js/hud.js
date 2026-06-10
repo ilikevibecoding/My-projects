@@ -46,12 +46,13 @@ const HUD = (() => {
     });
     document.querySelectorAll('[data-quality]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-quality]').forEach(b => b.classList.remove('sel'));
-        btn.classList.add('sel');
-        Graphics.applyQuality(btn.dataset.quality);
+        syncQualityButtons(btn.dataset.quality);
+        Graphics.setManualQuality(btn.dataset.quality);
         SynthAudio.sfx('uiClick');
       });
     });
+    // reflect the auto-detected preset on the menu
+    syncQualityButtons(Graphics.quality);
     els.deployBtn.addEventListener('click', () => {
       if (!selectedPost) return;
       SynthAudio.resume();
@@ -253,6 +254,24 @@ const HUD = (() => {
     if (kill) killTimer = 0.4;
   }
 
+  function syncQualityButtons(q) {
+    document.querySelectorAll('[data-quality]').forEach(b =>
+      b.classList.toggle('sel', b.dataset.quality === q));
+  }
+
+  let toastEl = null, toastTimer = null;
+  function toast(msg) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.id = 'toast';
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3800);
+  }
+
   // ---------- per-frame update -----------------------------------------
   let mmTimer = 0;
   function update(dt) {
@@ -369,7 +388,7 @@ const HUD = (() => {
   return {
     init, hideLoading, showMenu, showDeploy, showHUD, showPause, showEnd, update,
     killfeed, hitmarker, refreshAmmo, setVehicleHud, setZoomOverlay, setFps,
-    deployMapClick, setSpaceBanner,
+    deployMapClick, setSpaceBanner, toast, syncQualityButtons,
     get selectedClass() { return selectedClass; },
     get selectedPost() { return selectedPost; },
     bindDeployMap(el) { el.addEventListener('click', deployMapClick); },

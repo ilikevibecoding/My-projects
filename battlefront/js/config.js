@@ -165,8 +165,13 @@ const CONFIG = {
 
   // --- Graphics quality presets -------------------------------
   quality: {
-    high:   { shadow: 4096, shadows: true, pixelRatio: 0,   bloom: true, particles: 1.0, fxaa: true },
-    medium: { shadow: 2048, shadows: true, pixelRatio: 1.5, bloom: true, particles: 0.7, fxaa: true },
-    low:    { shadow: 1024, shadows: false, pixelRatio: 1,  bloom: false, particles: 0.4, fxaa: false },
+    high:   { shadow: 2048, shadows: true, pixelRatio: 1.5,  bloom: true, particles: 1.0, fxaa: true, dust: 360 },
+    medium: { shadow: 1536, shadows: true, pixelRatio: 1.25, bloom: true, particles: 0.7, fxaa: true, dust: 220 },
+    low:    { shadow: 1024, shadows: false, pixelRatio: 1,   bloom: false, particles: 0.4, fxaa: false, dust: 90 },
+  },
+  adaptive: {
+    minFps: 42,          // step quality down when below this…
+    badSeconds: 4,       // …for this long
+    cooldown: 10,        // seconds between automatic steps
   },
 };

@@ -13,13 +13,14 @@ const Graphics = (() => {
   const GradeShader = {
     uniforms: {
       tDiffuse: { value: null },
-      uVignette: { value: 0.42 },
+      uVignette: { value: 0.46 },
       uChroma: { value: 0.0016 },
       uDamage: { value: 0.0 },
       uFlash: { value: 0.0 },
-      uSaturation: { value: 1.08 },
-      uLift: { value: new THREE.Vector3(0.012, 0.006, -0.004) },
-      uGain: { value: new THREE.Vector3(1.04, 1.0, 0.94) },
+      uSaturation: { value: 1.16 },
+      uContrast: { value: 1.09 },
+      uLift: { value: new THREE.Vector3(0.004, -0.002, -0.012) },
+      uGain: { value: new THREE.Vector3(1.06, 1.0, 0.92) },
     },
     vertexShader: /* glsl */`
       varying vec2 vUv;
@@ -29,7 +30,7 @@ const Graphics = (() => {
       }`,
     fragmentShader: /* glsl */`
       uniform sampler2D tDiffuse;
-      uniform float uVignette, uChroma, uDamage, uFlash, uSaturation;
+      uniform float uVignette, uChroma, uDamage, uFlash, uSaturation, uContrast;
       uniform vec3 uLift, uGain;
       varying vec2 vUv;
       void main() {
@@ -43,6 +44,8 @@ const Graphics = (() => {
         col.b = texture2D(tDiffuse, vUv - c * ca).b;
         // lift/gain grade
         col = col * uGain + uLift;
+        // filmic contrast curve around mid-grey
+        col = (col - 0.5) * uContrast + 0.5;
         // saturation
         float l = dot(col, vec3(0.299, 0.587, 0.114));
         col = mix(vec3(l), col, uSaturation);
@@ -95,12 +98,24 @@ const Graphics = (() => {
     return renderer;
   }
 
+  // best-effort GPU sniff → sensible default preset
+  function detectQuality() {
+    try {
+      const cv = document.createElement('canvas');
+      const gl = cv.getContext('webgl') || cv.getContext('experimental-webgl');
+      if (!gl) return 'low';
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      const gpu = ext ? (gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '') : '';
+      if (/swiftshader|llvmpipe|software/i.test(gpu)) return 'low';
+      if (/intel(?!.*arc)|mali|adreno|apple gpu|powervr/i.test(gpu)) return 'medium';
+      return 'high';
+    } catch (e) { return 'medium'; }
+  }
+
   function applyQuality(q) {
     quality = q;
     const Q = CONFIG.quality[q];
-    const pr = Q.pixelRatio === 0
-      ? Math.min(window.devicePixelRatio || 1, 2)
-      : Math.min(window.devicePixelRatio || 1, Q.pixelRatio);
+    const pr = Math.min(window.devicePixelRatio || 1, Q.pixelRatio);
     renderer.setPixelRatio(pr);
     renderer.shadowMap.enabled = Q.shadows;
     bloomPass.enabled = Q.bloom;
@@ -201,18 +216,44 @@ const Graphics = (() => {
   function setDamage(v) { damageLevel = Math.max(damageLevel, v); }
   function flash(v) { flashLevel = Math.max(flashLevel, v); }
 
-  function update(dt) {
+  // ---- adaptive quality watchdog ------------------------------
+  let manualQuality = false;          // user clicked a preset → respect it
+  let badTime = 0, stepCooldown = 0;
+  function setManualQuality(q) { manualQuality = true; applyQuality(q); }
+  function adaptive(dt) {
+    if (manualQuality || dt <= 0) return;
+    stepCooldown = Math.max(0, stepCooldown - dt);
+    const fps = 1 / dt;
+    if (fps < CONFIG.adaptive.minFps) badTime += dt;
+    else badTime = Math.max(0, badTime - dt * 2);
+    if (badTime > CONFIG.adaptive.badSeconds && stepCooldown <= 0) {
+      const order = ['high', 'medium', 'low'];
+      const i = order.indexOf(quality);
+      if (i < order.length - 1) {
+        applyQuality(order[i + 1]);
+        badTime = 0;
+        stepCooldown = CONFIG.adaptive.cooldown;
+        if (typeof HUD !== 'undefined' && HUD.toast) {
+          HUD.toast(`Graphics auto-adjusted to ${order[i + 1].toUpperCase()} for smoother play`);
+          HUD.syncQualityButtons(order[i + 1]);
+        }
+      }
+    }
+  }
+
+  function update(dt, rawDt) {
     damageLevel = Math.max(0, damageLevel - dt * 1.4);
     flashLevel = Math.max(0, flashLevel - dt * 2.8);
     gradePass.uniforms.uDamage.value = damageLevel;
     gradePass.uniforms.uFlash.value = flashLevel;
+    if (!Game.testMode) adaptive(rawDt != null ? rawDt : dt);
   }
 
   function render() { composer.render(); }
 
   return {
-    init, buildLighting, buildEnvMap, applyQuality, resize, render, update,
-    updateShadowFollow, setDamage, flash,
+    init, buildLighting, buildEnvMap, applyQuality, setManualQuality, detectQuality,
+    resize, render, update, updateShadowFollow, setDamage, flash,
     get renderer() { return renderer; },
     get envMap() { return envMap; },
     get quality() { return quality; },

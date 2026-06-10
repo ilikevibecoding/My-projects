@@ -14,7 +14,7 @@ const Weapons = (() => {
     if (!coreMats.has(color)) {
       coreMats.set(color, new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }));
       glowMats.set(color, new THREE.MeshBasicMaterial({
-        color, transparent: true, opacity: 0.55,
+        color, transparent: true, opacity: 0.42,
         blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
       }));
     }
