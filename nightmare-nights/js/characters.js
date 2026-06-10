@@ -785,7 +785,7 @@ export class JumpscareRig {
     this.holder = new THREE.Group();
     camera.add(this.holder);
     this.light = new THREE.PointLight(0xffffff, 0, 4);
-    this.light.position.set(0, 0.3, -0.6);
+    this.light.position.set(0, 0.08, 0.12); // just behind the lens, lights the face
     this.holder.add(this.light);
   }
 
@@ -794,11 +794,25 @@ export class JumpscareRig {
     const ch = builderFn();
     const s = opts.scale ?? 1;
     ch.group.scale.setScalar(s);
-    this.active = { ch, t: 0, onDone, dur: opts.dur ?? 0.85, done: false };
-    // start low & far, lunge to fill the screen
-    ch.group.position.set(0, -2.1 * s, -2.4);
-    ch.group.rotation.y = Math.PI * (Math.random() > 0.5 ? 0.06 : -0.06);
     if (ch.setPose) ch.setPose('near');
+    // measure the face height so the lunge ends with the jaws filling the
+    // screen (characters have different head heights)
+    let faceH = 1.9;
+    if (ch.bones && ch.bones.head) {
+      ch.group.updateMatrixWorld(true);
+      const v = new THREE.Vector3();
+      ch.bones.head.getWorldPosition(v);
+      faceH = v.y / s;
+    }
+    this.active = {
+      ch, t: 0, onDone, dur: opts.dur ?? 0.85, done: false,
+      // start: face below the view and far away; end: face dead center,
+      // close enough to fill the frame without clipping into the lens
+      y0: -faceH * s - 1.15, y1: -faceH * s + 0.05,
+      z0: -2.7, z1: -0.95,
+    };
+    ch.group.position.set(0, this.active.y0, this.active.z0);
+    ch.group.rotation.y = Math.PI * (Math.random() > 0.5 ? 0.06 : -0.06);
     this.holder.add(ch.group);
   }
 
@@ -817,17 +831,16 @@ export class JumpscareRig {
     const k = Math.min(a.t / a.dur, 1);
     const lunge = 1 - Math.pow(1 - Math.min(k * 1.45, 1), 3);
     const g = a.ch.group;
-    const s = g.scale.x || 1;
-    g.position.z = -2.4 + lunge * 1.78;
-    g.position.y = -2.1 * s + lunge * (1.62 * s);
+    g.position.z = a.z0 + lunge * (a.z1 - a.z0);
+    g.position.y = a.y0 + lunge * (a.y1 - a.y0);
     // violent head shake at the end
     const shake = k > 0.45 ? (k - 0.45) * 2 : 0;
-    g.rotation.z = Math.sin(a.t * 60) * 0.09 * shake;
-    g.rotation.y += Math.sin(a.t * 47) * 0.02 * shake;
+    g.rotation.z = Math.sin(a.t * 60) * 0.05 * shake;
+    g.rotation.y += Math.sin(a.t * 47) * 0.015 * shake;
     if (a.ch.bones && a.ch.bones.jaw) {
       a.ch.bones.jaw.rotation.x = 0.2 + Math.min(k * 1.8, 1.15) + Math.sin(a.t * 50) * 0.1 * shake;
     }
-    this.light.intensity = k < 0.12 ? 0 : 2.6 + Math.sin(a.t * 70) * 1.2;
+    this.light.intensity = k < 0.12 ? 0 : 2.3 + Math.sin(a.t * 70) * 0.9;
     if (k >= 1 && !a.done) {
       a.done = true;
       const cb = a.onDone;
