@@ -58,7 +58,10 @@ UnrealBloom + FXAA + film-grade post-processing stack, slope-splatted terrain wi
 normal maps, sun lens flare, holographic command-post flags, and layered explosion/blaster
 effects — all running on a vendored three.js r147 (UMD, so it works from `file://`).
 
-Use the **HIGH / MEDIUM / LOW** buttons on the title screen if you need more frames.
+**Performance:** the game sniffs your GPU at boot and picks a sensible default preset, caps the
+render resolution (max 1.5× pixel ratio), and runs an **adaptive watchdog** that automatically
+steps the quality down (with an on-screen notice) if your frame rate dips below ~42 fps. Picking
+HIGH / MEDIUM / LOW manually on the title screen disables the watchdog and locks your choice.
 
 ## Dev / testing
 
