@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Five Nights of Nightmares — a parody</title>
+  <style>
+    :root {
+      --blood: #8f1313;
+      --bone: #d8d3c5;
+      --dim: #6b6557;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      overflow: hidden;
+      font-family: "Courier New", Courier, monospace;
+      color: var(--bone);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    #app { position: fixed; inset: 0; }
+    canvas#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    canvas#fx { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; z-index: 30; }
+
+    /* ---------- generic screen ---------- */
+    .screen {
+      position: absolute; inset: 0; z-index: 40;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+    }
+    .screen.visible { display: flex; }
+
+    /* ---------- title ---------- */
+    #title-screen { background: #000; z-index: 50; }
+    .title-kicker {
+      font-size: clamp(11px, 1.6vw, 15px); letter-spacing: 0.55em; color: var(--dim);
+      text-transform: uppercase; margin-bottom: 14px;
+    }
+    .title-main {
+      font-size: clamp(34px, 7vw, 84px);
+      letter-spacing: 0.18em;
+      font-weight: 700;
+      color: var(--bone);
+      text-shadow: 0 0 18px rgba(216, 211, 197, 0.25), 0 0 2px #000;
+      animation: titleflicker 4.2s infinite;
+      margin-bottom: 6px;
+    }
+    .title-sub {
+      font-size: clamp(12px, 1.8vw, 18px); letter-spacing: 0.42em; color: var(--blood);
+      text-transform: uppercase; text-shadow: 0 0 10px rgba(143, 19, 19, 0.7);
+      margin-bottom: 46px;
+    }
+    @keyframes titleflicker {
+      0%, 100% { opacity: 1; } 92% { opacity: 1; }
+      93% { opacity: 0.35; } 94% { opacity: 1; } 96% { opacity: 0.6; } 97% { opacity: 1; }
+    }
+    .night-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 30px; max-width: 720px; }
+    .night-btn {
+      font-family: inherit;
+      background: rgba(20, 18, 24, 0.85);
+      color: var(--bone);
+      border: 1px solid #3a3545;
+      padding: 13px 19px;
+      font-size: clamp(12px, 1.5vw, 16px);
+      letter-spacing: 0.18em;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .night-btn:hover:not(.locked) { border-color: var(--blood); color: #fff; background: rgba(70, 14, 14, 0.5); }
+    .night-btn.locked { opacity: 0.32; cursor: not-allowed; }
+    .night-btn.boss { border-color: #4d1010; color: #c66; }
+    .menu-note { font-size: clamp(10px, 1.3vw, 13px); color: var(--dim); letter-spacing: 0.2em; line-height: 2; max-width: 680px; padding: 0 20px; }
+    .menu-note b { color: #a89f8c; }
+    .parody-footer {
+      position: absolute; bottom: 12px; left: 0; right: 0;
+      font-size: 10px; color: #3c382f; letter-spacing: 0.25em; text-transform: uppercase;
+    }
+    #mute-btn {
+      position: absolute; top: 14px; right: 16px; z-index: 60;
+      background: none; border: 1px solid #333; color: var(--dim);
+      font-family: inherit; font-size: 11px; letter-spacing: 0.2em;
+      padding: 8px 12px; cursor: pointer; display: none;
+    }
+    #mute-btn.visible { display: block; }
+
+    /* ---------- night intro ---------- */
+    #intro-screen { background: #000; }
+    .intro-night { font-size: clamp(26px, 4.5vw, 48px); letter-spacing: 0.35em; margin-bottom: 16px; }
+    .intro-time { font-size: clamp(16px, 2.4vw, 24px); letter-spacing: 0.3em; color: var(--dim); }
+
+    /* ---------- HUD ---------- */
+    #hud { position: absolute; inset: 0; z-index: 35; pointer-events: none; display: none; }
+    #hud.visible { display: block; }
+    #clock {
+      position: absolute; top: 14px; right: 20px;
+      font-size: clamp(22px, 3.4vw, 38px);
+      letter-spacing: 0.12em; color: #cfc9b8;
+      text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 0 22px rgba(207, 201, 184, 0.18);
+      font-weight: 700;
+    }
+    #night-label {
+      position: absolute; top: 14px; left: 20px;
+      font-size: clamp(11px, 1.6vw, 15px); letter-spacing: 0.3em; color: #6e6859;
+      text-shadow: 0 0 6px #000;
+    }
+    #cue-text {
+      position: absolute; bottom: 18%; left: 0; right: 0; text-align: center;
+      font-size: clamp(13px, 2vw, 19px); letter-spacing: 0.28em; color: rgba(216,211,197,0.85);
+      text-shadow: 0 0 10px #000; opacity: 0; transition: opacity .4s;
+    }
+    #cue-text.visible { opacity: 1; }
+
+    /* ---------- touch / hint zones ---------- */
+    .zone { position: absolute; z-index: 36; pointer-events: auto; display: none;
+      align-items: center; justify-content: center; text-align: center; cursor: pointer; }
+    .zone.visible { display: flex; }
+    .zone-label {
+      font-size: clamp(12px, 1.7vw, 17px); letter-spacing: 0.18em; line-height: 1.9;
+      color: rgba(216, 211, 197, 0.92); text-shadow: 0 1px 2px #000, 0 0 12px #000;
+      background: rgba(10, 10, 14, 0.45);
+      border: 1px solid rgba(216, 211, 197, 0.16);
+      padding: 12px 18px; border-radius: 4px;
+      opacity: 0; transition: opacity .3s;
+    }
+    .zone.hinted .zone-label { opacity: 1; }
+    #zone-left   { left: 0; top: 18%; width: 17%; height: 56%; }
+    #zone-right  { right: 0; top: 18%; width: 17%; height: 56%; }
+    #zone-up     { left: 24%; top: 4%; width: 52%; height: 34%; }
+    #zone-down   { left: 20%; bottom: 0; width: 60%; height: 21%; }
+    #zone-action { left: 24%; top: 40%; width: 52%; height: 36%; }
+
+    /* ---------- overlays ---------- */
+    #blackout { position: absolute; inset: 0; background: #000; z-index: 44; opacity: 0; pointer-events: none; transition: opacity .25s; }
+    #win-screen { background: #000; }
+    .win-time { font-size: clamp(46px, 10vw, 110px); letter-spacing: 0.2em; color: #efe9d8; text-shadow: 0 0 30px rgba(239,233,216,0.35); }
+    .win-sub { margin-top: 18px; font-size: clamp(12px, 1.8vw, 17px); letter-spacing: 0.4em; color: var(--dim); }
+    #death-screen { background: transparent; z-index: 46; }
+    .death-text { font-size: clamp(13px, 2vw, 20px); letter-spacing: 0.5em; color: rgba(216,211,197,0.0); margin-top: 30vh; }
+
+    .btn-row { display: flex; gap: 18px; margin-top: 44px; }
+    .ui-btn {
+      font-family: inherit; background: rgba(20, 18, 24, 0.85); color: var(--bone);
+      border: 1px solid #3a3545; padding: 13px 26px; font-size: clamp(12px, 1.6vw, 16px);
+      letter-spacing: 0.22em; cursor: pointer;
+    }
+    .ui-btn:hover { border-color: var(--blood); color: #fff; }
+
+    #boot-hint { position: absolute; bottom: 8%; left: 0; right: 0; text-align: center;
+      font-size: clamp(11px, 1.5vw, 14px); color: #57523f; letter-spacing: 0.35em;
+      animation: bootpulse 2.2s infinite; }
+    @keyframes bootpulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.184.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="gl"></canvas>
+    <canvas id="fx"></canvas>
+
+    <div id="hud">
+      <div id="night-label">NIGHT 1</div>
+      <div id="clock">12 AM</div>
+      <div id="cue-text"></div>
+    </div>
+
+    <div class="zone" id="zone-left"><span class="zone-label"></span></div>
+    <div class="zone" id="zone-right"><span class="zone-label"></span></div>
+    <div class="zone" id="zone-up"><span class="zone-label"></span></div>
+    <div class="zone" id="zone-down"><span class="zone-label"></span></div>
+    <div class="zone" id="zone-action"><span class="zone-label"></span></div>
+
+    <div id="blackout"></div>
+
+    <div class="screen visible" id="title-screen">
+      <div class="title-kicker">a fan-made parody experiment</div>
+      <div class="title-main">FIVE NIGHTS<br/>OF NIGHTMARES</div>
+      <div class="title-sub">they remember your room</div>
+      <div class="night-row" id="night-row"></div>
+      <div class="menu-note">
+        keep both ears open. at a door: <b>listen first</b>. breathing means <b>hold the door shut</b>.
+        silence means <b>flash the hall</b>. never shine a light on something that is breathing.<br/>
+        check the closet. watch the bed. survive until 6 am.
+      </div>
+      <div class="parody-footer">unofficial parody &mdash; not affiliated with scott cawthon or steel wool studios &mdash; all art &amp; audio original / synthesized</div>
+    </div>
+
+    <div class="screen" id="intro-screen">
+      <div class="intro-night" id="intro-night">NIGHT 1</div>
+      <div class="intro-time">12:00 AM</div>
+    </div>
+
+    <div class="screen" id="win-screen">
+      <div class="win-time">6 AM</div>
+      <div class="win-sub" id="win-sub">you survived the night</div>
+      <div class="btn-row">
+        <button class="ui-btn" id="win-next">NEXT NIGHT</button>
+        <button class="ui-btn" id="win-menu">MENU</button>
+      </div>
+    </div>
+
+    <div class="screen" id="death-screen">
+      <div class="death-text"></div>
+      <div class="btn-row">
+        <button class="ui-btn" id="death-retry">TRY AGAIN</button>
+        <button class="ui-btn" id="death-menu">MENU</button>
+      </div>
+    </div>
+
+    <button id="mute-btn">SOUND: ON</button>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
