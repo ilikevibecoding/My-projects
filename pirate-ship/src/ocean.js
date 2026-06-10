@@ -133,7 +133,7 @@ void main() {
   // --- water body colour from depth (terrain field mirrors the islands)
   float terrain = terrainHeight(vWorld.xz, uIslA, uIslB, uIslC);
   float depth = max(vWorld.y - terrain, 0.0);
-  float shallow = exp(-depth * 0.14);
+  float shallow = exp(-depth * 0.18);
   vec3 base = mix(uDeepColor, uShallowColor, clamp(shallow, 0.0, 1.0));
 
   // subtle subsurface glow on sun-facing wave flanks
@@ -155,11 +155,11 @@ void main() {
   breakup = 0.65 + 0.35 * breakup;
   float crestFoam = smoothstep(0.3, 0.72, vCrest / 0.28) * breakup;
 
-  float wob = sin(uTime * 1.25 + vWorld.x * 0.11 + vWorld.z * 0.085) * 0.55;
-  float shoreFoam = (1.0 - smoothstep(0.0, 2.3 + wob, depth - 0.25))
-                  * (0.6 + 0.4 * sin(depth * 3.1 - uTime * 2.2));
-  shoreFoam += smoothstep(0.75, 1.0, sin(depth * 1.9 - uTime * 1.45)) *
-               (1.0 - smoothstep(0.0, 6.5, depth)) * 0.5;
+  float wob = sin(uTime * 1.25 + vWorld.x * 0.11 + vWorld.z * 0.085) * 0.35;
+  float shoreFoam = (1.0 - smoothstep(0.0, 1.4 + wob, depth - 0.2))
+                  * (0.55 + 0.45 * sin(depth * 3.1 - uTime * 2.2));
+  shoreFoam += smoothstep(0.78, 1.0, sin(depth * 1.9 - uTime * 1.45)) *
+               (1.0 - smoothstep(0.0, 4.5, depth)) * 0.38;
   shoreFoam = clamp(shoreFoam, 0.0, 1.0) * step(0.001, depth);
 
   float foam = clamp(crestFoam * 0.75 + shoreFoam * 0.95, 0.0, 1.0) * vFade;

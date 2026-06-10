@@ -53,8 +53,8 @@ export const TUNE = {
   heelWind: 0.5, // heel from beam wind on sails
   keelRighting: 16, // artificial righting torque (anti-capsize)
   anchorDrag: 1.4,
-  groundSpring: 26,
-  groundFriction: 2.2,
+  groundSpring: 15,
+  groundFriction: 4.5,
 };
 
 export const SAIL_SETTINGS = [
@@ -280,16 +280,19 @@ export class ShipPhysics {
       const pen = ground - keelY;
       if (pen <= 0) continue;
       this.aground = true;
-      const capped = Math.min(pen, 1.4);
+      const capped = Math.min(pen, 1.0);
       const g = terrainGradientAt(px, pz, this._g); // uphill
       const gl = Math.hypot(g.x, g.z) || 1;
       const dhx = -g.x / gl; // downhill (push back to sea)
       const dhz = -g.z / gl;
-      // spring push + lift, applied at the contact -> the bow swings off shore
+      // gentle spring push + lift, applied at the contact, and only while the
+      // ship still moves shoreward or sits still — never slingshots it out
+      const vDown = this.vel.x * dhx + this.vel.z * dhz; // speed already heading to sea
+      const springScale = vDown > 1.5 ? 0.15 : 1.0;
       this._applyAt(
-        dhx * capped * T.groundSpring,
-        capped * T.groundSpring * 0.35,
-        dhz * capped * T.groundSpring,
+        dhx * capped * T.groundSpring * springScale,
+        capped * T.groundSpring * 0.25,
+        dhz * capped * T.groundSpring * springScale,
         r.x,
         r.y,
         r.z,

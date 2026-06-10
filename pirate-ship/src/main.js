@@ -73,11 +73,16 @@ function frame() {
 
   controls.applyInput();
   accumulator += dt;
-  while (accumulator >= FIXED_DT) {
+  // catch up physics, but never more than 5 steps per frame: on very slow
+  // machines we'd rather run slightly slow-motion than starve the renderer
+  let steps = 0;
+  while (accumulator >= FIXED_DT && steps < 5) {
     simTime += FIXED_DT;
     body.step(FIXED_DT, simTime);
     accumulator -= FIXED_DT;
+    steps++;
   }
+  if (accumulator > FIXED_DT) accumulator = FIXED_DT;
 
   timeUniform.value = simTime;
   ship.update(body, simTime, dt);

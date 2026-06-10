@@ -196,8 +196,8 @@ export function buildVegetation(scene, timeUniform) {
   });
 
   // --- undergrowth
-  const bushGeoA = makeBushGeometry(mulberry32(44), 1.6, false);
-  const bushGeoB = makeBushGeometry(mulberry32(55), 2.6, true);
+  const bushGeoA = makeBushGeometry(mulberry32(44), 1.5, false);
+  const bushGeoB = makeBushGeometry(mulberry32(55), 1.9, true);
   const bushMat = new THREE.MeshStandardMaterial({
     vertexColors: true,
     flatShading: true,
