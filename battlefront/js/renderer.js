@@ -140,16 +140,17 @@ const Graphics = (() => {
     const S = 130;
     sun.shadow.camera.left = -S; sun.shadow.camera.right = S;
     sun.shadow.camera.top = S; sun.shadow.camera.bottom = -S;
+    sun.shadow.camera.updateProjectionMatrix();
     sun.shadow.bias = -0.00018;
     sun.shadow.normalBias = 0.02;
     scene.add(sun);
     scene.add(sun.target);
 
     // warm sky / cool ground bounce
-    const hemi = new THREE.HemisphereLight(0xa8c4e8, 0x8a6a42, 0.55);
+    const hemi = new THREE.HemisphereLight(0xa8c4e8, 0x8a6a42, 0.62);
     scene.add(hemi);
 
-    const amb = new THREE.AmbientLight(0x584a38, 0.18);
+    const amb = new THREE.AmbientLight(0x6a5a44, 0.26);
     scene.add(amb);
 
     Graphics.sun = sun;

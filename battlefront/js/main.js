@@ -494,6 +494,12 @@ const Game = {
     get simTime() { return Game.time; },
     forceEnd(team) { endMatch(team || 'coalition'); },
     forceTickets(c, d) { Capture.tickets.coalition = c; Capture.tickets.dominion = d; },
+    teleport(x, z) {
+      if (Game.player) {
+        const r = World.resolveCollision(x, z, 0.45, 0);
+        Game.player.position.set(r.x, World.getGroundHeight(r.x, r.z), r.z);
+      }
+    },
   };
 
   window.addEventListener('DOMContentLoaded', boot);

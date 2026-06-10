@@ -88,35 +88,35 @@ const Assets = (() => {
     {
       const size = 512;
       const [cv, ctx] = makeCanvas(size);
-      paintNoise(ctx, size, '#c49a62', [
-        { count: 900, rMin: 3, rMax: 26, colors: ['#d4ac72', '#b88c54', '#caa066', '#dab87e'], alpha: 0.16 },
-        { count: 500, rMin: 1, rMax: 5, colors: ['#a87f4c', '#e2c088'], alpha: 0.22 },
+      paintNoise(ctx, size, '#c8a067', [
+        { count: 700, rMin: 6, rMax: 40, colors: ['#d2aa70', '#bc935c', '#cca469', '#d6b276'], alpha: 0.09 },
+        { count: 320, rMin: 1, rMax: 4, colors: ['#b08550', '#dcba80'], alpha: 0.14 },
       ]);
-      // ripple streaks
+      // wind ripple streaks (dominant detail)
       const rng = mulberry32(7);
-      ctx.globalAlpha = 0.07;
-      for (let i = 0; i < 130; i++) {
-        ctx.strokeStyle = rng() > 0.5 ? '#e0bc84' : '#9e7846';
-        ctx.lineWidth = 1 + rng() * 2.4;
+      ctx.globalAlpha = 0.1;
+      for (let i = 0; i < 300; i++) {
+        ctx.strokeStyle = rng() > 0.5 ? '#dcb87e' : '#ab814c';
+        ctx.lineWidth = 0.8 + rng() * 1.8;
         ctx.beginPath();
         const y = rng() * size;
         ctx.moveTo(0, y);
-        for (let x = 0; x <= size; x += 32) {
-          ctx.lineTo(x, y + Math.sin(x * 0.02 + i) * 9);
+        for (let x = 0; x <= size; x += 24) {
+          ctx.lineTo(x, y + Math.sin(x * 0.025 + i * 1.7) * 7);
         }
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
-      textures.sand = canvasTexture(cv, 28);
-      textures.sandNormal = canvasTexture(noiseToNormal(ctx, size, 2.6), 28, false);
+      textures.sand = canvasTexture(cv, 90);
+      textures.sandNormal = canvasTexture(noiseToNormal(ctx, size, 1.7), 90, false);
     }
     // -- rock --
     {
       const size = 256;
       const [cv, ctx] = makeCanvas(size);
-      paintNoise(ctx, size, '#7d6a55', [
-        { count: 360, rMin: 4, rMax: 34, colors: ['#8d7a62', '#6a5a48', '#998468', '#5c4e3e'], alpha: 0.25 },
-        { count: 260, rMin: 1, rMax: 6, colors: ['#4e4234', '#a8927255'], alpha: 0.3 },
+      paintNoise(ctx, size, '#a89272', [
+        { count: 360, rMin: 4, rMax: 34, colors: ['#b8a280', '#94805f', '#c4ac88', '#86735a'], alpha: 0.25 },
+        { count: 260, rMin: 1, rMax: 6, colors: ['#7a684f', '#d2bc9a55'], alpha: 0.3 },
       ]);
       textures.rock = canvasTexture(cv, 3);
       textures.rockNormal = canvasTexture(noiseToNormal(ctx, size, 3.2), 3, false);
@@ -160,7 +160,7 @@ const Assets = (() => {
     {
       const size = 256;
       const [cv, ctx] = makeCanvas(size);
-      paintNoise(ctx, size, '#4a5058', [
+      paintNoise(ctx, size, '#5a626c', [
         { count: 200, rMin: 4, rMax: 28, colors: ['#555c66', '#3c424a', '#606870'], alpha: 0.22 },
       ]);
       const rng = mulberry32(99);
@@ -245,7 +245,7 @@ const Assets = (() => {
   function mat(key, params) {
     if (matCache.has(key)) return matCache.get(key);
     const m = new THREE.MeshStandardMaterial(params);
-    if (Graphics.envMap) { m.envMap = Graphics.envMap; m.envMapIntensity = 0.55; }
+    if (Graphics.envMap) { m.envMap = Graphics.envMap; m.envMapIntensity = 0.75; }
     matCache.set(key, m);
     return m;
   }
@@ -379,7 +379,7 @@ const Assets = (() => {
   // ---------- model: props -------------------------------------
   function buildVaporator() {
     const g = new THREE.Group();
-    const metal = mat('vap_metal', { color: 0x8f9499, roughness: 0.42, metalness: 0.78, map: textures.hull });
+    const metal = mat('vap_metal', { color: 0xc6cad0, roughness: 0.45, metalness: 0.5, map: textures.hull });
     const dark = gunMat();
     const core = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.45, 7.2, 8), metal);
     core.position.y = 3.6;
@@ -411,7 +411,7 @@ const Assets = (() => {
     }
     geo.computeVertexNormals();
     const m = mat('rock', {
-      color: 0x9a8468, roughness: 0.95, metalness: 0.02,
+      color: 0xc8b294, roughness: 0.95, metalness: 0.02,
       map: textures.rock, normalMap: textures.rockNormal,
     });
     const mesh = new THREE.Mesh(geo, m);
@@ -423,7 +423,7 @@ const Assets = (() => {
 
   function buildBarricade() {
     const g = new THREE.Group();
-    const m = mat('barricade', { color: 0x767c84, roughness: 0.5, metalness: 0.6, map: textures.hull });
+    const m = mat('barricade', { color: 0xaab2bc, roughness: 0.5, metalness: 0.4, map: textures.hull });
     const wall = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.15, 0.3), m);
     wall.position.y = 0.58;
     wall.rotation.x = -0.12;
@@ -438,8 +438,8 @@ const Assets = (() => {
 
   function buildBunker() {
     const g = new THREE.Group();
-    const m = mat('bunker', { color: 0xb09a76, roughness: 0.8, metalness: 0.08, map: textures.rock });
-    const dark = mat('bunker_dark', { color: 0x3a3e44, roughness: 0.6, metalness: 0.4, map: textures.darkHull });
+    const m = mat('bunker', { color: 0xd6c2a0, roughness: 0.8, metalness: 0.06, map: textures.rock });
+    const dark = mat('bunker_dark', { color: 0x6a727c, roughness: 0.6, metalness: 0.35, map: textures.darkHull });
     const dome = new THREE.Mesh(new THREE.SphereGeometry(4.2, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), m);
     dome.scale.y = 0.62;
     const door = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.0, 0.4), dark);
@@ -454,7 +454,7 @@ const Assets = (() => {
 
   function buildWallSegment(len = 12) {
     const g = new THREE.Group();
-    const m = mat('wall', { color: 0xa8946e, roughness: 0.82, metalness: 0.06, map: textures.rock });
+    const m = mat('wall', { color: 0xd8c4a0, roughness: 0.82, metalness: 0.04, map: textures.rock });
     const wall = new THREE.Mesh(new THREE.BoxGeometry(len, 4.4, 1.2), m);
     wall.position.y = 2.2;
     const cap = new THREE.Mesh(new THREE.BoxGeometry(len, 0.5, 1.7), m);
@@ -467,7 +467,7 @@ const Assets = (() => {
 
   function buildCrashedShip() {
     const g = new THREE.Group();
-    const m = mat('crash', { color: 0x70757c, roughness: 0.55, metalness: 0.66, map: textures.hull });
+    const m = mat('crash', { color: 0xb2b8c0, roughness: 0.5, metalness: 0.45, map: textures.hull });
     const dark = gunMat();
     const hull = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.6, 14, 10), m);
     hull.rotation.z = Math.PI / 2 - 0.22;
@@ -486,7 +486,7 @@ const Assets = (() => {
   // ---------- model: command post -------------------------------
   function buildCommandPost() {
     const g = new THREE.Group();
-    const metal = mat('cp_metal', { color: 0x868c94, roughness: 0.4, metalness: 0.8, map: textures.hull });
+    const metal = mat('cp_metal', { color: 0xc2c8d0, roughness: 0.42, metalness: 0.5, map: textures.hull });
     const dark = gunMat();
     const base = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.9, 0.5, 10), metal);
     base.position.y = 0.25;
@@ -530,8 +530,8 @@ const Assets = (() => {
     const g = new THREE.Group();
     const F = CONFIG.factions[faction];
     const body = mat('speeder_body_' + faction, {
-      color: faction === 'coalition' ? 0x9a6840 : 0x596068,
-      roughness: 0.42, metalness: 0.6, map: textures.hull,
+      color: faction === 'coalition' ? 0xc89058 : 0x8a929c,
+      roughness: 0.45, metalness: 0.4, map: textures.hull,
     });
     const dark = gunMat();
     const hull = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 2.6), body);
@@ -561,7 +561,7 @@ const Assets = (() => {
   // ---------- model: turret ---------------------------------------
   function buildTurret() {
     const g = new THREE.Group();
-    const metal = mat('turret_metal', { color: 0x7b828c, roughness: 0.45, metalness: 0.72, map: textures.hull });
+    const metal = mat('turret_metal', { color: 0xb4bcc6, roughness: 0.46, metalness: 0.45, map: textures.hull });
     const dark = gunMat();
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 1.05, 0.5, 10), metal);
     base.position.y = 0.25;
@@ -591,8 +591,8 @@ const Assets = (() => {
     const g = new THREE.Group();
     const F = CONFIG.factions[faction];
     const body = mat('fighter_body_' + faction, {
-      color: faction === 'coalition' ? 0xc8b894 : 0x8c929c,
-      roughness: 0.4, metalness: 0.62, map: textures.hull,
+      color: faction === 'coalition' ? 0xe2d2ac : 0xb4bac4,
+      roughness: 0.42, metalness: 0.42, map: textures.hull,
     });
     const dark = gunMat();
     // fuselage
@@ -633,8 +633,8 @@ const Assets = (() => {
   // ---------- model: capital ship (space layer) --------------------
   function buildCapitalShip() {
     const g = new THREE.Group();
-    const m = mat('cap_hull', { color: 0x6c727c, roughness: 0.5, metalness: 0.7, map: textures.hull });
-    const dark = mat('cap_dark', { color: 0x363b42, roughness: 0.55, metalness: 0.6, map: textures.darkHull });
+    const m = mat('cap_hull', { color: 0xaab0ba, roughness: 0.5, metalness: 0.5, map: textures.hull });
+    const dark = mat('cap_dark', { color: 0x6c747e, roughness: 0.55, metalness: 0.45, map: textures.darkHull });
     // wedge hull
     const hullGeo = new THREE.CylinderGeometry(3, 26, 110, 4, 1);
     const hull = new THREE.Mesh(hullGeo, m);
