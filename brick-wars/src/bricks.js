@@ -59,7 +59,7 @@ export function plastic(colorHex, opts = {}) {
     metalness: 0,
     clearcoat: opts.clearcoat ?? 0.55,
     clearcoatRoughness: 0.28,
-    envMapIntensity: opts.envMapIntensity ?? 0.7,
+    envMapIntensity: opts.envMapIntensity ?? 0.22,
     ...((opts.extra ?? {})),
   });
   materialCache.set(key, mat);
@@ -74,7 +74,7 @@ export function instancePlastic() {
     metalness: 0,
     clearcoat: 0.55,
     clearcoatRoughness: 0.28,
-    envMapIntensity: 0.7,
+    envMapIntensity: 0.22,
   });
 }
 
@@ -310,7 +310,7 @@ export function mergeColoredBricks(items, material) {
       roughness: 0.34,
       clearcoat: 0.55,
       clearcoatRoughness: 0.28,
-      envMapIntensity: 0.7,
+      envMapIntensity: 0.22,
       vertexColors: true,
     });
   const mesh = new THREE.Mesh(merged, mat);

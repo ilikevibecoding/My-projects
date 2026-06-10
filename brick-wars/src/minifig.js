@@ -74,24 +74,26 @@ function hipGeometry() {
 
 function armGeometry() {
   return cached('arm', () => {
-    // shoulder block + slightly bent forearm
-    const upper = new THREE.CylinderGeometry(0.3, 0.27, 0.78, 14);
-    upper.translate(0, -0.3, 0);
-    const lower = new THREE.CylinderGeometry(0.27, 0.24, 0.74, 14);
-    lower.rotateX(-0.55);
-    lower.translate(0, -0.92, 0.17);
-    return mergeGeometries([upper, lower], false);
+    // rounded shoulder + upper arm + slightly bent forearm
+    const shoulder = new THREE.SphereGeometry(0.36, 14, 10);
+    shoulder.scale(1, 0.85, 1);
+    const upper = new THREE.CylinderGeometry(0.34, 0.3, 0.85, 14);
+    upper.translate(0, -0.42, 0);
+    const lower = new THREE.CylinderGeometry(0.3, 0.26, 0.8, 14);
+    lower.rotateX(-0.5);
+    lower.translate(0, -1.05, 0.18);
+    return mergeGeometries([shoulder, upper, lower], false);
   });
 }
 
 function handGeometry() {
   return cached('hand', () => {
-    const wrist = new THREE.CylinderGeometry(0.14, 0.14, 0.3, 10);
+    const wrist = new THREE.CylinderGeometry(0.17, 0.17, 0.34, 10);
     wrist.translate(0, -0.1, 0);
-    const claw = new THREE.TorusGeometry(0.3, 0.13, 10, 16, Math.PI * 1.45);
+    const claw = new THREE.TorusGeometry(0.33, 0.15, 10, 16, Math.PI * 1.45);
     claw.rotateZ(Math.PI * 0.78);
     claw.rotateY(Math.PI / 2);
-    claw.translate(0, -0.4, 0);
+    claw.translate(0, -0.46, 0);
     return mergeGeometries([wrist, claw], false);
   });
 }
@@ -246,19 +248,19 @@ export function createMinifig(options = {}) {
   setShadow(torso, ghost);
   torsoPivot.add(torso);
 
-  // arms
-  const shoulderY = TORSO_H - 0.34;
+  // arms — clearly outside the torso, angled slightly outward like the real toy
+  const shoulderY = TORSO_H - 0.4;
   for (const side of ['L', 'R']) {
     const s = side === 'L' ? -1 : 1;
     const pivot = new THREE.Group();
-    pivot.position.set(s * (TORSO_W_TOP / 2 + 0.12), shoulderY, 0);
-    pivot.rotation.z = s * 0.09;
+    pivot.position.set(s * (TORSO_W_TOP / 2 + 0.3), shoulderY, 0);
+    pivot.rotation.z = s * 0.17;
     const arm = new THREE.Mesh(armGeometry(), matFor(torsoColor));
     setShadow(arm, ghost);
     pivot.add(arm);
     const hand = new THREE.Mesh(handGeometry(), matFor(skinColor));
     setShadow(hand, ghost);
-    hand.position.set(0, -1.32, 0.33);
+    hand.position.set(0, -1.42, 0.38);
     pivot.add(hand);
     torsoPivot.add(pivot);
     joints[`arm${side}`] = pivot;
@@ -285,8 +287,9 @@ export function createMinifig(options = {}) {
     const capMat = plastic(skinColor, { roughness: 0.3, clearcoat: 0.6 });
     headMesh = new THREE.Mesh(headGeometry(), [sideMat, capMat]);
   }
-  // face texture band is centered at u=0.5; cylinder u=0.5 faces -X→ rotate so it faces +Z
-  headMesh.rotation.y = -Math.PI / 2;
+  // face band sits at u=0.5 (+Z on three's cylinder); flip it to -Z, the
+  // direction the hero walks in
+  headMesh.rotation.y = Math.PI;
   setShadow(headMesh, ghost);
   headPivot.add(headMesh);
 
@@ -295,8 +298,8 @@ export function createMinifig(options = {}) {
   let swordTip = null;
   if (sword) {
     swordGroup = createEnergySword({ color: swordColor, ghost });
-    swordGroup.position.set(0, -1.55, 0.42);
-    swordGroup.rotation.x = 0.12;
+    swordGroup.position.set(0, -1.5, 0.55);
+    swordGroup.rotation.x = 0.45; // blade tilts forward, away from the body
     joints.armR.add(swordGroup);
     swordTip = new THREE.Object3D();
     swordTip.position.y = 4;
@@ -376,13 +379,11 @@ export function ghostMaterial() {
     _ghostMat = new THREE.MeshPhysicalMaterial({
       color: 0x9ff2ff,
       emissive: 0x37c4e8,
-      emissiveIntensity: 1.5,
+      emissiveIntensity: 1.15,
       transparent: true,
-      opacity: 0.42,
+      opacity: 0.55,
       roughness: 0.15,
       clearcoat: 1,
-      depthWrite: false,
-      side: THREE.DoubleSide,
     });
   }
   return _ghostMat;

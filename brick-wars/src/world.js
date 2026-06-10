@@ -114,11 +114,12 @@ export function buildWorld(scene) {
   scene.fog = new THREE.Fog(0xf0c490, 95, 320);
   scene.add(buildSky());
 
-  const hemi = new THREE.HemisphereLight(0xbdd6ff, 0xc9a36a, 0.62);
+  const hemi = new THREE.HemisphereLight(0xbdd6ff, 0xc9a36a, 0.32);
   scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(0xfff0d2, 2.7);
-  sun.position.set(46, 70, 28);
+  // azimuth chosen so shadows fall toward the default camera (player looks -Z)
+  const sun = new THREE.DirectionalLight(0xfff0d2, 3.6);
+  sun.position.set(42, 66, -38);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -52;
@@ -133,8 +134,8 @@ export function buildWorld(scene) {
   scene.add(sun.target);
   world.sun = sun;
 
-  const sun2 = new THREE.DirectionalLight(0xffb37a, 0.5);
-  sun2.position.set(-60, 34, -40);
+  const sun2 = new THREE.DirectionalLight(0xffb37a, 0.45);
+  sun2.position.set(-60, 34, 40);
   scene.add(sun2);
 
   // ---- The table under the diorama ----------------------------------------
@@ -290,7 +291,15 @@ export function buildWorld(scene) {
     { x: 5, z: 5 }, { x: -6, z: -7 }, { x: 17, z: -3 }, { x: -16, z: 2 },
     { x: 9, z: 12 }, { x: -10, z: 16 }, { x: 20, z: -10 }, { x: -2, z: 20 },
     { x: 12, z: -14 }, { x: -19, z: -8 },
-  ].filter((c) => world.terrainHeight(c.x, c.z) < 1.3);
+  ].filter((c) => {
+    // crates must sit on locally flat ground so they don't float or sink
+    const h0 = world.terrainHeight(c.x, c.z);
+    if (h0 > 1.3) return false;
+    for (const [dx, dz] of [[-2, -2], [-2, 2], [2, -2], [2, 2], [-2, 0], [2, 0], [0, -2], [0, 2]]) {
+      if (world.terrainHeight(c.x + dx, c.z + dz) !== h0) return false;
+    }
+    return true;
+  });
 
   // ---- Build site (rattling pile at the mesa foot) --------------------------
   world.buildSite = {

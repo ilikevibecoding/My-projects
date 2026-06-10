@@ -38,7 +38,7 @@ export class SpiritManager {
         depthWrite: false,
       })
     );
-    halo.scale.setScalar(7.5);
+    halo.scale.setScalar(5.2);
     halo.position.y = 2.6;
     fig.group.add(halo);
 

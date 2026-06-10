@@ -43,7 +43,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.06;
+renderer.toneMappingExposure = 0.98;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa8c8ee);
@@ -95,6 +95,7 @@ const hero = createMinifig({
   sword: true,
   swordColor: 0x55ccff,
 });
+hero.group.rotation.y = Math.PI; // face the diorama at spawn
 scene.add(hero.group);
 
 const controls = new PlayerControls(canvas, world);
