@@ -224,6 +224,12 @@ export class Game {
     this.grimm.level = lv.grimm;
   }
 
+  // boss nights swap the closet/hall cast for Grimm regardless of his
+  // current (possibly test-frozen) AI level
+  get bossNight() {
+    return ((NIGHTS[this.night] || {}).grimm || 0) > 0;
+  }
+
   // ---------- zones ----------
   _applyStationZones(hideAll = false) {
     if (this.state !== 'night' || hideAll || this.player.moving) {
@@ -444,7 +450,8 @@ export class Game {
     }
 
     // closet
-    const stage = this.grimm.level > 0
+    const boss = this.bossNight;
+    const stage = boss
       ? (this.grimm.location === 'closet' ? 3 : 0)
       : this.snatch.stage;
     const atCloset = this.player.station === 'closet' && !this.player.moving;
@@ -455,11 +462,10 @@ export class Game {
       const cur = this.world.closet.getAjar();
       this.world.closet.setAjar(cur + (wantAjar - cur) * Math.min(1, dt * 4));
     }
-    const showMonsterInCloset = this.grimm.level > 0
+    const showMonsterInCloset = boss
       ? (this.grimm.location === 'closet' && this.grimm.phase !== 'idle')
       : this.snatch.stage >= 2;
-    const closetChar = this.grimm.level > 0 ? this.chars.grimm : this.chars.snatch;
-    if (this.grimm.level === 0) {
+    if (!boss) {
       this.chars.plushCalm.visible = this.snatch.stage === 0 && this.state !== 'title';
       this.chars.plushSus.visible = this.snatch.stage === 1 && this.state !== 'title';
       this.chars.snatch.group.visible = showMonsterInCloset && this.state !== 'title';
@@ -487,7 +493,7 @@ export class Game {
     });
 
     // grimm placement (boss nights)
-    if (this.grimm.level > 0) {
+    if (boss) {
       const g = this.chars.grimm;
       const active = this.grimm.phase === 'staged' || this.grimm.phase === 'threat';
       const loc = this.grimm.location;
