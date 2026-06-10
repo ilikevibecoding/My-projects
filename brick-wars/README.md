@@ -25,8 +25,14 @@ python3 -m http.server 8123
 
 **Via CDN (this branch):**
 
-- https://raw.githack.com/ilikevibecoding/My-projects/cursor/bc-a9d7f41c-76dd-4702-9e55-dfef9095a961-8f96/brick-wars/index.html
-- https://cdn.jsdelivr.net/gh/ilikevibecoding/My-projects@cursor/bc-a9d7f41c-76dd-4702-9e55-dfef9095a961-8f96/brick-wars/index.html
+- Latest on the branch:
+  https://raw.githack.com/ilikevibecoding/My-projects/cursor/bc-a9d7f41c-76dd-4702-9e55-dfef9095a961-8f96/brick-wars/index.html
+- Pinned to a commit (immutable, permanently cached — replace `<sha>` with any
+  commit hash from this branch):
+  `https://rawcdn.githack.com/ilikevibecoding/My-projects/<sha>/brick-wars/index.html`
+
+githack shows a one-time "External Content Notice" — just click **Open the
+page**. (jsDelivr is not usable here: it serves `.html` as `text/plain`.)
 
 Best played on a desktop browser with hardware WebGL.
 
