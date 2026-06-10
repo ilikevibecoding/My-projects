@@ -274,9 +274,8 @@ export function buildWorld(scene) {
   scene.add(rockField.build());
   world.spiritSpots.push({ x: 27, z: -16.8, label: 'behind the rocks' });
 
-  // ---- Dune ridge + far spirit spots ---------------------------------------
+  // ---- Dune ridge spot -------------------------------------------------------
   world.spiritSpots.push(findRidgeSpot(world, 24, 24, 'on the dune ridge'));
-  world.spiritSpots.push({ x: -25, z: 22, label: 'at the far flats' });
   // #7: mesa top — requires the staircase set piece
   world.spiritSpots.push({
     x: MESA.x,

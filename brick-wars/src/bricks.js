@@ -98,6 +98,15 @@ function cached(key, build) {
   return geometryCache.get(key);
 }
 
+/** mergeGeometries needs all-indexed or all-non-indexed inputs; normalize. */
+function flat(geometry) {
+  return geometry.index ? geometry.toNonIndexed() : geometry;
+}
+
+function mergeFlat(parts, useGroups = false) {
+  return mergeGeometries(parts.map(flat), useGroups);
+}
+
 /** A single stud cylinder, origin at its base. */
 export function studGeometry(segments = 20) {
   return cached(`stud${segments}`, () => {
@@ -132,7 +141,7 @@ export function brickGeometry(sx, sz, plates = 3, studs = true) {
         }
       }
     }
-    const merged = mergeGeometries(parts, false);
+    const merged = mergeFlat(parts);
     parts.forEach((p) => p !== body || p.dispose?.());
     return merged;
   });
@@ -174,9 +183,7 @@ export function slopeGeometry(sz = 2) {
     // Stud centered on the flat part (+Z end).
     const stud = studGeometry().clone();
     stud.translate(0, h, depth / 2 - 0.5);
-    const merged = mergeGeometries([geo, stud], false);
-    merged.computeVertexNormals();
-    return merged;
+    return mergeFlat([geo, stud]);
   });
 }
 
@@ -188,7 +195,7 @@ export function roundBrickGeometry(plates = 3, radius = 0.5, segments = 24) {
     body.translate(0, h / 2, 0);
     const stud = studGeometry().clone();
     stud.translate(0, h, 0);
-    return mergeGeometries([body, stud], false);
+    return mergeFlat([body, stud]);
   });
 }
 
@@ -200,7 +207,7 @@ export function coneGeometry(radius = 1, plates = 3, segments = 24) {
     body.translate(0, h / 2, 0);
     const stud = studGeometry().clone();
     stud.translate(0, h, 0);
-    return mergeGeometries([body, stud], false);
+    return mergeFlat([body, stud]);
   });
 }
 
@@ -280,7 +287,7 @@ export function hash01(n) {
 export function mergeColoredBricks(items, material) {
   const parts = [];
   for (const it of items) {
-    const g = it.geo.clone();
+    const g = flat(it.geo.clone());
     if (it.rotY) g.rotateY(it.rotY);
     g.translate(it.x, it.y, it.z);
     const count = g.attributes.position.count;

@@ -305,6 +305,11 @@ window.__bw = {
     }
   },
   swing: doSwing,
+  /** advance the simulation deterministically (test environments render slowly) */
+  step: (seconds) => {
+    const n = Math.max(1, Math.round(seconds / FIXED));
+    for (let i = 0; i < n; i++) simulate(FIXED);
+  },
   info: () => ({
     state,
     drawCalls: renderer.info.render.calls,
