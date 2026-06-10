@@ -25,6 +25,11 @@ const STATIONS = {
   },
 };
 
+// flashlight power per station — full blast down the long halls, but much
+// gentler when lighting things up close (closet doors, the bed) so the
+// beam doesn't blow out to pure white
+const FLASH_POWER = { center: 80, doorL: 92, doorR: 92, closet: 18, bed: 30 };
+
 // which stations you can reach from where
 const MOVES = {
   center: { left: 'doorL', right: 'doorR', up: 'closet', down: 'bed' },
@@ -159,13 +164,14 @@ export class Player {
     }
 
     // flashlight (instant click on/off + hand wobble)
+    const power = FLASH_POWER[this.station] ?? 80;
     if (this.flashWant !== this.flashOn) {
       this.flashOn = this.flashWant;
-      this.flash.intensity = this.flashOn ? 95 : 0;
+      this.flash.intensity = this.flashOn ? power : 0;
       if (this.audio.ctx) this.audio.flashClick();
     }
     if (this.flashOn) {
-      this.flash.intensity = 92 + Math.sin(this.time * 31) * 4 + Math.sin(this.time * 7.3) * 3;
+      this.flash.intensity = power * (1 + Math.sin(this.time * 31) * 0.045 + Math.sin(this.time * 7.3) * 0.03);
       this.flashTarget.position.x = Math.sin(this.time * 1.9) * 0.05;
       this.flashTarget.position.y = -0.06 + Math.sin(this.time * 2.6) * 0.04;
     }

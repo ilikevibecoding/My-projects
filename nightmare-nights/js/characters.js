@@ -30,17 +30,46 @@ function getGlowTexture() {
 function makeEye(color, size = 0.05) {
   const group = new THREE.Group();
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x0a0a0a, emissive: color, emissiveIntensity: 2.2, roughness: 0.3,
+    color: 0x0a0a0a, emissive: color, emissiveIntensity: 1.9, roughness: 0.3,
   });
   const ball = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 8), mat);
   group.add(ball);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: getGlowTexture(), color, transparent: true, opacity: 0.85,
+    map: getGlowTexture(), color, transparent: true, opacity: 0.4,
     blending: THREE.AdditiveBlending, depthWrite: false,
   }));
-  sprite.scale.setScalar(size * 7);
+  sprite.scale.setScalar(size * 4.5);
   group.add(sprite);
   return { group, mat, sprite };
+}
+
+// soft round contact shadow so characters read as standing ON the floor
+let blobTex = null;
+function getBlobTexture() {
+  if (blobTex) return blobTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 31);
+  g.addColorStop(0, 'rgba(0,0,0,0.85)');
+  g.addColorStop(0.6, 'rgba(0,0,0,0.5)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  blobTex = new THREE.CanvasTexture(c);
+  return blobTex;
+}
+
+function contactShadow(radius = 0.5) {
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(radius * 2, radius * 2),
+    new THREE.MeshBasicMaterial({
+      map: getBlobTexture(), transparent: true, depthWrite: false, opacity: 0.85,
+    }));
+  m.rotation.x = -Math.PI / 2;
+  m.position.y = 0.015;
+  m.renderOrder = 1;
+  return m;
 }
 
 function teethRow(count, width, size, mat, downward = true) {
@@ -112,7 +141,10 @@ export function makeThump() {
   // arms — too long, 2 segments
   function arm(side) {
     const sh = new THREE.Group();
-    sh.position.set(side * 0.26, 0.72, 0);
+    sh.position.set(side * 0.24, 0.72, 0);
+    // shoulder ball bridges arm to torso
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 7), hide);
+    sh.add(ball);
     const upper = limb(hide, 0.05, 0.04, 0.52);
     sh.add(upper);
     const elbow = new THREE.Group();
@@ -183,6 +215,8 @@ export function makeThump() {
   // eyes
   const eyeL = makeEye(0xffa030, 0.045); eyeL.group.position.set(-0.075, 0.045, 0.155); head.add(eyeL.group);
   const eyeR = makeEye(0xffa030, 0.045); eyeR.group.position.set(0.075, 0.045, 0.155); head.add(eyeR.group);
+
+  g.add(contactShadow(0.55));
 
   const bones = { torso, head, jaw, armL, armR, legL, legR, earL, earR };
   const poses = {
@@ -284,17 +318,27 @@ export function makePeck() {
     torso.add(shard);
   }
 
-  // stub wings
+  // stub wings — bone with a few ragged feather plates so they read as wings
   function wing(side) {
     const w = new THREE.Group();
-    w.position.set(side * 0.28, 0.42, -0.05);
-    const bone1 = limb(hideDark, 0.035, 0.025, 0.4);
+    w.position.set(side * 0.26, 0.46, -0.05);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 7), hide);
+    w.add(ball);
+    const bone1 = limb(hideDark, 0.045, 0.032, 0.4);
     bone1.rotation.z = side * 1.15;
     w.add(bone1);
+    // tattered feather plates hanging off the bone
+    for (let i = 0; i < 3; i++) {
+      const plate = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.22 - i * 0.04, 4), hideDark);
+      plate.position.set(0, -0.13 - i * 0.11, 0.01);
+      plate.rotation.x = Math.PI - 0.25;
+      plate.rotation.z = (i - 1) * 0.18;
+      bone1.add(plate);
+    }
     const tip = new THREE.Group();
     tip.position.y = -0.4;
     bone1.add(tip);
-    const bone2 = limb(metalMat, 0.02, 0.012, 0.35);
+    const bone2 = limb(metalMat, 0.024, 0.014, 0.35);
     bone2.rotation.z = side * -0.5;
     tip.add(bone2);
     torso.add(w);
@@ -338,10 +382,10 @@ export function makePeck() {
   const loTeeth = teethRow(5, 0.1, 0.055, toothMat, false);
   loTeeth.position.set(0, 0.0, 0.12);
   jaw.add(loTeeth);
-  // inner maw glow
-  const maw = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6),
-    new THREE.MeshStandardMaterial({ color: 0x040404, emissive: 0x9fff4d, emissiveIntensity: 0.9 }));
-  maw.position.set(0, -0.045, 0.1);
+  // inner maw glow — faint, just a hint of sick green inside the mouth
+  const maw = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6),
+    new THREE.MeshStandardMaterial({ color: 0x040404, emissive: 0x6aaa30, emissiveIntensity: 0.35 }));
+  maw.position.set(0, -0.05, 0.08);
   head.add(maw);
   // eyes: one good, one dangling
   const eyeL = makeEye(0xb8ff3c, 0.042); eyeL.group.position.set(-0.08, 0.04, 0.12); head.add(eyeL.group);
@@ -354,19 +398,25 @@ export function makePeck() {
   const poses = {
     far: () => {
       torso.rotation.x = 0.2; neck.rotation.x = -0.15; jaw.rotation.x = 0.18;
-      wingL.bone1.rotation.z = -1.15; wingR.bone1.rotation.z = 1.15;
+      wingL.bone1.rotation.z = -0.95; wingR.bone1.rotation.z = 0.95;
+      wingL.bone1.rotation.x = 0.15; wingR.bone1.rotation.x = 0.15;
     },
     near: () => {
       torso.rotation.x = 0.5; neck.rotation.x = -0.55; jaw.rotation.x = 0.6;
-      wingL.bone1.rotation.z = -1.7; wingR.bone1.rotation.z = 1.7;
+      // wings half-raised and curled forward — threatening, not a T-pose
+      wingL.bone1.rotation.z = -1.35; wingR.bone1.rotation.z = 1.35;
+      wingL.bone1.rotation.x = 0.55; wingR.bone1.rotation.x = 0.55;
     },
     door: () => {
       torso.rotation.x = 0.3; torso.rotation.y = -0.5;
       neck.rotation.x = -0.3; head.rotation.y = 0.45; jaw.rotation.x = 0.3;
-      wingL.bone1.rotation.z = -1.3; wingR.bone1.rotation.z = 1.9;
+      wingL.bone1.rotation.z = -1.1; wingR.bone1.rotation.z = 1.5;
+      wingL.bone1.rotation.x = 0.4; wingR.bone1.rotation.x = 0.4;
     },
   };
   poses.far();
+
+  g.add(contactShadow(0.55));
 
   return {
     group: g, bones: { torso, neck, head, jaw },
@@ -467,6 +517,8 @@ export function makeSnatch() {
   const eyeL = makeEye(0xff3cb8, 0.04); eyeL.group.position.set(-0.06, 0.05, 0.12); head.add(eyeL.group);
   const eyeR = makeEye(0xff3cb8, 0.04); eyeR.group.position.set(0.06, 0.05, 0.12); head.add(eyeR.group);
 
+  g.add(contactShadow(0.45));
+
   const poses = {
     crouched: () => {
       g.scale.setScalar(1);
@@ -542,53 +594,57 @@ export function makeSnatchPlush(suspicious = false) {
 // =====================================================================
 export function makeGnat(seed = 0) {
   const g = new THREE.Group();
+  // inner group carries the hop/turn animation, so the outer group can be
+  // freely positioned (e.g. on the bed) without update() fighting it
+  const inner = new THREE.Group();
+  g.add(inner);
   const fuzz = new THREE.MeshStandardMaterial({ map: hideTexture(40 + seed * 8, 32, 30), roughness: 1 });
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), fuzz);
   body.position.y = 0.1;
   body.scale.y = 0.92;
   body.castShadow = true;
-  g.add(body);
+  inner.add(body);
   // huge jaw — half the body opens
   const jaw = new THREE.Group();
   jaw.position.set(0, 0.07, 0.02);
-  g.add(jaw);
+  inner.add(jaw);
   const jawMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 6, 0, Math.PI * 2, Math.PI * 0.55, Math.PI * 0.45), fuzz);
   jawMesh.position.y = 0.03;
   jaw.add(jawMesh);
   const upT = teethRow(7, 0.13, 0.045, toothMat, true);
   upT.position.set(0, 0.045, 0.05);
   upT.rotation.x = -0.4;
-  g.add(upT);
+  inner.add(upT);
   const loT = teethRow(6, 0.11, 0.04, toothMat, false);
   loT.position.set(0, -0.005, 0.05);
   loT.rotation.x = 0.3;
   jaw.add(loT);
   const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), innerMat);
   mouth.position.set(0, 0.08, 0.02);
-  g.add(mouth);
+  inner.add(mouth);
   // little limbs
   for (const side of [-1, 1]) {
     const armP = limb(fuzz, 0.018, 0.012, 0.1);
     armP.position.set(side * 0.1, 0.12, 0.02);
     armP.rotation.z = side * 0.7;
-    g.add(armP);
+    inner.add(armP);
   }
-  const eyeL = makeEye(0xff4444, 0.022); eyeL.group.position.set(-0.045, 0.16, 0.075); g.add(eyeL.group);
-  const eyeR = makeEye(0xff4444, 0.022); eyeR.group.position.set(0.045, 0.16, 0.075); g.add(eyeR.group);
+  const eyeL = makeEye(0xff4444, 0.022); eyeL.group.position.set(-0.045, 0.16, 0.075); inner.add(eyeL.group);
+  const eyeR = makeEye(0xff4444, 0.022); eyeR.group.position.set(0.045, 0.16, 0.075); inner.add(eyeR.group);
   // pointy ears
   for (const side of [-1, 1]) {
     const e = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.09, 5), fuzz);
     e.position.set(side * 0.07, 0.21, -0.01);
     e.rotation.z = side * -0.4;
-    g.add(e);
+    inner.add(e);
   }
   return {
     group: g,
     eyes: [eyeL, eyeR],
     update(t) {
       jaw.rotation.x = 0.25 + Math.sin(t * 11 + seed * 3) * 0.22; // chitter chitter
-      g.rotation.y = Math.sin(t * 1.4 + seed * 7) * 0.4;
-      g.position.y = Math.abs(Math.sin(t * 5 + seed * 2)) * 0.012;
+      inner.rotation.y = Math.sin(t * 1.4 + seed * 7) * 0.4;
+      inner.position.y = Math.abs(Math.sin(t * 5 + seed * 2)) * 0.012;
     },
   };
 }
@@ -685,6 +741,8 @@ export function makeGrimm() {
   // white pinprick eyes — small and far too steady
   const eyeL = makeEye(0xffffff, 0.028); eyeL.group.position.set(-0.1, 0.04, 0.22); head.add(eyeL.group);
   const eyeR = makeEye(0xffffff, 0.028); eyeR.group.position.set(0.1, 0.04, 0.22); head.add(eyeR.group);
+
+  g.add(contactShadow(0.7));
 
   const poses = {
     far: () => {
