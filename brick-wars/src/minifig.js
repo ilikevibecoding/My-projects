@@ -167,7 +167,7 @@ export function createEnergySword({ color = 0x66ccff, ghost = false } = {}) {
     new THREE.CapsuleGeometry(0.11, bladeLen, 4, 10),
     new THREE.MeshBasicMaterial({ color, toneMapped: false })
   );
-  blade.material.color.multiplyScalar(2.6); // push past 1.0 so bloom catches it
+  blade.material.color.multiplyScalar(4.2); // well past the bloom threshold
   blade.position.y = 0.7 + bladeLen / 2;
   sword.add(blade);
 
@@ -186,7 +186,8 @@ export function createEnergySword({ color = 0x66ccff, ghost = false } = {}) {
   sword.add(glow);
 
   if (!ghost) {
-    const light = new THREE.PointLight(color, 14, 13, 1.8);
+    // subtle local glow — kept weak so it never pushes the ground into bloom
+    const light = new THREE.PointLight(color, 3.2, 9, 2);
     light.position.y = 2.2;
     sword.add(light);
   }
@@ -379,7 +380,7 @@ export function ghostMaterial() {
     _ghostMat = new THREE.MeshPhysicalMaterial({
       color: 0x9ff2ff,
       emissive: 0x37c4e8,
-      emissiveIntensity: 1.15,
+      emissiveIntensity: 3.2,
       transparent: true,
       opacity: 0.55,
       roughness: 0.15,

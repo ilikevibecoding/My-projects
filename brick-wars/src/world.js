@@ -118,7 +118,7 @@ export function buildWorld(scene) {
   scene.add(hemi);
 
   // azimuth chosen so shadows fall toward the default camera (player looks -Z)
-  const sun = new THREE.DirectionalLight(0xfff0d2, 3.6);
+  const sun = new THREE.DirectionalLight(0xfff0d2, 3.0);
   sun.position.set(42, 66, -38);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);

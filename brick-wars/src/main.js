@@ -43,7 +43,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.98;
+renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa8c8ee);
@@ -66,11 +66,13 @@ let composer = null;
 if (!NO_BLOOM) {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
+  // threshold sits above the sunlit-sand luminance of the HDR buffer, so only
+  // truly emissive surfaces bloom: the sword blade, spirits, and specular glints
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.5,
-    0.45,
-    0.82
+    0.55,
+    0.4,
+    2.0
   );
   composer.addPass(bloom);
   composer.addPass(new OutputPass());

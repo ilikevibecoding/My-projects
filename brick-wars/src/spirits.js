@@ -160,7 +160,7 @@ export class SpiritManager {
     const wisp = new THREE.Mesh(
       new THREE.SphereGeometry(0.34, 12, 10),
       new THREE.MeshBasicMaterial({
-        color: 0x9af0ff,
+        color: new THREE.Color(0x9af0ff).multiplyScalar(1.9),
         transparent: true,
         opacity: 0.65,
         blending: THREE.AdditiveBlending,
