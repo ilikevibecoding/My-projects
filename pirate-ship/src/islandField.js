@@ -8,7 +8,7 @@
 //   * shallow-water tint + shore foam in the ocean shader (GLSL mirror below)
 // ---------------------------------------------------------------------------
 
-import { mulberry32 } from './noise.js';
+import { mulberry32, createFbm2D } from './noise.js';
 
 export const SEA_FLOOR_DEPTH = 16; // open-ocean seabed depth (m)
 export const BEACH_SLOPE = 0.085; // vertical rise per metre across the beach
@@ -91,6 +91,16 @@ export function terrainHeightAt(x, z) {
     if (h > y) y = h;
   }
   return y;
+}
+
+// Jungle canopy density mask, 0 (clearing) .. 1 (dense canopy).
+// Shared by vegetation placement AND terrain colouring, so trees grow in
+// organic clusters and the ground visibly darkens beneath them.
+const _jungleFbm = createFbm2D(7777, 3);
+export function jungleDensityAt(x, z) {
+  const n = _jungleFbm(x * 0.016, z * 0.016) * 0.5 + 0.5;
+  const t = Math.min(Math.max((n - 0.36) / (0.72 - 0.36), 0), 1);
+  return t * t * (3 - 2 * t); // smoothstep
 }
 
 /** Finite-difference terrain gradient (uphill direction). */

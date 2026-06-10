@@ -6,17 +6,17 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { ISLANDS, islandHeightAt, terrainHeightAt } from './islandField.js';
+import { ISLANDS, islandHeightAt, terrainHeightAt, jungleDensityAt } from './islandField.js';
 import { createFbm2D } from './noise.js';
 import { mulberry32 } from './noise.js';
 
 const C_SAND = new THREE.Color(0xe2cf96);
 const C_SAND_WET = new THREE.Color(0xb89f70);
-const C_JUNGLE_DEEP = new THREE.Color(0x1f5a2d);
-const C_JUNGLE = new THREE.Color(0x2f7a38);
-const C_GRASS = new THREE.Color(0x6a9c44);
-const C_GRASS_DRY = new THREE.Color(0x96a04f);
-const C_DIRT = new THREE.Color(0x7a5f3e);
+const C_JUNGLE_DEEP = new THREE.Color(0x17421f);
+const C_JUNGLE = new THREE.Color(0x2c6e33);
+const C_GRASS = new THREE.Color(0x67953f);
+const C_GRASS_DRY = new THREE.Color(0x8e9a4b);
+const C_DIRT = new THREE.Color(0x6e553a);
 const C_ROCK = new THREE.Color(0x8a8273);
 const C_ROCK_DARK = new THREE.Color(0x5f594d);
 const C_ROCK_HIGH = new THREE.Color(0x9b9488);
@@ -113,16 +113,16 @@ export function buildIslands(scene) {
         // dry beach with subtle grain so the band isn't flat
         c.copy(C_SAND).lerp(C_SAND_WET, (1 - y * 0.45) * 0.25 + grain * 0.12);
       } else {
-        // vegetation: deep jungle in the lows, open glades and dry grass
-        // patches higher up, occasional dirt breaks
-        c.copy(C_JUNGLE).lerp(C_JUNGLE_DEEP, n * 0.8);
-        if (patch > 0.62) c.lerp(C_GRASS, (patch - 0.62) / 0.38 * 0.85);
+        // vegetation: grassy base broken by glades, dirt, dry highlands —
+        // then strongly darkened wherever the canopy mask says "jungle",
+        // which matches exactly where the trees are planted (fake AO)
+        c.copy(C_JUNGLE).lerp(C_GRASS, patch * 0.7);
         if (patch < 0.22) c.lerp(C_DIRT, (0.22 - patch) / 0.22 * 0.5);
-        // higher slopes dry out
         c.lerp(C_GRASS_DRY, THREE.MathUtils.clamp((elev - 0.45) * 1.6, 0, 0.55) * patch);
-        // per-island tint variation
         if (tintShift > 0) c.lerp(C_GRASS_DRY, tintShift);
         else c.lerp(C_JUNGLE_DEEP, -tintShift);
+        const canopy = jungleDensityAt(x, z);
+        c.lerp(C_JUNGLE_DEEP, canopy * (0.55 + n * 0.2));
         // blend sand->jungle across a noisy transition band
         if (y < sandLine + 1.1) c.lerp(C_SAND, (sandLine + 1.1 - y) / 1.1 * 0.85);
       }
@@ -145,9 +145,10 @@ export function buildIslands(scene) {
   }
 
   const merged = mergeGeometries(parts);
+  // smooth shading: the radial grid has stretched cells, so flat shading
+  // produced huge ugly facets on open slopes. Colour noise does the styling.
   const mat = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    flatShading: true,
     roughness: 1.0,
     metalness: 0.0,
   });

@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { ISLANDS, terrainHeightAt, terrainGradientAt } from './islandField.js';
+import { ISLANDS, terrainHeightAt, terrainGradientAt, jungleDensityAt } from './islandField.js';
 import { mulberry32 } from './noise.js';
 
 const TRUNK = new THREE.Color(0x7a5a38);
@@ -13,6 +13,8 @@ const TRUNK_D = new THREE.Color(0x5d4329);
 const FROND_A = new THREE.Color(0x2f8f3c);
 const FROND_B = new THREE.Color(0x57b54a);
 const LEAF_DARK = new THREE.Color(0x256e30);
+const CANOPY_A = new THREE.Color(0x1c4f24);
+const CANOPY_B = new THREE.Color(0x39752f);
 const COCONUT = new THREE.Color(0x4f3a22);
 const ROCK_C = new THREE.Color(0x878073);
 
@@ -96,6 +98,28 @@ function makePalmGeometry(rand, height) {
   return mergeGeometries(parts);
 }
 
+/** Low leafy shrub: a couple of squashed blobs (reads well from any angle). */
+function makeShrubGeometry(rand, scale) {
+  const parts = [];
+  const blobs = 2 + Math.floor(rand() * 2);
+  for (let b = 0; b < blobs; b++) {
+    const r = (0.55 + rand() * 0.5) * scale;
+    // detail 0 (20 tris) is plenty for knee-high shrubs
+    const blob = new THREE.IcosahedronGeometry(r, 0);
+    const p = blob.getAttribute('position');
+    for (let i = 0; i < p.count; i++) {
+      const s = 0.8 + rand() * 0.4;
+      p.setXYZ(i, p.getX(i) * s * 1.1, p.getY(i) * s * 0.55, p.getZ(i) * s * 1.1);
+    }
+    blob.computeVertexNormals();
+    const a = rand() * Math.PI * 2;
+    const d = b === 0 ? 0 : (0.4 + rand() * 0.5) * scale;
+    blob.translate(Math.cos(a) * d, r * 0.4, Math.sin(a) * d);
+    parts.push(colorize(blob, CANOPY_A, FROND_B));
+  }
+  return mergeGeometries(parts);
+}
+
 /** Undergrowth: a star of leafy planes. */
 function makeBushGeometry(rand, scale, dark) {
   const parts = [];
@@ -140,25 +164,25 @@ function makeCanopyTreeGeometry(rand, height) {
   // IcosahedronGeometry blobs are non-indexed; merge requires consistency
   parts.push(colorize(trunk.toNonIndexed(), TRUNK_D, TRUNK));
 
-  // canopy: 3-4 squashed, jittered leaf blobs
+  // canopy: wide, flattened, overlapping leaf masses (not "broccoli balls")
   const blobs = 3 + Math.floor(rand() * 2);
   for (let b = 0; b < blobs; b++) {
-    const r = 1.7 + rand() * 1.4;
+    const r = 2.1 + rand() * 1.6;
     const blob = new THREE.IcosahedronGeometry(r, 1);
     const p = blob.getAttribute('position');
     for (let i = 0; i < p.count; i++) {
-      const s = 0.82 + rand() * 0.36;
-      p.setXYZ(i, p.getX(i) * s, p.getY(i) * s * 0.62, p.getZ(i) * s);
+      const s = 0.78 + rand() * 0.44;
+      p.setXYZ(i, p.getX(i) * s * 1.15, p.getY(i) * s * 0.45, p.getZ(i) * s * 1.15);
     }
     blob.computeVertexNormals();
     const a = rand() * Math.PI * 2;
-    const d = b === 0 ? 0 : 0.9 + rand() * 1.6;
+    const d = b === 0 ? 0 : 1.1 + rand() * 2.3;
     blob.translate(
       lx * 2.2 + Math.cos(a) * d,
-      height - 0.4 + (rand() - 0.3) * 1.4,
+      height - 0.5 + (rand() - 0.35) * 1.6,
       lz * 2.2 + Math.sin(a) * d
     );
-    parts.push(colorize(blob, LEAF_DARK, FROND_B));
+    parts.push(colorize(blob, CANOPY_A, CANOPY_B));
   }
   return mergeGeometries(parts);
 }
@@ -184,7 +208,7 @@ export function buildVegetation(scene, timeUniform) {
   const bushPts = [];
   const rockPts = [];
   for (const isl of ISLANDS) {
-    const nTry = Math.round((isl.r * isl.r) / 42);
+    const nTry = Math.round((isl.r * isl.r) / 26);
     for (let i = 0; i < nTry; i++) {
       const a = rand() * Math.PI * 2;
       const r = Math.sqrt(rand()) * isl.r * 1.02;
@@ -194,15 +218,18 @@ export function buildVegetation(scene, timeUniform) {
       terrainGradientAt(x, z, grad);
       const slope = Math.hypot(grad.x, grad.z);
       const roll = rand();
-      // palms own the coast band; broadleaf canopy fills the interior;
-      // undergrowth everywhere; rocks near the beaches and clearings
-      if (y > 1.9 && y < 9 && slope < 0.55 && roll < 0.5) {
-        palmPts.push({ x, y, z });
-      } else if (y > 4.5 && y < isl.height * 0.88 && slope < 0.62 && roll < 0.42) {
+      // same mask that darkens the ground; small islets get a floor so they
+      // never end up completely bald
+      const dens = Math.max(jungleDensityAt(x, z), isl.r < 140 ? 0.55 : 0);
+      // canopy masses follow the density clusters; palms own the coast band;
+      // undergrowth fills edges; rocks collect in clearings and beaches
+      if (y > 3.0 && y < isl.height * 0.9 && slope < 0.66 && dens > 0.45 && roll < 0.55 * dens) {
         canopyPts.push({ x, y, z });
-      } else if (y > 1.6 && slope < 0.75 && roll < 0.55) {
+      } else if (y > 1.9 && y < 9 && slope < 0.55 && roll < 0.45) {
+        palmPts.push({ x, y, z });
+      } else if (y > 1.6 && slope < 0.75 && roll < 0.35 + dens * 0.3) {
         bushPts.push({ x, y, z });
-      } else if (y > 0.35 && y < 6 && roll < 0.72) {
+      } else if (y > 0.35 && y < 6 && dens < 0.35 && roll < 0.55) {
         rockPts.push({ x, y, z });
       }
     }
@@ -256,19 +283,19 @@ export function buildVegetation(scene, timeUniform) {
     sets.push(makeInstances(geo, canopyMat, pts, rand, { minS: 0.75, maxS: 1.5, tilt: 0.08, sink: 0.3 }));
   });
 
-  // --- undergrowth
-  const bushGeoA = makeBushGeometry(mulberry32(44), 1.5, false);
-  const bushGeoB = makeBushGeometry(mulberry32(55), 1.9, true);
+  // --- undergrowth: leafy shrubs (most) + fern stars (accents)
+  const shrubGeo = makeShrubGeometry(mulberry32(66), 1.6);
+  const fernGeo = makeBushGeometry(mulberry32(44), 1.2, false);
   const bushMat = new THREE.MeshStandardMaterial({
     vertexColors: true,
     flatShading: true,
     roughness: 1,
     side: THREE.DoubleSide,
   });
-  const bushA = bushPts.filter((_, i) => i % 2 === 0);
-  const bushB = bushPts.filter((_, i) => i % 2 === 1);
-  sets.push(makeInstances(bushGeoA, bushMat, bushA, rand, { minS: 0.7, maxS: 1.5, tilt: 0.12, sink: 0.1 }));
-  sets.push(makeInstances(bushGeoB, bushMat, bushB, rand, { minS: 0.7, maxS: 1.4, tilt: 0.12, sink: 0.1 }));
+  const shrubPts = bushPts.filter((_, i) => i % 3 !== 2);
+  const fernPts = bushPts.filter((_, i) => i % 3 === 2);
+  sets.push(makeInstances(shrubGeo, bushMat, shrubPts, rand, { minS: 0.7, maxS: 1.6, tilt: 0.1, sink: 0.25 }));
+  sets.push(makeInstances(fernGeo, bushMat, fernPts, rand, { minS: 0.7, maxS: 1.3, tilt: 0.12, sink: 0.1 }));
 
   // --- rocks
   const rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 });
