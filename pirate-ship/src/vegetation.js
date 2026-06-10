@@ -119,6 +119,50 @@ function makeBushGeometry(rand, scale, dark) {
   return mergeGeometries(parts);
 }
 
+/** Broadleaf jungle canopy tree: trunk + clustered leaf blobs. */
+function makeCanopyTreeGeometry(rand, height) {
+  const parts = [];
+  const lean = (rand() - 0.5) * 0.8;
+  const leanDir = rand() * Math.PI * 2;
+  const lx = Math.cos(leanDir) * lean;
+  const lz = Math.sin(leanDir) * lean;
+
+  const trunk = new THREE.CylinderGeometry(0.22, 0.38, height, 6, 3);
+  trunk.translate(0, height / 2, 0);
+  {
+    const p = trunk.getAttribute('position');
+    for (let i = 0; i < p.count; i++) {
+      const t = p.getY(i) / height;
+      p.setX(i, p.getX(i) + lx * t * t * 2.2);
+      p.setZ(i, p.getZ(i) + lz * t * t * 2.2);
+    }
+  }
+  // IcosahedronGeometry blobs are non-indexed; merge requires consistency
+  parts.push(colorize(trunk.toNonIndexed(), TRUNK_D, TRUNK));
+
+  // canopy: 3-4 squashed, jittered leaf blobs
+  const blobs = 3 + Math.floor(rand() * 2);
+  for (let b = 0; b < blobs; b++) {
+    const r = 1.7 + rand() * 1.4;
+    const blob = new THREE.IcosahedronGeometry(r, 1);
+    const p = blob.getAttribute('position');
+    for (let i = 0; i < p.count; i++) {
+      const s = 0.82 + rand() * 0.36;
+      p.setXYZ(i, p.getX(i) * s, p.getY(i) * s * 0.62, p.getZ(i) * s);
+    }
+    blob.computeVertexNormals();
+    const a = rand() * Math.PI * 2;
+    const d = b === 0 ? 0 : 0.9 + rand() * 1.6;
+    blob.translate(
+      lx * 2.2 + Math.cos(a) * d,
+      height - 0.4 + (rand() - 0.3) * 1.4,
+      lz * 2.2 + Math.sin(a) * d
+    );
+    parts.push(colorize(blob, LEAF_DARK, FROND_B));
+  }
+  return mergeGeometries(parts);
+}
+
 function makeRockGeometry(rand) {
   const rock = new THREE.IcosahedronGeometry(1, 1);
   const p = rock.getAttribute('position');
@@ -136,10 +180,11 @@ export function buildVegetation(scene, timeUniform) {
 
   // --- gather placement points per kind
   const palmPts = [];
+  const canopyPts = [];
   const bushPts = [];
   const rockPts = [];
   for (const isl of ISLANDS) {
-    const nTry = Math.round((isl.r * isl.r) / 55);
+    const nTry = Math.round((isl.r * isl.r) / 42);
     for (let i = 0; i < nTry; i++) {
       const a = rand() * Math.PI * 2;
       const r = Math.sqrt(rand()) * isl.r * 1.02;
@@ -149,11 +194,15 @@ export function buildVegetation(scene, timeUniform) {
       terrainGradientAt(x, z, grad);
       const slope = Math.hypot(grad.x, grad.z);
       const roll = rand();
-      if (y > 1.9 && y < isl.height * 0.8 && slope < 0.55 && roll < 0.42) {
+      // palms own the coast band; broadleaf canopy fills the interior;
+      // undergrowth everywhere; rocks near the beaches and clearings
+      if (y > 1.9 && y < 9 && slope < 0.55 && roll < 0.5) {
         palmPts.push({ x, y, z });
-      } else if (y > 1.6 && slope < 0.7 && roll < 0.78) {
+      } else if (y > 4.5 && y < isl.height * 0.88 && slope < 0.62 && roll < 0.42) {
+        canopyPts.push({ x, y, z });
+      } else if (y > 1.6 && slope < 0.75 && roll < 0.55) {
         bushPts.push({ x, y, z });
-      } else if (y > 0.35 && y < 5 && roll < 0.92) {
+      } else if (y > 0.35 && y < 6 && roll < 0.72) {
         rockPts.push({ x, y, z });
       }
     }
@@ -195,6 +244,18 @@ export function buildVegetation(scene, timeUniform) {
     sets.push(makeInstances(geo, palmMat, pts, rand, { minS: 0.8, maxS: 1.35, tilt: 0.1, sink: 0.25 }));
   });
 
+  // --- jungle canopy trees (2 variants)
+  const canopyMat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    flatShading: true,
+    roughness: 1,
+  });
+  const canopyVariants = [makeCanopyTreeGeometry(mulberry32(77), 6.5), makeCanopyTreeGeometry(mulberry32(88), 8.5)];
+  canopyVariants.forEach((geo, vi) => {
+    const pts = canopyPts.filter((_, i) => i % canopyVariants.length === vi);
+    sets.push(makeInstances(geo, canopyMat, pts, rand, { minS: 0.75, maxS: 1.5, tilt: 0.08, sink: 0.3 }));
+  });
+
   // --- undergrowth
   const bushGeoA = makeBushGeometry(mulberry32(44), 1.5, false);
   const bushGeoB = makeBushGeometry(mulberry32(55), 1.9, true);
@@ -230,6 +291,7 @@ function makeInstances(geo, mat, pts, rand, opt) {
   const e = new THREE.Euler();
   const s = new THREE.Vector3();
   const p = new THREE.Vector3();
+  const c = new THREE.Color();
   pts.forEach((pt, i) => {
     const scale = opt.minS + rand() * (opt.maxS - opt.minS);
     e.set((rand() - 0.5) * opt.tilt * 2, rand() * Math.PI * 2, (rand() - 0.5) * opt.tilt * 2);
@@ -238,8 +300,13 @@ function makeInstances(geo, mat, pts, rand, opt) {
     p.set(pt.x, pt.y - opt.sink, pt.z);
     m.compose(p, q, s);
     mesh.setMatrixAt(i, m);
+    // subtle per-instance tint so foliage doesn't look copy-pasted
+    const b = 0.82 + rand() * 0.3;
+    c.setRGB(b * (0.94 + rand() * 0.12), b, b * (0.92 + rand() * 0.1));
+    mesh.setColorAt(i, c);
   });
   mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
