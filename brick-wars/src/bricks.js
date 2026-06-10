@@ -66,15 +66,16 @@ export function plastic(colorHex, opts = {}) {
   return mat;
 }
 
-/** White-base plastic used by InstancedMesh with per-instance colors. */
+/** White-base plastic used by InstancedMesh with per-instance colors.
+ *  No clearcoat: the instanced fields (terrain, studs, walls) cover most of
+ *  the screen, and clearcoat doubles per-pixel lighting cost. Gloss comes
+ *  from low roughness + the environment map instead. */
 export function instancePlastic() {
-  return new THREE.MeshPhysicalMaterial({
+  return new THREE.MeshStandardMaterial({
     color: 0xffffff,
-    roughness: 0.34,
+    roughness: 0.3,
     metalness: 0,
-    clearcoat: 0.55,
-    clearcoatRoughness: 0.28,
-    envMapIntensity: 0.22,
+    envMapIntensity: 0.3,
   });
 }
 
@@ -107,10 +108,15 @@ function mergeFlat(parts, useGroups = false) {
   return mergeGeometries(parts.map(flat), useGroups);
 }
 
-/** A single stud cylinder, origin at its base. */
-export function studGeometry(segments = 20) {
+/** A single stud cylinder, origin at its base. Bottom cap is omitted —
+ *  it is always buried inside a brick or baseplate. */
+export function studGeometry(segments = 10) {
   return cached(`stud${segments}`, () => {
-    const g = new THREE.CylinderGeometry(STUD_R, STUD_R, STUD_H, segments);
+    const side = new THREE.CylinderGeometry(STUD_R, STUD_R, STUD_H, segments, 1, true);
+    const cap = new THREE.CircleGeometry(STUD_R, segments);
+    cap.rotateX(-Math.PI / 2);
+    cap.translate(0, STUD_H / 2, 0);
+    const g = mergeFlat([side, cap]);
     g.translate(0, STUD_H / 2, 0);
     return g;
   });
@@ -128,7 +134,7 @@ export function studGeometry(segments = 20) {
 export function brickGeometry(sx, sz, plates = 3, studs = true) {
   return cached(`brick:${sx}x${sz}x${plates}:${studs}`, () => {
     const h = plates * PLATE;
-    const body = new RoundedBoxGeometry(sx, h, sz, 2, CHAMFER);
+    const body = new RoundedBoxGeometry(sx, h, sz, 1, CHAMFER);
     body.translate(0, h / 2, 0);
     const parts = [body];
     if (studs) {
@@ -188,7 +194,7 @@ export function slopeGeometry(sz = 2) {
 }
 
 /** 1x1 round brick (origin at bottom). */
-export function roundBrickGeometry(plates = 3, radius = 0.5, segments = 24) {
+export function roundBrickGeometry(plates = 3, radius = 0.5, segments = 14) {
   return cached(`round:${plates}:${radius}`, () => {
     const h = plates * PLATE;
     const body = new THREE.CylinderGeometry(radius, radius, h, segments);
@@ -200,7 +206,7 @@ export function roundBrickGeometry(plates = 3, radius = 0.5, segments = 24) {
 }
 
 /** Cone part (origin at bottom). */
-export function coneGeometry(radius = 1, plates = 3, segments = 24) {
+export function coneGeometry(radius = 1, plates = 3, segments = 14) {
   return cached(`cone:${radius}:${plates}`, () => {
     const h = plates * PLATE;
     const body = new THREE.CylinderGeometry(STUD_R + 0.05, radius, h, segments);
@@ -214,7 +220,7 @@ export function coneGeometry(radius = 1, plates = 3, segments = 24) {
 /** Gold stud collectible disc (a loose stud, slightly chunkier for readability). */
 export function lootStudGeometry() {
   return cached('lootStud', () => {
-    const g = new THREE.CylinderGeometry(0.42, 0.42, 0.3, 24);
+    const g = new THREE.CylinderGeometry(0.42, 0.42, 0.3, 14);
     g.translate(0, 0.15, 0);
     return g;
   });

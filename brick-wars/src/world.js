@@ -121,11 +121,11 @@ export function buildWorld(scene) {
   const sun = new THREE.DirectionalLight(0xfff0d2, 3.0);
   sun.position.set(42, 66, -38);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -52;
-  sun.shadow.camera.right = 52;
-  sun.shadow.camera.top = 52;
-  sun.shadow.camera.bottom = -52;
+  sun.shadow.mapSize.set(1536, 1536);
+  sun.shadow.camera.left = -46;
+  sun.shadow.camera.right = 46;
+  sun.shadow.camera.top = 46;
+  sun.shadow.camera.bottom = -46;
   sun.shadow.camera.near = 10;
   sun.shadow.camera.far = 190;
   sun.shadow.bias = -0.0004;

@@ -39,9 +39,12 @@ window.addEventListener('error', (e) => {
 const canvas = document.getElementById('game-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+// the world is mostly static — refresh the shadow map on a reduced cadence
+renderer.shadowMap.autoUpdate = false;
+renderer.shadowMap.needsUpdate = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
@@ -63,19 +66,22 @@ pmrem.dispose();
 
 // post: subtle bloom for the sword, spirits and stud glints
 let composer = null;
+let bloomEnabled = false;
 if (!NO_BLOOM) {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   // threshold sits above the sunlit-sand luminance of the HDR buffer, so only
   // truly emissive surfaces bloom: the sword blade, spirits, and specular glints
+  // (internal blur targets run at half resolution — visually identical, much cheaper)
   const bloom = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    new THREE.Vector2(Math.ceil(window.innerWidth / 2), Math.ceil(window.innerHeight / 2)),
     0.55,
     0.4,
     2.0
   );
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
+  bloomEnabled = true;
 }
 
 window.addEventListener('resize', () => {
@@ -83,7 +89,48 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer?.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.needsUpdate = true;
 });
+
+// ---------------------------------------------------------------------------
+// Adaptive quality — steps down when frames run slow so the game stays smooth
+// on weaker GPUs. Override with ?quality=high|med|low.
+// ---------------------------------------------------------------------------
+const QUALITY_TIERS = [
+  { name: 'high', pixelRatio: 1.25, bloom: true, shadowEvery: 2 },
+  { name: 'med', pixelRatio: 1.0, bloom: true, shadowEvery: 3 },
+  { name: 'low', pixelRatio: 0.8, bloom: false, shadowEvery: 4 },
+];
+let qualityIndex = Math.max(
+  0,
+  QUALITY_TIERS.findIndex((t) => t.name === params.get('quality'))
+);
+const qualityLocked = params.has('quality');
+let frameEma = 16;
+let qualityCooldown = 0;
+
+function applyQuality() {
+  const t = QUALITY_TIERS[qualityIndex];
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, t.pixelRatio));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer?.setSize(window.innerWidth, window.innerHeight);
+  bloomEnabled = !NO_BLOOM && t.bloom;
+  renderer.shadowMap.needsUpdate = true;
+}
+applyQuality();
+
+function updateQuality(rawDt) {
+  if (qualityLocked) return;
+  frameEma += (rawDt - frameEma) * 0.05;
+  qualityCooldown -= rawDt;
+  if (qualityCooldown > 0) return;
+  if (frameEma > 0.04 && qualityIndex < QUALITY_TIERS.length - 1) {
+    qualityIndex++;
+    applyQuality();
+    qualityCooldown = 4; // let the EMA settle before judging again
+    frameEma = 0.025;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // World + actors
@@ -256,16 +303,24 @@ function simulate(dt) {
   }
 }
 
+let frameCount = 0;
+
 function frame(now) {
   requestAnimationFrame(frame);
-  acc += Math.min(0.1, (now - last) / 1000);
+  const rawDt = (now - last) / 1000;
+  acc += Math.min(0.1, rawDt);
   last = now;
   while (acc >= FIXED) {
     simulate(FIXED);
     acc -= FIXED;
   }
-  if (composer) composer.render();
+  frameCount++;
+  if (frameCount % QUALITY_TIERS[qualityIndex].shadowEvery === 0) {
+    renderer.shadowMap.needsUpdate = true;
+  }
+  if (composer && bloomEnabled) composer.render();
   else renderer.render(scene, camera);
+  updateQuality(rawDt);
 }
 requestAnimationFrame(frame);
 
@@ -320,5 +375,14 @@ window.__bw = {
     spirits: `${spirits.collected}/${spirits.total}`,
     studs: smash.studsCollected,
     pos: controls.position.toArray().map((v) => +v.toFixed(2)),
+    quality: QUALITY_TIERS[qualityIndex].name,
+    frameEmaMs: +(frameEma * 1000).toFixed(1),
   }),
+  setQuality: (name) => {
+    const i = QUALITY_TIERS.findIndex((t) => t.name === name);
+    if (i >= 0) {
+      qualityIndex = i;
+      applyQuality();
+    }
+  },
 };
