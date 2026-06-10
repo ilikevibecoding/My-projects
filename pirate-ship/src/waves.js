@@ -43,9 +43,9 @@ export const GEO_WAVES = [
   makeWave(61, 64, 0.62, 0.65), // secondary swell
   makeWave(27, 38, 0.34, 0.7),
   makeWave(74, 23, 0.21, 0.72),
-  makeWave(12, 15, 0.135, 0.78),
-  makeWave(56, 9.5, 0.072, 0.8),
-  makeWave(33, 6.3, 0.038, 0.85),
+  makeWave(8, 15, 0.13, 0.78),
+  makeWave(66, 9.5, 0.062, 0.8),
+  makeWave(30, 6.3, 0.03, 0.85),
 ];
 
 export const DETAIL_WAVES = [
@@ -163,11 +163,16 @@ export function packWaves(waves) {
   return { a, b, count: waves.length };
 }
 
-/** GLSL snippet implementing the same Gerstner sum (geometry waves). */
+/**
+ * GLSL snippet implementing the same Gerstner sum (geometry waves).
+ * Each wave fades out with camera distance proportionally to its wavelength,
+ * so short chop never aliases on the coarse distant mesh; the physics
+ * (sampled near the ship, well inside every fade range) stays exact.
+ */
 export const GERSTNER_GLSL = /* glsl */ `
 struct WaveOut { vec3 disp; vec3 normal; float crest; };
 
-WaveOut gerstner(vec2 p0, float t, vec4 waveA[NUM_GEO_WAVES], vec4 waveB[NUM_GEO_WAVES], float fade) {
+WaveOut gerstner(vec2 p0, float t, vec4 waveA[NUM_GEO_WAVES], vec4 waveB[NUM_GEO_WAVES], float dist) {
   vec3 disp = vec3(0.0);
   vec3 n = vec3(0.0, 1.0, 0.0);
   float crest = 0.0;
@@ -175,6 +180,8 @@ WaveOut gerstner(vec2 p0, float t, vec4 waveA[NUM_GEO_WAVES], vec4 waveB[NUM_GEO
     vec2 D = waveA[i].xy;
     float k = waveA[i].z;
     float om = waveA[i].w;
+    float L = 6.2831853 / k;
+    float fade = 1.0 - smoothstep(L * 30.0, L * 95.0, dist);
     float amp = waveB[i].x * fade;
     float q = waveB[i].y;
     float f = k * dot(D, p0) - om * t + waveB[i].z;

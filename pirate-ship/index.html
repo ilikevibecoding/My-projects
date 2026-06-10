@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pirate Cove — Sail the Jungle Isles</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏴‍☠️</text></svg>" />
+  <style>
+    :root {
+      --panel: rgba(8, 20, 28, 0.62);
+      --panel-border: rgba(255, 255, 255, 0.14);
+      --text: #eef7fa;
+      --muted: #9fb9c4;
+      --accent: #ffd271;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a2236;
+      font-family: Georgia, 'Times New Roman', serif;
+      color: var(--text);
+    }
+    canvas#game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+    .panel {
+      position: absolute;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      backdrop-filter: blur(6px);
+      padding: 10px 14px;
+    }
+    .hidden { display: none !important; }
+
+    /* status bar */
+    #status {
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 22px;
+      align-items: center;
+      white-space: nowrap;
+      user-select: none;
+    }
+    #status .block { text-align: center; }
+    #status .label {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #status .value { font-size: 20px; color: var(--text); }
+    #hud-speed { color: var(--accent); }
+    #hud-sail.flash { color: var(--accent); }
+    .sail-pips { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
+    .sail-pip {
+      width: 9px; height: 9px; border-radius: 50%;
+      border: 1px solid var(--muted);
+      display: inline-block;
+    }
+    .sail-pip.on { background: var(--accent); border-color: var(--accent); }
+    #hud-anchor { color: #8fd8ff; font-size: 13px; }
+    #hud-aground { color: #ff9d6b; font-size: 13px; }
+
+    /* wind dial */
+    #wind {
+      top: 18px;
+      right: 18px;
+      width: 84px;
+      text-align: center;
+      user-select: none;
+    }
+    #wind .label { font-size: 10px; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; }
+    #wind-arrow {
+      font-size: 30px;
+      line-height: 1.1;
+      display: inline-block;
+      transition: transform 0.25s ease;
+      color: #bfe9ff;
+    }
+
+    /* help */
+    #help-card { bottom: 18px; left: 18px; font-size: 13.5px; line-height: 1.75; user-select: none; }
+    #help-card b { color: var(--accent); font-weight: 600; }
+    #help-card .dim { color: var(--muted); font-size: 12px; }
+    kbd {
+      font-family: inherit;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 0 6px;
+      font-size: 12px;
+    }
+
+    /* title + intro + loading */
+    #title {
+      top: 18px; left: 18px;
+      font-size: 17px;
+      letter-spacing: 0.06em;
+      user-select: none;
+    }
+    #title .sub { font-size: 11px; color: var(--muted); letter-spacing: 0.14em; }
+    #intro {
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      padding: 26px 38px;
+      transition: opacity 0.6s ease;
+      pointer-events: none;
+    }
+    #intro.hidden { display: block !important; opacity: 0; }
+    #intro h1 { margin: 0 0 6px; font-size: 30px; color: var(--accent); letter-spacing: 0.05em; }
+    #intro p { margin: 4px 0; color: var(--muted); font-size: 14px; }
+    #intro .go { color: var(--text); font-size: 15px; margin-top: 12px; }
+    #loading {
+      position: absolute; inset: 0;
+      background: #0a2236;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+      transition: opacity 0.5s ease;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    #loading .ship { font-size: 42px; animation: bob 2.2s ease-in-out infinite; }
+    @keyframes bob { 0%, 100% { transform: translateY(-6px) rotate(-3deg); } 50% { transform: translateY(6px) rotate(3deg); } }
+    #loading .txt { color: var(--muted); letter-spacing: 0.2em; font-size: 12px; text-transform: uppercase; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="loading">
+    <div class="ship">⛵</div>
+    <div class="txt">Hoisting the colours…</div>
+  </div>
+
+  <div id="title" class="panel">
+    ☠ Pirate Cove
+    <div class="sub">SAIL THE JUNGLE ISLES</div>
+  </div>
+
+  <div id="intro" class="panel">
+    <h1>☠ Pirate Cove</h1>
+    <p>A cove of jungle isles, a ship of your own, and a fair wind.</p>
+    <p class="go"><kbd>W</kbd> to make sail — <kbd>A</kbd>/<kbd>D</kbd> to steer</p>
+  </div>
+
+  <div id="wind" class="panel">
+    <div class="label">Wind</div>
+    <span id="wind-arrow">⬆</span>
+  </div>
+
+  <div id="status" class="panel">
+    <div class="block">
+      <div class="label">Speed</div>
+      <div class="value"><span id="hud-speed">0.0</span> <small>kn</small></div>
+    </div>
+    <div class="block">
+      <div class="label">Heading</div>
+      <div class="value" id="hud-heading">N 000°</div>
+    </div>
+    <div class="block">
+      <div class="label">Sails</div>
+      <div class="value" style="font-size: 16px">
+        <span id="hud-sail">⚓ Anchored</span>
+        <span class="sail-pips">
+          <span class="sail-pip"></span><span class="sail-pip"></span><span class="sail-pip"></span>
+        </span>
+      </div>
+    </div>
+    <div class="block">
+      <span id="hud-anchor">⚓ anchor down</span>
+      <span id="hud-aground" class="hidden">⚠ run aground</span>
+    </div>
+  </div>
+
+  <div id="help-card" class="panel">
+    <b>W</b>/<b>S</b> more / less sail &nbsp;·&nbsp; <b>A</b>/<b>D</b> rudder<br />
+    <b>Space</b> anchor &nbsp;·&nbsp; <b>R</b> reset &nbsp;·&nbsp; <b>H</b> hide this<br />
+    <span class="dim">drag to look · scroll to zoom · sail with the wind for speed</span>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

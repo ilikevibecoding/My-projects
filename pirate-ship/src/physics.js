@@ -46,8 +46,8 @@ export const TUNE = {
   dragLat2: 0.35,
   rudderMax: 0.45, // rad
   rudderRate: 1.6, // rad/s
-  rudderTorque: 1.7,
-  angDamp: { pitch: 50, roll: 13, yaw: 68 },
+  rudderTorque: 2.1,
+  angDamp: { pitch: 50, roll: 13, yaw: 58 },
   inertia: { pitch: 72, roll: 11, yaw: 78 },
   heelTurn: 0.55, // outward heel while turning
   heelWind: 0.5, // heel from beam wind on sails
