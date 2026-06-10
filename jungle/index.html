@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0b2a12" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%F0%9F%8C%B4%3C/text%3E%3C/svg%3E"
+    />
+    <title>Jungle — a Three.js WebGPU graphics test</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <!--
+      Three.js r184 (npm three@0.184.0), vendored in ./lib
+      Rendered with WebGPURenderer + TSL. Automatic WebGL 2 fallback.
+      Force the fallback with ?webgl — quality override with ?q=low|medium|high|ultra
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./lib/three.webgpu.min.js",
+          "three/webgpu": "./lib/three.webgpu.min.js",
+          "three/tsl": "./lib/three.tsl.min.js",
+          "three/addons/": "./lib/addons/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="scene" aria-label="Jungle biome 3D environment"></canvas>
+
+    <div class="hud">
+      <header class="hud-top">
+        <div class="hud-title-block">
+          <h1 class="hud-title">JUNGLE</h1>
+          <p class="hud-subtitle">three.js webgpu graphics test</p>
+        </div>
+        <div class="hud-meters">
+          <span class="badge badge-backend" data-backend-badge>...</span>
+          <span class="badge badge-fps"><b data-fps>--</b> fps</span>
+        </div>
+      </header>
+
+      <div class="hud-bottom">
+        <div class="quality-bar" data-quality-bar role="group" aria-label="Quality preset">
+          <button type="button" data-quality="low">Low</button>
+          <button type="button" data-quality="medium">Med</button>
+          <button type="button" data-quality="high">High</button>
+          <button type="button" data-quality="ultra">Ultra</button>
+        </div>
+        <button type="button" class="badge badge-mute" data-mute aria-label="Toggle sound">sound off</button>
+      </div>
+
+      <p class="hint" data-hint></p>
+      <div class="crosshair" data-crosshair aria-hidden="true"></div>
+
+      <div class="stick stick-left" data-stick-move aria-hidden="true">
+        <span class="stick-nub"></span>
+      </div>
+      <div class="stick stick-right" data-stick-look aria-hidden="true">
+        <span class="stick-nub"></span>
+      </div>
+    </div>
+
+    <div class="loading" data-loading>
+      <div class="loading-inner">
+        <h1>JUNGLE</h1>
+        <p class="loading-tag">growing a biome for the gpu…</p>
+        <div class="loading-bar"><i data-loading-bar></i></div>
+        <p class="loading-step" data-loading-step>warming up</p>
+      </div>
+    </div>
+
+    <div class="fatal" data-fatal hidden>
+      <div class="fatal-inner">
+        <h2>could not start renderer</h2>
+        <p data-fatal-message></p>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
