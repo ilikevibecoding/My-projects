@@ -431,6 +431,24 @@ body {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
+.perf-banner {
+  position: fixed;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(92vw, 640px);
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: rgba(140, 96, 10, 0.94);
+  border: 1px solid rgba(255, 220, 130, 0.5);
+  color: #fff8e6;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: center;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+}
+
 @media (max-width: 640px) {
   .controls-grid {
     grid-template-columns: repeat(2, 1fr);

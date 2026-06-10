@@ -48,6 +48,22 @@ renderer.shadowMap.needsUpdate = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
+// Identify the GPU — if the browser is software-rendering WebGL (hardware
+// acceleration off / blocklisted GPU), no amount of optimization will make
+// high settings smooth, so we start at the floor and tell the player why.
+let gpuName = 'unknown';
+try {
+  const gl = renderer.getContext();
+  const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+  gpuName = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+} catch {
+  /* ignore */
+}
+const softwareGL = /swiftshader|llvmpipe|softpipe|software|basic render|microsoft basic/i.test(
+  gpuName
+);
+console.info(`[brick-wars] GPU: "${gpuName}" — softwareRendering=${softwareGL}`);
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa8c8ee);
 
@@ -97,17 +113,22 @@ window.addEventListener('resize', () => {
 // Override with ?quality=high|med|low.
 // ---------------------------------------------------------------------------
 const QUALITY_TIERS = [
-  { name: 'high', pixelRatio: 1.25, maxPixels: 2.1e6, bloom: true, shadowEvery: 2 },
-  { name: 'med', pixelRatio: 1.0, maxPixels: 1.45e6, bloom: true, shadowEvery: 3 },
-  { name: 'low', pixelRatio: 0.8, maxPixels: 0.95e6, bloom: false, shadowEvery: 4 },
+  { name: 'high', pixelRatio: 1.25, maxPixels: 2.1e6, bloom: true, shadows: true, shadowEvery: 2 },
+  { name: 'med', pixelRatio: 1.0, maxPixels: 1.45e6, bloom: true, shadows: true, shadowEvery: 3 },
+  { name: 'low', pixelRatio: 0.8, maxPixels: 0.95e6, bloom: false, shadows: true, shadowEvery: 4 },
+  // the floor: no shadows, no post, ~half-SD render scale — for software
+  // rasterizers and very old iGPUs
+  { name: 'potato', pixelRatio: 0.65, maxPixels: 0.55e6, bloom: false, shadows: false, shadowEvery: 0 },
 ];
 const requestedTier = QUALITY_TIERS.findIndex((t) => t.name === params.get('quality'));
 const qualityLocked = requestedTier >= 0;
-// start at "med"; fast machines get promoted to "high" within a few seconds
-let qualityIndex = qualityLocked ? requestedTier : 1;
+// start at "med"; fast machines get promoted to "high" within a few seconds.
+// software rendering goes straight to the floor.
+let qualityIndex = qualityLocked ? requestedTier : softwareGL ? 3 : 1;
 let frameEma = 1 / 60;
 let qualityCooldown = 3; // ignore the noisy first seconds after load
 let everSteppedDown = false;
+let shadowsOn = true;
 
 function applyQuality() {
   const t = QUALITY_TIERS[qualityIndex];
@@ -118,9 +139,27 @@ function applyQuality() {
   renderer.setSize(w, h);
   composer?.setSize(w, h);
   bloomEnabled = !NO_BLOOM && t.bloom;
-  renderer.shadowMap.needsUpdate = true;
+  if (t.shadows !== shadowsOn) {
+    shadowsOn = t.shadows;
+    renderer.shadowMap.enabled = shadowsOn;
+    // toggling shadows requires shader recompilation
+    scene.traverse((o) => {
+      if (!o.isMesh) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) if (m) m.needsUpdate = true;
+    });
+  }
+  renderer.shadowMap.needsUpdate = shadowsOn;
 }
 applyQuality();
+
+if (softwareGL && !qualityLocked) {
+  const banner = document.getElementById('perf-banner');
+  banner.hidden = false;
+  setTimeout(() => {
+    banner.hidden = true;
+  }, 16000);
+}
 
 function updateQuality(rawDt) {
   if (qualityLocked) return;
@@ -157,6 +196,28 @@ const hero = createMinifig({
 });
 hero.group.rotation.y = Math.PI; // face the diorama at spawn
 scene.add(hero.group);
+
+// soft blob shadow under the hero — shown only when real shadows are off
+// (potato tier / software rendering) so the figure still feels grounded
+const blobShadow = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(32, 32, 4, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(40,30,15,0.5)');
+  grad.addColorStop(1, 'rgba(40,30,15,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.4, 3.4),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.visible = false;
+  scene.add(mesh);
+  return mesh;
+})();
 
 const controls = new PlayerControls(canvas, world);
 const hud = new Hud();
@@ -289,6 +350,14 @@ function simulate(dt) {
 
     // hero follows the controls body
     hero.group.position.copy(controls.position);
+    blobShadow.visible = !shadowsOn;
+    if (blobShadow.visible) {
+      blobShadow.position.set(
+        controls.position.x,
+        world.groundHeight(controls.position.x, controls.position.z) + 0.06,
+        controls.position.z
+      );
+    }
     const targetHeading =
       controls.moveSpeed01 > 0.05 ? controls.heading : hero.group.rotation.y;
     hero.group.rotation.y = dampAngle(hero.group.rotation.y, targetHeading, 14, dt);
@@ -326,7 +395,8 @@ function frame(now) {
     acc -= FIXED;
   }
   frameCount++;
-  if (frameCount % QUALITY_TIERS[qualityIndex].shadowEvery === 0) {
+  const shadowEvery = QUALITY_TIERS[qualityIndex].shadowEvery;
+  if (shadowEvery > 0 && frameCount % shadowEvery === 0) {
     renderer.shadowMap.needsUpdate = true;
   }
   if (composer && bloomEnabled) composer.render();
@@ -388,6 +458,8 @@ window.__bw = {
     pos: controls.position.toArray().map((v) => +v.toFixed(2)),
     quality: QUALITY_TIERS[qualityIndex].name,
     frameEmaMs: +(frameEma * 1000).toFixed(1),
+    gpu: gpuName,
+    softwareGL,
   }),
   setQuality: (name) => {
     const i = QUALITY_TIERS.findIndex((t) => t.name === name);
