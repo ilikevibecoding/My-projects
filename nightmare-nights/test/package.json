@@ -1,0 +1,14 @@
+{
+  "name": "nightmare-nights-test",
+  "private": true,
+  "description": "Headless test + self-play harness for Five Nights of Nightmares",
+  "scripts": {
+    "serve": "python3 -m http.server 8765 --directory ..",
+    "shots": "node shot.js room",
+    "sim": "node selfplay-sim.mjs 200",
+    "selfplay": "node selfplay-browser.js 1 play"
+  },
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}
