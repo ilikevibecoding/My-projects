@@ -265,7 +265,7 @@ export function createCanopyTexture(seed = 606) {
   // Dense center, sparse edge so card silhouettes look organic
   for (let i = 0; i < 1500; i += 1) {
     const angle = random() * Math.PI * 2;
-    const radius = Math.pow(random(), 0.62) * size * 0.46;
+    const radius = Math.pow(random(), 0.78) * size * 0.46;
     const x = size / 2 + Math.cos(angle) * radius;
     const y = size / 2 + Math.sin(angle) * radius * 0.92;
     const leafLen = 10 + random() * 22;
@@ -289,6 +289,16 @@ export function createCanopyTexture(seed = 606) {
     ctx.stroke();
     ctx.restore();
   }
+
+  // round off the silhouette so distant cards never read as squares
+  ctx.globalCompositeOperation = 'destination-in';
+  const falloff = ctx.createRadialGradient(size / 2, size / 2, size * 0.3, size / 2, size / 2, size * 0.5);
+  falloff.addColorStop(0, 'rgba(0,0,0,1)');
+  falloff.addColorStop(0.82, 'rgba(0,0,0,1)');
+  falloff.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = falloff;
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalCompositeOperation = 'source-over';
 
   return toTexture(canvas, { repeat: false });
 }

@@ -8,6 +8,7 @@ import { createTerrain } from './terrain.js';
 import { createSky } from './sky.js';
 import { createInput } from './input.js';
 import { createPlayer } from './player.js';
+import { createVegetation } from './vegetation.js';
 
 const ctx = {
   renderer: null,
@@ -118,11 +119,16 @@ async function init() {
     ctx.scene.add(ctx.terrain.mesh);
   });
 
-  await loadStep(0.45, 'lighting the sun', () => {
+  await loadStep(0.4, 'lighting the sun', () => {
     ctx.sky = createSky(ctx);
   });
 
-  await loadStep(0.6, 'waking the player', () => {
+  await loadStep(0.55, 'growing the jungle', () => {
+    ctx.vegetation = createVegetation(ctx);
+    ctx.updatables.push(ctx.vegetation);
+  });
+
+  await loadStep(0.75, 'waking the player', () => {
     ctx.input = createInput(ctx);
     ctx.player = createPlayer(ctx);
   });
