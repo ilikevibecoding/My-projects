@@ -10,6 +10,7 @@ const Game = {
   enemyTeam: 'dominion',
   time: 0,
   frame: 0,
+  timeScale: 1,
   testMode: false,
   debugMode: false,
   scene: null,
@@ -38,6 +39,7 @@ const Game = {
     const params = new URLSearchParams(location.search);
     Game.testMode = params.get('test') === '1';
     Game.debugMode = params.get('debug') === '1' || Game.testMode;
+    Game.timeScale = Math.min(6, Math.max(0.1, parseFloat(params.get('speed')) || 1));
 
     Assets.buildTextures();
 
@@ -46,7 +48,10 @@ const Game = {
     Game.scene.add(Game.camera);
 
     const canvas = document.getElementById('game-canvas');
-    Graphics.init(canvas, Game.scene, Game.camera);
+    Graphics.init(canvas, Game.scene, Game.camera, { preserveDrawingBuffer: Game.testMode });
+    if (['high', 'medium', 'low'].includes(params.get('quality'))) {
+      Graphics.applyQuality(params.get('quality'));
+    }
     Graphics.buildEnvMap();
     Graphics.buildLighting();
 
@@ -384,6 +389,7 @@ const Game = {
     lastTime = now;
     if (dt > 0.05) dt = 0.05;
     if (dt <= 0) return;
+    dt *= Game.timeScale;
     Game.time += dt;
     Game.frame++;
 
@@ -477,6 +483,15 @@ const Game = {
     },
     get soldiers() { return Soldiers.all.length; },
     get playerAlive() { return !!(Game.player && Game.player.alive); },
+    get botSnapshot() {
+      return Soldiers.all.filter(s => !s.isPlayer).slice(0, 40).map(s => ({
+        team: s.team[0], x: +s.position.x.toFixed(1), z: +s.position.z.toFixed(1),
+        alive: s.alive,
+        state: s.brain ? (s.brain.enemy ? 'fight' : s.brain.path ? `path${s.brain.pathIdx}/${s.brain.path.length}` : 'idle') : '-',
+        post: s.brain && s.brain.targetPost ? s.brain.targetPost.id : '-',
+      }));
+    },
+    get simTime() { return Game.time; },
     forceEnd(team) { endMatch(team || 'coalition'); },
     forceTickets(c, d) { Capture.tickets.coalition = c; Capture.tickets.dominion = d; },
   };

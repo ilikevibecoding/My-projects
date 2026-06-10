@@ -58,14 +58,15 @@ const Graphics = (() => {
       }`,
   };
 
-  function init(canvas, sc, cam) {
+  function init(canvas, sc, cam, opts = {}) {
     scene = sc; camera = cam;
     renderer = new THREE.WebGLRenderer({
       canvas, antialias: false, powerPreference: 'high-performance',
+      preserveDrawingBuffer: !!opts.preserveDrawingBuffer,
     });
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
+    renderer.toneMappingExposure = 0.98;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -75,9 +76,9 @@ const Graphics = (() => {
 
     bloomPass = new THREE.UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.55,   // strength
-      0.62,   // radius
-      0.78    // threshold — only genuinely bright things bloom
+      0.5,    // strength
+      0.55,   // radius
+      0.88    // threshold — only genuinely bright things bloom
     );
     composer.addPass(bloomPass);
 
@@ -130,7 +131,7 @@ const Graphics = (() => {
   // ---- lighting rig -----------------------------------------
   function buildLighting() {
     // golden-hour key light
-    const sun = new THREE.DirectionalLight(0xffe3b3, 2.6);
+    const sun = new THREE.DirectionalLight(0xffe3b3, 1.9);
     sun.position.set(-140, 190, 90);
     sun.castShadow = true;
     sun.shadow.mapSize.setScalar(CONFIG.quality[quality].shadow);
@@ -145,10 +146,10 @@ const Graphics = (() => {
     scene.add(sun.target);
 
     // warm sky / cool ground bounce
-    const hemi = new THREE.HemisphereLight(0xa8c4e8, 0x8a6a42, 0.85);
+    const hemi = new THREE.HemisphereLight(0xa8c4e8, 0x8a6a42, 0.55);
     scene.add(hemi);
 
-    const amb = new THREE.AmbientLight(0x584a38, 0.35);
+    const amb = new THREE.AmbientLight(0x584a38, 0.18);
     scene.add(amb);
 
     Graphics.sun = sun;

@@ -267,8 +267,8 @@ const World = (() => {
       scene.fog.far = CONFIG.world.fogFar + t * 4000;
     }
     for (const m of moons) m.material.opacity = (m === moons[0] ? 0.7 : 0.45) * (1 - t);
-    if (Graphics.hemi) Graphics.hemi.intensity = 0.85 * (1 - t * 0.75);
-    if (Graphics.sun) Graphics.sun.intensity = 2.6 - t * 1.1;
+    if (Graphics.hemi) Graphics.hemi.intensity = 0.55 * (1 - t * 0.75);
+    if (Graphics.sun) Graphics.sun.intensity = 1.9 - t * 0.8;
   }
 
   // ---------- props & colliders -----------------------------------
