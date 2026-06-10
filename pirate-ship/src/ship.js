@@ -64,6 +64,14 @@ function buildHullGeometry() {
   for (let i = 0; i < ringSize - 1; i++) {
     idx.push(i, i + 1, sternCenter);
   }
+  // bow cap (otherwise the bow ring is a gaping hole)
+  const bowCenter = verts.length / 3;
+  const stN = STATIONS[STATIONS.length - 1];
+  const bowBase = (STATIONS.length - 1) * ringSize;
+  verts.push(0, (stN.keel + stN.deck) / 2, stN.z);
+  for (let i = 0; i < ringSize - 1; i++) {
+    idx.push(bowBase + i + 1, bowBase + i, bowCenter);
+  }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
   geo.setIndex(idx);
@@ -72,12 +80,31 @@ function buildHullGeometry() {
   return non;
 }
 
+function stationAt(z) {
+  // interpolate hull half-width / deck height along the ship
+  let a = STATIONS[0];
+  let b = STATIONS[STATIONS.length - 1];
+  for (let i = 0; i < STATIONS.length - 1; i++) {
+    if (z >= STATIONS[i].z && z <= STATIONS[i + 1].z) {
+      a = STATIONS[i];
+      b = STATIONS[i + 1];
+      break;
+    }
+  }
+  const t = (z - a.z) / (b.z - a.z || 1);
+  return {
+    w: a.w + (b.w - a.w) * t,
+    deck: a.deck + (b.deck - a.deck) * t,
+    keel: a.keel + (b.keel - a.keel) * t,
+  };
+}
+
 function buildDeckGeometry() {
-  // deck surface with slight camber, inset from the bulwark
+  // deck surface with slight camber, overlapping the hull sides (no slot)
   const verts = [];
   const idx = [];
   STATIONS.forEach((st) => {
-    const w = st.w * 0.93;
+    const w = st.w * 0.99;
     verts.push(-w, st.deck, st.z, 0, st.deck + 0.18, st.z, w, st.deck, st.z);
   });
   for (let s = 0; s < STATIONS.length - 1; s++) {
@@ -199,8 +226,20 @@ export class PirateShip {
   constructor(scene) {
     this.group = new THREE.Group();
 
-    const matHull = new THREE.MeshStandardMaterial({ color: 0x53381f, roughness: 0.85, flatShading: true });
-    const matWood = new THREE.MeshStandardMaterial({ color: 0x96704a, roughness: 0.9, flatShading: true });
+    // DoubleSide: the hull is a shell — without it, the inner faces are
+    // culled and the ship looks like it has holes when seen over the rail.
+    const matHull = new THREE.MeshStandardMaterial({
+      color: 0x53381f,
+      roughness: 0.85,
+      flatShading: true,
+      side: THREE.DoubleSide,
+    });
+    const matWood = new THREE.MeshStandardMaterial({
+      color: 0x96704a,
+      roughness: 0.9,
+      flatShading: true,
+      side: THREE.DoubleSide, // deck is a sheet; masts/spars unaffected
+    });
     const matDark = new THREE.MeshStandardMaterial({ color: 0x3a2a19, roughness: 0.9, flatShading: true });
     const matGold = new THREE.MeshStandardMaterial({ color: 0xd8a93f, roughness: 0.45, metalness: 0.55 });
     this.matSail = new THREE.MeshStandardMaterial({
@@ -229,12 +268,13 @@ export class PirateShip {
     goldParts.push(new THREE.BoxGeometry(4.4, 0.28, 0.18).translate(0, 3.45, -13.95)); // stern trim
     goldParts.push(new THREE.BoxGeometry(3.6, 0.2, 0.16).translate(0, 2.6, -14.0));
 
-    // cannons poking through the bulwarks
+    // cannons poking through the bulwarks, hugging the hull at each station
     for (const side of [-1, 1]) {
       for (const z of [-6.5, -2.5, 1.5, 5.5]) {
-        const g = new THREE.CylinderGeometry(0.13, 0.16, 1.5, 6)
+        const st = stationAt(z);
+        const g = new THREE.CylinderGeometry(0.13, 0.16, 1.6, 6)
           .rotateZ(Math.PI / 2)
-          .translate(side * 3.55, 1.45, z);
+          .translate(side * (st.w - 0.2), st.deck - 0.55, z);
         darkParts.push(g);
       }
     }
