@@ -50,10 +50,11 @@
       this.fadeDir = -1; // fade back in
       this.fade = 1;
     }
-    // track visited towns for the bus line
+    // track visited towns for the bus line / town map
     if (BUS_STOPS[mapId]) {
       st.flags.visited = st.flags.visited || {};
       st.flags.visited[mapId] = true;
+      st.flags.lastTown = mapId; // for "you are here" while in routes/interiors
     }
     // auto-save on every map change once the adventure has started
     if (st.flags && st.flags.gotStarter) this.game.autoSave();
@@ -129,6 +130,11 @@
     if (I.pressed("start")) {
       AudioSys.sfx("confirm");
       this.game.pushScene(new window.MenuScene(this.game));
+      return;
+    }
+    if (I.pressed("map")) {
+      AudioSys.sfx("confirm");
+      this.game.pushScene(new window.MapScene(this.game));
       return;
     }
     if (I.pressed("a")) {
@@ -616,6 +622,9 @@
     lakeside: { label: "LAKESIDE CITY", x: 17, y: 15, dir: "down" },
     summit: { label: "SUMMIT VILLAGE", x: 14, y: 7, dir: "down" },
   };
+  // shared with the Town Map screen (js/map.js)
+  window.BUS_STOPS = BUS_STOPS;
+  window.BUS_FARE = BUS_FARE;
 
   // ---------- story scripts ----------
   const SCRIPTS = {

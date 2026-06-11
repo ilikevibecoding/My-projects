@@ -21,7 +21,7 @@
   }
 
   MenuScene.prototype.options = function () {
-    return ["POKéDEX", "POKéMON", "BAG", `${this.game.state.playerName}`, "SAVE", "OPTIONS", "EXIT"];
+    return ["MAP", "POKéDEX", "POKéMON", "BAG", `${this.game.state.playerName}`, "SAVE", "OPTIONS", "EXIT"];
   };
 
   MenuScene.prototype.update = function () {
@@ -47,6 +47,9 @@
     const game = this.game;
     const D = window.Dialog;
     switch (option) {
+      case "MAP":
+        game.pushScene(new window.MapScene(game));
+        break;
       case "POKéDEX":
         game.pushScene(new window.PokedexScene(game));
         break;

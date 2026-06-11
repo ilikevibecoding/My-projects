@@ -9,6 +9,7 @@
     z: "a", Z: "a", " ": "a",
     x: "b", X: "b", Backspace: "b", Escape: "b",
     Enter: "start",
+    m: "map", M: "map",
   };
 
   const Input = {

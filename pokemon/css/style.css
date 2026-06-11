@@ -91,9 +91,13 @@ canvas#game {
   }
   .ab .a { right: 16px; bottom: 86px; background: rgba(180, 40, 60, 0.7); }
   .ab .b { right: 84px; bottom: 30px; background: rgba(40, 90, 180, 0.7); }
-  .start-row .pill {
-    left: 50%; transform: translateX(-50%); bottom: 6px;
-    width: 90px; height: 30px; border-radius: 15px; font-size: 12px;
+  .start-row .pill[data-key="start"] {
+    left: 50%; bottom: 6px;
+    width: 84px; height: 30px; border-radius: 15px; font-size: 12px;
+  }
+  .start-row .pill[data-key="map"] {
+    left: 50%; margin-left: -92px; bottom: 6px;
+    width: 64px; height: 30px; border-radius: 15px; font-size: 12px;
   }
   .page-footer { display: none; }
   canvas#game { width: min(calc(100vw - 30px), calc((100vh - 220px) * 1.5)); }
