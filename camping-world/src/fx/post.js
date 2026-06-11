@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
@@ -8,8 +7,8 @@ import { N8AOPass } from 'n8ao';
 
 /**
  * Photographic post stack:
- *   RenderPass (MSAA HDR target, keeps grass alpha-to-coverage)
- *   → N8AO   (subtle ground-contact occlusion)
+ *   N8AOPass (renders the scene itself into an HDR beauty target + composites AO;
+ *             gammaCorrection MUST stay false so output remains linear for OutputPass)
  *   → OutputPass (ACES tone map + sRGB)
  *   → Grade  (warm white balance, gentle saturation, vignette, fine grain)
  *   → SMAA
@@ -78,14 +77,12 @@ export function initPost(renderer, scene, camera) {
   const w = Math.floor(size.x * pr);
   const h = Math.floor(size.y * pr);
 
-  // MSAA HDR target so grass alpha-to-coverage keeps working under the composer
+  // HDR ping-pong buffers; N8AO renders the scene itself (no RenderPass needed)
   const target = new THREE.WebGLRenderTarget(w, h, {
     type: THREE.HalfFloatType,
-    samples: 4,
   });
 
   const composer = new EffectComposer(renderer, target);
-  composer.addPass(new RenderPass(scene, camera));
 
   const n8ao = new N8AOPass(scene, camera, w, h);
   n8ao.configuration.aoRadius = 1.6;
@@ -93,6 +90,8 @@ export function initPost(renderer, scene, camera) {
   n8ao.configuration.intensity = 2.2;
   n8ao.configuration.halfRes = true;
   n8ao.configuration.depthAwareUpsampling = true;
+  // CRITICAL: keep linear — OutputPass does tone map + sRGB. Default true = double encode.
+  n8ao.configuration.gammaCorrection = false;
   composer.addPass(n8ao);
 
   composer.addPass(new OutputPass());
