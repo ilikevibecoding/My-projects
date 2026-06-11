@@ -598,11 +598,11 @@
         },
         {
           x: 1, y: 5, species: 138, title: "HELIX FOSSIL",
-          history: "A spiral shell turned to stone — the fossil of OMANYTE, an ancient Pokémon that drifted through prehistoric seas.",
+          history: "A spiral shell turned to stone - the fossil of OMANYTE, an ancient Pokémon that drifted through prehistoric seas.",
         },
         {
           x: 10, y: 5, species: 140, title: "DOME FOSSIL",
-          history: "A hard, dome-shaped fossil — the shell of KABUTO. A few are rumored to still scuttle in deep caves.",
+          history: "A hard, dome-shaped fossil - the shell of KABUTO. A few are rumored to still scuttle in deep caves.",
         },
       ],
       npcs: [
