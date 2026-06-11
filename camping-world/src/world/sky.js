@@ -17,8 +17,8 @@ const HDRI_PRESETS = {
     azimuthDeg: 54.4,
     elevationDeg: 17.1,
     sunColor: 0xffd9a8,
-    sunIntensity: 11,
-    envIntensity: 0.9,
+    sunIntensity: 18,
+    envIntensity: 1.15,
     backgroundIntensity: 1.0,
     fogColor: 0xd8c3a0,
     fogDensity: 0.0045,
@@ -54,6 +54,25 @@ export async function buildSky(scene, renderer, hdriName = DEFAULT_HDRI) {
 
   const hdr = await new HDRLoader().loadAsync(`./assets/env/${hdriName}_4k.hdr`);
   hdr.mapping = THREE.EquirectangularReflectionMapping;
+
+  // Soft-clamp HDR hot pixels (sun disc ≈ 65k) and enable mipmaps: without
+  // mips the 4k equirect aliases into white "star" speckles at 1080p, and an
+  // unclamped sun blooms entire mip levels white.
+  {
+    const data = hdr.image.data;
+    if (data instanceof Uint16Array) {
+      const MAX_HALF = 0x6000; // ≈ 512.0 in half precision
+      for (let i = 0; i < data.length; i++) {
+        if ((data[i] & 0x7fff) > MAX_HALF && (data[i] & 0x8000) === 0) data[i] = MAX_HALF;
+      }
+    } else {
+      for (let i = 0; i < data.length; i++) if (data[i] > 512) data[i] = 512;
+    }
+    hdr.generateMipmaps = true;
+    hdr.minFilter = THREE.LinearMipmapLinearFilter;
+    hdr.magFilter = THREE.LinearFilter;
+    hdr.needsUpdate = true;
+  }
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envMap = pmrem.fromEquirectangular(hdr).texture;

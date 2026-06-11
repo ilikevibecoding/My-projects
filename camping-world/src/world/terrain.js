@@ -131,7 +131,7 @@ export function buildTerrain(scene) {
           float nBig = tfbm(vWorldPos.xz * 0.012);
           float nMid = tfbm(vWorldPos.xz * 0.05 + 31.7);
           float underTrees = smoothstep(38.0, 60.0, r + nBig * 22.0 - 11.0);
-          float campLitter = 1.0 - smoothstep(7.5, 16.0, r + nMid * 5.0 - 2.5);
+          float campLitter = 1.0 - smoothstep(3.5, 8.5, r + nMid * 4.0 - 2.0);
           float wB = clamp(max(underTrees, campLitter) + smoothstep(0.62, 0.8, nMid) * 0.5, 0.0, 1.0);
           float wC = smoothstep(0.56, 0.78, tfbm(vWorldPos.xz * 0.03 + 77.3)) * (1.0 - wB);
 

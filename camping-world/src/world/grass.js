@@ -18,8 +18,8 @@ const ATLAS_ROWS = 2;
 // favor the leafy clumps; the dark-seed-head cells (2,4,5) stay rare accents
 const CELL_WEIGHTS = [0.26, 0.24, 0.015, 0.24, 0.015, 0.015, 0.105, 0.11];
 
-const GRASS_RADIUS = 74;
-const COUNT = 64000;
+const GRASS_RADIUS = 70;
+const COUNT = 110000;
 
 function pickCell(rng) {
   let r = rng();
@@ -83,9 +83,12 @@ export function buildGrass(scene, getHeight, campCenter) {
 
   const geo = buildCardGeometry();
 
+  // Low alphaTest + alpha-to-coverage: plain alphaTest at 0.3+ eats distant
+  // grass entirely (alpha mips average toward 0 on sub-pixel cards).
   const mat = new THREE.MeshStandardMaterial({
     map: tex,
-    alphaTest: 0.32,
+    alphaTest: 0.12,
+    alphaToCoverage: true,
     side: THREE.DoubleSide,
     roughness: 0.92,
     metalness: 0,
@@ -129,6 +132,15 @@ export function buildGrass(scene, getHeight, campCenter) {
          #endif
        }`
     );
+
+    // grass cards must read as an up-facing meadow surface on BOTH faces —
+    // undo the double-sided normal flip (back faces were lit from below = black)
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <normal_fragment_begin>',
+      `#include <normal_fragment_begin>
+       normal = normalize( vNormal );
+       nonPerturbedNormal = normal;`
+    );
   };
 
   const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
@@ -155,8 +167,8 @@ export function buildGrass(scene, getHeight, campCenter) {
     const dCamp = Math.hypot(x - campCenter.x, z - campCenter.y);
     if (dCamp < 2.4) continue; // fire ring + sitting area stay walkable
     const n = densityNoise(x * 0.03, z * 0.03); // [-1,1]
-    let keep = 0.62 + n * 0.38;
-    if (r > 45) keep *= THREE.MathUtils.mapLinear(r, 45, GRASS_RADIUS, 1.0, 0.55);
+    let keep = 0.8 + n * 0.2;
+    if (r > 50) keep *= THREE.MathUtils.mapLinear(r, 50, GRASS_RADIUS, 1.0, 0.6);
     if (dCamp < 7) keep *= THREE.MathUtils.mapLinear(dCamp, 2.4, 7, 0.3, 1.0);
     if (rng() > keep) continue;
 
@@ -166,7 +178,7 @@ export function buildGrass(scene, getHeight, campCenter) {
 
     // card size = real-world size of the baked clump, with natural variation
     const frame = atlasMeta.cells[cell]?.frameM ?? 0.35;
-    const s = frame * (0.85 + rng() * 0.55) * 1.35; // slightly lush of life-size
+    const s = frame * (0.85 + rng() * 0.55) * 1.6; // lush of life-size, overlapping
     const sw = s * (0.9 + rng() * 0.25);
     const sh = s * (0.8 + rng() * 0.4);
     const y = getHeight(x, z);

@@ -11,14 +11,16 @@
  * the heightfield evolves.
  */
 
-// pos: [x, z], eye: height above terrain, yaw/pitch in radians
+// pos: [x, z] (camera y = terrain + eye), target: absolute [x, y, z] look-at.
+// Composition targets: fire ring ≈ (1.5, *, 1.0); hero tree ≈ (-8.5, *, -6.5);
+// sun corridor azimuth ≈ 54° → direction (0.81, 0, 0.59).
 export const VIEWPOINTS = [
-  { name: 'campsite-closeup', pos: [3.4, 4.2], eye: 1.45, yaw: Math.PI + 0.65, pitch: -0.16 },
-  { name: 'grass-eye-level', pos: [-10, 14], eye: 0.75, yaw: Math.PI * 0.82, pitch: 0.02 },
-  { name: 'hero-tree-lookup', pos: [-7.5, -3.5], eye: 1.6, yaw: -1.95, pitch: 0.42 },
-  { name: 'wide-vista', pos: [12, 18], eye: 1.7, yaw: Math.PI * 0.78, pitch: 0.0 },
-  { name: 'backlit-camp', pos: [-14, -10], eye: 1.6, yaw: 2.45, pitch: 0.03 },
-  { name: 'ground-detail', pos: [1.8, 2.4], eye: 1.5, yaw: -2.2, pitch: -0.78 },
+  { name: 'campsite-closeup', pos: [6.2, 5.8], eye: 1.55, target: [1.5, 0.9, 1.0] },
+  { name: 'grass-eye-level', pos: [-10, 14], eye: 0.7, target: [-22, 1.1, 21] },
+  { name: 'hero-tree-lookup', pos: [-3.5, -0.5], eye: 1.6, target: [-8.5, 7.0, -6.5] },
+  { name: 'wide-vista', pos: [-7, 9], eye: 1.7, target: [17.3, 2.6, 26.7] },
+  { name: 'backlit-camp', pos: [-6.5, -9.5], eye: 1.55, target: [1.5, 1.3, 1.0] },
+  { name: 'ground-detail', pos: [3.4, 3.6], eye: 1.45, target: [1.2, 0.3, 0.8] },
 ];
 
 export function isShotMode() {
@@ -37,7 +39,7 @@ export function initHarness({ camera, renderer, getTerrainHeight, requestFrames 
     const [x, z] = v.pos;
     const y = getTerrainHeight(x, z) + v.eye;
     camera.position.set(x, y, z);
-    camera.rotation.set(v.pitch, v.yaw, 0, 'YXZ');
+    camera.lookAt(v.target[0], v.target[1], v.target[2]);
     camera.updateMatrixWorld();
     await requestFrames(4); // let temporal effects / shadows settle
     return v.name;

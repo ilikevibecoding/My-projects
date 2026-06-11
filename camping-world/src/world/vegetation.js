@@ -145,25 +145,26 @@ export function buildVegetation(scene, models, getHeight) {
 
   // --- clearing edge: denser mixed band (mid-LOD — silhouettes read at 38m+) ---
   const edgeTypes = ['island_tree_01_mid', 'island_tree_02_mid', 'tree_small_02_mid', 'tree_small_02_mid', 'searsia_lucida_mid', 'fir_sapling_mid'];
-  for (let i = 0; i < 26; i++) {
-    const spot = tryPlace(38, 62, 7.5);
+  for (let i = 0; i < 42; i++) {
+    const spot = tryPlace(38, 62, 6.5);
     if (!spot) continue;
-    if (inSunCorridor(spot.x, spot.z) && rng() < 0.75) continue; // sun corridor
+    if (inSunCorridor(spot.x, spot.z) && rng() < 0.7) continue; // sun corridor
     addTree(edgeTypes[Math.floor(rng() * edgeTypes.length)], spot.x, spot.z);
   }
 
   // --- backdrop treeline ring (instanced far-LODs, no shadows, hazy) ---
+  // two staggered rows so the horizon is a continuous wall of canopy
   const ringTypes = ['island_tree_02_far', 'tree_small_02_far'];
   const ringSpots = [];
-  for (let i = 0; i < 64; i++) {
-    const a = (i / 64) * Math.PI * 2 + rng() * 0.09;
-    const r = 68 + rng() * 45;
-    if (inSunCorridor(Math.cos(a) * r, Math.sin(a) * r, 0.22) && rng() < 0.6) continue;
+  for (let i = 0; i < 120; i++) {
+    const a = (i / 120) * Math.PI * 2 + rng() * 0.05;
+    const r = i % 2 === 0 ? 64 + rng() * 14 : 80 + rng() * 30;
+    if (inSunCorridor(Math.cos(a) * r, Math.sin(a) * r, 0.2) && rng() < 0.55) continue;
     ringSpots.push({
       a,
       r,
       type: ringTypes[Math.floor(rng() * ringTypes.length)],
-      s: 2.0 + rng() * 1.6,
+      s: 2.4 + rng() * 1.5,
       rot: rng() * Math.PI * 2,
     });
   }

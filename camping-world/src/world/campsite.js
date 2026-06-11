@@ -65,7 +65,7 @@ export function buildCampsite(scene, models, getHeight) {
       // bake the part's own transform, then scale to fist-size rocks
       const box = new THREE.Box3().setFromObject(new THREE.Mesh(part.geometry));
       const size = box.getSize(new THREE.Vector3()).length() || 1;
-      const s = (0.28 + rng() * 0.1) / size;
+      const s = (0.38 + rng() * 0.12) / size;
       mesh.scale.setScalar(s);
       mesh.rotation.set(rng() * 0.4 - 0.2, rng() * Math.PI * 2, rng() * 0.4 - 0.2);
       const sunk = box.min.y * s;
