@@ -580,21 +580,39 @@
         "#####~######",
       ],
       warps: [{ x: 5, y: 7, to: { map: "lakeside", x: 21, y: 5, dir: "down" } }],
-      signs: [
-        { x: 3, y: 1, text: "ANCIENT CARVING — A round, pink Pokémon nobody has ever caught. The plaque reads: 'MEW?'" },
-        { x: 6, y: 1, text: "MOON STONE — A stone said to fall from the night sky. Certain Pokémon evolve near it." },
-        { x: 9, y: 1, text: "OLD AMBER — A chunk of amber with something feathery trapped inside…" },
-        { x: 1, y: 5, text: "FOSSIL DISPLAY — A helix-shaped shell. It's at least 100 million years old!" },
-        { x: 10, y: 5, text: "TEAM SHADOW WANTED POSTER — 'Report any sightings to the gym leader at once.'" },
+      signs: [],
+      // Clickable exhibits: each shows a Pokémon sprite on its display case and a
+      // pop-up page with the artifact's history when you face it and press A.
+      exhibits: [
+        {
+          x: 3, y: 1, species: 151, title: "ANCIENT CARVING", stone: true,
+          history: "A weathered stone carving of a small, round Pokémon with a long tail. Legend says it holds the genes of every other Pokémon. No trainer has ever caught one. Scholars only whisper its name: MEW.",
+        },
+        {
+          x: 6, y: 1, species: 35, title: "MOON STONE RELIC",
+          history: "A glittering stone that fell from the night sky, displayed beside a CLEFAIRY figure. On clear nights these Pokémon are said to gather and dance wherever a MOON STONE lands.",
+        },
+        {
+          x: 9, y: 1, species: 142, title: "OLD AMBER",
+          history: "Something feathery is trapped inside this golden amber. It belonged to AERODACTYL, a ferocious flying Pokémon that ruled the skies over a hundred million years ago.",
+        },
+        {
+          x: 1, y: 5, species: 138, title: "HELIX FOSSIL",
+          history: "A spiral shell turned to stone. It is the fossil of OMANYTE, an ancient Pokémon that drifted through the prehistoric seas long before trainers existed.",
+        },
+        {
+          x: 10, y: 5, species: 140, title: "DOME FOSSIL",
+          history: "A hard, dome-shaped fossil. It is the shell of KABUTO, a sturdy Pokémon that scuttled along ancient shorelines. A few are rumored to still live in deep caves.",
+        },
       ],
       npcs: [
         { id: "curator", variant: "professor", x: 5, y: 4, dir: "down", movement: "static",
           dialog: [
-            "Welcome to the LAKESIDE MUSEUM! Walk up to any display and have a look — admission is free today.",
-            "My favorite? The ancient carving. Some say that Pokémon still hides where no trainer can reach…",
+            "Welcome to the LAKESIDE MUSEUM! Step up to any display case and press A to study the artifact.",
+            "My favorite? The ancient MEW carving. Some say that Pokémon still hides where no trainer can reach…",
           ] },
         { id: "museum_kid", variant: "boy", x: 8, y: 5, dir: "up", movement: "static",
-          dialog: ["They dug that fossil out of GRANITE TUNNEL! Maybe there are more in there!"] },
+          dialog: ["They dug those fossils out of GRANITE TUNNEL! Maybe there are more in there!"] },
       ],
       triggers: [],
     },

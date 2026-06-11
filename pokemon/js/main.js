@@ -46,7 +46,7 @@
         version: 1,
         playerName: "RED",
         rivalName: "BLUE",
-        money: 3000,
+        money: 5000,
         badges: [],
         party: [],
         bag: {},
@@ -76,6 +76,13 @@
     },
 
     startOverworld() {
+      // one-time travel allowance so players never get stuck in a no-money loop
+      if (this.state && this.state.flags) {
+        if (!this.state.flags.travelAllowance) {
+          this.state.flags.travelAllowance = true;
+          this.state.money = Math.max(this.state.money || 0, 5000);
+        }
+      }
       this.overworld = new window.OverworldScene(this);
       this.scenes = [this.overworld];
     },

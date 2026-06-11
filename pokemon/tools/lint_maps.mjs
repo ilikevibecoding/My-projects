@@ -9,6 +9,7 @@ global.window = {};
 eval(readFileSync(join(ROOT, "data/maps.js"), "utf8"));
 eval(readFileSync(join(ROOT, "data/trainers.js"), "utf8"));
 eval(readFileSync(join(ROOT, "data/encounters.js"), "utf8"));
+eval(readFileSync(join(ROOT, "data/pokedex.js"), "utf8"));
 
 const MAPS = global.window.MAPS;
 const SOLID = new Set(["T", "P", "w", "F", "r", "k", "s", "R", "Y", "A", "W", "o", "+", "M", "g",
@@ -75,6 +76,14 @@ for (const [id, map] of Object.entries(MAPS)) {
     });
   });
 
+  for (const ex of map.exhibits || []) {
+    const ch = at(ex.x, ex.y);
+    if (ch === undefined) err(`${id}: exhibit out of bounds (${ex.x},${ex.y})`);
+    else if (!SOLID.has(ch)) err(`${id}: exhibit at (${ex.x},${ex.y}) on walkable '${ch}' (should be a display case)`);
+    if (!global.window.POKEDEX[ex.species]) err(`${id}: exhibit references unknown species ${ex.species}`);
+    if (!ex.history || !ex.title) err(`${id}: exhibit at (${ex.x},${ex.y}) missing title/history`);
+  }
+
   for (const [dir, edge] of Object.entries(map.edges || {})) {
     if (!MAPS[edge.map]) err(`${id}: edge ${dir} target '${edge.map}' missing`);
   }
@@ -84,7 +93,6 @@ for (const [id, map] of Object.entries(MAPS)) {
 }
 
 // trainer rosters reference valid species
-eval(readFileSync(join(ROOT, "data/pokedex.js"), "utf8"));
 for (const [tid, t] of Object.entries(global.window.TRAINERS)) {
   for (const [sp, lvl] of t.party || []) {
     if (!global.window.POKEDEX[sp]) err(`trainer ${tid}: unknown species ${sp}`);

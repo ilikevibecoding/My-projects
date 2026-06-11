@@ -105,4 +105,55 @@
   };
 
   window.PokedexScene = PokedexScene;
+
+  // ---------- Museum exhibit pop-up ----------
+  function ExhibitScene(game, exhibit) {
+    this.game = game;
+    this.exhibit = exhibit;
+    this.transparent = true; // drawn over the overworld
+    this.t = 0;
+  }
+
+  ExhibitScene.prototype.update = function (dt) {
+    this.t += dt;
+    const I = window.Input;
+    if (I.pressed("a") || I.pressed("b") || I.pressed("start")) {
+      AudioSys.sfx("deny");
+      this.game.popScene();
+    }
+  };
+
+  ExhibitScene.prototype.draw = function (ctx) {
+    const ex = this.exhibit;
+    const spec = window.POKEDEX[ex.species];
+    // dim the world behind
+    ctx.fillStyle = "rgba(20,24,38,0.55)";
+    ctx.fillRect(0, 0, 240, 160);
+
+    UI.drawBox(ctx, 8, 8, 224, 144);
+    UI.text(ctx, ex.title, 16, 16, "#d23b3b");
+
+    // framed sprite on the left
+    UI.drawBox(ctx, 14, 28, 72, 72);
+    const img = window.Sprites.front(ex.species);
+    if (window.Sprites.ready(img)) {
+      const bob = Math.round(Math.sin(this.t * 2.5) * 2);
+      ctx.drawImage(img, 18, 32 + bob, 64, 64);
+    }
+
+    // name / species data on the right
+    UI.text(ctx, spec.display.toUpperCase(), 94, 32);
+    UI.text(ctx, spec.genus, 94, 44, "#6a7a9a");
+    UI.text(ctx, spec.types.map((t) => t.toUpperCase()).join("/"), 94, 56, "#3b56a8");
+    UI.text(ctx, `HT ${(spec.height / 10).toFixed(1)}m`, 94, 70, "#6a7a9a");
+    UI.text(ctx, `WT ${(spec.weight / 10).toFixed(1)}kg`, 94, 82, "#6a7a9a");
+
+    // history blurb across the bottom
+    const lines = window.Dialog.wrap(ex.history, 36).slice(0, 5);
+    lines.forEach((line, i) => UI.text(ctx, line, 16, 106 + i * 11));
+
+    if (Math.floor(this.t * 2) % 2 === 0) UI.text(ctx, "▼", 220, 142, "#6a7a9a");
+  };
+
+  window.ExhibitScene = ExhibitScene;
 })();

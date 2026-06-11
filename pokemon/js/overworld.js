@@ -377,6 +377,13 @@
       await window.Dialog.say(sign.text);
       return;
     }
+    const exhibit = (def.exhibits || []).find((e) => e.x === x && e.y === y);
+    if (exhibit) {
+      this.game.state.pokedex.seen[exhibit.species] = true;
+      AudioSys.cry(exhibit.species, 0.3);
+      this.game.pushScene(new window.ExhibitScene(this.game, exhibit));
+      return;
+    }
     const ch = this.tileAt(x, y);
     if (ch === "C") {
       this.busy = true;
@@ -516,6 +523,22 @@
       for (let tx = x0; tx <= x1; tx++) {
         const ch = this.tileAt(tx, ty);
         T.draw(ctx, ch, tx * TILE - camX, ty * TILE - camY, frame);
+      }
+    }
+
+    // museum exhibit sprites mounted on their display cases
+    for (const ex of def.exhibits || []) {
+      const sx = ex.x * TILE - camX, sy = ex.y * TILE - camY;
+      // little frame
+      ctx.fillStyle = "#3a2c18";
+      ctx.fillRect(sx + 1, sy - 13, 14, 15);
+      ctx.fillStyle = ex.stone ? "#b9b2a0" : "#e8eef8";
+      ctx.fillRect(sx + 2, sy - 12, 12, 13);
+      const img = window.Sprites.front(ex.species);
+      if (window.Sprites.ready(img)) {
+        if (ex.stone) ctx.filter = "grayscale(1) brightness(0.85)";
+        ctx.drawImage(img, sx + 2, sy - 12, 12, 12);
+        ctx.filter = "none";
       }
     }
 
