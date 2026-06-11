@@ -58,7 +58,7 @@ export function createPost(renderer, scene, camera) {
   const n8ao = new N8AOPass(scene, camera, size.x, size.y);
   n8ao.configuration.aoRadius = 0.9;
   n8ao.configuration.distanceFalloff = 2.5;
-  n8ao.configuration.intensity = 3.0;
+  n8ao.configuration.intensity = 3.2;
   n8ao.configuration.halfRes = true;
   // OutputPass handles sRGB conversion; without this the frame gets gamma'd twice
   n8ao.configuration.gammaCorrection = false;

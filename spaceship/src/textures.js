@@ -299,7 +299,7 @@ export function makeFloorMaps(rand, { size = 1024 } = {}) {
   const [c, ctx] = cv(size);
   const [hc, hctx] = cv(size);
   const [rc, rctx] = cv(size);
-  ctx.fillStyle = 'rgb(58,60,66)';
+  ctx.fillStyle = 'rgb(70,72,78)';
   ctx.fillRect(0, 0, size, size);
   hctx.fillStyle = '#808080'; hctx.fillRect(0, 0, size, size);
   rctx.fillStyle = '#787878'; rctx.fillRect(0, 0, size, size);

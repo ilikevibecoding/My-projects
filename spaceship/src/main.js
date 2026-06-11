@@ -59,9 +59,9 @@ const space = buildSpace(scene, mulberry32(SEED + 7));
   scene.add(sun, sun.target);
   if (!NOSUN) ship.lights.push({ light: sun, day: 2.0, night: 2.0 });
   // faint ambient so blacks never fully crush
-  const amb = new THREE.AmbientLight(0x404a58, 0.4);
+  const amb = new THREE.AmbientLight(0x47505e, 0.5);
   scene.add(amb);
-  ship.lights.push({ light: amb, day: 0.4, night: 0.28 });
+  ship.lights.push({ light: amb, day: 0.5, night: 0.34 });
 }
 
 const player = new Player(camera, renderer.domElement, ship.colliders);

@@ -129,3 +129,32 @@ Fix list for iter 5:
   bands); rim 2.4.
 - Galley brighter (pendant 24, fill 8); hover overlay opacity 0.02.
 - AO 3.0 (quarters ceiling blotch).
+
+## Iteration 5
+Bloom calmed, floors lifted, gas giant pushed out (porthole now frames the
+whole planet with limb + glow — looks great), galley brightened.
+
+Scores:
+1. Lighting — **FAIL**. Corridor STILL floods warm at the ceiling: the point
+   lights sit 0.25 m under the ceiling, inverse-square nukes the nearby panels.
+   Cockpit/quarters/window read intentional.
+2. Materials — **PASS** (porthole metal, painted panels w/ wear, orange fabric,
+   black rubber; visible roughness variation on counters/floors).
+3. Detail density — **PASS**.
+4. Post — **FAIL** (corridor ceiling region effectively blown; everything else
+   balanced).
+5. Space motion — **PASS** (planet + rim + stars through porthole; moon ahead;
+   parallax layers + streaks in motion).
+6. Palette — **PASS**.
+7. Tech — **PASS**.
+8. Cold-look — **FAIL** (corridor is the cold-look shot and it has the flood;
+   rest of frame is genuinely close).
+9. Interactions — **PASS**.
+
+Fix list for iter 6:
+- Corridor: replace ceiling point lights with downward SpotLights (fixtures
+  stay emissive, light pools on the deck instead of nuking the ceiling).
+- Floor metalness 0.55 + albedo lift again (deck still crushes under spots).
+- Teal strips 2.4 + wall-base edge strips so the trench glow actually reads.
+- Cockpit: add cool window-spill fill light; console glow 3.
+- Quarters ceiling light lowered/strengthened slightly.

@@ -103,7 +103,7 @@ export function buildShip(scene, rand) {
     }),
     floor: new THREE.MeshStandardMaterial({
       map: floorMaps.map, roughnessMap: floorMaps.roughnessMap, normalMap: floorMaps.normalMap,
-      roughness: 0.9, metalness: 0.85, envMapIntensity: 1.1,
+      roughness: 0.9, metalness: 0.55, envMapIntensity: 1.0,
       normalScale: new THREE.Vector2(1.1, 1.1),
     }),
     rubber: new THREE.MeshStandardMaterial({
@@ -140,7 +140,7 @@ export function buildShip(scene, rand) {
       color: 0x111111, emissive: 0xffd9a8, emissiveIntensity: 1.7, roughness: 0.4,
     }),
     stripTeal: new THREE.MeshStandardMaterial({
-      color: 0x05110f, emissive: 0x19d4d0, emissiveIntensity: 1.8, roughness: 0.4,
+      color: 0x05110f, emissive: 0x19d4d0, emissiveIntensity: 2.4, roughness: 0.4,
     }),
     stripOrange: new THREE.MeshStandardMaterial({
       color: 0x110803, emissive: 0xff7a20, emissiveIntensity: 1.5, roughness: 0.4,
@@ -150,7 +150,7 @@ export function buildShip(scene, rand) {
     }),
   };
   emissives.push({ mat: mats.stripWarm, day: 1.7, night: 0.35 });
-  emissives.push({ mat: mats.stripTeal, day: 1.8, night: 2.6 });
+  emissives.push({ mat: mats.stripTeal, day: 2.4, night: 3.0 });
   emissives.push({ mat: mats.stripOrange, day: 1.5, night: 1.0 });
 
   const screenMats = {};
@@ -280,6 +280,8 @@ export function buildShip(scene, rand) {
     M.makeTranslation(s * 1.0, -0.006, 0);
     g.applyMatrix4(M);
     batch.add(mats.grate, g);
+    // wall-base edge light strip
+    box(mats.stripTeal, 0.025, 0.03, 15.6, s * (CW - 0.015), 0.04, 0, {});
   }
   box(mats.hullLower, 2.4, 0.1, 16.4, 0, CEIL + 0.05, 0, { hullUV: true });
 
@@ -339,10 +341,12 @@ export function buildShip(scene, rand) {
     box(mats.stripWarm, 0.5, 0.02, 1.2, 0, CEIL - 0.075, z, {});
   }
   for (const z of [-6, 0, 6]) {
-    const pl = new THREE.PointLight(0xffd9a8, 10, 5.5, 2);
-    pl.position.set(0, CEIL - 0.25, z);
-    group.add(pl);
-    lights.push({ light: pl, day: 10, night: 1.2 });
+    // downlight spots: ceiling fixtures read as emissive, light pools on the deck
+    const pl = new THREE.SpotLight(0xffd9a8, 18, 7, 1.25, 0.7, 2);
+    pl.position.set(0, CEIL - 0.15, z);
+    pl.target.position.set(0, 0, z);
+    group.add(pl, pl.target);
+    lights.push({ light: pl, day: 18, night: 2.0 });
   }
   {
     const nl = new THREE.PointLight(0x2a55a0, 0, 12, 2);
@@ -511,10 +515,15 @@ export function buildShip(scene, rand) {
     cl.position.set(0, CEIL - 0.4, -9.2);
     group.add(cl);
     lights.push({ light: cl, day: 9, night: 1.2 });
-    const cg = new THREE.PointLight(0x2ad2cc, 2, 2.6, 2);
+    const cg = new THREE.PointLight(0x2ad2cc, 3, 3, 2);
     cg.position.set(0, 1.25, -11.9);
     group.add(cg);
-    lights.push({ light: cg, day: 2, night: 1.6 });
+    lights.push({ light: cg, day: 3, night: 2.2 });
+    // cool space fill spilling in through the viewport
+    const wf = new THREE.PointLight(0x9fc8e8, 4, 5, 2);
+    wf.position.set(0, 1.6, -12.4);
+    group.add(wf);
+    lights.push({ light: wf, day: 4, night: 4 });
   }
 
   // ============================ REAR BULKHEAD z=8 ============================
@@ -621,10 +630,10 @@ export function buildShip(scene, rand) {
     group.add(lamp, lamp.target);
     lights.push({ light: lamp, day: 20, night: 4 });
     box(mats.stripWarm, 0.5, 0.02, 0.5, 3.0, CEIL - 0.04, 3.2, {});
-    const ql = new THREE.PointLight(0xffd9a8, 7, 6, 2);
-    ql.position.set(3.0, CEIL - 0.3, 3.2);
+    const ql = new THREE.PointLight(0xffd9a8, 9, 6.5, 2);
+    ql.position.set(3.0, CEIL - 0.45, 3.2);
     group.add(ql);
-    lights.push({ light: ql, day: 7, night: 0.9 });
+    lights.push({ light: ql, day: 9, night: 1.0 });
     const qn = new THREE.PointLight(0x1980d4, 0, 7, 2);
     qn.position.set(4.5, 1.0, 5.5);
     group.add(qn);
