@@ -143,11 +143,12 @@
   CreditsScene.prototype.update = function (dt) {
     const totalH = CREDIT_LINES.length * 14;
     if (this.scroll < totalH - 80) {
-      this.scroll += dt * 18;
+      this.scroll += dt * 22;
+      if (window.Input.pressed("a")) this.scroll += 70; // fast-forward
     } else {
       this.done = true;
     }
-    if (window.Input.pressed("a") && this.done) {
+    if (this.done && (window.Input.pressed("a") || window.Input.pressed("start"))) {
       AudioSys.stopMusic();
       const def = window.MAPS[this.game.state.map];
       if (def && def.music) AudioSys.playMusic(def.music);
