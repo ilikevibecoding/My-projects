@@ -105,12 +105,12 @@ export function buildCampsite(scene, models, getHeight) {
   };
 
   // --- half-burnt logs lying low in the ash ---
-  const char1 = makeLog(0.7, 0x3d342c);
+  const char1 = makeLog(0.7, 0x554a3e);
   if (char1) {
     char1.rotation.set(0.04, 0.5, 0);
     restLog(char1, CAMP.x - 0.05, CAMP.y + 0.08);
   }
-  const char2 = makeLog(0.58, 0x463b30);
+  const char2 = makeLog(0.58, 0x5c4f42);
   if (char2) {
     char2.rotation.set(-0.04, 2.1, 0.08);
     restLog(char2, CAMP.x + 0.14, CAMP.y - 0.12, 0.04);

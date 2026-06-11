@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
@@ -22,7 +23,7 @@ const GradeShader = {
     uWarmth: { value: 0.035 },
     uContrast: { value: 1.04 },
     uLift: { value: 0.01 },
-    uVignette: { value: 0.32 },
+    uVignette: { value: 0.26 },
     uGrain: { value: 0.012 },
   },
   vertexShader: /* glsl */ `
@@ -84,15 +85,18 @@ export function initPost(renderer, scene, camera) {
 
   const composer = new EffectComposer(renderer, target);
 
+  // debug knobs: ?noao=1 disables AO, ?aoint=0.8 tunes its intensity
+  const q = new URLSearchParams(location.search);
   const n8ao = new N8AOPass(scene, camera, w, h);
   n8ao.configuration.aoRadius = 1.6;
   n8ao.configuration.distanceFalloff = 4.0;
-  n8ao.configuration.intensity = 1.4;
+  n8ao.configuration.intensity = q.get('aoint') ? parseFloat(q.get('aoint')) : 1.4;
   n8ao.configuration.halfRes = true;
   n8ao.configuration.depthAwareUpsampling = true;
   // CRITICAL: keep linear — OutputPass does tone map + sRGB. Default true = double encode.
   n8ao.configuration.gammaCorrection = false;
-  composer.addPass(n8ao);
+  if (!q.has('noao')) composer.addPass(n8ao);
+  else composer.addPass(new RenderPass(scene, camera));
 
   composer.addPass(new OutputPass());
 

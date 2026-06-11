@@ -41,7 +41,7 @@ const HDRI_PRESETS = {
     elevationDeg: 29.1,
     sunColor: 0xffe0b0,
     sunIntensity: 16,
-    envIntensity: 0.95, // sky fill opens shadow sides (R1) — sun still dominates
+    envIntensity: 1.5, // strong sky fill — backlit rock/wood shadow sides must read (R1)
     backgroundIntensity: 1.0,
     fogColor: 0xd8c8a8,
     fogDensity: 0.0042,
