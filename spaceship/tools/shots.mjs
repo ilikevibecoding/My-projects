@@ -16,7 +16,7 @@ const PORT = 5189;
 function startServer() {
   return new Promise((resolve, reject) => {
     const proc = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], {
-      cwd: root, stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: root, stdio: ['ignore', 'pipe', 'pipe'], detached: true,
     });
     let ready = false;
     const onData = (d) => {
@@ -122,6 +122,6 @@ try {
   console.log(`done -> ${outDir}`);
 } finally {
   await browser.close().catch(() => {});
-  server.kill('SIGKILL');
+  try { process.kill(-server.pid, 'SIGKILL'); } catch { server.kill('SIGKILL'); }
   setTimeout(() => process.exit(0), 500).unref();
 }

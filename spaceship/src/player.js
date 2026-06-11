@@ -22,6 +22,7 @@ export class Player {
     this.bobAmount = 0;
     this.time = 0;
     this.frozen = false; // debug camera mode
+    this.eyeOverride = null;
 
     this.onLockChange = null;
 
@@ -102,9 +103,10 @@ export class Player {
     const breathe = Math.sin(this.time * 1.7) * 0.004;
     const rumble = this.frozen ? 0 : (Math.sin(this.time * 31.7) + Math.sin(this.time * 47.3)) * 0.0009;
 
+    const eye = this.frozen && this.eyeOverride !== null ? this.eyeOverride : EYE;
     this.camera.position.set(
       this.position.x + bobX * Math.cos(this.yaw),
-      EYE + bobY + breathe + rumble,
+      eye + (this.frozen ? 0 : bobY + breathe + rumble),
       this.position.z - bobX * Math.sin(this.yaw)
     );
     this.camera.rotation.order = 'YXZ';

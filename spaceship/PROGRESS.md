@@ -83,3 +83,20 @@ Fix list for iter 3:
   sightline, headboard strip flush to wall; deeper orange fabric.
 - Hover highlight: additive, opacity ~0.05 + edges.
 - Cooktop rings/sign lights: lower emissive so color stays saturated.
+
+## Iteration 3
+Sun flipped, planets repositioned + ringed crescent added, quarters detailed,
+hover toned down. Shots showed lit moon from cockpit, but the global "wash"
+persisted. Spent the iteration root-causing it with A/B probes (red/blue/green
+material swaps, sun off, AO off, bloom off): **N8AOPass was gamma-correcting
+its output while OutputPass converts to sRGB again — the entire frame was
+double-gamma'd since iteration 1.** Every light level we tuned was compensating
+for that. Fixed with `n8ao.configuration.gammaCorrection = false`, then re-raised
+lighting (exposure 1.05, env 0.16, practical lights +40%).
+
+Scores: not formally scored — the pipeline fix invalidates the iter-3 captures
+(judged from probes: palette/saturation massively better, oranges finally read
+orange, rubber reads black). Interactions still pass (verified in stats.json).
+Carrying over open items:
+- Re-verify all 4 views under the corrected pipeline.
+- Corridor far-end bloom, planet wash, quarters porthole framing.

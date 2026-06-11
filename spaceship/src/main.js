@@ -31,7 +31,7 @@ const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerH
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envScene = new RoomEnvironment();
   scene.environment = pmrem.fromScene(envScene, 0.04).texture;
-  scene.environmentIntensity = 0.10;
+  scene.environmentIntensity = 0.16;
   pmrem.dispose();
 }
 
@@ -42,7 +42,8 @@ const space = buildSpace(scene, mulberry32(SEED + 7));
 
 // cool space key light through the cockpit viewport
 {
-  const sun = new THREE.DirectionalLight(0xbcd8ff, 1.7);
+  const NOSUN = location.hash.includes('nosun');
+  const sun = new THREE.DirectionalLight(0xbcd8ff, NOSUN ? 0 : 2.0);
   sun.position.copy(SUN_DIR).multiplyScalar(40);
   sun.target.position.set(0, 1, -10);
   sun.castShadow = true;
@@ -56,11 +57,11 @@ const space = buildSpace(scene, mulberry32(SEED + 7));
   sun.shadow.bias = -0.0008;
   sun.shadow.normalBias = 0.03;
   scene.add(sun, sun.target);
-  ship.lights.push({ light: sun, day: 1.7, night: 1.7 });
+  if (!NOSUN) ship.lights.push({ light: sun, day: 2.0, night: 2.0 });
   // faint ambient so blacks never fully crush
-  const amb = new THREE.AmbientLight(0x36404e, 0.28);
+  const amb = new THREE.AmbientLight(0x404a58, 0.4);
   scene.add(amb);
-  ship.lights.push({ light: amb, day: 0.28, night: 0.2 });
+  ship.lights.push({ light: amb, day: 0.4, night: 0.28 });
 }
 
 const player = new Player(camera, renderer.domElement, ship.colliders);
@@ -124,6 +125,17 @@ window.debugAPI = {
     return true;
   },
   free() { player.frozen = false; },
+  customView(x, y, z, lx, ly, lz) {
+    player.frozen = true;
+    camera.position.set(x, y, z);
+    camera.lookAt(new THREE.Vector3(lx, ly, lz));
+    player.position.set(x, 0, z);
+    const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+    player.yaw = e.y;
+    player.pitch = e.x;
+    player.eyeOverride = y;
+    player.bobAmount = 0;
+  },
   stats() {
     return {
       fps: fpsValue,
@@ -134,12 +146,72 @@ window.debugAPI = {
   hoverTarget() {
     return interact.hovered ? interact.hovered.userData.interactable.id : null;
   },
+  pick() {
+    const rc = new THREE.Raycaster();
+    rc.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const hits = rc.intersectObjects(ship.group.children, false);
+    return hits.slice(0, 6).map((h) => {
+      const m = h.object.material;
+      return {
+        dist: +h.distance.toFixed(3),
+        point: h.point.toArray().map((v) => +v.toFixed(2)),
+        color: m.color ? m.color.getHexString() : null,
+        emissive: m.emissive ? m.emissive.getHexString() : null,
+        rough: m.roughness, metal: m.metalness,
+        hasMap: !!m.map, transparent: m.transparent,
+        type: m.type,
+      };
+    });
+  },
   press(code) {
     document.dispatchEvent(new KeyboardEvent('keydown', { code }));
   },
   teleport(x, z, yaw, pitch) {
     player.frozen = false;
     player.setPose({ x, z }, yaw, pitch);
+  },
+  inspect() {
+    const out = [];
+    for (const ch of ship.group.children) {
+      if (!ch.isMesh) continue;
+      const m = ch.material;
+      const g = ch.geometry;
+      const rec = {
+        color: m.color ? m.color.getHexString() : null,
+        verts: g.attributes.position.count,
+        hasNormal: !!g.attributes.normal,
+        hasUV: !!g.attributes.uv,
+        attrs: Object.keys(g.attributes),
+        indexed: !!g.index,
+      };
+      // sanity: for first triangle near a probe point, compare geometric vs stored normal
+      if (m.color && m.color.getHexString() === '1d1e20') {
+        const pos = g.attributes.position, nor = g.attributes.normal;
+        const probes = [];
+        for (let i = 0; i < pos.count; i += 3) {
+          const ax = pos.getX(i), ay = pos.getY(i), az = pos.getZ(i);
+          if (Math.abs(ax + 0.62) < 0.4 && Math.abs(az + 10.35) < 0.3 && ay > 0.5 && ay < 1.3) {
+            const A = new THREE.Vector3(ax, ay, az);
+            const B = new THREE.Vector3(pos.getX(i + 1), pos.getY(i + 1), pos.getZ(i + 1));
+            const C = new THREE.Vector3(pos.getX(i + 2), pos.getY(i + 2), pos.getZ(i + 2));
+            const geom = C.clone().sub(B).cross(A.clone().sub(B)).normalize();
+            const stored = new THREE.Vector3(nor.getX(i), nor.getY(i), nor.getZ(i));
+            probes.push({
+              tri: i / 3,
+              at: A.toArray().map((v) => +v.toFixed(2)),
+              storedN: stored.toArray().map((v) => +v.toFixed(2)),
+              storedLen: +stored.length().toFixed(3),
+              geomN: geom.toArray().map((v) => +v.toFixed(2)),
+              agree: +geom.dot(stored.clone().normalize()).toFixed(2),
+            });
+            if (probes.length >= 6) break;
+          }
+        }
+        rec.probes = probes;
+      }
+      out.push(rec);
+    }
+    return out;
   },
 };
 
