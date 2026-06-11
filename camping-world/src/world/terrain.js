@@ -142,9 +142,9 @@ export function buildTerrain(scene) {
 
           // macro tint: break up color over large distances (dry/lush patches)
           float macro = tfbm(vWorldPos.xz * 0.008 + 5.1);
-          vec3 dryTint = vec3(1.06, 0.98, 0.82);
-          vec3 lushTint = vec3(0.88, 1.0, 0.86);
-          blended.rgb *= mix(dryTint, lushTint, smoothstep(0.3, 0.7, macro)) * (0.86 + 0.28 * tnoise(vWorldPos.xz * 0.09));
+          vec3 dryTint = vec3(1.0, 0.95, 0.78);
+          vec3 lushTint = vec3(0.7, 0.86, 0.58);
+          blended.rgb *= mix(dryTint, lushTint, smoothstep(0.32, 0.62, macro)) * (0.86 + 0.28 * tnoise(vWorldPos.xz * 0.09));
 
           diffuseColor *= blended;
           // stash masks for normal/arm stages

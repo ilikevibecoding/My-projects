@@ -31,6 +31,7 @@ const px = arg('px', '1');
 const viewsArg = arg('views', null);
 const width = parseInt(arg('width', '1920'), 10);
 const height = parseInt(arg('height', '1080'), 10);
+const extraQuery = arg('query', ''); // e.g. "sunel=35&sunint=40"
 
 async function serverUp() {
   try {
@@ -84,12 +85,17 @@ async function main() {
   page.on('pageerror', (e) => consoleMessages.push(`[pageerror] ${e.message}`));
 
   console.log('[shots] loading scene…');
-  await page.goto(`${URL_BASE}/?shot=1&px=${px}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  const url = `${URL_BASE}/?shot=1&px=${px}${extraQuery ? '&' + extraQuery : ''}`;
+  console.log(`[shots] ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.waitForFunction(() => window.__READY === true, null, {
     timeout: 600000,
     polling: 1000,
   });
   console.log('[shots] scene ready');
+
+  const dbg = await page.evaluate(() => window.__dbg ?? null);
+  if (dbg) console.log('[shots] dbg:', JSON.stringify(dbg));
 
   const viewNames = await page.evaluate(() => window.__views());
   const views = viewsArg

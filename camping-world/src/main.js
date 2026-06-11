@@ -53,6 +53,51 @@ const harness = initHarness({
   requestFrames,
 });
 
+// debug: ?nogeo=1 renders sky/background only (isolates background artifacts)
+if (params.has('nogeo')) {
+  scene.traverse((n) => {
+    if (n.isMesh) n.visible = false;
+  });
+}
+// debug: ?pole=1 adds a tall white pole at camp — its cast shadow is the
+// ground truth for "is the shadow pipeline working at all"
+if (params.has('pole')) {
+  const pole = new THREE.Mesh(
+    new THREE.BoxGeometry(0.4, 12, 0.4),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 })
+  );
+  pole.castShadow = true;
+  pole.position.set(1.5, world.getTerrainHeight(1.5, 1.0) + 6, 1.0);
+  scene.add(pole);
+}
+// debug: ?noenv=1 kills IBL so only the directional sun lights the scene
+if (params.has('noenv')) {
+  scene.environment = null;
+}
+{
+  const sun = world.sky?.sun;
+  window.__dbg = {
+    shadowMapEnabled: renderer.shadowMap.enabled,
+    shadowMapType: renderer.shadowMap.type,
+    sunCastShadow: sun?.castShadow,
+    sunIntensity: sun?.intensity,
+    envIntensity: scene.environmentIntensity,
+    sunPos: sun?.position.toArray().map((v) => Math.round(v)),
+    camLeft: sun?.shadow.camera.left,
+    camProj0: sun?.shadow.camera.projectionMatrix.elements[0],
+    exposure: renderer.toneMappingExposure,
+    fogDensity: scene.fog?.density,
+    hasEnv: !!scene.environment,
+    lightCount: (() => {
+      let n = 0;
+      scene.traverse((o) => o.isLight && n++);
+      return n;
+    })(),
+  };
+}
+// debug: ?exp=0.85 overrides exposure
+if (params.get('exp')) renderer.toneMappingExposure = parseFloat(params.get('exp'));
+
 loadingEl.classList.add('hidden');
 
 if (shotMode) {

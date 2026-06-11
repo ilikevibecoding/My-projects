@@ -35,22 +35,32 @@ const HDRI_PRESETS = {
     fogDensity: 0.005,
   },
   autumn_field_puresky: {
+    // warm late-afternoon sun, true-HDR disc, clear gold light — primary.
+    // sun:env ≈ 5:1 for real sunny-day shadow contrast
     azimuthDeg: 53.8,
     elevationDeg: 29.1,
-    sunColor: 0xffe2b8,
-    sunIntensity: 10,
-    envIntensity: 0.9,
+    sunColor: 0xffe0b0,
+    sunIntensity: 16,
+    envIntensity: 0.55,
     backgroundIntensity: 1.0,
-    fogColor: 0xd6c2a2,
-    fogDensity: 0.0045,
+    fogColor: 0xd8c8a8,
+    fogDensity: 0.0042,
   },
 };
 
-export const DEFAULT_HDRI = 'kloppenheim_02_puresky';
-export const SUN_AZIMUTH_DEG = 54.4; // used by vegetation to keep a light corridor
+export const DEFAULT_HDRI = 'autumn_field_puresky';
+export const SUN_AZIMUTH_DEG = 53.8; // used by vegetation to keep a light corridor
 
 export async function buildSky(scene, renderer, hdriName = DEFAULT_HDRI) {
-  const preset = HDRI_PRESETS[hdriName] ?? HDRI_PRESETS[DEFAULT_HDRI];
+  const preset = { ...(HDRI_PRESETS[hdriName] ?? HDRI_PRESETS[DEFAULT_HDRI]) };
+
+  // URL overrides for fast self-play tuning: ?sunel=35&sunaz=54&sunint=40&env=1.2&fog=0.004
+  const q = new URLSearchParams(location.search);
+  if (q.get('sunel')) preset.elevationDeg = parseFloat(q.get('sunel'));
+  if (q.get('sunaz')) preset.azimuthDeg = parseFloat(q.get('sunaz'));
+  if (q.get('sunint')) preset.sunIntensity = parseFloat(q.get('sunint'));
+  if (q.get('env')) preset.envIntensity = parseFloat(q.get('env'));
+  if (q.get('fog')) preset.fogDensity = parseFloat(q.get('fog'));
 
   const hdr = await new HDRLoader().loadAsync(`./assets/env/${hdriName}_4k.hdr`);
   hdr.mapping = THREE.EquirectangularReflectionMapping;
@@ -59,14 +69,17 @@ export async function buildSky(scene, renderer, hdriName = DEFAULT_HDRI) {
   // mips the 4k equirect aliases into white "star" speckles at 1080p, and an
   // unclamped sun blooms entire mip levels white.
   {
+    // 32: low enough that the PMREM environment carries almost no baked-sun
+    // energy (the manual DirectionalLight owns ALL direct light + shadows),
+    // high enough that the background sun disc still tone-maps to white.
     const data = hdr.image.data;
     if (data instanceof Uint16Array) {
-      const MAX_HALF = 0x6000; // ≈ 512.0 in half precision
+      const MAX_HALF = 0x5000; // = 32.0 in half precision
       for (let i = 0; i < data.length; i++) {
         if ((data[i] & 0x7fff) > MAX_HALF && (data[i] & 0x8000) === 0) data[i] = MAX_HALF;
       }
     } else {
-      for (let i = 0; i < data.length; i++) if (data[i] > 512) data[i] = 512;
+      for (let i = 0; i < data.length; i++) if (data[i] > 32) data[i] = 32;
     }
     hdr.generateMipmaps = true;
     hdr.minFilter = THREE.LinearMipmapLinearFilter;
@@ -103,9 +116,12 @@ export async function buildSky(scene, renderer, hdriName = DEFAULT_HDRI) {
   sun.shadow.camera.bottom = -ext;
   sun.shadow.camera.near = 60;
   sun.shadow.camera.far = 420;
-  sun.shadow.bias = -0.00035;
-  sun.shadow.normalBias = 0.4;
-  sun.shadow.radius = 2.0;
+  // CRITICAL: ortho frustum changes don't apply until this is called —
+  // without it shadows only exist in the default ±5m box.
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.shadow.bias = -0.0002;
+  sun.shadow.normalBias = 0.15;
+  sun.shadow.radius = 1.5;
   scene.add(sun);
   scene.add(sun.target);
 

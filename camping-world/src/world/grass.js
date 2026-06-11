@@ -187,12 +187,12 @@ export function buildGrass(scene, getHeight, campCenter) {
     mesh.setMatrixAt(i, m);
 
     // hue variation as a multiplier centered near 1.0: dry gold ↔ lush green
-    const v = 0.78 + rng() * 0.4; // overall value
+    const v = 0.72 + rng() * 0.42; // overall value
     const warm = rng(); // 0 = green, 1 = golden
     color.setRGB(
-      v * (0.88 + warm * 0.3),
-      v * (0.95 + (1 - warm) * 0.12),
-      v * (0.72 + (1 - warm) * 0.18)
+      v * (0.78 + warm * 0.34),
+      v * (0.9 + (1 - warm) * 0.16),
+      v * (0.52 + (1 - warm) * 0.22)
     );
     mesh.setColorAt(i, color);
   }
