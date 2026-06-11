@@ -158,3 +158,27 @@ Fix list for iter 6:
 - Teal strips 2.4 + wall-base edge strips so the trench glow actually reads.
 - Cockpit: add cool window-spill fill light; console glow 3.
 - Quarters ceiling light lowered/strengthened slightly.
+
+## Iteration 6
+Corridor switched to downlight spots + edge strips: the shot finally has pools
+of light, teal floor lines, readable depth. Cockpit gained cool window spill.
+
+Scores:
+1. Lighting — **FAIL** (close: corridor's nearest two ceiling fixtures still
+   bloom into one hot mass at top of frame; everything else deliberate).
+2. Materials — **PASS**.
+3. Detail density — **PASS**.
+4. Post — **FAIL** (same single hot region; rest balanced).
+5. Space motion — **PASS** (gas giant framed with limb + glow in porthole now).
+6. Palette — **PASS**.
+7. Tech — **PASS** (~230 calls / 118k tris worst case).
+8. Cold-look — **FAIL** (fixture bloom + galley teal flare + scene still reads
+   slightly sterile/empty — no loose props anywhere).
+9. Interactions — **PASS**.
+
+Fix list for iter 7:
+- Fixture emissives 1.5 + diffuser slats over the light quads (smaller bright
+  area = less bloom); galley under-cabinet strip on a dim teal material.
+- Hover overlay faces nearly invisible (0.008), edges only.
+- Lived-in props: crates by engineering hatch, open maintenance recess with
+  pipes/LEDs + leaning panel, pan on cooktop, mugs, boots by the bed.

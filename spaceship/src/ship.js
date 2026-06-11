@@ -137,7 +137,7 @@ export function buildShip(scene, rand) {
     }),
     // emissives
     stripWarm: new THREE.MeshStandardMaterial({
-      color: 0x111111, emissive: 0xffd9a8, emissiveIntensity: 1.7, roughness: 0.4,
+      color: 0x111111, emissive: 0xffd9a8, emissiveIntensity: 1.5, roughness: 0.4,
     }),
     stripTeal: new THREE.MeshStandardMaterial({
       color: 0x05110f, emissive: 0x19d4d0, emissiveIntensity: 2.4, roughness: 0.4,
@@ -148,8 +148,12 @@ export function buildShip(scene, rand) {
     ledRed: new THREE.MeshStandardMaterial({
       color: 0x110404, emissive: 0xff3020, emissiveIntensity: 1.6, roughness: 0.4,
     }),
+    stripTealDim: new THREE.MeshStandardMaterial({
+      color: 0x05110f, emissive: 0x19d4d0, emissiveIntensity: 1.0, roughness: 0.4,
+    }),
   };
-  emissives.push({ mat: mats.stripWarm, day: 1.7, night: 0.35 });
+  emissives.push({ mat: mats.stripTealDim, day: 1.0, night: 1.4 });
+  emissives.push({ mat: mats.stripWarm, day: 1.5, night: 0.35 });
   emissives.push({ mat: mats.stripTeal, day: 2.4, night: 3.0 });
   emissives.push({ mat: mats.stripOrange, day: 1.5, night: 1.0 });
 
@@ -335,10 +339,13 @@ export function buildShip(scene, rand) {
     box(mats.stripOrange, 0.04, 0.05, 0.05, (CW - 0.09) - 0.11, 1.65, z, {});
   }
 
-  // ceiling light fixtures
+  // ceiling light fixtures (with diffuser slats to break up the glow quad)
   for (let z = -6; z <= 6; z += 3) {
     box(mats.metalDark, 0.7, 0.07, 1.4, 0, CEIL - 0.035, z, { texel: 1 });
-    box(mats.stripWarm, 0.5, 0.02, 1.2, 0, CEIL - 0.075, z, {});
+    box(mats.stripWarm, 0.4, 0.02, 1.05, 0, CEIL - 0.075, z, {});
+    for (let k = -2; k <= 2; k++) {
+      box(mats.metalDark, 0.46, 0.025, 0.05, 0, CEIL - 0.085, z + k * 0.22, {});
+    }
   }
   for (const z of [-6, 0, 6]) {
     // downlight spots: ceiling fixtures read as emissive, light pools on the deck
@@ -388,6 +395,27 @@ export function buildShip(scene, rand) {
 
   porthole(RWX, -4.0, 1);
   porthole(-RWX, 0.7, -1);
+
+  // lived-in props: crate stack near the engineering hatch
+  box(mats.metalDark, 0.52, 0.52, 0.52, 0.82, 0.26, 7.3, { ry: 0.12, texel: 1, collide: true });
+  box(mats.hullLower, 0.42, 0.42, 0.42, 0.80, 0.73, 7.32, { ry: -0.2, hullUV: true });
+  box(mats.hazard, 0.53, 0.1, 0.53, 0.82, 0.30, 7.3, { ry: 0.12 });
+  box(mats.hullLower, 0.46, 0.4, 0.46, -0.85, 0.2, 6.9, { ry: 0.35, hullUV: true, collide: true });
+  box(mats.stripOrange, 0.05, 0.03, 0.05, -0.85, 0.42, 6.9, { ry: 0.35 });
+
+  // open maintenance recess on the left wall (panel leaning below)
+  {
+    const px = -CW - 0.02, pz = 5.2;
+    box(mats.rubber, 0.1, 0.9, 0.7, px, 1.15, pz, {});
+    cyl(mats.metal, 0.03, 0.03, 0.8, 8, px + 0.03, 1.15, pz - 0.15, {});
+    cyl(mats.metalDark, 0.022, 0.022, 0.8, 8, px + 0.03, 1.15, pz + 0.02, {});
+    cyl(mats.metalDark, 0.016, 0.016, 0.8, 8, px + 0.04, 1.15, pz + 0.16, {});
+    box(mats.stripTeal, 0.03, 0.04, 0.04, px + 0.04, 1.45, pz + 0.24, {});
+    box(mats.ledRed, 0.03, 0.04, 0.04, px + 0.04, 1.32, pz + 0.24, {});
+    box(mats.metalDark, 0.04, 0.96, 0.76, px - 0.04, 1.15, pz, { texel: 1 });
+    // leaning panel
+    box(mats.hull, 0.04, 0.8, 0.6, px + 0.22, 0.42, pz - 0.5, { rz: -0.28, ry: 0.1, hullUV: true, collide: true });
+  }
 
   // ============================ COCKPIT  z[-13.4,-8] ============================
   {
@@ -647,6 +675,11 @@ export function buildShip(scene, rand) {
     for (let k = 0; k < 4; k++) box(mats.metal, 0.4, 0.02, 0.07, 4.6, CEIL - 0.065, 1.75 + k * 0.16, {});
     cyl(mats.metal, 0.045, 0.045, 4.0, 8, 3.4, CEIL - 0.1, 4.6, { rz: Math.PI / 2, texel: 1 });
 
+    // mug on desk, boots by the bed
+    cyl(mats.plastic, 0.035, 0.035, 0.09, 10, 5.2, 0.85, 2.2, {});
+    box(mats.rubber, 0.11, 0.14, 0.3, 3.4, 0.07, 5.2, { ry: 0.3 });
+    box(mats.rubber, 0.11, 0.14, 0.3, 3.65, 0.07, 5.05, { ry: -0.15 });
+
     interactables.push({
       id: 'bed',
       prompt: 'E: Sleep',
@@ -683,17 +716,21 @@ export function buildShip(scene, rand) {
     // sink
     box(mats.metalDark, 0.4, 0.04, 0.5, x0 + cD / 2, 0.9, -4.5, { texel: 1 });
     cyl(mats.metal, 0.025, 0.025, 0.3, 8, x0 + 0.2, 1.0, -4.3, { rz: -0.5 });
-    // cooktop with glowing rings
+    // cooktop with glowing rings + a pan left out
     box(mats.rubber, 0.5, 0.012, 0.8, x0 + cD / 2, 0.906, -3.2, {});
     for (const dz of [-0.2, 0.2]) {
       torus(mats.stripOrange, 0.11, 0.018, x0 + cD / 2, 0.915, -3.2 + dz, { rx: Math.PI / 2 });
     }
+    cyl(mats.metalDark, 0.13, 0.13, 0.05, 14, x0 + cD / 2, 0.94, -3.0, { open: false });
+    cyl(mats.metalDark, 0.015, 0.015, 0.22, 6, x0 + cD / 2 + 0.2, 0.96, -3.0, { rz: Math.PI / 2 });
+    cyl(mats.plastic, 0.035, 0.035, 0.09, 10, x0 + cD / 2 + 0.05, 0.95, -4.0, {});
+    cyl(mats.plastic, 0.035, 0.035, 0.09, 10, x0 + cD / 2 - 0.12, 0.95, -3.85, {});
     // overhead cabinets + under-cabinet teal strip
     box(mats.hullLower, 0.45, 0.75, 3.4, x0 + 0.27, 1.95, czm, { hullUV: true });
     for (let i = 0; i < 4; i++) {
       box(mats.metal, 0.03, 0.25, 0.03, x0 + 0.51, 1.95, z0 + 0.85 + i * 0.85, {});
     }
-    box(mats.stripTeal, 0.012, 0.02, 3.2, x0 + 0.50, 1.56, czm, {});
+    box(mats.stripTealDim, 0.012, 0.02, 3.2, x0 + 0.50, 1.56, czm, {});
 
     // shelf with canisters on z0 wall
     box(mats.metal, 1.6, 0.04, 0.35, -2.0, 1.5, z0 + 0.3, { texel: 1 });

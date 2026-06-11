@@ -151,9 +151,9 @@ export class Interactions {
       }
     }
     if (this.hovered) {
-      const pulse = 0.02 + Math.sin(t * 5) * 0.012;
+      const pulse = 0.008 + Math.sin(t * 5) * 0.005;
       this.hovered.material.opacity = pulse;
-      this.hovered.userData.edges.material.opacity = 0.55 + Math.sin(t * 5) * 0.2;
+      this.hovered.userData.edges.material.opacity = 0.4 + Math.sin(t * 5) * 0.15;
     }
 
     if ((t * 2 | 0) !== ((t - dt) * 2 | 0)) this.updateStatus();
