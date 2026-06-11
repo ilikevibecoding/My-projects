@@ -156,7 +156,7 @@
       const data = window.MOVES[mv.id];
       const x = 12 + (i % 2) * 116;
       const y = 106 + Math.floor(i / 2) * 22;
-      UI.text(ctx, data.display.slice(0, 14), x, y);
+      UI.text(ctx, data.display.toUpperCase().slice(0, 14), x, y);
       UI.text(ctx, `${data.type.toUpperCase().slice(0, 3)} ${mv.pp}/${mv.maxpp}`, x, y + 9, "#6a7a9a");
     });
     if (mon.moves.length === 0) UI.text(ctx, "No moves!", 12, 106);

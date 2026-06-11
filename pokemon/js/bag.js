@@ -3,20 +3,20 @@
   "use strict";
 
   const ITEMS = {
-    potion:       { name: "Potion",       price: 200,  desc: "Restores 20 HP.",          kind: "heal", amount: 20 },
-    superpotion:  { name: "Super Potion", price: 600,  desc: "Restores 60 HP.",          kind: "heal", amount: 60 },
-    hyperpotion:  { name: "Hyper Potion", price: 1500, desc: "Restores 120 HP.",         kind: "heal", amount: 120 },
-    fullrestore:  { name: "Full Restore", price: 3000, desc: "Fully restores HP and status.", kind: "fullrestore" },
-    revive:       { name: "Revive",       price: 1500, desc: "Revives a fainted Pokémon to half HP.", kind: "revive" },
-    antidote:     { name: "Antidote",     price: 100,  desc: "Cures poison.",            kind: "status", cures: "psn" },
-    parlyzheal:   { name: "Parlyz Heal",  price: 200,  desc: "Cures paralysis.",         kind: "status", cures: "par" },
-    awakening:    { name: "Awakening",    price: 250,  desc: "Wakes a sleeping Pokémon.", kind: "status", cures: "slp" },
-    burnheal:     { name: "Burn Heal",    price: 250,  desc: "Cures a burn.",            kind: "status", cures: "brn" },
-    iceheal:      { name: "Ice Heal",     price: 250,  desc: "Thaws a frozen Pokémon.",  kind: "status", cures: "frz" },
-    fullheal:     { name: "Full Heal",    price: 600,  desc: "Cures all status problems.", kind: "status", cures: "all" },
-    pokeball:     { name: "Poké Ball",    price: 200,  desc: "A ball for catching Pokémon.", kind: "ball", mod: 1 },
-    greatball:    { name: "Great Ball",   price: 600,  desc: "A good ball with a higher catch rate.", kind: "ball", mod: 1.5 },
-    ultraball:    { name: "Ultra Ball",   price: 1200, desc: "An ultra-performance ball.", kind: "ball", mod: 2 },
+    potion:       { name: "POTION",       price: 200,  desc: "Restores 20 HP.",          kind: "heal", amount: 20 },
+    superpotion:  { name: "SUPER POTION", price: 600,  desc: "Restores 60 HP.",          kind: "heal", amount: 60 },
+    hyperpotion:  { name: "HYPER POTION", price: 1500, desc: "Restores 120 HP.",         kind: "heal", amount: 120 },
+    fullrestore:  { name: "FULL RESTORE", price: 3000, desc: "Fully restores HP and status.", kind: "fullrestore" },
+    revive:       { name: "REVIVE",       price: 1500, desc: "Revives a fainted Pokémon to half HP.", kind: "revive" },
+    antidote:     { name: "ANTIDOTE",     price: 100,  desc: "Cures poison.",            kind: "status", cures: "psn" },
+    parlyzheal:   { name: "PARLYZ HEAL",  price: 200,  desc: "Cures paralysis.",         kind: "status", cures: "par" },
+    awakening:    { name: "AWAKENING",    price: 250,  desc: "Wakes a sleeping Pokémon.", kind: "status", cures: "slp" },
+    burnheal:     { name: "BURN HEAL",    price: 250,  desc: "Cures a burn.",            kind: "status", cures: "brn" },
+    iceheal:      { name: "ICE HEAL",     price: 250,  desc: "Thaws a frozen Pokémon.",  kind: "status", cures: "frz" },
+    fullheal:     { name: "FULL HEAL",    price: 600,  desc: "Cures all status problems.", kind: "status", cures: "all" },
+    pokeball:     { name: "POKé BALL",    price: 200,  desc: "A ball for catching Pokémon.", kind: "ball", mod: 1 },
+    greatball:    { name: "GREAT BALL",   price: 600,  desc: "A good ball with a higher catch rate.", kind: "ball", mod: 1.5 },
+    ultraball:    { name: "ULTRA BALL",   price: 1200, desc: "An ultra-performance ball.", kind: "ball", mod: 2 },
   };
   const ITEM_ORDER = Object.keys(ITEMS);
 

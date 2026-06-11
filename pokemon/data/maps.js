@@ -189,11 +189,11 @@
         },
         {
           id: "t_r1_bug", variant: "bugcatcher", x: 6, y: 9, dir: "right", movement: "static",
-          trainer: "r1_bug", sight: 4,
+          trainer: "r1_bug",
         },
         {
           id: "t_r1_lass", variant: "lass", x: 16, y: 13, dir: "left", movement: "static",
-          trainer: "r1_lass", sight: 4,
+          trainer: "r1_lass",
         },
       ],
       triggers: [],
@@ -219,7 +219,7 @@
         "T...,,..TT,,TT.........T", // 9
         "T..YYYY...,,...gggggg..T", // 10
         "T..YYYY...,,...gggggg..T", // 11
-        "T..oMDo...,,...gg,Dgg..T", // 12  mart | gym
+        "T..oMDo...,,...ggDDgg..T", // 12  mart | gym (double door)
         "T...,,....,,......,....T", // 13
         "T...,,....,,......,....T", // 14
         "T...,,,,,,,,,,,,,,,....T", // 15
@@ -235,6 +235,7 @@
       warps: [
         { x: 5, y: 4, to: { map: "center", x: 5, y: 6, dir: "up" } },
         { x: 5, y: 12, to: { map: "mart", x: 5, y: 6, dir: "up" } },
+        { x: 17, y: 12, to: { map: "gym", x: 5, y: 12, dir: "up" } },
         { x: 18, y: 12, to: { map: "gym", x: 5, y: 12, dir: "up" } },
         { x: 18, y: 4, to: { map: "city_house", x: 5, y: 6, dir: "up" } },
       ],
@@ -368,8 +369,8 @@
       signs: [],
       npcs: [
         { id: "gymleader", variant: "leader", x: 5, y: 2, dir: "down", movement: "static", script: "gymleader" },
-        { id: "t_gym1", variant: "boy", x: 3, y: 8, dir: "right", movement: "static", trainer: "gym_boy", sight: 3 },
-        { id: "t_gym2", variant: "bugcatcher", x: 8, y: 5, dir: "left", movement: "static", trainer: "gym_hiker", sight: 3 },
+        { id: "t_gym1", variant: "boy", x: 3, y: 8, dir: "right", movement: "static", trainer: "gym_boy" },
+        { id: "t_gym2", variant: "bugcatcher", x: 8, y: 5, dir: "left", movement: "static", trainer: "gym_hiker" },
         {
           id: "gym_guide", variant: "oldman", x: 8, y: 11, dir: "left", movement: "static",
           dialog: ["Yo, champ in the making! FLINT's Rock-types are tough. Water and Grass moves hit them hard!"],
@@ -416,15 +417,15 @@
       npcs: [
         {
           id: "t_r2_boy", variant: "boy", x: 8, y: 6, dir: "down", movement: "static",
-          trainer: "r2_boy", sight: 4,
+          trainer: "r2_boy",
         },
         {
           id: "t_r2_lass", variant: "lass", x: 13, y: 9, dir: "left", movement: "static",
-          trainer: "r2_lass", sight: 4,
+          trainer: "r2_lass",
         },
         {
           id: "t_r2_bug", variant: "bugcatcher", x: 5, y: 15, dir: "right", movement: "static",
-          trainer: "r2_bug", sight: 5,
+          trainer: "r2_bug",
         },
         {
           id: "r2_oldman", variant: "oldman", x: 16, y: 1, dir: "down", movement: "static",

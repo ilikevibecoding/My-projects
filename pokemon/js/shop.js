@@ -93,6 +93,7 @@
           st.money -= cost;
           window.Bag.add(st, item.id, qty);
           AudioSys.sfx("confirm");
+          this.game.autoSave();
           await D.say(`CLERK: ${item.name} ×${qty}, that'll be $${cost}. Here you go!`);
         }
       }

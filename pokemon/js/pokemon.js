@@ -17,7 +17,7 @@
       const spec = window.POKEDEX[speciesId];
       const mon = {
         species: speciesId,
-        name: spec.display,
+        name: spec.display.toUpperCase(),
         level,
         exp: F.expForLevel(spec.growth, level),
         ivs: opts.ivs || { hp: rndIV(), atk: rndIV(), def: rndIV(), spa: rndIV(), spd: rndIV(), spe: rndIV() },
@@ -110,9 +110,9 @@
 
     evolve(mon, toSpecies) {
       const keepRatio = mon.hp / mon.stats.hp;
-      const wasNicknamed = mon.name !== this.species(mon).display;
+      const wasNicknamed = mon.name !== this.species(mon).display.toUpperCase();
       mon.species = toSpecies;
-      if (!wasNicknamed) mon.name = window.POKEDEX[toSpecies].display;
+      if (!wasNicknamed) mon.name = window.POKEDEX[toSpecies].display.toUpperCase();
       this.recalcStats(mon);
       mon.hp = Math.max(1, Math.round(mon.stats.hp * keepRatio));
     },

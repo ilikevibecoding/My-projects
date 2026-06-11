@@ -84,17 +84,29 @@
       this.pushScene(new window.BattleScene(this, config, onEnd));
     },
 
-    // After a blackout: heal and respawn at last heal point.
+    // Auto-save: called after battles, map changes, heals, and purchases.
+    autoSave() {
+      if (!this.state || !this.overworld) return;
+      if (window.SaveSys.save(this.state)) {
+        this.toast = { text: "SAVED", t: 1.4 };
+      }
+    },
+
+    // After a blackout: heal and respawn at last heal point (lose only 10% of money).
     blackout() {
       const st = this.state;
       st.party.forEach((m) => window.Mon.fullHeal(m));
-      st.money = Math.max(0, Math.floor(st.money / 2));
+      st.money = Math.max(0, st.money - Math.floor(st.money / 10));
       const lh = st.lastHeal || { map: "player_home", x: 5, y: 5, dir: "down" };
       this.overworld.loadMap(lh.map, lh.x, lh.y, lh.dir, true);
     },
 
     update(dt) {
       if (this.state) this.state.playTime += dt;
+      if (this.toast) {
+        this.toast.t -= dt;
+        if (this.toast.t <= 0) this.toast = null;
+      }
       const top = this.topScene();
       if (top) top.update(dt);
       window.Input.endFrame();
@@ -109,6 +121,12 @@
       while (start > 0 && this.scenes[start].transparent) start--;
       for (let i = start; i < this.scenes.length; i++) {
         this.scenes[i].draw(ctx);
+      }
+      // auto-save toast
+      if (this.toast) {
+        const w = window.UI.textWidth(this.toast.text) + 14;
+        window.UI.drawBox(ctx, 240 - w - 3, 160 - 21, w, 18);
+        window.UI.text(ctx, this.toast.text, 240 - w + 4, 160 - 16, "#48a048");
       }
     },
   };

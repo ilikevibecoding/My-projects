@@ -897,6 +897,7 @@
       const def = window.MAPS[game.state.map];
       if (def && def.music) AudioSys.playMusic(def.music);
       if (!won) game.blackout();
+      else game.autoSave(); // blackout() already auto-saves via loadMap
       this.onEnd(won);
     };
     end();
@@ -1017,7 +1018,7 @@
         const data = window.MOVES[mv.id];
         const x = 16 + (i % 2) * 116;
         const y = 124 + Math.floor(i / 2) * 16;
-        UI.text(ctx, data.display.slice(0, 12), x, y, mv.pp === 0 ? "#9aa6c0" : "#21232b");
+        UI.text(ctx, data.display.toUpperCase().slice(0, 12), x, y, mv.pp === 0 ? "#9aa6c0" : "#21232b");
         if (i === this.menu.index) UI.text(ctx, "▶", x - 10, y);
       });
       const sel = this.menu.options[this.menu.index];

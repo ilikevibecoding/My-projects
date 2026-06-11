@@ -4,7 +4,7 @@
 
   window.ENCOUNTERS = {
     route1: {
-      rate: 0.14, // chance per step in tall grass
+      rate: 0.11, // chance per step in tall grass
       slots: [
         { id: 16, min: 2, max: 4, weight: 35 },  // Pidgey
         { id: 19, min: 2, max: 4, weight: 35 },  // Rattata

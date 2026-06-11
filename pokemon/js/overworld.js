@@ -50,6 +50,8 @@
       this.fadeDir = -1; // fade back in
       this.fade = 1;
     }
+    // auto-save on every map change once the adventure has started
+    if (st.flags && st.flags.gotStarter) this.game.autoSave();
   };
 
   // ---------- collision helpers ----------
@@ -275,9 +277,10 @@
   OverworldScene.prototype.checkTrainerSight = function () {
     const st = this.game.state;
     for (const npc of this.npcs) {
-      if (!npc.trainer || st.flags.trainers[npc.id] || !this.npcVisible(npc)) continue;
+      // trainers only auto-engage if they have an explicit sight range
+      if (!npc.trainer || !npc.sight || st.flags.trainers[npc.id] || !this.npcVisible(npc)) continue;
       const d = DIRS[npc.dir];
-      for (let i = 1; i <= (npc.sight || 4); i++) {
+      for (let i = 1; i <= npc.sight; i++) {
         const cx = npc.x + d.dx * i, cy = npc.y + d.dy * i;
         const ch = this.tileAt(cx, cy);
         if (window.Tileset.isSolid(ch)) break;
@@ -569,6 +572,7 @@
         await D.say("MOM: You look tired. Let me heal your Pokémon.");
         st.party.forEach((m) => window.Mon.fullHeal(m));
         AudioSys.sfx("heal");
+        game.autoSave();
         await D.say("MOM: There! All better. Take care out there!");
       }
     },
@@ -590,14 +594,14 @@
       const starters = [1, 4, 7]; // Bulbasaur, Charmander, Squirtle
       let pick = -1;
       while (pick < 0) {
-        pick = await D.ask(["Bulbasaur", "Charmander", "Squirtle"], { cancelable: false, aboveBox: true });
+        pick = await D.ask(["BULBASAUR", "CHARMANDER", "SQUIRTLE"], { cancelable: false, aboveBox: true });
         const sp = window.POKEDEX[starters[pick]];
-        await D.say(`CEDAR: ${sp.display}, the ${sp.genus}! ${sp.flavor}`);
+        await D.say(`CEDAR: ${sp.display.toUpperCase()}, the ${sp.genus}! ${sp.flavor}`);
         const sure = await D.ask(["Take it!", "Think again"], { cancelable: false, aboveBox: true });
         if (sure !== 0) pick = -1;
       }
       const starterId = starters[pick];
-      const mon = window.Mon.create(starterId, 5);
+      const mon = window.Mon.create(starterId, 8);
       st.party.push(mon);
       st.starterId = starterId;
       st.flags.gotStarter = true;
@@ -605,9 +609,10 @@
       st.pokedex.caught[starterId] = true;
       AudioSys.cry(starterId);
       AudioSys.sfx("levelup");
+      game.autoSave();
       await D.say(`${st.playerName} received ${mon.name}!`);
       window.Bag.add(st, "pokeball", 5);
-      window.Bag.add(st, "potion", 3);
+      window.Bag.add(st, "potion", 5);
       await D.say("CEDAR: Take these POKé BALLS and POTIONS too. Catch more Pokémon in the tall grass to build your team!");
 
       // rival ambush
@@ -618,7 +623,7 @@
         await D.say(`CEDAR: Patience, ${st.rivalName}. You can have the last one.`);
         await D.say(`${st.rivalName}: Fine! This one looks way stronger anyway!`);
         const t = window.TRAINERS.rival_1;
-        t.party = [[rivalStarter, 5]];
+        t.party = [[rivalStarter, 7]];
         await D.say(t.intro);
         game.startBattle({ kind: "trainer", trainerId: "rival_1", npcId: "rival_lab" }, async () => {
           st.flags.rivalLabDone = true;
@@ -640,6 +645,7 @@
         st.party.forEach((m) => window.Mon.fullHeal(m));
         st.lastHeal = { map: "center", x: 6, y: 5, dir: "down" };
         AudioSys.sfx("heal");
+        game.autoSave();
         await D.say("NURSE: …… …… Ding! Your Pokémon are fighting fit! We hope to see you again!");
       } else {
         await D.say("NURSE: Do come back any time!");

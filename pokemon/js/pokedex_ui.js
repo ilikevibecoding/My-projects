@@ -64,7 +64,7 @@
         ctx.filter = "none";
       }
       UI.text(ctx, `No.${String(id).padStart(3, "0")}`, 92, 20);
-      UI.text(ctx, spec.display, 92, 32);
+      UI.text(ctx, spec.display.toUpperCase(), 92, 32);
       UI.text(ctx, caught ? spec.genus : "???", 92, 44, "#6a7a9a");
       if (caught) {
         UI.text(ctx, `HT ${(spec.height / 10).toFixed(1)}m  WT ${(spec.weight / 10).toFixed(1)}kg`, 92, 56, "#6a7a9a");
@@ -87,7 +87,7 @@
       const y = 11 + row * 13;
       const seen = dex.seen[id], caught = dex.caught[id];
       UI.text(ctx, String(id).padStart(3, "0"), 24, y);
-      UI.text(ctx, seen ? window.POKEDEX[id].display : "-----", 70, y, seen ? "#21232b" : "#9aa6c0");
+      UI.text(ctx, seen ? window.POKEDEX[id].display.toUpperCase() : "-----", 70, y, seen ? "#21232b" : "#9aa6c0");
       if (caught) {
         // tiny poké ball marker
         ctx.fillStyle = "#d23b3b";
