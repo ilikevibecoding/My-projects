@@ -32,6 +32,7 @@ export class Interactions {
       const mat = new THREE.MeshBasicMaterial({
         color: 0xffb46a, transparent: true, opacity: 0,
         depthWrite: false, side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.copy(it.center);
@@ -150,9 +151,9 @@ export class Interactions {
       }
     }
     if (this.hovered) {
-      const pulse = 0.10 + Math.sin(t * 5) * 0.04;
+      const pulse = 0.045 + Math.sin(t * 5) * 0.02;
       this.hovered.material.opacity = pulse;
-      this.hovered.userData.edges.material.opacity = 0.5 + Math.sin(t * 5) * 0.2;
+      this.hovered.userData.edges.material.opacity = 0.55 + Math.sin(t * 5) * 0.2;
     }
 
     if ((t * 2 | 0) !== ((t - dt) * 2 | 0)) this.updateStatus();

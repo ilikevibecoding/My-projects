@@ -342,7 +342,7 @@ export function makeFloorMaps(rand, { size = 1024 } = {}) {
   // central wear path (lighter, smoother) — runs along V
   const wear = ctx.createLinearGradient(0, 0, size, 0);
   wear.addColorStop(0.0, 'rgba(150,150,154,0)');
-  wear.addColorStop(0.5, 'rgba(150,150,154,0.16)');
+  wear.addColorStop(0.5, 'rgba(150,150,154,0.07)');
   wear.addColorStop(1.0, 'rgba(150,150,154,0)');
   ctx.fillStyle = wear;
   ctx.fillRect(0, 0, size, size);
@@ -555,8 +555,8 @@ export function makePlanetMap(rand, { hueA = 16, hueB = 36, size = 1024 } = {}) 
     const bh = H * (0.03 + rand() * 0.10);
     const t = y / H;
     const hue = hueA + (hueB - hueA) * (0.5 + 0.5 * Math.sin(t * 9 + rand() * 2));
-    const sat = 30 + rand() * 28;
-    const lit = 38 + rand() * 26 - Math.abs(t - 0.5) * 22;
+    const sat = 44 + rand() * 30;
+    const lit = 34 + rand() * 32 - Math.abs(t - 0.5) * 24;
     ctx.fillStyle = `hsl(${hue}, ${sat}%, ${lit}%)`;
     ctx.fillRect(0, y, W, bh + 1);
     y += bh;

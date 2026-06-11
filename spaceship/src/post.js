@@ -63,7 +63,7 @@ export function createPost(renderer, scene, camera) {
   n8ao.setQualityMode('Medium');
   composer.addPass(n8ao);
 
-  const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.42, 0.5, 0.85);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.38, 0.45, 0.88);
   composer.addPass(bloom);
 
   composer.addPass(new OutputPass());

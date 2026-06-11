@@ -22,7 +22,7 @@ app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x010204);
-scene.fog = new THREE.FogExp2(0x0a0d12, 0.045);
+scene.fog = new THREE.FogExp2(0x0a0d12, 0.035);
 
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 5000);
 
@@ -42,7 +42,7 @@ const space = buildSpace(scene, mulberry32(SEED + 7));
 
 // cool space key light through the cockpit viewport
 {
-  const sun = new THREE.DirectionalLight(0xbcd8ff, 2.2);
+  const sun = new THREE.DirectionalLight(0xbcd8ff, 1.7);
   sun.position.copy(SUN_DIR).multiplyScalar(40);
   sun.target.position.set(0, 1, -10);
   sun.castShadow = true;
@@ -56,7 +56,7 @@ const space = buildSpace(scene, mulberry32(SEED + 7));
   sun.shadow.bias = -0.0008;
   sun.shadow.normalBias = 0.03;
   scene.add(sun, sun.target);
-  ship.lights.push({ light: sun, day: 2.2, night: 2.2 });
+  ship.lights.push({ light: sun, day: 1.7, night: 1.7 });
   // faint ambient so blacks never fully crush
   const amb = new THREE.AmbientLight(0x36404e, 0.28);
   scene.add(amb);
@@ -89,7 +89,7 @@ const VIEWS = {
   cockpit: { pos: [0.0, 1.7, -9.0], look: [0, 1.15, -12.6] },
   corridor: { pos: [0.0, 1.7, 7.4], look: [0, 1.35, -8] },
   quarters: { pos: [2.05, 1.7, 2.0], look: [4.6, 0.7, 5.7] },
-  window: { pos: [0.18, 1.62, -4.0], look: [3.0, 1.55, -4.05] },
+  window: { pos: [-0.15, 1.62, 0.70], look: [-3.0, 1.55, 0.75] },
 };
 
 let frames = 0;

@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { makeStarSprite, makeNebulaSprite, makePlanetMap, makeRockyMap } from './textures.js';
 
-const SUN_DIR = new THREE.Vector3(0.58, 0.24, -0.78).normalize();
+// Sun sits behind-starboard-high so bodies ahead/port show lit faces to the ship.
+const SUN_DIR = new THREE.Vector3(0.55, 0.28, 0.79).normalize();
 export { SUN_DIR };
 
 function planetMaterial(map, rimColor, rimStrength = 1.4) {
@@ -150,7 +151,7 @@ export function buildSpace(scene, rand) {
   streaks.frustumCulled = false;
   root.add(streaks);
 
-  // -------- gas giant abeam starboard, slides past the right portholes
+  // -------- gas giant abeam port, slides past the left porthole
   const gasMap = makePlanetMap(rand, { hueA: 14, hueB: 38 });
   const gas = new THREE.Mesh(
     new THREE.SphereGeometry(260, 48, 32),
@@ -177,6 +178,35 @@ export function buildSpace(scene, rand) {
   const rockGroup = new THREE.Group();
   rockGroup.add(rock, rockAtm);
   root.add(rockGroup);
+
+  // -------- ringed crescent planet far starboard (rim-lit silhouette)
+  const ringedMat = planetMaterial(makePlanetMap(rand, { hueA: 200, hueB: 230, size: 512 }), 0x9fd8f0, 2.6);
+  const ringed = new THREE.Mesh(new THREE.SphereGeometry(170, 40, 28), ringedMat);
+  const ringedAtm = new THREE.Mesh(
+    new THREE.SphereGeometry(170 * 1.05, 40, 28),
+    atmosphereMaterial(0x7fc8e8, 2.0)
+  );
+  // ring disc
+  const ringGeo = new THREE.RingGeometry(220, 360, 64);
+  {
+    // radial UV for ring shading
+    const pos = ringGeo.attributes.position;
+    const uv = ringGeo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      const r = Math.hypot(pos.getX(i), pos.getY(i));
+      uv.setXY(i, (r - 220) / 140, 0.5);
+    }
+  }
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x8fb8c8, transparent: true, opacity: 0.30,
+    side: THREE.DoubleSide, fog: false, depthWrite: false,
+  });
+  const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+  ringMesh.rotation.x = Math.PI / 2.25;
+  ringMesh.rotation.y = 0.35;
+  const ringedGroup = new THREE.Group();
+  ringedGroup.add(ringed, ringedAtm, ringMesh);
+  root.add(ringedGroup);
 
   // -------- nebula billboards
   const nebDefs = [
@@ -237,21 +267,23 @@ export function buildSpace(scene, rand) {
       streaks.geometry.attributes.position.needsUpdate = true;
     }
 
-    // gas giant: slow orbit around the ship, abeam starboard at t=0,
-    // sliding aft past the porthole over ~75 s
+    // gas giant: slow orbit, abeam port at t=0, sliding aft past the left
+    // porthole over ~80 s
     {
-      const ang = -t * (Math.PI * 2 / 340); // full orbit in 340 s
-      const R = 720;
-      gasGroup.position.set(Math.cos(ang) * R, -110, Math.sin(ang) * R + 60);
+      const ang = Math.PI + t * (Math.PI * 2 / 340);
+      const R = 700;
+      gasGroup.position.set(Math.cos(ang) * R, -90, Math.sin(ang) * R + 40);
       gas.rotation.y = t * 0.01;
     }
-    // rocky moon ahead-port, drifting starboard slowly
+    // rocky moon ahead, drifting starboard slowly across the viewport
     {
-      const ang = Math.PI * 1.42 + t * (Math.PI * 2 / 600);
-      const R = 950;
-      rockGroup.position.set(Math.cos(ang) * R, 70, Math.sin(ang) * R - 150);
+      const ang = Math.PI * 1.46 + t * (Math.PI * 2 / 480);
+      const R = 1000;
+      rockGroup.position.set(Math.cos(ang) * R, 55, Math.sin(ang) * R - 120);
       rock.rotation.y = t * 0.02;
     }
+    // ringed crescent: far starboard, slow aft drift
+    ringedGroup.position.set(1550, 90, -380 + t * 1.4);
   }
 
   return { root, update };

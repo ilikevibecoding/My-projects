@@ -72,7 +72,7 @@ export function buildShip(scene, rand) {
   const metalDark = makeMetalMaps(rand, { tone: 58 });
   const floorMaps = makeFloorMaps(rand);
   const fabricW = makeFabricMaps(rand, { color: '#cbc2ae' });
-  const fabricO = makeFabricMaps(rand, { color: '#b9622a' });
+  const fabricO = makeFabricMaps(rand, { color: '#a04e1c' });
   const grate = makeGrateMaps(rand);
   const hazardMap = makeHazardMap(rand);
 
@@ -137,21 +137,21 @@ export function buildShip(scene, rand) {
     }),
     // emissives
     stripWarm: new THREE.MeshStandardMaterial({
-      color: 0x111111, emissive: 0xffd9a8, emissiveIntensity: 2.4, roughness: 0.4,
+      color: 0x111111, emissive: 0xffd9a8, emissiveIntensity: 1.8, roughness: 0.4,
     }),
     stripTeal: new THREE.MeshStandardMaterial({
       color: 0x05110f, emissive: 0x19d4d0, emissiveIntensity: 1.8, roughness: 0.4,
     }),
     stripOrange: new THREE.MeshStandardMaterial({
-      color: 0x110803, emissive: 0xff8a30, emissiveIntensity: 2.2, roughness: 0.4,
+      color: 0x110803, emissive: 0xff7a20, emissiveIntensity: 1.5, roughness: 0.4,
     }),
     ledRed: new THREE.MeshStandardMaterial({
-      color: 0x110404, emissive: 0xff3020, emissiveIntensity: 2.0, roughness: 0.4,
+      color: 0x110404, emissive: 0xff3020, emissiveIntensity: 1.6, roughness: 0.4,
     }),
   };
-  emissives.push({ mat: mats.stripWarm, day: 2.4, night: 0.35 });
+  emissives.push({ mat: mats.stripWarm, day: 1.8, night: 0.35 });
   emissives.push({ mat: mats.stripTeal, day: 1.8, night: 2.6 });
-  emissives.push({ mat: mats.stripOrange, day: 2.2, night: 1.2 });
+  emissives.push({ mat: mats.stripOrange, day: 1.5, night: 1.0 });
 
   const screenMats = {};
   for (const kind of ['nav', 'eng', 'wave', 'text']) {
@@ -256,7 +256,7 @@ export function buildShip(scene, rand) {
       cyl(mats.metalDark, 0.028, 0.028, 0.05, 8, x - dir * 0.05, 1.6 + Math.cos(a) * 0.51, z + Math.sin(a) * 0.51, { rz: Math.PI / 2 });
     }
     // depth tube through the wall
-    cyl(mats.metalTube, 0.42, 0.42, 0.45, 18, x + dir * 0.08, 1.6, z, { rz: Math.PI / 2, open: true });
+    cyl(mats.metalTube, 0.42, 0.42, 0.30, 18, x + dir * 0.06, 1.6, z, { rz: Math.PI / 2, open: true });
   }
 
   // =========================================================================
@@ -339,10 +339,10 @@ export function buildShip(scene, rand) {
     box(mats.stripWarm, 0.5, 0.02, 1.2, 0, CEIL - 0.075, z, {});
   }
   for (const z of [-6, 0, 6]) {
-    const pl = new THREE.PointLight(0xffd9a8, 9, 5.5, 2);
+    const pl = new THREE.PointLight(0xffd9a8, 7, 5, 2);
     pl.position.set(0, CEIL - 0.25, z);
     group.add(pl);
-    lights.push({ light: pl, day: 9, night: 1.0 });
+    lights.push({ light: pl, day: 7, night: 1.0 });
   }
   {
     const nl = new THREE.PointLight(0x2a55a0, 0, 12, 2);
@@ -511,10 +511,10 @@ export function buildShip(scene, rand) {
     cl.position.set(0, CEIL - 0.4, -9.2);
     group.add(cl);
     lights.push({ light: cl, day: 6.5, night: 1.0 });
-    const cg = new THREE.PointLight(0x2ad2cc, 5, 4, 2);
+    const cg = new THREE.PointLight(0x2ad2cc, 2, 2.6, 2);
     cg.position.set(0, 1.25, -11.9);
     group.add(cg);
-    lights.push({ light: cg, day: 5, night: 3.5 });
+    lights.push({ light: cg, day: 2, night: 1.6 });
   }
 
   // ============================ REAR BULKHEAD z=8 ============================
@@ -576,10 +576,15 @@ export function buildShip(scene, rand) {
       box(mats.hullLower, 0.68, 0.26, 0.04, bedX - 0.72 + i * 0.74, 0.18, bedZ - 0.6, { hullUV: true });
       box(mats.metal, 0.3, 0.03, 0.03, bedX - 0.72 + i * 0.74, 0.18, bedZ - 0.63, {});
     }
-    box(mats.stripTeal, 0.04, 0.04, 1.6, 5.5, 1.45, bedZ - 0.2, {});
-    box(mats.metalDark, 0.3, 0.04, 1.1, 5.42, 1.3, bedZ, { texel: 1 });
-    cyl(mats.metal, 0.06, 0.06, 0.18, 10, 5.42, 1.4, bedZ - 0.3, { texel: 2 });
-    box(mats.fabricOrange, 0.14, 0.18, 0.1, 5.42, 1.4, bedZ + 0.25, { ry: 0.4, texel: 2 });
+    box(mats.stripTeal, 0.03, 0.03, 1.1, 5.62, 1.45, bedZ, {});
+    box(mats.metalDark, 0.3, 0.04, 1.1, 5.46, 1.25, bedZ, { texel: 1 });
+    cyl(mats.metal, 0.06, 0.06, 0.18, 10, 5.46, 1.36, bedZ - 0.3, { texel: 2 });
+    box(mats.fabricOrange, 0.14, 0.18, 0.1, 5.46, 1.36, bedZ + 0.25, { ry: 0.4, texel: 2 });
+    // wall cabinet above the bed
+    box(mats.hullLower, 0.4, 0.55, 1.4, 5.45, 2.05, bedZ + 0.1, { hullUV: true });
+    box(mats.metal, 0.03, 0.2, 0.03, 5.24, 2.05, bedZ - 0.3, {});
+    box(mats.metal, 0.03, 0.2, 0.03, 5.24, 2.05, bedZ + 0.5, {});
+    box(mats.stripOrange, 0.02, 0.03, 1.2, 5.26, 1.81, bedZ + 0.1, {});
 
     // lockers along near wall
     for (let i = 0; i < 3; i++) {
@@ -602,13 +607,13 @@ export function buildShip(scene, rand) {
     cyl(mats.metalDark, 0.18, 0.22, 0.45, 12, 4.5, 0.22, 2.4, { collide: true });
     cyl(mats.fabricOrange, 0.2, 0.2, 0.06, 12, 4.5, 0.48, 2.4, { texel: 2 });
 
-    // reading lamp (warm key)
-    cyl(mats.metalDark, 0.025, 0.04, 0.5, 8, 5.3, 1.85, 5.0, { rz: 0.5 });
-    cyl(mats.metal, 0.09, 0.13, 0.16, 10, 5.18, 2.05, 5.0, { rz: 0.7, open: true });
-    box(mats.stripWarm, 0.06, 0.04, 0.06, 5.18, 2.0, 5.0, {});
-    const lamp = new THREE.SpotLight(0xffc890, 20, 8, 0.9, 0.55, 1.6);
-    lamp.position.set(5.1, 2.1, 5.0);
-    lamp.target.position.set(4.0, 0.5, 5.6);
+    // reading lamp (warm key) in the far corner, clear of the porthole
+    cyl(mats.metalDark, 0.025, 0.04, 0.5, 8, 5.32, 1.9, 6.12, { rz: 0.5 });
+    cyl(mats.metal, 0.09, 0.13, 0.16, 10, 5.2, 2.1, 6.1, { rz: 0.7, open: true });
+    box(mats.stripWarm, 0.06, 0.04, 0.06, 5.2, 2.05, 6.1, {});
+    const lamp = new THREE.SpotLight(0xffc890, 20, 8, 0.95, 0.55, 1.6);
+    lamp.position.set(5.12, 2.15, 6.05);
+    lamp.target.position.set(4.0, 0.5, 5.5);
     lamp.castShadow = true;
     lamp.shadow.mapSize.set(512, 512);
     lamp.shadow.bias = -0.0015;
@@ -625,9 +630,13 @@ export function buildShip(scene, rand) {
     group.add(qn);
     lights.push({ light: qn, day: 0, night: 5 });
 
-    // greebles
+    // greebles: conduit, junction, ceiling light housing + vent
     cyl(mats.metalDark, 0.03, 0.03, 4.2, 8, 1.45, 2.3, czm + 0.3, { rx: Math.PI / 2 });
     box(mats.metal, 0.08, 0.3, 0.4, 1.42, 2.1, 4.0, { texel: 2 });
+    box(mats.metalDark, 0.7, 0.07, 1.2, 3.0, CEIL - 0.035, 3.2, { texel: 1 });
+    box(mats.metalDark, 0.5, 0.06, 0.7, 4.6, CEIL - 0.03, 2.0, { texel: 2 });
+    for (let k = 0; k < 4; k++) box(mats.metal, 0.4, 0.02, 0.07, 4.6, CEIL - 0.065, 1.75 + k * 0.16, {});
+    cyl(mats.metal, 0.045, 0.045, 4.0, 8, 3.4, CEIL - 0.1, 4.6, { rz: Math.PI / 2, texel: 1 });
 
     interactables.push({
       id: 'bed',
@@ -675,7 +684,7 @@ export function buildShip(scene, rand) {
     for (let i = 0; i < 4; i++) {
       box(mats.metal, 0.03, 0.25, 0.03, x0 + 0.51, 1.95, z0 + 0.85 + i * 0.85, {});
     }
-    box(mats.stripTeal, 0.02, 0.03, 3.2, x0 + 0.50, 1.56, czm, {});
+    box(mats.stripTeal, 0.012, 0.02, 3.2, x0 + 0.50, 1.56, czm, {});
 
     // shelf with canisters on z0 wall
     box(mats.metal, 1.6, 0.04, 0.35, -2.0, 1.5, z0 + 0.3, { texel: 1 });

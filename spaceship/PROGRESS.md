@@ -50,3 +50,36 @@ Fix list for iter 2 (worst first):
 - Darken hull albedo (0.78→0.66 lightness), heavier grime/seams; darker floor.
 - Bloom: threshold 0.85, strength 0.4; dim screens/strips so they glow only.
 - Fix interaction test aim angles (pitch was too shallow, missed hover boxes).
+
+## Iteration 2
+Relit (exposure 0.95, env 0.10, bloom 0.38/0.88), glass now transparent
+dielectric, stars pixel-sized, planets bigger; interaction aims fixed.
+
+Scores:
+1. Lighting — **FAIL** (better: warm/cool reads, but corridor end still blows
+   out white; cockpit has odd teal cast over whole ceiling from console light).
+2. Materials — **FAIL** (panels/metal/fabric read, but seat+blanket orange washes
+   to beige; emissive cooktop rings wash to cream; counter metal OK).
+3. Detail density — **FAIL** (quarters ceiling + wall above bed bare; cockpit
+   sill band bare; corridor good).
+4. Post — **FAIL** (bloom still floods corridor far end; otherwise balanced,
+   AO now visible at panel seams).
+5. Space motion — **FAIL** (moon visible from cockpit but ghostly — we placed
+   bodies on the dark side of the sun; gas giant washed pale behind porthole;
+   stars sparse in shots).
+6. Palette — **PASS** (consistent, though orange drifts tan).
+7. Tech — **PASS** (200 calls / 116k tris; no artifacts spotted).
+8. Cold-look — **FAIL** (corridor close; quarters reads "clean dollhouse").
+9. Interactions — **PASS** (all 3 hover→prompt→fire with messages + status,
+   verified in stats.json + screenshots; highlight box is hideous butter slab).
+
+Fix list for iter 3:
+- Flip sun behind-starboard so planet faces toward ship are lit; gas giant →
+  port side; moon ahead lit; add ringed crescent starboard. Window view → left
+  porthole. Saturate planet bands.
+- Kill cockpit teal cast (console light 5→2, range 2.6).
+- Corridor: strips 2.4→1.8 emissive, lights 7, bloom .38/.88, fog .035.
+- Quarters: cabinet above bed, ceiling housings/vent/pipe, lamp out of porthole
+  sightline, headboard strip flush to wall; deeper orange fabric.
+- Hover highlight: additive, opacity ~0.05 + edges.
+- Cooktop rings/sign lights: lower emissive so color stays saturated.

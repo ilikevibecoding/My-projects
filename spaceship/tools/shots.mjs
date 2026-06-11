@@ -121,6 +121,7 @@ try {
   );
   console.log(`done -> ${outDir}`);
 } finally {
-  await browser.close();
-  server.kill('SIGTERM');
+  await browser.close().catch(() => {});
+  server.kill('SIGKILL');
+  setTimeout(() => process.exit(0), 500).unref();
 }
