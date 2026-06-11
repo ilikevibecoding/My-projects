@@ -182,3 +182,27 @@ Fix list for iter 7:
 - Hover overlay faces nearly invisible (0.008), edges only.
 - Lived-in props: crates by engineering hatch, open maintenance recess with
   pipes/LEDs + leaning panel, pan on cooktop, mugs, boots by the bed.
+
+## Iteration 7
+Fixture diffuser slats + dimmer strips fixed the corridor blowout; props in.
+
+Scores:
+1. Lighting — **PASS** (corridor: defined fixtures, warm pools, teal accents,
+   readable falloff; cockpit and quarters keep key/fill/accent separation).
+2. Materials — **PASS** (metal ring, painted panels, fabric, rubber, glass all
+   distinct; roughness breakup visible on counter/floor/walls).
+3. Detail density — **PASS** (recess, props, conduits, ribs, grates, decals).
+4. Post — **PASS** (no blown regions, no crushed blacks, AO/grain/vignette
+   present but not loud).
+5. Space motion — **PASS** (gas giant framed in porthole w/ limb glow + stars;
+   moon ahead of cockpit; layered parallax + streaks in motion).
+6. Palette — **PASS**.
+7. Tech — **PASS** (239 calls / 120k tris worst view; no artifacts in shots).
+8. Cold-look — **FAIL** (hesitated: corridor still perfectly mirror-symmetric
+   — identical rails/boxes both sides — and the deck centre is empty).
+9. Interactions — **PASS** (all three verified again; highlight now subtle).
+
+Fix list for iter 8 (cold-look only, do not disturb passing items):
+- Stagger junction boxes per side; hazard threshold stripes on the deck at the
+  bulkheads; rubber cable run + clamps along the deck from the open recess;
+  overhead grab handles alternating sides.

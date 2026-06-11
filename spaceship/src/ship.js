@@ -385,7 +385,8 @@ export function buildShip(scene, rand) {
       const x = s * (CW - 0.04);
       cyl(mats.metalDark, 0.025, 0.025, 1.7, 8, x, 0.95, z + 1, { rx: Math.PI / 2 });
       cyl(mats.metalDark, 0.018, 0.018, 1.7, 8, x, 1.03, z + 1, { rx: Math.PI / 2 });
-      if ((z + 7) % 4 === 0) {
+      // junction boxes staggered per side to break the mirror symmetry
+      if ((s > 0 ? (z + 7) % 4 : (z + 9) % 4) === 0) {
         box(mats.metal, 0.07, 0.34, 0.5, x, 1.3, z + 1, { texel: 2 });
         box(mats.stripTeal, 0.02, 0.04, 0.04, x - s * 0.05, 1.4, z + 0.85, {});
         box(mats.ledRed, 0.02, 0.04, 0.04, x - s * 0.05, 1.4, z + 1.0, {});
@@ -395,6 +396,21 @@ export function buildShip(scene, rand) {
 
   porthole(RWX, -4.0, 1);
   porthole(-RWX, 0.7, -1);
+
+  // hazard threshold stripes on the deck at both bulkheads
+  box(mats.hazard, 2.0, 0.006, 0.18, 0, 0.003, -7.72, {});
+  box(mats.hazard, 2.0, 0.006, 0.18, 0, 0.003, 7.6, {});
+  // floor cable run from the maintenance recess toward engineering
+  cyl(mats.rubber, 0.014, 0.014, 3.6, 6, -0.72, 0.014, 5.4, { rx: Math.PI / 2 });
+  cyl(mats.rubber, 0.014, 0.014, 0.5, 6, -0.95, 0.014, 5.18, { rx: Math.PI / 2, ry: 1.1 });
+  for (const cz of [4.2, 5.6, 6.8]) box(mats.metalDark, 0.06, 0.025, 0.05, -0.72, 0.012, cz, {});
+  // overhead grab handles, alternating sides
+  for (const [hz, hs] of [[-4.5, -1], [-0.5, 1], [3.4, -1]]) {
+    const hx = hs * 0.45;
+    box(mats.metalDark, 0.05, 0.16, 0.05, hx - 0.14, CEIL - 0.1, hz, {});
+    box(mats.metalDark, 0.05, 0.16, 0.05, hx + 0.14, CEIL - 0.1, hz, {});
+    box(mats.metal, 0.34, 0.045, 0.05, hx, CEIL - 0.2, hz, { texel: 2 });
+  }
 
   // lived-in props: crate stack near the engineering hatch
   box(mats.metalDark, 0.52, 0.52, 0.52, 0.82, 0.26, 7.3, { ry: 0.12, texel: 1, collide: true });

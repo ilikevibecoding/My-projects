@@ -1,0 +1,65 @@
+{
+  "stats": {
+    "cockpit": {
+      "fps": 0,
+      "drawCalls": 200,
+      "triangles": 118699
+    },
+    "corridor": {
+      "fps": 0,
+      "drawCalls": 239,
+      "triangles": 120011
+    },
+    "quarters": {
+      "fps": 0,
+      "drawCalls": 211,
+      "triangles": 108953
+    },
+    "window": {
+      "fps": 0,
+      "drawCalls": 226,
+      "triangles": 123947
+    }
+  },
+  "interactResults": {
+    "bed": {
+      "hover": "bed",
+      "prompt": {
+        "text": "E: Sleep",
+        "on": true
+      },
+      "fired": true,
+      "midState": {
+        "fade": false,
+        "message": "8 HOURS PASS",
+        "status": "MCV-7 DRIFTER · T+22:32 · REST CYCLE · REST CYCLE ENGAGED"
+      }
+    },
+    "galley": {
+      "hover": "galley",
+      "prompt": {
+        "text": "E: Eat",
+        "on": true
+      },
+      "fired": true,
+      "midState": {
+        "fade": false,
+        "message": "ENERGY RESTORED",
+        "status": "MCV-7 DRIFTER · T+22:33 · REST CYCLE · YOU EAT. ENERGY RESTORED."
+      }
+    },
+    "bathroom": {
+      "hover": "bathroom",
+      "prompt": {
+        "text": "E: Freshen up",
+        "on": true
+      },
+      "fired": true,
+      "midState": {
+        "fade": false,
+        "message": "REFRESHED",
+        "status": "MCV-7 DRIFTER · T+22:33 · REST CYCLE · REFRESHED."
+      }
+    }
+  }
+}
