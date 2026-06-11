@@ -155,11 +155,11 @@ export function buildSpace(scene, rand) {
   const gasMap = makePlanetMap(rand, { hueA: 14, hueB: 38 });
   const gas = new THREE.Mesh(
     new THREE.SphereGeometry(260, 48, 32),
-    planetMaterial(gasMap, 0xffb46a, 2.0)
+    planetMaterial(gasMap, 0xffb46a, 2.4)
   );
   const gasAtm = new THREE.Mesh(
     new THREE.SphereGeometry(260 * 1.045, 48, 32),
-    atmosphereMaterial(0xff9a50, 1.9)
+    atmosphereMaterial(0xff9a50, 2.2)
   );
   const gasGroup = new THREE.Group();
   gasGroup.add(gas, gasAtm);
@@ -271,8 +271,8 @@ export function buildSpace(scene, rand) {
     // porthole over ~80 s
     {
       const ang = Math.PI + t * (Math.PI * 2 / 340);
-      const R = 700;
-      gasGroup.position.set(Math.cos(ang) * R, -90, Math.sin(ang) * R + 40);
+      const R = 980;
+      gasGroup.position.set(Math.cos(ang) * R, -120, Math.sin(ang) * R + 40);
       gas.rotation.y = t * 0.01;
     }
     // rocky moon ahead, drifting starboard slowly across the viewport

@@ -100,3 +100,32 @@ orange, rubber reads black). Interactions still pass (verified in stats.json).
 Carrying over open items:
 - Re-verify all 4 views under the corrected pipeline.
 - Corridor far-end bloom, planet wash, quarters porthole framing.
+
+## Iteration 4
+First captures with the corrected (single-gamma) pipeline + rebalanced lights.
+
+Scores:
+1. Lighting — **FAIL** (cockpit/quarters/window now read deliberate and moody;
+   corridor ruined by a giant warm bloom flood from the ceiling fixtures).
+2. Materials — **FAIL** (metals/paint/fabric all read physical at last —
+   porthole ring is genuinely good — but deck floor crushes to black, tread
+   detail gone).
+3. Detail density — **PASS** (paneling, greebles, pipes in every shot; no bare
+   surface at these framings).
+4. Post — **FAIL** (corridor bloom flood = blown highlight region; elsewhere
+   balanced; grain/vignette/AO all visible and sane).
+5. Space motion — **PASS** (cockpit: lit moon + rim + stars; window: saturated
+   banded gas giant fills porthole; parallax layers run in motion).
+   …borderline: gas giant so close no stars visible around it in window shot.
+6. Palette — **PASS** (burnt orange / off-white / teal / gunmetal everywhere).
+7. Tech — **PASS** (194-231 calls, ~115k tris; no z-fight/acne visible).
+8. Cold-look — **FAIL** (corridor flood; galley under-cabinet teal flare).
+9. Interactions — **PASS** (json + screenshots; cooktop rings glow orange now).
+
+Fix list for iter 5:
+- Bloom 0.30/0.5/0.90; warm strips 1.7; should kill the corridor flood.
+- Floor albedo 46→58 + envMapIntensity 1.1 so tread reads in dark rooms.
+- Gas giant to R=980 (porthole gets planet limb + rim + stars, not a wall of
+  bands); rim 2.4.
+- Galley brighter (pendant 24, fill 8); hover overlay opacity 0.02.
+- AO 3.0 (quarters ceiling blotch).
