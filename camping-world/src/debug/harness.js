@@ -17,7 +17,7 @@
 // Sun sits at azimuth ≈54° (NE sky), shadows stretch SW — so cameras sit
 // S/SW of their subjects looking N/NE for backlit rims + shadows toward lens.
 export const VIEWPOINTS = [
-  { name: 'campsite-closeup', pos: [-4.8, -3.2], eye: 1.5, target: [1.5, 0.75, 1.0] },
+  { name: 'campsite-closeup', pos: [-2.4, -3.4], eye: 1.5, target: [1.5, 0.75, 1.0] },
   { name: 'grass-eye-level', pos: [-13, 9], eye: 0.7, target: [-4, 1.3, 19] },
   { name: 'hero-tree-lookup', pos: [-3.5, -0.5], eye: 1.6, target: [-8.5, 7.0, -6.5] },
   { name: 'wide-vista', pos: [-7, 9], eye: 1.7, target: [17.3, 2.6, 26.7] },

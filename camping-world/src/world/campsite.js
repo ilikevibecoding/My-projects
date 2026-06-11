@@ -39,75 +39,81 @@ export function buildCampsite(scene, models, getHeight) {
   const CAMP = new THREE.Vector2(1.5, 1.0); // fire ring center
   const groundAt = (x, z) => getHeight(x, z);
 
-  // --- charred fire-pit interior: dark ash disc ---
-  const ashGeo = new THREE.CircleGeometry(0.62, 28);
-  ashGeo.rotateX(-Math.PI / 2);
-  const ash = new THREE.Mesh(
-    ashGeo,
-    new THREE.MeshStandardMaterial({ color: 0x2b221b, roughness: 0.97 })
-  );
-  ash.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) + 0.015, CAMP.y);
-  ash.receiveShadow = true;
-  group.add(ash);
+  // --- photoscanned stone fire pit (ring of rocks + ash interior) ---
+  const pit = clonePart(models, 'stone_fire_pit');
+  if (pit) {
+    const box = new THREE.Box3().setFromObject(pit);
+    const w = box.getSize(new THREE.Vector3()).x || 1;
+    const s = 1.9 / w; // ~1.9 m outer diameter
+    pit.scale.setScalar(s);
+    pit.rotation.y = rng() * Math.PI * 2;
+    // sink the rim slightly so every stone beds into the soil
+    pit.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) - box.min.y * s - 0.16, CAMP.y);
+    group.add(pit);
+  }
 
-  // --- stone ring from the small-rocks scan set ---
-  const rockParts = listParts(models, 'sand_rocks_small_01');
-  if (rockParts.length) {
-    const nRing = 11;
-    for (let i = 0; i < nRing; i++) {
-      const part = rockParts[i % rockParts.length];
-      const mesh = new THREE.Mesh(part.geometry, part.material);
+  // --- half-burnt logs lying in the pit ---
+  const charParts = listParts(models, 'bark_debris_01');
+  if (charParts.length) {
+    const charMat = (m) => {
+      const c = m.clone();
+      c.color = new THREE.Color(0x4a4038); // charred tint over the albedo
+      c.roughness = 1.0;
+      return c;
+    };
+    const logs = [
+      { i: 1, a: 0.4, len: 0.55, dx: -0.1, dz: 0.05, tilt: 0.18 },
+      { i: 2, a: 1.9, len: 0.5, dx: 0.12, dz: -0.08, tilt: -0.12 },
+    ];
+    for (const L of logs) {
+      const part = charParts[L.i % charParts.length];
+      const mesh = new THREE.Mesh(part.geometry, charMat(part.material));
       mesh.castShadow = mesh.receiveShadow = true;
-      const a = (i / nRing) * Math.PI * 2 + rng() * 0.2;
-      const r = 0.8 + rng() * 0.1;
-      const x = CAMP.x + Math.cos(a) * r;
-      const z = CAMP.y + Math.sin(a) * r;
-      // bake the part's own transform, then scale to head-size ring stones
       const box = new THREE.Box3().setFromObject(new THREE.Mesh(part.geometry));
-      const size = box.getSize(new THREE.Vector3()).length() || 1;
-      const s = (0.5 + rng() * 0.15) / size;
+      const len = Math.max(box.getSize(new THREE.Vector3()).x, 0.01);
+      const s = L.len / len;
       mesh.scale.setScalar(s);
-      mesh.rotation.set(rng() * 0.4 - 0.2, rng() * Math.PI * 2, rng() * 0.4 - 0.2);
-      const sunk = box.min.y * s;
-      mesh.position.set(x, groundAt(x, z) - sunk - 0.035, z);
+      mesh.rotation.set(L.tilt, L.a, 0);
+      const x = CAMP.x + L.dx;
+      const z = CAMP.y + L.dz;
+      mesh.position.set(x, groundAt(CAMP.x, CAMP.y) - box.min.y * s - 0.02, z);
       group.add(mesh);
     }
   }
 
-  // --- firewood: split-log pile beside the ring ---
-  // bark_debris sticks read as split wood; stack a low pyramid
+  // --- firewood: split wood gathered beside the pit, ready to burn ---
+  // bark_debris pieces read as split logs w/ exposed inner wood; lay them in a
+  // loose heap (two leaning on a base row) rather than an unnaturally neat stack
   const woodParts = listParts(models, 'bark_debris_01');
   if (woodParts.length) {
-    const px = CAMP.x + 1.85;
-    const pz = CAMP.y + 1.05;
-    const baseY = groundAt(px, pz);
-    // criss-cross stack: alternate layers rotated 90°, slight jitter — reads
-    // unmistakably as a split-firewood pile
-    let n = 0;
-    for (let layer = 0; layer < 4 && n < 14; layer++) {
-      const count = layer % 2 === 0 ? 4 : 3;
-      const along = layer % 2 === 0; // x-aligned vs z-aligned
-      for (let i = 0; i < count; i++, n++) {
-        const part = woodParts[n % woodParts.length];
-        const mesh = new THREE.Mesh(part.geometry, part.material);
-        mesh.castShadow = mesh.receiveShadow = true;
-        const box = new THREE.Box3().setFromObject(new THREE.Mesh(part.geometry));
-        const len = Math.max(box.getSize(new THREE.Vector3()).x, 0.01);
-        const s = (0.62 + rng() * 0.1) / len;
-        mesh.scale.setScalar(s);
-        const off = (i - (count - 1) / 2) * 0.17 + (rng() - 0.5) * 0.04;
-        mesh.rotation.set(
-          (rng() - 0.5) * 0.08,
-          (along ? 0 : Math.PI / 2) + (rng() - 0.5) * 0.22,
-          (rng() - 0.5) * 0.06
-        );
-        mesh.position.set(
-          px + (along ? off * 0.3 : off),
-          baseY - box.min.y * s + layer * 0.12 - 0.01,
-          pz + (along ? off : off * 0.3)
-        );
-        group.add(mesh);
-      }
+    const px = CAMP.x + 1.7;
+    const pz = CAMP.y + 1.25;
+    const heap = [
+      // base row, mostly parallel, bark up
+      { i: 1, dx: 0.0, dz: 0.0, yaw: 0.35, roll: 0.0, len: 0.62, lift: 0 },
+      { i: 2, dx: 0.18, dz: 0.16, yaw: 0.5, roll: 0.15, len: 0.58, lift: 0 },
+      { i: 1, dx: -0.15, dz: 0.22, yaw: 0.18, roll: -0.1, len: 0.55, lift: 0 },
+      { i: 2, dx: 0.05, dz: -0.2, yaw: 0.65, roll: 0.0, len: 0.6, lift: 0 },
+      // two pieces thrown on top at an angle
+      { i: 1, dx: 0.02, dz: 0.08, yaw: 1.25, roll: 0.22, len: 0.58, lift: 0.09 },
+      { i: 2, dx: -0.08, dz: -0.04, yaw: -0.4, roll: -0.18, len: 0.52, lift: 0.13 },
+      // stragglers dropped on the way to the pit
+      { i: 1, dx: -0.85, dz: -0.55, yaw: 1.9, roll: 0.0, len: 0.5, lift: 0 },
+      { i: 2, dx: -1.5, dz: -0.95, yaw: 0.9, roll: 0.0, len: 0.45, lift: 0 },
+    ];
+    for (const H of heap) {
+      const part = woodParts[H.i % woodParts.length];
+      const mesh = new THREE.Mesh(part.geometry, part.material);
+      mesh.castShadow = mesh.receiveShadow = true;
+      const box = new THREE.Box3().setFromObject(new THREE.Mesh(part.geometry));
+      const len = Math.max(box.getSize(new THREE.Vector3()).x, 0.01);
+      const s = H.len / len;
+      mesh.scale.setScalar(s);
+      mesh.rotation.set((rng() - 0.5) * 0.06, H.yaw, H.roll);
+      const x = px + H.dx;
+      const z = pz + H.dz;
+      mesh.position.set(x, groundAt(x, z) - box.min.y * s - 0.015 + H.lift, z);
+      group.add(mesh);
     }
   }
 
@@ -161,11 +167,11 @@ export function buildCampsite(scene, models, getHeight) {
     }
   }
 
-  // --- crate with lantern ---
+  // --- crate with lantern (NW of the pit so the SW camera keeps the pit hero) ---
   const crate = clonePart(models, 'wooden_crate_01');
   if (crate) {
-    const x = CAMP.x - 2.6;
-    const z = CAMP.y - 1.9;
+    const x = CAMP.x - 2.9;
+    const z = CAMP.y + 1.6;
     crate.rotation.y = 0.5;
     crate.position.set(x, groundAt(x, z) - 0.01, z);
     group.add(crate);
@@ -197,12 +203,12 @@ export function buildCampsite(scene, models, getHeight) {
     colliders.push({ x: b.x, z: b.z, radius: 0.9 * b.s });
   }
 
-  // --- root cluster + extra deadwood out in the meadow ---
+  // --- extra deadwood out in the meadow (life-size, half-hidden by grass) ---
   const debris2 = clonePart(models, 'bark_debris_01');
   if (debris2) {
     debris2.rotation.y = 4.2;
-    debris2.scale.setScalar(1.4);
-    debris2.position.set(-12, groundAt(-12, 16) - 0.02, 16);
+    debris2.scale.setScalar(0.8);
+    debris2.position.set(-12, groundAt(-12, 16) - 0.04, 16);
     group.add(debris2);
   }
 

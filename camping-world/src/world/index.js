@@ -14,6 +14,9 @@ const MODEL_IDS = [
   'tree_small_02',
   'searsia_lucida',
   'fir_sapling',
+  // hero-LOD trees (nearest the campsite cameras — denser leaf cards)
+  'island_tree_01_hero',
+  'tree_small_02_hero',
   // mid-LOD trees (clearing edge band)
   'island_tree_01_mid',
   'island_tree_02_mid',

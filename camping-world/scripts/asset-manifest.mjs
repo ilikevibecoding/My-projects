@@ -30,6 +30,7 @@ export const MODELS = [
   { id: 'grass_bermuda_01', res: '1k', simplify: 1.0, maxTex: 1024, foliage: true },
 
   // --- deadwood / firewood ---
+  { id: 'stone_fire_pit', res: '2k', simplify: 0.25, error: 0.005, maxTex: 2048 },
   { id: 'dead_tree_trunk', res: '2k', simplify: 0.35, error: 0.005, maxTex: 2048 },
   { id: 'dead_tree_trunk_02', res: '2k', simplify: 0.35, error: 0.005, maxTex: 2048 },
   { id: 'tree_stump_01', res: '2k', simplify: 0.5, error: 0.005, maxTex: 2048 },
@@ -48,6 +49,13 @@ export const MODELS = [
   { id: 'wooden_axe', res: '2k', simplify: 0.5, error: 0.005, maxTex: 1024 },
   { id: 'wooden_lantern_01', res: '2k', simplify: 0.5, error: 0.005, maxTex: 1024 },
   { id: 'wooden_crate_01', res: '2k', simplify: 0.5, error: 0.005, maxTex: 1024 },
+];
+
+// Hero-LOD trees for the 1–3 trees nearest the campsite cameras — canopies
+// get within ~10 m of the lens, so leaf cards must stay small. `<id>_hero.glb`.
+export const HERO_LODS = [
+  { id: 'island_tree_01', simplify: 0.06, alphaRatio: 0.3, error: 0.02, maxTex: 2048 },
+  { id: 'tree_small_02', simplify: 0.05, alphaRatio: 0.22, error: 0.02, maxTex: 2048 },
 ];
 
 // Far-LOD tree variants for the backdrop ring (≤ ~20k tris). `<id>_far.glb`.

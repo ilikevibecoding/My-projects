@@ -81,6 +81,7 @@ const TREE_SCALES = {
 const TREE_TYPES = {};
 for (const [id, cfg] of Object.entries(TREE_SCALES)) {
   TREE_TYPES[id] = cfg;
+  TREE_TYPES[`${id}_hero`] = cfg;
   TREE_TYPES[`${id}_mid`] = cfg;
   TREE_TYPES[`${id}_far`] = cfg;
 }
@@ -131,9 +132,9 @@ export function buildVegetation(scene, models, getHeight) {
     return obj;
   }
 
-  // --- hero trees framing the campsite ---
-  addTree('island_tree_01', -8.5, -6.5);
-  addTree('tree_small_02', 10.5, -11);
+  // --- hero trees framing the campsite (dense-canopy hero LODs) ---
+  addTree('island_tree_01_hero', -8.5, -6.5);
+  addTree('tree_small_02_hero', 10.5, -11);
   addTree('searsia_lucida', -13, 12);
 
   // --- sparse mid-field singles (keep the clearing open) ---

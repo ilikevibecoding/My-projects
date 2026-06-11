@@ -25,7 +25,7 @@ import sharp from 'sharp';
 import { existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MODELS, FAR_LODS, MID_LODS } from './asset-manifest.mjs';
+import { MODELS, FAR_LODS, MID_LODS, HERO_LODS } from './asset-manifest.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RAW = join(ROOT, 'raw', 'models');
@@ -151,6 +151,17 @@ for (const cfg of midLods) {
     if (r) results.push(r);
   } catch (e) {
     console.error(`FAILED ${cfg.id}_mid: ${e.message}`);
+    process.exitCode = 1;
+  }
+}
+
+const heroLods = onlyArg ? HERO_LODS.filter((m) => onlyArg.includes(m.id)) : HERO_LODS;
+for (const cfg of heroLods) {
+  try {
+    const r = await optimizeModel(cfg, '_hero');
+    if (r) results.push(r);
+  } catch (e) {
+    console.error(`FAILED ${cfg.id}_hero: ${e.message}`);
     process.exitCode = 1;
   }
 }

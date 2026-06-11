@@ -146,6 +146,11 @@ export function buildTerrain(scene) {
           vec3 lushTint = vec3(0.7, 0.86, 0.58);
           blended.rgb *= mix(dryTint, lushTint, smoothstep(0.32, 0.62, macro)) * (0.86 + 0.28 * tnoise(vWorldPos.xz * 0.09));
 
+          // far field: beyond the card-grass radius pull the ground toward a
+          // matted dry-grassland tone so it never reads as bald bright sand
+          float farField = smoothstep(42.0, 75.0, r);
+          blended.rgb *= mix(vec3(1.0), vec3(0.62, 0.64, 0.46), farField);
+
           diffuseColor *= blended;
           // stash masks for normal/arm stages
           vSplat = vec3(wB, wC, 0.0);
