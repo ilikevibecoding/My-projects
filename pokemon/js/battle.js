@@ -63,6 +63,7 @@
     };
     this.menu = null; // {kind:'action'|'moves', index}
     this.fade = 1;
+    this.fxAnims = [];
 
     AudioSys.playMusic("battle");
     window.Sprites.preload([this.enemy.species, ...st.party.map((m) => m.species)]);
@@ -533,12 +534,13 @@
     if (moveSlot.pp !== undefined && moveSlot.id !== -1) moveSlot.pp = Math.max(0, moveSlot.pp - 1);
     await this.say(`${attacker.name} used ${data.display.toUpperCase()}!`);
 
-    // lunge animation
+    // lunge animation + per-move visual effect
     const lungeKeyX = side === "player" ? "playerLungeX" : "enemyLungeX";
     const dirX = side === "player" ? 1 : -1;
     this.tween(0.25, (p) => {
       this.fx[lungeKeyX] = Math.round(Math.sin(p * Math.PI) * 10 * dirX);
     });
+    await this.playMoveFX(side, data);
 
     // accuracy
     const defTypes = window.Mon.species(defender).types;
@@ -707,6 +709,204 @@
     }
   };
 
+  // ---------- per-move visual effects ----------
+  const SLASH_MOVES = new Set(["scratch", "cut", "slash", "fury-swipes", "fury-attack", "metal-claw", "vice-grip"]);
+  const SOUND_MOVES = new Set(["growl", "roar", "screech", "supersonic", "sing", "leer", "tail-whip"]);
+
+  function moveFXFor(data) {
+    const n = data.name;
+    if (SLASH_MOVES.has(n)) return { kind: "slash", dur: 0.55 };
+    if (SOUND_MOVES.has(n)) return { kind: "rings", onSelf: true, color: "#f8f8f8", dur: 0.6 };
+    if (data.type === "fire") return { kind: "projectile", color: "#ff7b2e", trail: "#ffd048", dur: 0.6 };
+    if (data.type === "water") return { kind: "projectile", color: "#4f8fe0", trail: "#9cc6f2", dur: 0.6 };
+    if (data.type === "electric") return { kind: "bolt", dur: 0.6 };
+    if (data.type === "grass" || n === "absorb" || n === "mega-drain") return { kind: "leaves", dur: 0.6 };
+    if (data.type === "ice") return { kind: "projectile", color: "#9cd8f0", trail: "#e8f8ff", dur: 0.6 };
+    if (data.type === "psychic" || n === "confusion" || n === "confuse-ray") return { kind: "rings", color: "#c06ae0", dur: 0.6 };
+    if (data.type === "poison") {
+      return data.class === "status"
+        ? { kind: "powder", color: "#b06ad0", dur: 0.65 }
+        : { kind: "projectile", color: "#9a4aba", trail: "#c08ad8", dur: 0.6 };
+    }
+    if (data.type === "rock" || data.type === "ground") return { kind: "projectile", color: "#8d8478", trail: "#b0a89a", dur: 0.6 };
+    if (data.class === "status") {
+      if (data.target === "user") return { kind: "sparkle", onSelf: true, dur: 0.6 };
+      if (n.includes("powder") || n === "spore" || n === "hypnosis") return { kind: "powder", color: "#80d048", dur: 0.65 };
+      return { kind: "rings", color: "#f0d048", dur: 0.55 };
+    }
+    return { kind: "impact", dur: 0.45 };
+  }
+
+  BattleScene.prototype.playMoveFX = function (side, data) {
+    const atk = side === "player" ? { x: 52, y: 86 } : { x: 178, y: 44 };
+    const dfd = side === "player" ? { x: 178, y: 44 } : { x: 52, y: 86 };
+    const fx = moveFXFor(data);
+    const target = fx.onSelf ? atk : dfd;
+    const anim = { ...fx, t: 0, sx: atk.x, sy: atk.y, tx: target.x, ty: target.y };
+    this.fxAnims.push(anim);
+    return this.tween(fx.dur, (p) => { anim.t = p; }).then(() => {
+      const i = this.fxAnims.indexOf(anim);
+      if (i >= 0) this.fxAnims.splice(i, 1);
+    });
+  };
+
+  BattleScene.prototype.drawFX = function (ctx, a) {
+    const t = a.t;
+    ctx.save();
+    switch (a.kind) {
+      case "slash": {
+        // three staggered claw lines across the target
+        for (let i = 0; i < 3; i++) {
+          const start = 0.1 + i * 0.18;
+          const p = Math.max(0, Math.min(1, (t - start) / 0.3));
+          if (p <= 0) continue;
+          const x0 = a.tx - 20 + i * 12, y0 = a.ty - 18;
+          const x1 = x0 + 14, y1 = a.ty + 16;
+          ctx.strokeStyle = "#f8f8f8";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x0 + (x1 - x0) * p, y0 + (y1 - y0) * p);
+          ctx.stroke();
+          ctx.strokeStyle = "rgba(210,59,59,0.8)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x0 + 1, y0 + 2);
+          ctx.lineTo(x0 + 1 + (x1 - x0) * p, y0 + 2 + (y1 - y0) * p);
+          ctx.stroke();
+        }
+        break;
+      }
+      case "projectile": {
+        const flight = Math.min(1, t / 0.7);
+        if (flight < 1) {
+          const px = a.sx + (a.tx - a.sx) * flight;
+          const py = a.sy + (a.ty - a.sy) * flight - Math.sin(flight * Math.PI) * 14;
+          ctx.fillStyle = a.trail;
+          ctx.beginPath();
+          ctx.arc(px - (a.tx - a.sx) * 0.05, py + 2, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = a.color;
+          ctx.beginPath();
+          ctx.arc(px, py, 5, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // impact burst
+          const b = (t - 0.7) / 0.3;
+          ctx.globalAlpha = 1 - b;
+          for (let i = 0; i < 6; i++) {
+            const ang = (i / 6) * Math.PI * 2;
+            ctx.fillStyle = i % 2 ? a.color : a.trail;
+            ctx.beginPath();
+            ctx.arc(a.tx + Math.cos(ang) * b * 22, a.ty + Math.sin(ang) * b * 22, 3.5 - b * 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        break;
+      }
+      case "bolt": {
+        if (t > 0.1 && t < 0.65 && Math.floor(t * 24) % 2 === 0) {
+          ctx.strokeStyle = "#ffd83a";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          let y = 0;
+          let x = a.tx;
+          ctx.moveTo(x, y);
+          let seg = 0;
+          while (y < a.ty - 4) {
+            y += 10;
+            x = a.tx + (seg % 2 === 0 ? 6 : -6);
+            ctx.lineTo(x, Math.min(y, a.ty));
+            seg++;
+          }
+          ctx.lineTo(a.tx, a.ty);
+          ctx.stroke();
+        }
+        if (t >= 0.65) {
+          ctx.globalAlpha = 1 - (t - 0.65) / 0.35;
+          ctx.fillStyle = "#fff6c0";
+          ctx.beginPath();
+          ctx.arc(a.tx, a.ty, 14 * (t - 0.55), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+      case "leaves": {
+        ctx.fillStyle = "#48a048";
+        for (let i = 0; i < 3; i++) {
+          const p = Math.max(0, Math.min(1, t * 1.4 - i * 0.15));
+          if (p <= 0 || p >= 1) continue;
+          const mx = (a.sx + a.tx) / 2, my = Math.min(a.sy, a.ty) - 24 - i * 6;
+          const ix = (1 - p) * (1 - p) * a.sx + 2 * (1 - p) * p * mx + p * p * a.tx;
+          const iy = (1 - p) * (1 - p) * a.sy + 2 * (1 - p) * p * my + p * p * a.ty;
+          ctx.save();
+          ctx.translate(ix, iy);
+          ctx.rotate(p * 6 + i);
+          ctx.fillStyle = i % 2 ? "#48a048" : "#79c473";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 5, 2.4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        break;
+      }
+      case "rings": {
+        for (let i = 0; i < 3; i++) {
+          const p = Math.max(0, Math.min(1, t * 1.5 - i * 0.22));
+          if (p <= 0 || p >= 1) continue;
+          ctx.globalAlpha = 1 - p;
+          ctx.strokeStyle = a.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(a.tx, a.ty, 4 + p * 24, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        break;
+      }
+      case "sparkle": {
+        for (let i = 0; i < 6; i++) {
+          const p = Math.max(0, Math.min(1, t * 1.3 - i * 0.08));
+          if (p <= 0 || p >= 1) continue;
+          if (Math.floor((t * 20 + i * 3)) % 3 === 0) continue; // twinkle
+          const sx = a.tx - 22 + (i * 9) % 44;
+          const sy = a.ty + 14 - p * 34;
+          ctx.fillStyle = i % 2 ? "#7fd0ff" : "#ffd048";
+          ctx.fillRect(sx - 1, sy - 3, 2, 6);
+          ctx.fillRect(sx - 3, sy - 1, 6, 2);
+        }
+        break;
+      }
+      case "powder": {
+        ctx.fillStyle = a.color;
+        for (let i = 0; i < 10; i++) {
+          const p = Math.max(0, Math.min(1, t * 1.4 - i * 0.05));
+          if (p <= 0 || p >= 1) continue;
+          const px = a.tx - 18 + (i * 7) % 36 + Math.sin(p * 8 + i) * 3;
+          const py = a.ty - 26 + p * 36;
+          ctx.globalAlpha = 1 - p * 0.6;
+          ctx.fillRect(px, py, 2, 2);
+        }
+        break;
+      }
+      case "impact": {
+        const p = Math.min(1, t / 0.45);
+        ctx.globalAlpha = 1 - p;
+        ctx.strokeStyle = "#f8f8f8";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2 + 0.4;
+          ctx.beginPath();
+          ctx.moveTo(a.tx + Math.cos(ang) * 4, a.ty + Math.sin(ang) * 4);
+          ctx.lineTo(a.tx + Math.cos(ang) * (6 + p * 16), a.ty + Math.sin(ang) * (6 + p * 16));
+          ctx.stroke();
+        }
+        break;
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  };
+
   BattleScene.prototype.applyAilment = async function (target, targetSide, ailment, verbose) {
     const types = window.Mon.species(target).types;
     if (ailment === "confusion") {
@@ -767,10 +967,10 @@
     this.fx.enemyVisible = false;
     await this.say(`${this.trainer ? "Foe " : "Wild "}${this.enemy.name} fainted!`);
 
-    // experience
+    // experience (1.5x demo boost so the player stays ahead of the curve)
     const participants = [...this.participants].filter((i) => st.party[i] && st.party[i].hp > 0);
     const spec = window.Mon.species(this.enemy);
-    const gain = F.expGain(spec.baseExp, this.enemy.level, !!this.trainer, Math.max(1, participants.length));
+    const gain = Math.floor(F.expGain(spec.baseExp, this.enemy.level, !!this.trainer, Math.max(1, participants.length)) * 1.5);
     for (const idx of participants) {
       const mon = st.party[idx];
       AudioSys.sfx("exp");
@@ -977,6 +1177,9 @@
         }
       }
     }
+
+    // move visual effects (above sprites, below HUD)
+    for (const a of this.fxAnims) this.drawFX(ctx, a);
 
     // enemy info box
     UI.drawBox(ctx, 4, 4, 110, 30);

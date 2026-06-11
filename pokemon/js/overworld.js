@@ -723,7 +723,7 @@
         if (sure !== 0) pick = -1;
       }
       const starterId = starters[pick];
-      const mon = window.Mon.create(starterId, 8);
+      const mon = window.Mon.create(starterId, 10);
       st.party.push(mon);
       st.starterId = starterId;
       st.flags.gotStarter = true;
