@@ -23,7 +23,7 @@
         "T..f....,,....f....T", // 8
         "T.FFFF..,,..FFFF...T", // 9
         "T.......,,.........T", // 10
-        "T....AAAAAA....f...T", // 11
+        "T....AAAAAA....fU..T", // 11
         "T....AAAAAA........T", // 12
         "T....oWWDWo........T", // 13
         "T...,,,,,,,,.......T", // 14
@@ -46,6 +46,7 @@
           id: "pallet_girl", variant: "girl", x: 14, y: 8, dir: "down", movement: "wander",
           dialog: ["Wild Pokémon hide in tall grass! You'll need your own Pokémon to go out there."],
         },
+        { id: "bus_driver_pallet", variant: "clerk", x: 16, y: 12, dir: "down", movement: "static", script: "bus_driver" },
       ],
       triggers: [
         { x: 8, y: 0, script: "needStarter" },
@@ -223,7 +224,7 @@
         "T...,,....,,......,....T", // 13
         "T...,,....,,......,....T", // 14
         "T...,,,,,,,,,,,,,,,....T", // 15
-        "T.........,,...........T", // 16
+        "T..U......,,...........T", // 16
         "T.s.......,,.......s...T", // 17
         "T.........,,...........T", // 18
         "TTTTTTTTTT,,TTTTTTTTTTTT", // 19
@@ -261,6 +262,7 @@
         { id: "rival_city", variant: "rival", x: 16, y: 14, dir: "down", movement: "static", script: "rival_city" },
         // Team Shadow grunt blocks the east road until you have the badge
         { id: "shadow_gate", variant: "clerk", x: 21, y: 6, dir: "left", movement: "static", script: "shadow_gate" },
+        { id: "bus_driver_city", variant: "clerk", x: 4, y: 16, dir: "down", movement: "static", script: "bus_driver" },
       ],
     },
 
@@ -467,7 +469,7 @@
       ],
       edges: {
         west: { map: "city", alignY: 0 },
-        east: { map: "lakeside", alignY: 0 },
+        east: { map: "lakeside", alignY: 1 },
       },
       warps: [],
       signs: [
@@ -486,91 +488,201 @@
       triggers: [],
     },
 
-    // ================= LAKESIDE TOWN =================
+    // ================= LAKESIDE CITY =================
     lakeside: {
-      name: "LAKESIDE TOWN",
+      name: "LAKESIDE CITY",
       type: "outdoor",
       music: "town",
       border: "T",
       encounters: null,
       grid: [
-        "TTTTTTTTTTTrrDrrTTTTTT", // 0  cave mouth
-        "T...........,,......fT", // 1
-        "T..AAAA.....,,..RRRR.T", // 2
-        "T..AAAA.....,,..RRRR.T", // 3
-        "T..o+Do.....,,..oWDo.T", // 4
-        "T...,,......,,....,..T", // 5
-        ",,,,,,,,,,,,,,,,,,,,.T", // 6
-        ",,,,,,,,,,,,,,,,,,,,.T", // 7
-        "T...,,......,,.......T", // 8
-        "T..YYYY.....,,..gggggT", // 9
-        "T..YYYY.....,,..gggggT", // 10
-        "T..oMDo.....,,..gDDggT", // 11
-        "T...,,......,,...,,..T", // 12
-        "T...,,,,,,,,,,,,,,,..T", // 13
-        "T..f.....www.........T", // 14
-        "T...s...wwwww...f....T", // 15
-        "T..ddd..wwwww........T", // 16
-        "TTTTTTTTTTTTTTTTTTTTTT", // 17
+        "TTTTTTTTTTTTTrrDrrTTTTTTTTTTTT", // 0  cave mouth (door x15)
+        "T............,aa,...........fT", // 1
+        "T.AAAAA......,aa,.qqqqqqq....T", // 2
+        "T.AAAAA......,aa,.qqqqqqq....T", // 3
+        "T.o+DWo......,aa,.GOJDOOG....T", // 4  center | museum
+        "T..,,........,aa,....,.......T", // 5
+        "T..,,........,aa,....,.......T", // 6
+        "aaaaaaaaaaaaaazzaaaaaaaaaaaaaT", // 7  main street west exit
+        "aaaaaaaaaaaaaazzaaaaaaaaaaaaaT", // 8
+        "T..YYYYY.....,aa,..qqqqq.qqqqT", // 9  mart | arcade | apartment
+        "T..YYYYY.....,aa,..GEDOG.GOOGT", // 10
+        "T..oMDWo.....,aa,....,...GODGT", // 11
+        "T...,,.......,aa,....,.....,.T", // 12
+        "T............,aa,...........fT", // 13
+        "TaaaaaaaaaaaaazzaaaaaaaaaaaaaT", // 14 second street
+        "TaaaaaaaaaaaaazzaaaaaaaaaaaaaT", // 15
+        "T.gggggg.....,aa,U.RRRRR.....T", // 16 gym | bus stop | cafe
+        "T.gggggg.....,aa,..RRRRR.....T", // 17
+        "T.ggDDgg.s...,aa,..oWDWo.....T", // 18
+        "T...,,.......,aa,....,.......T", // 19
+        "T.wwwwd......,aa,.....f......T", // 20 lake
+        "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT", // 21
       ],
       edges: {
-        west: { map: "route3", alignY: 0 },
+        west: { map: "route3", alignY: -1 },
       },
       warps: [
-        { x: 13, y: 0, to: { map: "tunnel", x: 11, y: 17, dir: "up" } },
-        { x: 5, y: 4, to: { map: "center", x: 5, y: 6, dir: "up" } },
+        { x: 15, y: 0, to: { map: "tunnel", x: 11, y: 17, dir: "up" } },
+        { x: 4, y: 4, to: { map: "center", x: 5, y: 6, dir: "up" } },
+        { x: 21, y: 4, to: { map: "museum", x: 5, y: 6, dir: "up" } },
         { x: 5, y: 11, to: { map: "mart", x: 5, y: 6, dir: "up" } },
-        { x: 18, y: 4, to: { map: "lakeside_house", x: 5, y: 6, dir: "up" } },
-        { x: 17, y: 11, to: { map: "gym2", x: 5, y: 12, dir: "up" } },
-        { x: 18, y: 11, to: { map: "gym2", x: 5, y: 12, dir: "up" } },
+        { x: 21, y: 10, to: { map: "arcade", x: 5, y: 6, dir: "up" } },
+        { x: 27, y: 11, to: { map: "apartment", x: 5, y: 6, dir: "up" } },
+        { x: 4, y: 18, to: { map: "gym2", x: 5, y: 12, dir: "up" } },
+        { x: 5, y: 18, to: { map: "gym2", x: 5, y: 12, dir: "up" } },
+        { x: 21, y: 18, to: { map: "cafe", x: 5, y: 5, dir: "up" } },
       ],
       signs: [
-        { x: 4, y: 15, text: "LAKESIDE TOWN — Where the water sparkles and trainers gather." },
+        { x: 9, y: 18, text: "LAKESIDE GYM — Leader MARINA, the Rising Tide. Win the CASCADE BADGE inside!" },
       ],
       npcs: [
         {
-          id: "lake_girl", variant: "girl", x: 8, y: 12, dir: "down", movement: "wander",
+          id: "lake_girl", variant: "girl", x: 8, y: 13, dir: "down", movement: "wander",
           dialog: ["MARINA's Water-types splash hard! Electric or Grass moves will shock her team."],
         },
         {
-          id: "lake_fisher", variant: "oldman", x: 3, y: 16, dir: "down", movement: "static",
+          id: "lake_fisher", variant: "oldman", x: 3, y: 19, dir: "down", movement: "static",
           dialog: ["The cave up north is GRANITE TUNNEL. Team Shadow goons have been lurking in there…"],
         },
+        {
+          id: "city_walker1", variant: "boy", x: 19, y: 5, dir: "down", movement: "wander",
+          dialog: ["The ARCADE's Lucky Wheel ate half my allowance… then paid it all back double!"],
+        },
+        {
+          id: "city_walker2", variant: "lass", x: 23, y: 12, dir: "down", movement: "wander",
+          dialog: ["Big city, huh? The MUSEUM up north has a carving of a Pokémon nobody's ever caught."],
+        },
         // grunt blocks the tunnel until badge 2
-        { id: "shadow_cave", variant: "clerk", x: 13, y: 1, dir: "down", movement: "static", script: "shadow_cave" },
+        { id: "shadow_cave", variant: "clerk", x: 15, y: 1, dir: "down", movement: "static", script: "shadow_cave" },
+        // bus stop
+        { id: "bus_driver_lakeside", variant: "clerk", x: 18, y: 16, dir: "down", movement: "static", script: "bus_driver" },
       ],
       triggers: [
-        { x: 13, y: 0, script: "tunnelGate" },
-        { x: 14, y: 0, script: "tunnelGate" },
+        { x: 15, y: 0, script: "tunnelGate" },
       ],
     },
 
-    // ================= LAKESIDE HOUSE =================
-    lakeside_house: {
-      name: "LAKESIDE HOUSE",
+    // ================= MUSEUM =================
+    museum: {
+      name: "LAKESIDE MUSEUM",
+      type: "indoor",
+      music: "center",
+      border: "#",
+      grid: [
+        "############",
+        "#B=x==x==xB#",
+        "#==========#",
+        "#====LL====#",
+        "#==========#",
+        "#x========x#",
+        "#==========#",
+        "#####~######",
+      ],
+      warps: [{ x: 5, y: 7, to: { map: "lakeside", x: 21, y: 5, dir: "down" } }],
+      signs: [
+        { x: 3, y: 1, text: "ANCIENT CARVING — A round, pink Pokémon nobody has ever caught. The plaque reads: 'MEW?'" },
+        { x: 6, y: 1, text: "MOON STONE — A stone said to fall from the night sky. Certain Pokémon evolve near it." },
+        { x: 9, y: 1, text: "OLD AMBER — A chunk of amber with something feathery trapped inside…" },
+        { x: 1, y: 5, text: "FOSSIL DISPLAY — A helix-shaped shell. It's at least 100 million years old!" },
+        { x: 10, y: 5, text: "TEAM SHADOW WANTED POSTER — 'Report any sightings to the gym leader at once.'" },
+      ],
+      npcs: [
+        { id: "curator", variant: "professor", x: 5, y: 4, dir: "down", movement: "static",
+          dialog: [
+            "Welcome to the LAKESIDE MUSEUM! Walk up to any display and have a look — admission is free today.",
+            "My favorite? The ancient carving. Some say that Pokémon still hides where no trainer can reach…",
+          ] },
+        { id: "museum_kid", variant: "boy", x: 8, y: 5, dir: "up", movement: "static",
+          dialog: ["They dug that fossil out of GRANITE TUNNEL! Maybe there are more in there!"] },
+      ],
+      triggers: [],
+    },
+
+    // ================= ARCADE =================
+    arcade: {
+      name: "GAME CORNER",
+      type: "indoor",
+      music: "title",
+      border: "#",
+      grid: [
+        "############",
+        "#V=V=V==V=V#",
+        "#==========#",
+        "#====L=====#",
+        "#==========#",
+        "#V=V====V=V#",
+        "#==========#",
+        "#####~######",
+      ],
+      warps: [{ x: 5, y: 7, to: { map: "lakeside", x: 21, y: 11, dir: "down" } }],
+      signs: [
+        { x: 1, y: 1, text: "BATTLE BLASTER EX — OUT OF ORDER. (Someone jammed a bottle cap in the slot.)" },
+        { x: 3, y: 1, text: "PIKA-PINBALL — Hi-score: 999,999 by 'BLUE'. …That show-off." },
+        { x: 8, y: 1, text: "DIG DIG DIGLETT — A mole-whacking classic. The mallet is missing." },
+        { x: 10, y: 5, text: "KARATE CHOP HERO — Two pads are cracked. The machine hums menacingly." },
+      ],
+      npcs: [
+        { id: "wheel_host", variant: "clerk", x: 5, y: 4, dir: "down", movement: "static", script: "lucky_wheel" },
+        { id: "arcade_kid", variant: "boy", x: 2, y: 4, dir: "right", movement: "static",
+          dialog: ["The LUCKY WHEEL by the big machine pays out items and money! I won a GREAT BALL once!"] },
+        { id: "arcade_lass", variant: "lass", x: 9, y: 3, dir: "left", movement: "wander",
+          dialog: ["I've spun the wheel 20 times today. My mom is going to turn ME into a slot machine."] },
+      ],
+      triggers: [],
+    },
+
+    // ================= CAFE =================
+    cafe: {
+      name: "LAKESIDE CAFé",
+      type: "indoor",
+      music: "center",
+      border: "#",
+      grid: [
+        "##########",
+        "#B=====VB#",
+        "#==cc====#",
+        "#=xh==xh=#",
+        "#========#",
+        "#####~####",
+      ],
+      warps: [{ x: 5, y: 5, to: { map: "lakeside", x: 21, y: 19, dir: "down" } }],
+      signs: [],
+      npcs: [
+        { id: "barista", variant: "nurse", x: 3, y: 1, dir: "down", movement: "static", script: "cafe_barista" },
+        { id: "cafe_patron1", variant: "oldman", x: 2, y: 4, dir: "up", movement: "static",
+          dialog: ["I saw Team Shadow grunts buy 12 espressos to-go. Whatever they're digging for in that tunnel, it's keeping them up at night."] },
+        { id: "cafe_patron2", variant: "girl", x: 7, y: 4, dir: "up", movement: "static",
+          dialog: ["The barista's MIME JR. latte art is adorable. Wait… do we even have MIME JR. around here?"] },
+      ],
+      triggers: [],
+    },
+
+    // ================= APARTMENT =================
+    apartment: {
+      name: "LAKESIDE APARTMENTS",
       type: "indoor",
       music: "town",
       border: "#",
       grid: [
         "##########",
-        "#B==V==BB#",
+        "#B=V===bb#",
         "#========#",
-        "#==xh====#",
+        "#=xh=====#",
         "#p======p#",
-        "#========#",
         "#========#",
         "#####~####",
       ],
-      warps: [{ x: 5, y: 7, to: { map: "lakeside", x: 18, y: 5, dir: "down" } }],
+      warps: [{ x: 5, y: 6, to: { map: "lakeside", x: 27, y: 12, dir: "down" } }],
       signs: [],
       npcs: [
-        {
-          id: "lake_house_man", variant: "boy", x: 2, y: 3, dir: "down", movement: "static",
+        { id: "apt_man", variant: "boy", x: 5, y: 3, dir: "down", movement: "static",
           dialog: [
             "I saw Team Shadow drag a crying kid's POKéMON into GRANITE TUNNEL!",
             "Someone strong enough should teach those goons a lesson.",
-          ],
-        },
+          ] },
+        { id: "apt_granny", variant: "oldman", x: 7, y: 4, dir: "left", movement: "static",
+          dialog: ["City rent is criminal, dear. Back in my day a Poké Ball cost 50 and trainers said thank you."] },
       ],
       triggers: [],
     },
@@ -596,7 +708,7 @@
         "#==========#",
         "#####~######",
       ],
-      warps: [{ x: 5, y: 12, to: { map: "lakeside", x: 17, y: 12, dir: "down" } }],
+      warps: [{ x: 5, y: 12, to: { map: "lakeside", x: 4, y: 19, dir: "down" } }],
       signs: [],
       npcs: [
         { id: "gym2leader", variant: "nurse", x: 5, y: 2, dir: "down", movement: "static", script: "gym2leader" },
@@ -642,7 +754,7 @@
         north: { map: "summit", alignX: -2 },
       },
       warps: [
-        { x: 11, y: 17, to: { map: "lakeside", x: 13, y: 1, dir: "down" } },
+        { x: 11, y: 17, to: { map: "lakeside", x: 15, y: 1, dir: "down" } },
       ],
       signs: [],
       npcs: [
@@ -669,7 +781,7 @@
         "P..AAAA....,..PP.P", // 4
         "P..AAAA....,.....P", // 5
         "P..oWDo...,,..r..P", // 6
-        "P...,.....,......P", // 7
+        "P...,.....,....U.P", // 7
         "P...,,,,,,,,..s..P", // 8
         "P.f......,,......P", // 9
         "PPPPPPPPP,,PPPPPPP", // 10
@@ -690,6 +802,7 @@
           dialog: ["The CHAMPION waits inside VICTORY HALL. They say he's a kid from PALLET HOLLOW with a real attitude…"],
         },
         { id: "hall_guard", variant: "oldman", x: 12, y: 3, dir: "left", movement: "static", script: "hall_guard" },
+        { id: "bus_driver_summit", variant: "clerk", x: 15, y: 8, dir: "down", movement: "static", script: "bus_driver" },
       ],
       triggers: [
         { x: 11, y: 2, script: "hallGate" },

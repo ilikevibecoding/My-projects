@@ -50,6 +50,11 @@
       this.fadeDir = -1; // fade back in
       this.fade = 1;
     }
+    // track visited towns for the bus line
+    if (BUS_STOPS[mapId]) {
+      st.flags.visited = st.flags.visited || {};
+      st.flags.visited[mapId] = true;
+    }
     // auto-save on every map change once the adventure has started
     if (st.flags && st.flags.gotStarter) this.game.autoSave();
   };
@@ -451,7 +456,7 @@
       return block("GRUNT: Road's closed, squirt. Team Shadow business! …Unless you've got a GYM BADGE, beat it!");
     }
     if (trig.script === "tunnelGate" && !st.flags.badge2) {
-      return block("GRUNT: GRANITE TUNNEL is Team Shadow turf! No entry! …What, you want the CASCADE BADGE first? Ha!");
+      return block("GRUNT: GRANITE TUNNEL is Team Shadow turf! Only the CASCADE BADGE would make me move — go beat MARINA at the LAKESIDE GYM, the stone building on the southwest street. Ha! As if you could!");
     }
     if (trig.script === "hallGate" && !(st.flags.badge && st.flags.badge2)) {
       return block("GUARD: VICTORY HALL is for proven trainers only. Show me BOTH badges — BOULDER and CASCADE!");
@@ -580,8 +585,105 @@
     return Math.round((npc.moving.fromY + (npc.moving.ty - npc.moving.fromY) * npc.moving.progress) * TILE);
   };
 
+  // ---------- bus line ----------
+  const BUS_FARE = 150;
+  const BUS_STOPS = {
+    pallet: { label: "PALLET HOLLOW", x: 15, y: 12, dir: "down" },
+    city: { label: "VERDANT CITY", x: 3, y: 15, dir: "down" },
+    lakeside: { label: "LAKESIDE CITY", x: 17, y: 15, dir: "down" },
+    summit: { label: "SUMMIT VILLAGE", x: 14, y: 7, dir: "down" },
+  };
+
   // ---------- story scripts ----------
   const SCRIPTS = {
+    async bus_driver(game) {
+      const D = window.Dialog;
+      const st = game.state;
+      const visited = st.flags.visited || {};
+      const dests = Object.keys(BUS_STOPS).filter((id) => id !== st.map && visited[id]);
+      if (dests.length === 0) {
+        await D.say("DRIVER: The bus line only serves towns you've already been to. Go see the world on foot first!");
+        return;
+      }
+      await D.say(`DRIVER: All aboard the VERDANT VALLEY LINE! A ride is $${BUS_FARE}. Where to?`);
+      const options = dests.map((id) => `${BUS_STOPS[id].label} $${BUS_FARE}`).concat(["Never mind"]);
+      const pick = await D.ask(options, { cancelable: true, aboveBox: true });
+      if (pick < 0 || pick >= dests.length) {
+        await D.say("DRIVER: Hop on any time!");
+        return;
+      }
+      if (st.money < BUS_FARE) {
+        await D.say("DRIVER: Sorry kid, no money, no ride. Them's the rules.");
+        return;
+      }
+      st.money -= BUS_FARE;
+      const dest = dests[pick];
+      const stop = BUS_STOPS[dest];
+      AudioSys.sfx("confirm");
+      await D.say("DRIVER: Hold on tight! VRRRRRM…");
+      const scene = game.overworld;
+      scene.transition(() => {
+        scene.loadMap(dest, stop.x, stop.y, stop.dir);
+      });
+      await D.say(`DRIVER: ${stop.label}! Thanks for riding!`);
+    },
+
+    async lucky_wheel(game) {
+      const D = window.Dialog;
+      const st = game.state;
+      await D.say("HOST: Step right up to the LUCKY WHEEL! One spin, one hundred bucks, infinite glory!");
+      while (true) {
+        const pick = await D.ask(["Spin! ($100)", "Walk away"], { cancelable: true, aboveBox: true });
+        if (pick !== 0) {
+          await D.say("HOST: Come back when you're feeling lucky!");
+          return;
+        }
+        if (st.money < 100) {
+          await D.say("HOST: Whoa there — your wallet's running on fumes. No spin for you!");
+          return;
+        }
+        st.money -= 100;
+        AudioSys.sfx("ball-shake");
+        await D.say("The wheel spins… clack… clack… clack…");
+        const roll = Math.random();
+        if (roll < 0.30) {
+          await D.say("…BZZT. Nothing! HOST: Ooooh, so close! (It was not close.)");
+        } else if (roll < 0.55) {
+          window.Bag.add(st, "potion", 1);
+          AudioSys.sfx("confirm");
+          await D.say("…Ding! You won a POTION!");
+        } else if (roll < 0.75) {
+          window.Bag.add(st, "greatball", 1);
+          AudioSys.sfx("confirm");
+          await D.say("…Ding ding! You won a GREAT BALL!");
+        } else if (roll < 0.93) {
+          st.money += 300;
+          AudioSys.sfx("levelup");
+          await D.say("…DING DING! The tray spits out $300!");
+        } else {
+          st.money += 1000;
+          window.Bag.add(st, "ultraball", 1);
+          AudioSys.sfx("badge");
+          await D.say("…JACKPOT!!! Lights! Sirens! $1000 and an ULTRA BALL rain down!");
+        }
+        game.autoSave();
+      }
+    },
+
+    async cafe_barista(game) {
+      const D = window.Dialog;
+      const st = game.state;
+      if (!st.flags.cafeGift) {
+        st.flags.cafeGift = true;
+        window.Bag.add(st, "superpotion", 1);
+        AudioSys.sfx("heal");
+        game.autoSave();
+        await D.say("BARISTA: Welcome to LAKESIDE CAFé! First-time customers get the trainer special — on the house!");
+        await D.say(`${st.playerName} received a SUPER POTION!`);
+      } else {
+        await D.say("BARISTA: Back again! The usual? …We only have one thing. It's the usual.");
+      }
+    },
     async mom(game) {
       const D = window.Dialog;
       const st = game.state;
@@ -703,7 +805,7 @@
     },
 
     async shadow_cave(game) {
-      await window.Dialog.say("GRUNT: The tunnel's ours! Only show-offs with the CASCADE BADGE would dare push past me!");
+      await window.Dialog.say("GRUNT: The tunnel's ours! Only the CASCADE BADGE gets you past me — that's MARINA's badge, from the LAKESIDE GYM. Stone building, southwest street, big sign. Not that you'd win!");
     },
 
     async tunnel_kid(game) {

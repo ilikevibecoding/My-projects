@@ -236,6 +236,83 @@
         "................",
       ], { o: P.rock3, r: P.rock1, h: P.white, d: P.rock2 });
     }),
+    // asphalt street
+    a: maker((c, x, y) => {
+      fillTile(c, x, y, "#6e7178");
+      speckle(c, x, y, "#7b7e86", 9, 3);
+      speckle(c, x, y, "#5f626a", 23, 7);
+    }),
+    // crosswalk stripes on asphalt
+    z: maker((c, x, y) => {
+      fillTile(c, x, y, "#6e7178");
+      speckle(c, x, y, "#5f626a", 23, 7);
+      c.fillStyle = "#e8e8e0";
+      for (let i = 0; i < 3; i++) c.fillRect(x + 1, y + 2 + i * 5, 14, 3);
+    }),
+    // concrete building wall
+    G: maker((c, x, y) => {
+      fillTile(c, x, y, "#b9bcc4");
+      c.fillStyle = "#a6a9b2";
+      c.fillRect(x, y + 7, 16, 1);
+      c.fillRect(x + 7, y, 1, 7);
+      c.fillRect(x + 3, y + 8, 1, 8);
+      c.fillRect(x + 11, y + 8, 1, 8);
+      speckle(c, x, y, "#c6c9d0", 17, 5);
+      px(c, x, y, 0, 14, "#83868e", 16, 2);
+    }),
+    // concrete flat roof
+    q: maker((c, x, y) => {
+      fillTile(c, x, y, "#8d909a");
+      speckle(c, x, y, "#9b9ea8", 11, 2);
+      px(c, x, y, 0, 0, "#7a7d86", 16, 2);
+      px(c, x, y, 0, 13, "#a4a7b0", 16, 1);
+    }),
+    // office window (on concrete)
+    O: maker((c, x, y) => {
+      fillTile(c, x, y, "#b9bcc4");
+      px(c, x, y, 0, 14, "#83868e", 16, 2);
+      px(c, x, y, 1, 2, "#5a6a86", 14, 11);
+      px(c, x, y, 2, 3, "#9cc6f2", 12, 9);
+      px(c, x, y, 3, 4, "#cfe4fa", 4, 3);
+      px(c, x, y, 8, 3, "#7fa8d8", 1, 9);
+      px(c, x, y, 2, 8, "#7fa8d8", 12, 1);
+    }),
+    // arcade neon sign
+    E: maker((c, x, y) => {
+      fillTile(c, x, y, "#3a2a52");
+      px(c, x, y, 1, 1, "#241a36", 14, 14);
+      const cols = ["#ff5a8a", "#ffd048", "#5af0a0", "#5ab4ff"];
+      for (let i = 0; i < 4; i++) {
+        px(c, x, y, 2 + i * 3, 3, cols[i], 2, 2);
+        px(c, x, y, 2 + ((i + 2) % 4) * 3, 11, cols[(i + 1) % 4], 2, 2);
+      }
+      // "A" letter
+      px(c, x, y, 6, 6, "#f8f8f8", 4, 1);
+      px(c, x, y, 6, 7, "#f8f8f8", 1, 4);
+      px(c, x, y, 9, 7, "#f8f8f8", 1, 4);
+      px(c, x, y, 7, 8, "#f8f8f8", 2, 1);
+      px(c, x, y, 0, 14, "#83868e", 16, 2);
+    }),
+    // museum sign (column motif)
+    J: maker((c, x, y) => {
+      fillTile(c, x, y, "#cfc8b4");
+      px(c, x, y, 0, 14, "#83868e", 16, 2);
+      px(c, x, y, 2, 2, "#a89f86", 12, 2);
+      for (let i = 0; i < 3; i++) px(c, x, y, 3 + i * 4, 5, "#a89f86", 2, 8);
+      px(c, x, y, 2, 12, "#a89f86", 12, 1);
+    }),
+    // bus stop shelter
+    U: maker((c, x, y) => {
+      fillTile(c, x, y, P.grass1);
+      speckle(c, x, y, P.grass2, 9);
+      px(c, x, y, 1, 2, "#d8a04e", 14, 3); // roof
+      px(c, x, y, 2, 5, "#5a6a86", 2, 9);  // posts
+      px(c, x, y, 12, 5, "#5a6a86", 2, 9);
+      px(c, x, y, 3, 6, "#9cc6f2", 9, 4);  // glass
+      px(c, x, y, 4, 10, "#8a8d96", 8, 2); // bench
+      // bus symbol on the roof
+      px(c, x, y, 6, 3, "#f8f8f8", 4, 1);
+    }),
     // cave wall
     K: maker((c, x, y) => {
       fillTile(c, x, y, "#5a4f48");
@@ -541,7 +618,8 @@
   }
 
   const SOLID = new Set(["T", "P", "w", "F", "r", "k", "s", "R", "Y", "A", "W", "o", "+", "M", "g",
-    "#", "c", "B", "b", "x", "V", "p", "C", "L", "H", "K", "*"]);
+    "#", "c", "B", "b", "x", "V", "p", "C", "L", "H", "K", "*",
+    "G", "q", "O", "E", "J", "U"]);
   const WALK_BEHIND = new Set(); // (kept simple: no overhang tiles)
 
   const Tileset = {

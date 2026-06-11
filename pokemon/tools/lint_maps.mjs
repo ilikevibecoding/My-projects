@@ -12,11 +12,13 @@ eval(readFileSync(join(ROOT, "data/encounters.js"), "utf8"));
 
 const MAPS = global.window.MAPS;
 const SOLID = new Set(["T", "P", "w", "F", "r", "k", "s", "R", "Y", "A", "W", "o", "+", "M", "g",
-  "#", "c", "B", "b", "x", "V", "p", "C", "L", "H", "K", "*"]);
+  "#", "c", "B", "b", "x", "V", "p", "C", "L", "H", "K", "*",
+  "G", "q", "O", "E", "J", "U"]);
 const KNOWN = new Set([".", "t", "f", ",", "n", "w", "T", "P", "l", "F", "r", "k", "s",
   "R", "Y", "A", "W", "D", "o", "+", "M", "g",
   "#", "=", "-", "c", "B", "b", "x", "h", "V", "p", "C", "L", "H", "~",
-  "K", ":", "*", "d", "u"]);
+  "K", ":", "*", "d", "u",
+  "a", "z", "G", "q", "O", "E", "J", "U"]);
 
 let errors = 0;
 function err(msg) { console.error("ERROR:", msg); errors++; }
@@ -61,7 +63,8 @@ for (const [id, map] of Object.entries(MAPS)) {
 
   for (const sign of map.signs || []) {
     const ch = at(sign.x, sign.y);
-    if (ch !== "s") err(`${id}: sign at (${sign.x},${sign.y}) is on '${ch}', expected 's'`);
+    // signs sit on 's' posts outdoors, or on any solid furniture (museum exhibits, arcade cabinets)
+    if (ch !== "s" && !SOLID.has(ch)) err(`${id}: sign at (${sign.x},${sign.y}) is on walkable '${ch}'`);
   }
   // every 's' tile must have text
   map.grid.forEach((row, y) => {
