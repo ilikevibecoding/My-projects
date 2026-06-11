@@ -23,9 +23,12 @@ On phones/tablets a touch D-pad and A/B buttons appear automatically.
 
 ## What's in the game
 
-- **Full Gen-1 style adventure loop:** pick a starter from Prof. Cedar, battle your rival,
-  cross two routes of tall grass and trainers, and take down the Verdant City Gym Leader
-  for the Boulder Badge (plus a post-badge rival rematch).
+- **Full Gen-1 style adventure:** pick a starter from Prof. Cedar, battle your rival, and
+  journey through **3 towns, 3 routes, and a cave** — Pallet Hollow → Verdant City
+  (**Boulder Badge**, Rock) → Lakeside Town (**Cascade Badge**, Water) → Granite Tunnel
+  (Team Shadow story event) → Summit Village → **Victory Hall Champion battle + credits**.
+- **No forced fights:** trainers battle only when you talk to them — explore freely.
+- **Auto-save:** progress saves automatically after battles, map changes, heals, and purchases.
 - **All 151 Pokémon** with authentic battle sprites, party icons, and cries; real base stats,
   type charts (18 types), level-up movesets, and evolutions baked from PokeAPI data.
 - **Complete battle engine:** damage formula with STAB/crits/type effectiveness, stat stages,
