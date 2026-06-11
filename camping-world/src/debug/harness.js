@@ -21,7 +21,7 @@ export const VIEWPOINTS = [
   { name: 'grass-eye-level', pos: [-13, 9], eye: 0.7, target: [-4, 1.3, 19] },
   { name: 'hero-tree-lookup', pos: [-3.5, -0.5], eye: 1.6, target: [-8.5, 7.0, -6.5] },
   { name: 'wide-vista', pos: [-7, 9], eye: 1.7, target: [17.3, 2.6, 26.7] },
-  { name: 'backlit-camp', pos: [-6.5, -9.5], eye: 1.55, target: [1.5, 1.3, 1.0] },
+  { name: 'backlit-camp', pos: [-3.0, -13.0], eye: 1.55, target: [1.5, 1.2, 1.0] },
   { name: 'ground-detail', pos: [3.4, 3.6], eye: 1.45, target: [1.2, 0.3, 0.8] },
 ];
 

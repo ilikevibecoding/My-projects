@@ -12,7 +12,10 @@ import { prepareModel } from './vegetation.js';
 
 function clonePart(models, id) {
   const src = models[id];
-  if (!src) return null;
+  if (!src) {
+    console.warn(`[campsite] model "${id}" missing — prop skipped`);
+    return null;
+  }
   const obj = src.scene.clone(true);
   prepareModel(obj);
   return obj;

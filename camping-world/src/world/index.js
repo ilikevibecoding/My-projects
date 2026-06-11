@@ -34,6 +34,7 @@ const MODEL_IDS = [
   'nettle_plant',
   'dandelion_01',
   // campsite + deadwood + rocks
+  'stone_fire_pit',
   'dead_tree_trunk',
   'dead_tree_trunk_02',
   'tree_stump_01',

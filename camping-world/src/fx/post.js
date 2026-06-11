@@ -87,7 +87,7 @@ export function initPost(renderer, scene, camera) {
   const n8ao = new N8AOPass(scene, camera, w, h);
   n8ao.configuration.aoRadius = 1.6;
   n8ao.configuration.distanceFalloff = 4.0;
-  n8ao.configuration.intensity = 2.2;
+  n8ao.configuration.intensity = 1.4;
   n8ao.configuration.halfRes = true;
   n8ao.configuration.depthAwareUpsampling = true;
   // CRITICAL: keep linear — OutputPass does tone map + sRGB. Default true = double encode.

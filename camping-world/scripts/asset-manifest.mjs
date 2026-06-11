@@ -9,7 +9,7 @@
 export const MODELS = [
   // --- trees ---
   { id: 'island_tree_01', res: '2k', simplify: 0.04, alphaRatio: 0.15, error: 0.05, maxTex: 2048, foliage: true },
-  { id: 'island_tree_02', res: '2k', simplify: 0.06, alphaRatio: 0.15, error: 0.05, maxTex: 2048, foliage: true },
+  { id: 'island_tree_02', res: '2k', simplify: 0.06, alphaRatio: 0.22, error: 0.03, maxTex: 2048, foliage: true },
   { id: 'tree_small_02', res: '2k', simplify: 0.03, alphaRatio: 0.1, error: 0.08, maxTex: 2048, foliage: true },
   { id: 'fir_sapling', res: '1k', simplify: 0.2, error: 0.01, maxTex: 1024, foliage: true },
   { id: 'fir_sapling_medium', res: '2k', simplify: 0.06, alphaRatio: 0.12, error: 0.08, maxTex: 1536, foliage: true },
