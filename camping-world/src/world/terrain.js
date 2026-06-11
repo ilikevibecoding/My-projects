@@ -27,8 +27,8 @@ export function terrainHeight(x, z) {
   h += fbmHeight(x * 0.028 + 13.7, z * 0.028 - 4.2) * 1.15;
   // micro relief
   h += fbmMicro(x * 0.16, z * 0.16) * 0.18;
-  // bowl: keep the clearing slightly cupped so the horizon reads as terrain
-  h += Math.min(1, (r / 160) ** 2) * 3.0;
+  // bowl: cup the clearing so the rim + treeline close the horizon line
+  h += Math.min(1, (r / 140) ** 2) * 7.0;
   // flat campsite pad
   const campH = 0.35; // fixed pad height
   const t = THREE.MathUtils.smoothstep(r, CAMP_FLAT_RADIUS, CAMP_BLEND_RADIUS);

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FirstPersonControls } from './player/controls.js';
 import { buildWorld } from './world/index.js';
+import { initPost } from './fx/post.js';
 import { initHarness, isShotMode, VIEWPOINTS } from './debug/harness.js';
 
 const app = document.getElementById('app');
@@ -20,7 +21,9 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(pixelRatioOverride ?? Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+// sunny-exterior exposure: keeps ground out of the ACES shoulder so colors
+// stay saturated and shadow contrast reads
+renderer.toneMappingExposure = 0.62;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 app.appendChild(renderer.domElement);
@@ -98,6 +101,10 @@ if (params.has('noenv')) {
 // debug: ?exp=0.85 overrides exposure
 if (params.get('exp')) renderer.toneMappingExposure = parseFloat(params.get('exp'));
 
+// --- post stack (disable with ?nopost=1) ---
+const usePost = !params.has('nopost');
+const post = usePost ? initPost(renderer, scene, camera) : null;
+
 loadingEl.classList.add('hidden');
 
 if (shotMode) {
@@ -114,6 +121,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (post) post.setSize(window.innerWidth, window.innerHeight);
 });
 
 // --- main loop ---
@@ -128,9 +136,11 @@ function renderFrame() {
 
   if (!shotMode) controls.update(dt);
   // shot mode uses a frozen wind time so screenshots are deterministic
-  world.update(shotMode ? 42.0 : elapsed, dt, camera);
+  const worldTime = shotMode ? 42.0 : elapsed;
+  world.update(worldTime, dt, camera);
 
-  renderer.render(scene, camera);
+  if (post) post.render(worldTime);
+  else renderer.render(scene, camera);
 
   if (frameWaiters.length) {
     for (const w of frameWaiters) w.n -= 1;

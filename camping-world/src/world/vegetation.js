@@ -159,7 +159,9 @@ export function buildVegetation(scene, models, getHeight) {
   for (let i = 0; i < 120; i++) {
     const a = (i / 120) * Math.PI * 2 + rng() * 0.05;
     const r = i % 2 === 0 ? 64 + rng() * 14 : 80 + rng() * 30;
-    if (inSunCorridor(Math.cos(a) * r, Math.sin(a) * r, 0.2) && rng() < 0.55) continue;
+    // corridor stays open only in the near ring — distant hazy treeline still
+    // closes the horizon behind the sun gap (no bald-sand horizon)
+    if (r < 92 && inSunCorridor(Math.cos(a) * r, Math.sin(a) * r, 0.2) && rng() < 0.55) continue;
     ringSpots.push({
       a,
       r,

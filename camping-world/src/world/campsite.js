@@ -44,7 +44,7 @@ export function buildCampsite(scene, models, getHeight) {
   ashGeo.rotateX(-Math.PI / 2);
   const ash = new THREE.Mesh(
     ashGeo,
-    new THREE.MeshStandardMaterial({ color: 0x17120e, roughness: 0.96 })
+    new THREE.MeshStandardMaterial({ color: 0x2b221b, roughness: 0.97 })
   );
   ash.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) + 0.015, CAMP.y);
   ash.receiveShadow = true;
@@ -59,13 +59,13 @@ export function buildCampsite(scene, models, getHeight) {
       const mesh = new THREE.Mesh(part.geometry, part.material);
       mesh.castShadow = mesh.receiveShadow = true;
       const a = (i / nRing) * Math.PI * 2 + rng() * 0.2;
-      const r = 0.72 + rng() * 0.08;
+      const r = 0.8 + rng() * 0.1;
       const x = CAMP.x + Math.cos(a) * r;
       const z = CAMP.y + Math.sin(a) * r;
-      // bake the part's own transform, then scale to fist-size rocks
+      // bake the part's own transform, then scale to head-size ring stones
       const box = new THREE.Box3().setFromObject(new THREE.Mesh(part.geometry));
       const size = box.getSize(new THREE.Vector3()).length() || 1;
-      const s = (0.38 + rng() * 0.12) / size;
+      const s = (0.5 + rng() * 0.15) / size;
       mesh.scale.setScalar(s);
       mesh.rotation.set(rng() * 0.4 - 0.2, rng() * Math.PI * 2, rng() * 0.4 - 0.2);
       const sunk = box.min.y * s;
@@ -78,25 +78,33 @@ export function buildCampsite(scene, models, getHeight) {
   // bark_debris sticks read as split wood; stack a low pyramid
   const woodParts = listParts(models, 'bark_debris_01');
   if (woodParts.length) {
-    const px = CAMP.x + 1.7;
-    const pz = CAMP.y + 0.9;
+    const px = CAMP.x + 1.85;
+    const pz = CAMP.y + 1.05;
     const baseY = groundAt(px, pz);
+    // criss-cross stack: alternate layers rotated 90°, slight jitter — reads
+    // unmistakably as a split-firewood pile
     let n = 0;
-    for (let layer = 0; layer < 3 && n < 9; layer++) {
-      const count = 4 - layer;
+    for (let layer = 0; layer < 4 && n < 14; layer++) {
+      const count = layer % 2 === 0 ? 4 : 3;
+      const along = layer % 2 === 0; // x-aligned vs z-aligned
       for (let i = 0; i < count; i++, n++) {
         const part = woodParts[n % woodParts.length];
         const mesh = new THREE.Mesh(part.geometry, part.material);
         mesh.castShadow = mesh.receiveShadow = true;
         const box = new THREE.Box3().setFromObject(new THREE.Mesh(part.geometry));
-        const len = box.getSize(new THREE.Vector3()).x || 1;
-        const s = (0.55 + rng() * 0.12) / len;
+        const len = Math.max(box.getSize(new THREE.Vector3()).x, 0.01);
+        const s = (0.62 + rng() * 0.1) / len;
         mesh.scale.setScalar(s);
-        mesh.rotation.set(0, 0.45 + rng() * 0.25 - 0.12, 0);
+        const off = (i - (count - 1) / 2) * 0.17 + (rng() - 0.5) * 0.04;
+        mesh.rotation.set(
+          (rng() - 0.5) * 0.08,
+          (along ? 0 : Math.PI / 2) + (rng() - 0.5) * 0.22,
+          (rng() - 0.5) * 0.06
+        );
         mesh.position.set(
-          px + (i - count / 2) * 0.16 + rng() * 0.03,
-          baseY + 0.055 + layer * 0.105,
-          pz + layer * 0.02 + rng() * 0.03
+          px + (along ? off * 0.3 : off),
+          baseY - box.min.y * s + layer * 0.12 - 0.01,
+          pz + (along ? off : off * 0.3)
         );
         group.add(mesh);
       }
