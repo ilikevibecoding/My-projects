@@ -17,7 +17,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'h
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -95,8 +95,20 @@ const VIEWS = {
 let frames = 0;
 let fpsAccum = 0, fpsCount = 0, fpsValue = 0;
 
+renderer.info.autoReset = false;
+
+let paused = false;
+
 window.debugAPI = {
   ready: false,
+  frames: () => frames,
+  pause() { paused = true; },
+  resume() { paused = false; },
+  // Render one frame synchronously and return JPEG data URL (headless capture).
+  capture(quality = 0.92) {
+    post.composer.render();
+    return renderer.domElement.toDataURL('image/jpeg', quality);
+  },
   setView(name) {
     const v = VIEWS[name];
     if (!v) return false;
@@ -132,13 +144,18 @@ window.debugAPI = {
 };
 
 // ------------------------------------------------------------------ main loop
-const clock = new THREE.Clock();
+let lastT = performance.now();
 let elapsed = 0;
 
 function tick() {
   requestAnimationFrame(tick);
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const now = performance.now();
+  const realDt = (now - lastT) / 1000;
+  lastT = now;
+  const dt = Math.min(realDt, 0.05);
+  if (paused) return;
   elapsed += dt;
+  renderer.info.reset();
 
   player.update(dt);
   space.update(dt, elapsed);
@@ -147,9 +164,9 @@ function tick() {
 
   post.composer.render();
 
-  fpsAccum += dt; fpsCount++;
+  fpsAccum += realDt; fpsCount++;
   if (fpsAccum >= 0.5) {
-    fpsValue = Math.round(fpsCount / fpsAccum);
+    fpsValue = Math.round((fpsCount / fpsAccum) * 10) / 10;
     fpsAccum = 0; fpsCount = 0;
   }
   frames++;

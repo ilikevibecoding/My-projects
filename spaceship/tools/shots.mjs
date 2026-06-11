@@ -52,14 +52,31 @@ try {
   page.on('pageerror', (err) => console.log('[page exception]', err.message));
 
   await page.goto(`http://localhost:${PORT}/#debug`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.debugAPI && window.debugAPI.ready, null, { timeout: 60000 });
+  await page.waitForFunction(() => window.debugAPI && window.debugAPI.ready, null, { timeout: 120000 });
+
+  // SwiftShader renders < 1 fps; wait on rendered-frame count rather than wall
+  // time so "wait 2 seconds to settle" still means "several frames settled".
+  async function settleFrames(n, timeout = 120000) {
+    const start = await page.evaluate(() => window.debugAPI.frames());
+    await page.waitForFunction(
+      ({ start, n }) => window.debugAPI.frames() >= start + n,
+      { start, n }, { timeout, polling: 250 }
+    );
+  }
+
+  async function snap(file) {
+    const dataUrl = await page.evaluate(() => window.debugAPI.capture(0.9));
+    const b64 = dataUrl.split(',')[1];
+    writeFileSync(path.join(outDir, file), Buffer.from(b64, 'base64'));
+  }
 
   const views = ['cockpit', 'corridor', 'quarters', 'window'];
   const stats = {};
   for (const v of views) {
     await page.evaluate((name) => window.debugAPI.setView(name), v);
     await page.waitForTimeout(2000);
-    await page.screenshot({ path: path.join(outDir, `${v}.jpg`), quality: 85, type: 'jpeg' });
+    await settleFrames(4);
+    await snap(`${v}.jpg`);
     stats[v] = await page.evaluate(() => window.debugAPI.stats());
     console.log(`shot: ${v}`, JSON.stringify(stats[v]));
   }
@@ -73,17 +90,28 @@ try {
   const interactResults = {};
   for (const it of interactions) {
     await page.evaluate(({ x, z, yaw, pitch }) => window.debugAPI.teleport(x, z, yaw, pitch), it);
-    await page.waitForTimeout(600);
+    await settleFrames(3);
     const hover = await page.evaluate(() => window.debugAPI.hoverTarget());
-    let fired = false;
+    const prompt = await page.evaluate(() => ({
+      text: document.getElementById('prompt').textContent,
+      on: document.getElementById('prompt').classList.contains('on'),
+    }));
+    let fired = false, midState = null;
     if (hover === it.id) {
       await page.evaluate(() => window.debugAPI.press('KeyE'));
       await page.waitForTimeout(1100);
+      await settleFrames(2);
       fired = true;
-      await page.screenshot({ path: path.join(outDir, `interact_${it.id}.jpg`), quality: 80, type: 'jpeg' });
-      await page.waitForTimeout(2500);
+      midState = await page.evaluate(() => ({
+        fade: document.getElementById('fade').classList.contains('on'),
+        message: document.getElementById('message').textContent,
+        status: document.getElementById('status').textContent,
+      }));
+      await snap(`interact_${it.id}.jpg`);
+      await page.waitForTimeout(2600);
+      await settleFrames(2);
     }
-    interactResults[it.id] = { hover, fired };
+    interactResults[it.id] = { hover, prompt, fired, midState };
     console.log(`interact ${it.id}:`, JSON.stringify(interactResults[it.id]));
   }
 
