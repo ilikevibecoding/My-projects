@@ -206,3 +206,90 @@ Fix list for iter 8 (cold-look only, do not disturb passing items):
 - Stagger junction boxes per side; hazard threshold stripes on the deck at the
   bulkheads; rubber cable run + clamps along the deck from the open recess;
   overhead grab handles alternating sides.
+
+## Iteration 8 — first full pass
+Symmetry broken (staggered junction boxes, one-sided recess + leaning panel,
+deck cable run, alternating grab handles, threshold stripes).
+
+Scores:
+1. Lighting — **PASS** (warm pools + teal accents + cool space light; falloff
+   reads deliberately in all four shots).
+2. Materials — **PASS** (worn metal / painted panel / fabric / rubber / glass;
+   reflections on porthole ring and deck; roughness breakup everywhere).
+3. Detail density — **PASS** (no bare surface in any framing).
+4. Post — **PASS** (ACES + bloom contained to emissives, AO grounded, grain +
+   vignette subtle; no blown regions, no crushed blacks).
+5. Space motion — **PASS** (banded gas giant with limb glow + stars in the
+   porthole; lit moon with atmosphere rim ahead of the cockpit; 3-layer
+   parallax + near-hull streaks sell flight in motion).
+6. Palette — **PASS** (burnt orange / bone white / teal / gunmetal, all shots).
+7. Tech — **PASS** (worst view 239 calls / 122k tris, 1×1024 + 2×512 shadow
+   maps; no z-fighting/acne/missing faces in any capture. SwiftShader cannot
+   measure real fps; this budget is comfortably 60fps-class on a mid-range
+   laptop GPU).
+8. Cold-look — **PASS** (no hesitation this time: corridor reads as a game
+   screenshot — lived-in, lit, art-directed).
+9. Interactions — **PASS** (hover→prompt→E→fade/message/status verified for
+   bed/galley/sink; highlight reads as thin edge wireframe).
+
+9/9. Stopping condition requires a second consecutive full pass → iteration 9
+re-captures with zero code changes to confirm stability.
+
+## Iteration 9 — second consecutive full pass (STOP)
+Zero code changes; re-captured all views + interaction smoke tests. All four
+shots hold up (the gas giant had drifted slightly in the porthole between
+runs — incidental confirmation that the space motion is live). All three
+interactions re-verified. **9/9 again → stopping condition met.**
+
+---
+
+# FINAL SUMMARY
+
+## What passed (and why I believe it)
+- **Lighting**: every room has a deliberate key (corridor downlight spots,
+  quarters reading lamp, galley pendant, cockpit console + cool window spill),
+  warm practicals against cool space light, and emissive accents that glow
+  without flooding. The rest-cycle toggle re-grades the whole interior.
+- **Materials**: five distinct PBR families (worn painted hull, dark painted
+  band, brushed/worn metal, fabric/rubber, glass) — all canvas-procedural with
+  matching roughness + normal maps; PMREM environment gives metals real
+  reflections.
+- **Detail density**: panel grids with stencils/vents/accent stripes, corridor
+  ribs, ceiling pipe runs with clamps, wall conduits + junction boxes, floor
+  trench grates with teal glow, threshold hazard stripes, crates, an open
+  maintenance recess, grab handles, props (pan, mugs, boots).
+- **Post**: ACES + UnrealBloom (0.30/0.5/0.90) + N8AO + vignette + grain +
+  exp fog. The critical fix of the whole project: N8AO was gamma-correcting
+  inside the chain while OutputPass converted to sRGB again — everything
+  before iteration 4 was tuned against a double-gamma'd frame.
+- **Space**: 3-layer drifting starfield + near-hull speed streaks, banded gas
+  giant (custom shader: sun-lit bands + fresnel rim + additive atmosphere
+  shell) sliding past the port porthole on a 340 s orbit, lit moon ahead of
+  the cockpit, ringed crescent far starboard, nebula sprites, sun glow.
+- **Interactions**: raycast hover + edge highlight + prompt; bed (fade,
+  "8 hours pass", rest-cycle lighting), galley ("Energy restored"), bathroom
+  (fade, "Refreshed"); one-line HUD status with ship clock.
+- **Tech budget**: worst view 239 draw calls / ~122 k tris, one 1024 shadow
+  map + two 512 spot shadows, AO at half res. 60 fps on a mid-range laptop GPU
+  is comfortably within budget (SwiftShader CI can't measure real fps).
+
+## What is still weak
+- The fabric quilt seams read slightly oversized up close on the bed.
+- Quarters ceiling has a soft AO blotch near the vent housing.
+- The porthole "depth tube" interior is plain; at extreme angles it reads flat.
+- Stars are uniform points — no bright cross-flare hero stars.
+- Head-bob/rumble is tuned by feel, never validated by a human play session.
+- HUD (DOM) isn't in the canvas captures; interaction proof relies on DOM
+  state JSON + lighting change visible in renders.
+
+## With five more iterations I would
+1. Bake an interior-specific PMREM (render a cube probe in the corridor) so
+   metals reflect the actual orange/teal interior instead of RoomEnvironment.
+2. Animate the screens (canvas redraw at 2-4 Hz: scrolling text, radar sweep)
+   and add a slow camera-facing dust mote particle layer in the light pools.
+3. Give the gas giant a proper day/night city-light texture + cloud-shadow
+   layer, and add a slow ship roll (0.5°) so the starfield drifts in all axes.
+4. Replace AABB collision with capsule-vs-OBB so the leaning panel and angled
+   cockpit walls collide exactly.
+5. Footstep-synced bob + soft audio (engine hum loop, footsteps, UI blips) —
+   sound is half the cold-look test in practice.
