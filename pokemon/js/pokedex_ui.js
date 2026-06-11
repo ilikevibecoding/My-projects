@@ -149,10 +149,10 @@
     UI.text(ctx, `WT ${(spec.weight / 10).toFixed(1)}kg`, 94, 82, "#6a7a9a");
 
     // history blurb across the bottom
-    const lines = window.Dialog.wrap(ex.history, 36).slice(0, 5);
-    lines.forEach((line, i) => UI.text(ctx, line, 16, 106 + i * 11));
+    const lines = window.Dialog.wrap(ex.history, 34).slice(0, 4);
+    lines.forEach((line, i) => UI.text(ctx, line, 16, 104 + i * 11));
 
-    if (Math.floor(this.t * 2) % 2 === 0) UI.text(ctx, "▼", 220, 142, "#6a7a9a");
+    UI.text(ctx, "A: close", 178, 142, "#6a7a9a");
   };
 
   window.ExhibitScene = ExhibitScene;

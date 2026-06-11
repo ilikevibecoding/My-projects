@@ -586,23 +586,23 @@
       exhibits: [
         {
           x: 3, y: 1, species: 151, title: "ANCIENT CARVING", stone: true,
-          history: "A weathered stone carving of a small, round Pokémon with a long tail. Legend says it holds the genes of every other Pokémon. No trainer has ever caught one. Scholars only whisper its name: MEW.",
+          history: "A stone carving of a small, round Pokémon said to hold the genes of all others. No trainer has ever caught it. Its name: MEW.",
         },
         {
           x: 6, y: 1, species: 35, title: "MOON STONE RELIC",
-          history: "A glittering stone that fell from the night sky, displayed beside a CLEFAIRY figure. On clear nights these Pokémon are said to gather and dance wherever a MOON STONE lands.",
+          history: "A glittering stone that fell from the night sky. CLEFAIRY are said to gather and dance wherever a MOON STONE lands.",
         },
         {
           x: 9, y: 1, species: 142, title: "OLD AMBER",
-          history: "Something feathery is trapped inside this golden amber. It belonged to AERODACTYL, a ferocious flying Pokémon that ruled the skies over a hundred million years ago.",
+          history: "Something feathery is trapped in this amber. It belonged to AERODACTYL, a fierce flier from over 100 million years ago.",
         },
         {
           x: 1, y: 5, species: 138, title: "HELIX FOSSIL",
-          history: "A spiral shell turned to stone. It is the fossil of OMANYTE, an ancient Pokémon that drifted through the prehistoric seas long before trainers existed.",
+          history: "A spiral shell turned to stone — the fossil of OMANYTE, an ancient Pokémon that drifted through prehistoric seas.",
         },
         {
           x: 10, y: 5, species: 140, title: "DOME FOSSIL",
-          history: "A hard, dome-shaped fossil. It is the shell of KABUTO, a sturdy Pokémon that scuttled along ancient shorelines. A few are rumored to still live in deep caves.",
+          history: "A hard, dome-shaped fossil — the shell of KABUTO. A few are rumored to still scuttle in deep caves.",
         },
       ],
       npcs: [
