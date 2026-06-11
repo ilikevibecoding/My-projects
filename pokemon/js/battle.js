@@ -532,15 +532,16 @@
     }
 
     if (moveSlot.pp !== undefined && moveSlot.id !== -1) moveSlot.pp = Math.max(0, moveSlot.pp - 1);
-    await this.say(`${attacker.name} used ${data.display.toUpperCase()}!`);
 
-    // lunge animation + per-move visual effect
+    // show "used MOVE!" while the lunge + visual effect play simultaneously
+    const sayPromise = this.say(`${attacker.name} used ${data.display.toUpperCase()}!`);
     const lungeKeyX = side === "player" ? "playerLungeX" : "enemyLungeX";
     const dirX = side === "player" ? 1 : -1;
     this.tween(0.25, (p) => {
       this.fx[lungeKeyX] = Math.round(Math.sin(p * Math.PI) * 10 * dirX);
     });
     await this.playMoveFX(side, data);
+    await sayPromise;
 
     // accuracy
     const defTypes = window.Mon.species(defender).types;
