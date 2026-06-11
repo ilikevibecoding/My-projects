@@ -98,6 +98,7 @@
       st.party.forEach((m) => window.Mon.fullHeal(m));
       st.money = Math.max(0, st.money - Math.floor(st.money / 10));
       const lh = st.lastHeal || { map: "player_home", x: 5, y: 5, dir: "down" };
+      if (lh.returnWarp) st.returnWarp = lh.returnWarp; // exit into the right town
       this.overworld.loadMap(lh.map, lh.x, lh.y, lh.dir, true);
     },
 

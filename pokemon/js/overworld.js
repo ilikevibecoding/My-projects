@@ -233,7 +233,15 @@
     // warps
     const warp = (def.warps || []).find((w) => w.x === st.x && w.y === st.y);
     if (warp) {
-      this.transition(() => this.loadMap(warp.to.map, warp.to.x, warp.to.y, warp.to.dir));
+      let dest = warp.to;
+      if (dest === "return") {
+        // shared interiors (Center/Mart) exit back to wherever the player came in
+        dest = st.returnWarp || warp.fallback;
+      } else if (def.type === "outdoor" && window.MAPS[dest.map] && window.MAPS[dest.map].type === "indoor") {
+        // remember the tile just outside this door for "return" exits
+        st.returnWarp = { map: st.map, x: warp.x, y: warp.y + 1, dir: "down" };
+      }
+      this.transition(() => this.loadMap(dest.map, dest.x, dest.y, dest.dir));
       return;
     }
 
@@ -655,7 +663,7 @@
       const yes = await D.ask(["Yes please", "No thanks"], { cancelable: false, aboveBox: true });
       if (yes === 0) {
         st.party.forEach((m) => window.Mon.fullHeal(m));
-        st.lastHeal = { map: "center", x: 6, y: 5, dir: "down" };
+        st.lastHeal = { map: "center", x: 6, y: 5, dir: "down", returnWarp: st.returnWarp || null };
         AudioSys.sfx("heal");
         game.autoSave();
         await D.say("NURSE: …… …… Ding! Your Pokémon are fighting fit! We hope to see you again!");

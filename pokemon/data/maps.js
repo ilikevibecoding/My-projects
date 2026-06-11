@@ -310,7 +310,7 @@
         "#==========#",
         "######~#####",
       ],
-      warps: [{ x: 6, y: 7, to: { map: "city", x: 5, y: 5, dir: "down" } }],
+      warps: [{ x: 6, y: 7, to: "return", fallback: { map: "city", x: 5, y: 5, dir: "down" } }],
       signs: [],
       npcs: [
         { id: "nurse", variant: "nurse", x: 4, y: 2, dir: "down", movement: "static", script: "nurse" },
@@ -338,7 +338,7 @@
         "#==========#",
         "######~#####",
       ],
-      warps: [{ x: 6, y: 7, to: { map: "city", x: 5, y: 13, dir: "down" } }],
+      warps: [{ x: 6, y: 7, to: "return", fallback: { map: "city", x: 5, y: 13, dir: "down" } }],
       signs: [],
       npcs: [
         { id: "clerk", variant: "clerk", x: 4, y: 2, dir: "down", movement: "static", script: "clerk" },

@@ -34,11 +34,13 @@ for (const [id, map] of Object.entries(MAPS)) {
     if (warp.x < 0 || warp.x >= w || warp.y < 0 || warp.y >= h) err(`${id}: warp out of bounds ${JSON.stringify(warp)}`);
     const ch = at(warp.x, warp.y);
     if (ch !== "D" && ch !== "~") err(`${id}: warp at (${warp.x},${warp.y}) is on '${ch}', expected D or ~`);
-    const target = MAPS[warp.to.map];
-    if (!target) { err(`${id}: warp target map '${warp.to.map}' missing`); continue; }
-    const tch = (target.grid[warp.to.y] || "")[warp.to.x];
-    if (tch === undefined) err(`${id}: warp target (${warp.to.x},${warp.to.y}) out of bounds in ${warp.to.map}`);
-    else if (SOLID.has(tch)) err(`${id}: warp target lands on solid '${tch}' in ${warp.to.map} (${warp.to.x},${warp.to.y})`);
+    const dest = warp.to === "return" ? warp.fallback : warp.to;
+    if (warp.to === "return" && !warp.fallback) { err(`${id}: "return" warp needs a fallback`); continue; }
+    const target = MAPS[dest.map];
+    if (!target) { err(`${id}: warp target map '${dest.map}' missing`); continue; }
+    const tch = (target.grid[dest.y] || "")[dest.x];
+    if (tch === undefined) err(`${id}: warp target (${dest.x},${dest.y}) out of bounds in ${dest.map}`);
+    else if (SOLID.has(tch)) err(`${id}: warp target lands on solid '${tch}' in ${dest.map} (${dest.x},${dest.y})`);
   }
 
   // every D and ~ should have a warp (except '~' used as rug decor — warn only)
