@@ -1,0 +1,28 @@
+{
+  "name": "camping-world",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "fetch-assets": "node scripts/fetch-assets.mjs",
+    "optimize-assets": "node scripts/optimize-assets.mjs",
+    "shots": "node scripts/screenshot.mjs"
+  },
+  "dependencies": {
+    "n8ao": "^1.10.1",
+    "postprocessing": "^6.39.1",
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.4.0",
+    "@gltf-transform/extensions": "^4.4.0",
+    "@gltf-transform/functions": "^4.4.0",
+    "meshoptimizer": "^1.1.1",
+    "playwright-core": "^1.60.0",
+    "sharp": "^0.35.1",
+    "vite": "^8.0.16"
+  }
+}
