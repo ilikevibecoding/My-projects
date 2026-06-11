@@ -23,7 +23,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // sunny-exterior exposure: keeps ground out of the ACES shoulder so colors
 // stay saturated and shadow contrast reads
-renderer.toneMappingExposure = 0.62;
+renderer.toneMappingExposure = 0.66;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 app.appendChild(renderer.domElement);

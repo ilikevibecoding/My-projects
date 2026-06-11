@@ -21,7 +21,7 @@ const GradeShader = {
     uSaturation: { value: 1.06 },
     uWarmth: { value: 0.035 },
     uContrast: { value: 1.04 },
-    uLift: { value: 0.0 },
+    uLift: { value: 0.01 },
     uVignette: { value: 0.32 },
     uGrain: { value: 0.012 },
   },

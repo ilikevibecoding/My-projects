@@ -104,22 +104,23 @@ export function buildCampsite(scene, models, getHeight) {
     group.add(mesh);
   };
 
-  // --- half-burnt logs lying in the ash ---
-  const char1 = makeLog(0.85, 0x3d342c);
+  // --- half-burnt logs lying low in the ash ---
+  const char1 = makeLog(0.7, 0x3d342c);
   if (char1) {
-    char1.rotation.set(0.06, 0.5, 0);
+    char1.rotation.set(0.04, 0.5, 0);
     restLog(char1, CAMP.x - 0.05, CAMP.y + 0.08);
   }
-  const char2 = makeLog(0.7, 0x463b30);
+  const char2 = makeLog(0.58, 0x463b30);
   if (char2) {
-    char2.rotation.set(-0.05, 2.1, 0.1);
-    restLog(char2, CAMP.x + 0.14, CAMP.y - 0.12, 0.07);
+    char2.rotation.set(-0.04, 2.1, 0.08);
+    restLog(char2, CAMP.x + 0.14, CAMP.y - 0.12, 0.04);
   }
 
   // --- firewood: a loose heap of chunky logs beside the pit + bark scraps ---
   {
-    const px = CAMP.x + 1.75;
-    const pz = CAMP.y + 1.3;
+    // east of the pit so the SW campsite camera sees pit AND pile side by side
+    const px = CAMP.x + 2.15;
+    const pz = CAMP.y + 0.35;
     const heap = [
       { dx: 0.0, dz: 0.0, yaw: 0.4, roll: 0.0, len: 0.8, lift: 0 },
       { dx: 0.1, dz: 0.32, yaw: 0.62, roll: 0.12, len: 0.74, lift: 0 },
@@ -220,7 +221,8 @@ export function buildCampsite(scene, models, getHeight) {
     const lantern = clonePart(models, 'wooden_lantern_01');
     if (lantern) {
       const cBox = new THREE.Box3().setFromObject(crate);
-      lantern.position.set(x - 0.05, cBox.max.y + 0.005, z + 0.08);
+      const cc = cBox.getCenter(new THREE.Vector3());
+      lantern.position.set(cc.x, cBox.max.y + 0.005, cc.z); // centered on the crate lid
       lantern.rotation.y = -0.4;
       group.add(lantern);
     }
