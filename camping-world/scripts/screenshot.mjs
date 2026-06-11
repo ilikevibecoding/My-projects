@@ -101,7 +101,7 @@ async function main() {
   for (const i of views) {
     const name = await page.evaluate((idx) => window.__setView(idx), i);
     const file = join(outDir, `iter-${iter}-v${i}-${name}.png`);
-    await page.screenshot({ path: file });
+    await page.screenshot({ path: file, timeout: 180000 });
     stats.views[name] = await page.evaluate(() => window.__stats());
     console.log(`[shots] ${file}  calls=${stats.views[name].calls} tris=${stats.views[name].triangles}`);
   }

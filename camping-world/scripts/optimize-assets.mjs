@@ -25,7 +25,7 @@ import sharp from 'sharp';
 import { existsSync, mkdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MODELS } from './asset-manifest.mjs';
+import { MODELS, FAR_LODS, MID_LODS } from './asset-manifest.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RAW = join(ROOT, 'raw', 'models');
@@ -61,9 +61,9 @@ function countTris(doc) {
   return Math.round(tris);
 }
 
-async function optimizeModel(cfg) {
+async function optimizeModel(cfg, suffix = '') {
   const src = join(RAW, cfg.id, `${cfg.id}.gltf`);
-  const dest = join(OUT, `${cfg.id}.glb`);
+  const dest = join(OUT, `${cfg.id}${suffix}.glb`);
   if (!existsSync(src)) {
     console.log(`!! missing raw model ${cfg.id} — run fetch-assets first`);
     return null;
@@ -116,9 +116,9 @@ async function optimizeModel(cfg) {
   const trisAfter = countTris(doc);
   const flag = sizeMB > 8 ? '  ⚠ OVER 8MB BUDGET' : '';
   console.log(
-    `ok ${cfg.id}: ${trisBefore.toLocaleString()} → ${trisAfter.toLocaleString()} tris, ${sizeMB.toFixed(2)} MB${flag}`
+    `ok ${cfg.id}${suffix}: ${trisBefore.toLocaleString()} → ${trisAfter.toLocaleString()} tris, ${sizeMB.toFixed(2)} MB${flag}`
   );
-  return { id: cfg.id, tris: trisAfter, sizeMB };
+  return { id: cfg.id + suffix, tris: trisAfter, sizeMB };
 }
 
 const models = onlyArg ? MODELS.filter((m) => onlyArg.includes(m.id)) : MODELS;
@@ -129,6 +129,28 @@ for (const cfg of models) {
     if (r) results.push(r);
   } catch (e) {
     console.error(`FAILED ${cfg.id}: ${e.message}`);
+    process.exitCode = 1;
+  }
+}
+
+const farLods = onlyArg ? FAR_LODS.filter((m) => onlyArg.includes(m.id)) : FAR_LODS;
+for (const cfg of farLods) {
+  try {
+    const r = await optimizeModel(cfg, '_far');
+    if (r) results.push(r);
+  } catch (e) {
+    console.error(`FAILED ${cfg.id}_far: ${e.message}`);
+    process.exitCode = 1;
+  }
+}
+
+const midLods = onlyArg ? MID_LODS.filter((m) => onlyArg.includes(m.id)) : MID_LODS;
+for (const cfg of midLods) {
+  try {
+    const r = await optimizeModel(cfg, '_mid');
+    if (r) results.push(r);
+  } catch (e) {
+    console.error(`FAILED ${cfg.id}_mid: ${e.message}`);
     process.exitCode = 1;
   }
 }

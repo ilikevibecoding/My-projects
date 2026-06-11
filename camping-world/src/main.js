@@ -39,7 +39,9 @@ function requestFrames(n) {
 }
 
 // --- boot ---
-const world = await buildWorld(scene, renderer, () => {});
+const world = await buildWorld(scene, renderer, (p) => {
+  loadingEl.textContent = `Loading the wilderness… ${Math.round(p * 100)}%`;
+});
 controls.getTerrainHeight = world.getTerrainHeight;
 controls.colliders = world.colliders;
 controls.setPose(8, 10, Math.PI * 0.85, -0.05); // spawn looking toward the campsite
@@ -80,7 +82,8 @@ function renderFrame() {
   elapsed += dt;
 
   if (!shotMode) controls.update(dt);
-  world.update(elapsed, dt, camera);
+  // shot mode uses a frozen wind time so screenshots are deterministic
+  world.update(shotMode ? 42.0 : elapsed, dt, camera);
 
   renderer.render(scene, camera);
 
