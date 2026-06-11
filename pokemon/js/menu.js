@@ -9,6 +9,17 @@
     this.busy = false;
   }
 
+  // story-driven objective shown atop the pause menu
+  function currentObjective(st) {
+    const f = st.flags;
+    if (!f.gotStarter) return "Visit PROF. CEDAR'S lab";
+    if (!f.badge) return "Beat FLINT at VERDANT GYM";
+    if (!f.badge2) return "Go east: beat MARINA in LAKESIDE";
+    if (!f.tunnelCleared) return "Stop Team Shadow in the TUNNEL";
+    if (!f.champion) return "Challenge VICTORY HALL!";
+    return "You are the CHAMPION!";
+  }
+
   MenuScene.prototype.options = function () {
     return ["POKéDEX", "POKéMON", "BAG", `${this.game.state.playerName}`, "SAVE", "OPTIONS", "EXIT"];
   };
@@ -99,6 +110,14 @@
     const opts = this.options();
     const w = 102;
     const h = opts.length * 14 + 10;
+    // objective banner
+    const obj = currentObjective(this.game.state);
+    const lines = window.Dialog.wrap(obj, 19).slice(0, 2);
+    const ow = Math.max(...lines.map((l) => UI.textWidth(l)), UI.textWidth("GOAL:")) + 16;
+    const oh = 20 + lines.length * 11;
+    UI.drawBox(ctx, 3, 3, ow, oh);
+    UI.text(ctx, "GOAL:", 10, 9, "#6a7a9a");
+    lines.forEach((l, i) => UI.text(ctx, l, 10, 20 + i * 11));
     UI.drawBox(ctx, 240 - w - 3, 3, w, h);
     opts.forEach((opt, i) => {
       UI.text(ctx, opt, 240 - w + 12, 10 + i * 14);

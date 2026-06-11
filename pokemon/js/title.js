@@ -105,5 +105,70 @@
     UI.text(ctx, "A fan-made tribute", 66, 152, "#2c3e66");
   };
 
+  // ---------- credits (after beating the Champion) ----------
+  const CREDIT_LINES = [
+    "POCKET MONSTERS",
+    "VERDANT VERSION",
+    "",
+    "A fan-made tribute",
+    "",
+    "- CAST -",
+    "All 151 original Pokémon",
+    "",
+    "- STARRING -",
+    "You, the new CHAMPION",
+    "Your rival (still salty)",
+    "PROF. CEDAR",
+    "FLINT & MARINA",
+    "Team Shadow (defeated)",
+    "",
+    "- DATA & SPRITES -",
+    "PokeAPI / pokeapi.co",
+    "",
+    "Not affiliated with Nintendo,",
+    "Game Freak or The Pokémon Company",
+    "",
+    "Thanks for playing!",
+    "",
+    "THE END",
+  ];
+
+  function CreditsScene(game) {
+    this.game = game;
+    this.scroll = -170;
+    this.done = false;
+    AudioSys.playMusic("victory");
+  }
+
+  CreditsScene.prototype.update = function (dt) {
+    const totalH = CREDIT_LINES.length * 14;
+    if (this.scroll < totalH - 80) {
+      this.scroll += dt * 18;
+    } else {
+      this.done = true;
+    }
+    if (window.Input.pressed("a") && this.done) {
+      AudioSys.stopMusic();
+      const def = window.MAPS[this.game.state.map];
+      if (def && def.music) AudioSys.playMusic(def.music);
+      this.game.popScene();
+    }
+  };
+
+  CreditsScene.prototype.draw = function (ctx) {
+    ctx.fillStyle = "#0a0c14";
+    ctx.fillRect(0, 0, 240, 160);
+    CREDIT_LINES.forEach((line, i) => {
+      const y = Math.round(i * 14 - this.scroll);
+      if (y < -10 || y > 165) return;
+      const x = Math.round((240 - UI.textWidth(line)) / 2);
+      UI.text(ctx, line, x, y, i === 0 ? "#d23b3b" : "#f8f8f8");
+    });
+    if (this.done && Math.floor(performance.now() / 400) % 2 === 0) {
+      UI.text(ctx, "PRESS A", 99, 146, "#8fd0ff");
+    }
+  };
+
   window.TitleScene = TitleScene;
+  window.CreditsScene = CreditsScene;
 })();

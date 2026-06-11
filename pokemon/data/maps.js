@@ -213,8 +213,8 @@
         "T..AAAA...,,...RRRRRR..T", // 3
         "T..o+Do...,,...oWWDWo..T", // 4   center | house
         "T...,,....,,.....,,....T", // 5
-        "T...,,,,,,,,,,,,,,,....T", // 6
-        "T...,,....,,...........T", // 7
+        "T...,,,,,,,,,,,,,,,,,,,,", // 6  (east exit to Route 3)
+        "T...,,....,,...........,", // 7
         "T.f.,,....,,....f......T", // 8
         "T...,,..TT,,TT.........T", // 9
         "T..YYYY...,,...gggggg..T", // 10
@@ -231,6 +231,7 @@
       edges: {
         south: { map: "route1", alignX: -2 },
         north: { map: "route2", alignX: 0 },
+        east: { map: "route3", alignY: 0 },
       },
       warps: [
         { x: 5, y: 4, to: { map: "center", x: 5, y: 6, dir: "up" } },
@@ -243,6 +244,10 @@
         { x: 2, y: 17, text: "VERDANT CITY — The jewel of the green valley." },
         { x: 19, y: 17, text: "VERDANT GYM — Leader: FLINT. The Rock-Solid Trainer!" },
       ],
+      triggers: [
+        { x: 23, y: 6, script: "route3Gate" },
+        { x: 23, y: 7, script: "route3Gate" },
+      ],
       npcs: [
         {
           id: "city_oldman", variant: "oldman", x: 15, y: 8, dir: "down", movement: "wander",
@@ -254,8 +259,9 @@
         },
         // appears outside the gym after you win the badge
         { id: "rival_city", variant: "rival", x: 16, y: 14, dir: "down", movement: "static", script: "rival_city" },
+        // Team Shadow grunt blocks the east road until you have the badge
+        { id: "shadow_gate", variant: "clerk", x: 21, y: 6, dir: "left", movement: "static", script: "shadow_gate" },
       ],
-      triggers: [],
     },
 
     // ================= CITY HOUSE =================
@@ -431,6 +437,310 @@
           id: "r2_oldman", variant: "oldman", x: 16, y: 1, dir: "down", movement: "static",
           dialog: ["Beyond here the wilds get rough. Rare Pokémon rustle in this route's grass, they say."],
         },
+      ],
+      triggers: [],
+    },
+    // ================= ROUTE 3 (east, badge-gated) =================
+    route3: {
+      name: "ROUTE 3",
+      type: "outdoor",
+      music: "route",
+      border: "T",
+      encounters: "route3",
+      grid: [
+        "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT", // 0
+        "T...f....tttt.......f........T", // 1
+        "T..TT....tttt....TT....tttt..T", // 2
+        "T..TT....tttt....TT....tttt..T", // 3
+        "T................TT....tttt..T", // 4
+        "T.....r......................T", // 5
+        ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,", // 6
+        ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,", // 7
+        "T............................T", // 8
+        "T..llllll....llllll....llll..T", // 9
+        "T............................T", // 10
+        "T..ttttt.....f......ttttt....T", // 11
+        "T..ttttt............ttttt....T", // 12
+        "T..ttttt..TT........ttttt..f.T", // 13
+        "T.........TT.........s.......T", // 14
+        "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT", // 15
+      ],
+      edges: {
+        west: { map: "city", alignY: 0 },
+        east: { map: "lakeside", alignY: 0 },
+      },
+      warps: [],
+      signs: [
+        { x: 21, y: 14, text: "ROUTE 3 — East: LAKESIDE TOWN. Beware of strong wild Pokémon!" },
+      ],
+      npcs: [
+        { id: "t_r3_camper", variant: "boy", x: 7, y: 4, dir: "down", movement: "static", trainer: "r3_camper" },
+        { id: "t_r3_lass", variant: "lass", x: 14, y: 8, dir: "down", movement: "static", trainer: "r3_lass" },
+        { id: "t_r3_youngster", variant: "boy", x: 23, y: 10, dir: "left", movement: "static", trainer: "r3_youngster" },
+        { id: "t_r3_picnic", variant: "girl", x: 5, y: 10, dir: "right", movement: "static", trainer: "r3_picnic" },
+        {
+          id: "r3_oldman", variant: "oldman", x: 3, y: 8, dir: "down", movement: "static",
+          dialog: ["Trainers here only battle if you talk to them. Hop the ledges to skip back west quickly!"],
+        },
+      ],
+      triggers: [],
+    },
+
+    // ================= LAKESIDE TOWN =================
+    lakeside: {
+      name: "LAKESIDE TOWN",
+      type: "outdoor",
+      music: "town",
+      border: "T",
+      encounters: null,
+      grid: [
+        "TTTTTTTTTTTrrDrrTTTTTT", // 0  cave mouth
+        "T...........,,......fT", // 1
+        "T..AAAA.....,,..RRRR.T", // 2
+        "T..AAAA.....,,..RRRR.T", // 3
+        "T..o+Do.....,,..oWDo.T", // 4
+        "T...,,......,,....,..T", // 5
+        ",,,,,,,,,,,,,,,,,,,,.T", // 6
+        ",,,,,,,,,,,,,,,,,,,,.T", // 7
+        "T...,,......,,.......T", // 8
+        "T..YYYY.....,,..gggggT", // 9
+        "T..YYYY.....,,..gggggT", // 10
+        "T..oMDo.....,,..gDDggT", // 11
+        "T...,,......,,...,,..T", // 12
+        "T...,,,,,,,,,,,,,,,..T", // 13
+        "T..f.....www.........T", // 14
+        "T...s...wwwww...f....T", // 15
+        "T..ddd..wwwww........T", // 16
+        "TTTTTTTTTTTTTTTTTTTTTT", // 17
+      ],
+      edges: {
+        west: { map: "route3", alignY: 0 },
+      },
+      warps: [
+        { x: 13, y: 0, to: { map: "tunnel", x: 11, y: 17, dir: "up" } },
+        { x: 5, y: 4, to: { map: "center", x: 5, y: 6, dir: "up" } },
+        { x: 5, y: 11, to: { map: "mart", x: 5, y: 6, dir: "up" } },
+        { x: 18, y: 4, to: { map: "lakeside_house", x: 5, y: 6, dir: "up" } },
+        { x: 17, y: 11, to: { map: "gym2", x: 5, y: 12, dir: "up" } },
+        { x: 18, y: 11, to: { map: "gym2", x: 5, y: 12, dir: "up" } },
+      ],
+      signs: [
+        { x: 4, y: 15, text: "LAKESIDE TOWN — Where the water sparkles and trainers gather." },
+      ],
+      npcs: [
+        {
+          id: "lake_girl", variant: "girl", x: 8, y: 12, dir: "down", movement: "wander",
+          dialog: ["MARINA's Water-types splash hard! Electric or Grass moves will shock her team."],
+        },
+        {
+          id: "lake_fisher", variant: "oldman", x: 3, y: 16, dir: "down", movement: "static",
+          dialog: ["The cave up north is GRANITE TUNNEL. Team Shadow goons have been lurking in there…"],
+        },
+        // grunt blocks the tunnel until badge 2
+        { id: "shadow_cave", variant: "clerk", x: 13, y: 1, dir: "down", movement: "static", script: "shadow_cave" },
+      ],
+      triggers: [
+        { x: 13, y: 0, script: "tunnelGate" },
+        { x: 14, y: 0, script: "tunnelGate" },
+      ],
+    },
+
+    // ================= LAKESIDE HOUSE =================
+    lakeside_house: {
+      name: "LAKESIDE HOUSE",
+      type: "indoor",
+      music: "town",
+      border: "#",
+      grid: [
+        "##########",
+        "#B==V==BB#",
+        "#========#",
+        "#==xh====#",
+        "#p======p#",
+        "#========#",
+        "#========#",
+        "#####~####",
+      ],
+      warps: [{ x: 5, y: 7, to: { map: "lakeside", x: 18, y: 5, dir: "down" } }],
+      signs: [],
+      npcs: [
+        {
+          id: "lake_house_man", variant: "boy", x: 2, y: 3, dir: "down", movement: "static",
+          dialog: [
+            "I saw Team Shadow drag a crying kid's POKéMON into GRANITE TUNNEL!",
+            "Someone strong enough should teach those goons a lesson.",
+          ],
+        },
+      ],
+      triggers: [],
+    },
+
+    // ================= GYM 2 (Water) =================
+    gym2: {
+      name: "LAKESIDE GYM",
+      type: "indoor",
+      music: "gym",
+      border: "#",
+      grid: [
+        "############",
+        "#====LL====#",
+        "#==========#",
+        "#--u====u--#",
+        "#--========#",
+        "#--==u==---#",
+        "#---====---#",
+        "#--u====u--#",
+        "#--========#",
+        "#---==u=---#",
+        "#==========#",
+        "#==========#",
+        "#####~######",
+      ],
+      warps: [{ x: 5, y: 12, to: { map: "lakeside", x: 17, y: 12, dir: "down" } }],
+      signs: [],
+      npcs: [
+        { id: "gym2leader", variant: "nurse", x: 5, y: 2, dir: "down", movement: "static", script: "gym2leader" },
+        { id: "t_gym2_swim1", variant: "lass", x: 3, y: 6, dir: "right", movement: "static", trainer: "gym2_swim1" },
+        { id: "t_gym2_swim2", variant: "boy", x: 8, y: 8, dir: "left", movement: "static", trainer: "gym2_swim2" },
+        {
+          id: "gym2_guide", variant: "oldman", x: 8, y: 11, dir: "left", movement: "static",
+          dialog: ["Yo, champ in the making! MARINA's water Pokémon wash trainers away. Got anything Electric or Grass?"],
+        },
+      ],
+      triggers: [],
+    },
+
+    // ================= GRANITE TUNNEL =================
+    tunnel: {
+      name: "GRANITE TUNNEL",
+      type: "indoor",
+      music: "gym",
+      border: "K",
+      encounters: "tunnel",
+      grid: [
+        "KKKKKKKKKKK::KKKKKKKKKKK", // 0
+        "K::::::::::::::::::::::K", // 1
+        "K::*:::KKKK::::KKK:::::K", // 2
+        "K::::::KKKK:::::KK::*::K", // 3
+        "K:::::::::::::::::::::::", // 4 -> dead end? no, wall right side
+        "K::::::::::::::::::::::K", // 5
+        "KKKKKK::::KKKKK::::KKKKK", // 6
+        "K:::::::::::::::::::::*K", // 7
+        "K::*::::::::::::::::::::", // 8 -> fix
+        "K::::::KKKKKKKK::::::::K", // 9
+        "K::::::K::::::K::::::::K", // 10
+        "K::::::K:*::::K:::KKK::K", // 11
+        "K::::::K::::::K:::KKK::K", // 12
+        "K::::::KKKKKKKK::::::::K", // 13
+        "K::::::::::::::::::::::K", // 14
+        "K:::KKK::::::::::KK::::K", // 15
+        "K:::KKK::::*:::::KK::::K", // 16
+        "K::::::::::~:::::::::::K", // 17
+        "KKKKKKKKKKK::KKKKKKKKKKK", // 18
+      ],
+      edges: {
+        north: { map: "summit", alignX: -2 },
+      },
+      warps: [
+        { x: 11, y: 17, to: { map: "lakeside", x: 13, y: 1, dir: "down" } },
+      ],
+      signs: [],
+      npcs: [
+        { id: "t_tun_grunt1", variant: "clerk", x: 8, y: 7, dir: "right", movement: "static", trainer: "tun_grunt1" },
+        { id: "t_tun_grunt2", variant: "clerk", x: 16, y: 10, dir: "left", movement: "static", trainer: "tun_grunt2" },
+        { id: "t_tun_hiker", variant: "bugcatcher", x: 4, y: 14, dir: "right", movement: "static", trainer: "tun_hiker" },
+        { id: "tunnel_kid", variant: "boy", x: 12, y: 5, dir: "down", movement: "static", script: "tunnel_kid" },
+      ],
+      triggers: [],
+    },
+
+    // ================= SUMMIT VILLAGE =================
+    summit: {
+      name: "SUMMIT VILLAGE",
+      type: "outdoor",
+      music: "center",
+      border: "P",
+      encounters: null,
+      grid: [
+        "PPPPPPPPPPPPPPPPPP", // 0
+        "P....f...WWWWW...P", // 1
+        "P..PP....WWDWW...P", // 2
+        "P.........,.....fP", // 3
+        "P..AAAA....,..PP.P", // 4
+        "P..AAAA....,.....P", // 5
+        "P..oWDo...,,..r..P", // 6
+        "P...,.....,......P", // 7
+        "P...,,,,,,,,..s..P", // 8
+        "P.f......,,......P", // 9
+        "PPPPPPPPP,,PPPPPPP", // 10
+      ],
+      edges: {
+        south: { map: "tunnel", alignX: 2 },
+      },
+      warps: [
+        { x: 5, y: 6, to: { map: "resthouse", x: 4, y: 5, dir: "up" } },
+        { x: 11, y: 2, to: { map: "hall", x: 4, y: 9, dir: "up" } },
+      ],
+      signs: [
+        { x: 14, y: 8, text: "SUMMIT VILLAGE — Home of VICTORY HALL. Only true badge holders may enter." },
+      ],
+      npcs: [
+        {
+          id: "summit_girl", variant: "girl", x: 13, y: 7, dir: "down", movement: "wander",
+          dialog: ["The CHAMPION waits inside VICTORY HALL. They say he's a kid from PALLET HOLLOW with a real attitude…"],
+        },
+        { id: "hall_guard", variant: "oldman", x: 12, y: 3, dir: "left", movement: "static", script: "hall_guard" },
+      ],
+      triggers: [
+        { x: 11, y: 2, script: "hallGate" },
+      ],
+    },
+
+    // ================= REST HOUSE =================
+    resthouse: {
+      name: "REST HOUSE",
+      type: "indoor",
+      music: "center",
+      border: "#",
+      grid: [
+        "##########",
+        "#H==cc==B#",
+        "#========#",
+        "#p======p#",
+        "#========#",
+        "####~#####",
+      ],
+      warps: [{ x: 4, y: 5, to: { map: "summit", x: 5, y: 7, dir: "down" } }],
+      signs: [],
+      npcs: [
+        { id: "rest_healer", variant: "nurse", x: 4, y: 2, dir: "down", movement: "static", script: "rest_healer" },
+      ],
+      triggers: [],
+    },
+
+    // ================= VICTORY HALL =================
+    hall: {
+      name: "VICTORY HALL",
+      type: "indoor",
+      music: "gym",
+      border: "#",
+      grid: [
+        "##########",
+        "#LL====LL#",
+        "#========#",
+        "#==~~~~==#",
+        "#==~~~~==#",
+        "#========#",
+        "#p======p#",
+        "#========#",
+        "#========#",
+        "#========#",
+        "####~#####",
+      ],
+      warps: [{ x: 4, y: 10, to: { map: "summit", x: 11, y: 3, dir: "down" } }],
+      signs: [],
+      npcs: [
+        { id: "champion", variant: "rival", x: 4, y: 2, dir: "down", movement: "static", script: "champion" },
       ],
       triggers: [],
     },

@@ -27,5 +27,30 @@
         { id: 63, min: 6, max: 8, weight: 4 },   // Abra
       ],
     },
+    route3: {
+      rate: 0.13,
+      slots: [
+        { id: 16, min: 10, max: 13, weight: 18 },  // Pidgey
+        { id: 21, min: 10, max: 13, weight: 14 },  // Spearow
+        { id: 43, min: 10, max: 13, weight: 12 },  // Oddish
+        { id: 69, min: 10, max: 13, weight: 12 },  // Bellsprout
+        { id: 54, min: 11, max: 13, weight: 10 },  // Psyduck
+        { id: 60, min: 11, max: 13, weight: 10 },  // Poliwag
+        { id: 58, min: 11, max: 13, weight: 8 },   // Growlithe
+        { id: 37, min: 11, max: 13, weight: 8 },   // Vulpix
+        { id: 63, min: 11, max: 13, weight: 5 },   // Abra
+        { id: 25, min: 11, max: 13, weight: 3 },   // Pikachu
+      ],
+    },
+    tunnel: {
+      rate: 0.13,
+      slots: [
+        { id: 41, min: 14, max: 17, weight: 35 },  // Zubat
+        { id: 74, min: 14, max: 17, weight: 28 },  // Geodude
+        { id: 66, min: 14, max: 17, weight: 18 },  // Machop
+        { id: 46, min: 14, max: 16, weight: 12 },  // Paras
+        { id: 95, min: 15, max: 18, weight: 7 },   // Onix
+      ],
+    },
   };
 })();

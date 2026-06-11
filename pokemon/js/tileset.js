@@ -236,6 +236,66 @@
         "................",
       ], { o: P.rock3, r: P.rock1, h: P.white, d: P.rock2 });
     }),
+    // cave wall
+    K: maker((c, x, y) => {
+      fillTile(c, x, y, "#5a4f48");
+      c.fillStyle = "#473e38";
+      c.fillRect(x, y + 5, 16, 1);
+      c.fillRect(x, y + 11, 16, 1);
+      c.fillRect(x + 5, y, 1, 5);
+      c.fillRect(x + 11, y + 6, 1, 5);
+      c.fillRect(x + 3, y + 12, 1, 4);
+      speckle(c, x, y, "#6b5f56", 13, 4);
+      px(c, x, y, 0, 15, "#332c27", 16, 1);
+    }),
+    // cave floor
+    ":": maker((c, x, y) => {
+      fillTile(c, x, y, "#8a7d6e");
+      speckle(c, x, y, "#7b6f61", 7, 2);
+      speckle(c, x, y, "#9c8e7d", 17, 9);
+      speckle(c, x, y, "#6b6054", 29, 5);
+    }),
+    // crystal (solid, decorative)
+    "*": maker((c, x, y) => {
+      PAINTERS[":"](c, x, y);
+      template(c, x, y, [
+        "................",
+        "................",
+        "......o.........",
+        ".....obo..o.....",
+        ".....obdo.obo...",
+        "....obbdoobdo...",
+        "....obddooddo...",
+        "...obbddobddo...",
+        "...obdddobdddo..",
+        "...oddddoodddo..",
+        "....oooo..ooo...",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+      ], { o: "#3a3160", b: "#9c8ee0", d: "#6e5fc0" });
+    }),
+    // dock planks (walkable)
+    d: maker((c, x, y) => {
+      fillTile(c, x, y, "#c79c5e");
+      c.fillStyle = "#a37c42";
+      for (let i = 0; i < 4; i++) c.fillRect(x, y + 3 + i * 4, 16, 1);
+      c.fillRect(x + 1, y, 1, 16);
+      c.fillRect(x + 14, y, 1, 16);
+      speckle(c, x, y, "#b78c50", 19, 3);
+    }),
+    // puddle (walkable, gym 2 deco)
+    u: maker((c, x, y, frame) => {
+      PAINTERS["-"](c, x, y);
+      c.fillStyle = frame % 2 ? "#9cc6f2" : "#7fb2e8";
+      c.beginPath();
+      c.ellipse(x + 8, y + 8, 6, 4, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "#c4ddf6";
+      c.fillRect(x + 5, y + 6, 3, 1);
+    }),
     // indoor boulder (gym)
     k: maker((c, x, y) => {
       PAINTERS["="](c, x, y);
@@ -481,7 +541,7 @@
   }
 
   const SOLID = new Set(["T", "P", "w", "F", "r", "k", "s", "R", "Y", "A", "W", "o", "+", "M", "g",
-    "#", "c", "B", "b", "x", "V", "p", "C", "L", "H"]);
+    "#", "c", "B", "b", "x", "V", "p", "C", "L", "H", "K", "*"]);
   const WALK_BEHIND = new Set(); // (kept simple: no overhang tiles)
 
   const Tileset = {

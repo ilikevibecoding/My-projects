@@ -70,6 +70,8 @@
     const flags = this.game.state.flags;
     if (npc.id === "rival_lab") return !flags.rivalLabDone;
     if (npc.id === "rival_city") return !!flags.badge && !flags.rivalCityDone;
+    if (npc.id === "shadow_gate") return !flags.badge;     // steps aside after badge 1
+    if (npc.id === "shadow_cave") return !flags.badge2;    // steps aside after badge 2
     return true;
   };
 
@@ -429,12 +431,22 @@
   // blocking triggers; returns true if movement was blocked
   OverworldScene.prototype.runBlockTrigger = function (trig) {
     const st = this.game.state;
-    if (trig.script === "needStarter" && !st.flags.gotStarter) {
+    const block = (text) => {
       this.busy = true;
-      window.Dialog.say("PROF. CEDAR: Hey! Wait! It's dangerous to go out in the tall grass without a Pokémon! Come to my lab first!").then(() => {
-        this.busy = false;
-      });
+      window.Dialog.say(text).then(() => { this.busy = false; });
       return true;
+    };
+    if (trig.script === "needStarter" && !st.flags.gotStarter) {
+      return block("PROF. CEDAR: Hey! Wait! It's dangerous to go out in the tall grass without a Pokémon! Come to my lab first!");
+    }
+    if (trig.script === "route3Gate" && !st.flags.badge) {
+      return block("GRUNT: Road's closed, squirt. Team Shadow business! …Unless you've got a GYM BADGE, beat it!");
+    }
+    if (trig.script === "tunnelGate" && !st.flags.badge2) {
+      return block("GRUNT: GRANITE TUNNEL is Team Shadow turf! No entry! …What, you want the CASCADE BADGE first? Ha!");
+    }
+    if (trig.script === "hallGate" && !(st.flags.badge && st.flags.badge2)) {
+      return block("GUARD: VICTORY HALL is for proven trainers only. Show me BOTH badges — BOULDER and CASCADE!");
     }
     return false;
   };
@@ -674,6 +686,96 @@
           await D.say(`${st.playerName} received the BOULDER BADGE!`);
           await D.say("FLINT: That badge proves your skill. Your Pokémon's attack power grows with your confidence!");
           await D.say("FLINT: You've beaten the VERDANT GYM — you're a true Pokémon trainer now. Congratulations, champ!");
+        }
+      });
+    },
+
+    async shadow_gate(game) {
+      await window.Dialog.say("GRUNT: Team Shadow is expanding east! No badge, no passage — boss's orders!");
+    },
+
+    async shadow_cave(game) {
+      await window.Dialog.say("GRUNT: The tunnel's ours! Only show-offs with the CASCADE BADGE would dare push past me!");
+    },
+
+    async tunnel_kid(game) {
+      const D = window.Dialog;
+      const st = game.state;
+      if (st.flags.trainers.t_tun_grunt1 && st.flags.trainers.t_tun_grunt2) {
+        if (!st.flags.tunnelCleared) {
+          st.flags.tunnelCleared = true;
+          window.Bag.add(st, "ultraball", 3);
+          AudioSys.sfx("levelup");
+          game.autoSave();
+          await D.say("KID: You beat Team Shadow! They gave my POKéMON back! Take these — you've earned them!");
+          await D.say(`${st.playerName} received 3 ULTRA BALLS!`);
+        } else {
+          await D.say("KID: Thank you again! VICTORY HALL is past the north exit. Good luck!");
+        }
+      } else {
+        await D.say("KID: *sniff* Team Shadow took my POKéMON… Those two grunts over there have it! Please help!");
+      }
+    },
+
+    async gym2leader(game, scene, npc) {
+      const D = window.Dialog;
+      const st = game.state;
+      if (st.flags.badge2) {
+        await D.say("MARINA: With BOULDER and CASCADE badges, you're ready for VICTORY HALL, up past GRANITE TUNNEL!");
+        return;
+      }
+      const t = window.TRAINERS.gym2leader;
+      await D.say(t.intro);
+      game.startBattle({ kind: "trainer", trainerId: "gym2leader", npcId: "gym2leader", isGym: true }, async (won) => {
+        if (won) {
+          st.flags.badge2 = true;
+          AudioSys.sfx("badge");
+          game.autoSave();
+          await D.say(`${st.playerName} received the CASCADE BADGE!`);
+          await D.say("MARINA: The road north is open now. GRANITE TUNNEL leads to SUMMIT VILLAGE — and VICTORY HALL.");
+        }
+      });
+    },
+
+    async rest_healer(game) {
+      const D = window.Dialog;
+      const st = game.state;
+      await D.say("HEALER: Weary trainers rest here before the final climb. Let me heal your team.");
+      st.party.forEach((m) => window.Mon.fullHeal(m));
+      st.lastHeal = { map: "resthouse", x: 4, y: 4, dir: "down" };
+      AudioSys.sfx("heal");
+      game.autoSave();
+      await D.say("HEALER: There. Go show VICTORY HALL what you're made of!");
+    },
+
+    async hall_guard(game) {
+      const st = game.state;
+      if (st.flags.badge && st.flags.badge2) {
+        await window.Dialog.say("GUARD: BOULDER and CASCADE… both badges! Go on in, challenger. The CHAMPION awaits.");
+      } else {
+        await window.Dialog.say("GUARD: VICTORY HALL is for trainers holding BOTH badges. No exceptions.");
+      }
+    },
+
+    async champion(game, scene, npc) {
+      const D = window.Dialog;
+      const st = game.state;
+      if (st.flags.champion) {
+        await D.say(`${st.rivalName}: Yeah yeah, you're the CHAMPION… for now. I'm already training for the rematch!`);
+        return;
+      }
+      const counterFinal = { 1: 6, 4: 9, 7: 3 }[st.starterId || 1]; // fully evolved counter to your starter
+      const t = window.TRAINERS.rival_final;
+      t.party = [[18, 24], [143, 23], [counterFinal, 26]]; // Pidgeot, Snorlax, final-evo counter
+      await D.say(t.intro);
+      game.startBattle({ kind: "trainer", trainerId: "rival_final", npcId: "champion" }, async (won) => {
+        if (won) {
+          st.flags.champion = true;
+          AudioSys.sfx("badge");
+          game.autoSave();
+          await D.say(`${st.playerName} defeated the CHAMPION!`);
+          await D.say("Your name has been etched into VICTORY HALL's history. You are the new CHAMPION!");
+          game.pushScene(new window.CreditsScene(game));
         }
       });
     },
