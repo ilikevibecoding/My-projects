@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { makeStarSprite, makeNebulaSprite, makePlanetMap, makeRockyMap } from './textures.js';
 
-const SUN_DIR = new THREE.Vector3(0.35, 0.30, -0.89).normalize();
+const SUN_DIR = new THREE.Vector3(0.58, 0.24, -0.78).normalize();
 export { SUN_DIR };
 
 function planetMaterial(map, rimColor, rimStrength = 1.4) {
@@ -37,9 +37,9 @@ function planetMaterial(map, rimColor, rimStrength = 1.4) {
         vec3 n = normalize(vNormalW);
         vec3 viewDir = normalize(cameraPosition - vPosW);
         vec3 tex = texture2D(map, vUv).rgb;
-        float d = clamp(dot(n, sunDir) * 1.15 + 0.12, 0.0, 1.0);
-        d = pow(d, 0.85);
-        vec3 col = tex * (d * 1.25 + 0.015);
+        float d = clamp(dot(n, sunDir) * 1.15 + 0.18, 0.0, 1.0);
+        d = pow(d, 0.8);
+        vec3 col = tex * (d * 1.35 + 0.05);
         float fres = pow(1.0 - clamp(dot(n, viewDir), 0.0, 1.0), 3.0);
         col += rimColor * fres * rimStrength * (d * 0.85 + 0.15);
         gl_FragColor = vec4(col, 1.0);
@@ -97,9 +97,9 @@ export function buildSpace(scene, rand) {
   // -------- parallax starfield: 3 drifting layers, wrap on Z
   const layers = [];
   const layerDefs = [
-    { count: 1300, box: 700, size: 1.1, speed: 26, opacity: 0.75 },
-    { count: 700, box: 900, size: 2.0, speed: 14, opacity: 0.9 },
-    { count: 280, box: 1200, size: 3.4, speed: 7, opacity: 1.0 },
+    { count: 1300, box: 700, size: 3.4, speed: 30, opacity: 1.0 },
+    { count: 700, box: 900, size: 2.4, speed: 15, opacity: 0.85 },
+    { count: 280, box: 1200, size: 1.7, speed: 7, opacity: 0.7 },
   ];
   for (const def of layerDefs) {
     const pos = new Float32Array(def.count * 3);
@@ -121,7 +121,7 @@ export function buildSpace(scene, rand) {
     const m = new THREE.PointsMaterial({
       size: def.size, map: starSprite, vertexColors: true,
       transparent: true, opacity: def.opacity, depthWrite: false,
-      blending: THREE.AdditiveBlending, sizeAttenuation: true, fog: false,
+      blending: THREE.AdditiveBlending, sizeAttenuation: false, fog: false,
     });
     const pts = new THREE.Points(g, m);
     pts.frustumCulled = false;
@@ -153,12 +153,12 @@ export function buildSpace(scene, rand) {
   // -------- gas giant abeam starboard, slides past the right portholes
   const gasMap = makePlanetMap(rand, { hueA: 14, hueB: 38 });
   const gas = new THREE.Mesh(
-    new THREE.SphereGeometry(240, 48, 32),
-    planetMaterial(gasMap, 0xffb46a, 1.5)
+    new THREE.SphereGeometry(260, 48, 32),
+    planetMaterial(gasMap, 0xffb46a, 2.0)
   );
   const gasAtm = new THREE.Mesh(
-    new THREE.SphereGeometry(240 * 1.045, 48, 32),
-    atmosphereMaterial(0xff9a50, 1.5)
+    new THREE.SphereGeometry(260 * 1.045, 48, 32),
+    atmosphereMaterial(0xff9a50, 1.9)
   );
   const gasGroup = new THREE.Group();
   gasGroup.add(gas, gasAtm);
@@ -167,12 +167,12 @@ export function buildSpace(scene, rand) {
   // -------- rocky moon ahead, visible through the cockpit viewport
   const rockMap = makeRockyMap(rand);
   const rock = new THREE.Mesh(
-    new THREE.SphereGeometry(110, 40, 28),
-    planetMaterial(rockMap, 0x8fd8e8, 1.1)
+    new THREE.SphereGeometry(150, 40, 28),
+    planetMaterial(rockMap, 0x8fd8e8, 1.5)
   );
   const rockAtm = new THREE.Mesh(
-    new THREE.SphereGeometry(110 * 1.05, 40, 28),
-    atmosphereMaterial(0x6fc8e8, 1.2)
+    new THREE.SphereGeometry(150 * 1.05, 40, 28),
+    atmosphereMaterial(0x6fc8e8, 1.5)
   );
   const rockGroup = new THREE.Group();
   rockGroup.add(rock, rockAtm);

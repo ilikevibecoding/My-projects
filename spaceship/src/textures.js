@@ -118,7 +118,7 @@ function bolt(ctx, hctx, x, y, r = 4) {
 // ---------------------------------------------------------------------------
 // Painted hull panels. Texture covers 4.8m x 2.5m (4 cols x 2 rows of panels).
 // ---------------------------------------------------------------------------
-export function makeHullMaps(rand, { base = [46, 14, 0.78], accent = '#b85c1e', size = 1024 } = {}) {
+export function makeHullMaps(rand, { base = [42, 12, 0.62], accent = '#b85c1e', size = 1024 } = {}) {
   const W = size, H = Math.round(size * (2.5 / 4.8));
   const [c, ctx] = cv(W, H);
   const [hc, hctx] = cv(W, H);
@@ -216,11 +216,11 @@ export function makeHullMaps(rand, { base = [46, 14, 0.78], accent = '#b85c1e', 
   // grime: multiply noise, stronger near seams
   const n = noiseCanvas(rand, 256, 5);
   ctx.globalCompositeOperation = 'multiply';
-  ctx.globalAlpha = 0.30;
+  ctx.globalAlpha = 0.38;
   ctx.drawImage(n, 0, 0, W, H);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
-  stains(ctx, rand, 26, W, H, 'rgba(48,40,30,A)', 0.30, 70);
+  stains(ctx, rand, 26, W, H, 'rgba(48,40,30,A)', 0.34, 70);
   stains(ctx, rand, 12, W, H, 'rgba(20,22,26,A)', 0.22, 40);
   scratches(ctx, rand, 70, W, H, 'rgba(190,192,196,0.8)', 0.5, 60);
   scratches(ctx, rand, 40, W, H, 'rgba(30,30,32,0.7)', 0.35, 80);
@@ -299,7 +299,7 @@ export function makeFloorMaps(rand, { size = 1024 } = {}) {
   const [c, ctx] = cv(size);
   const [hc, hctx] = cv(size);
   const [rc, rctx] = cv(size);
-  ctx.fillStyle = 'rgb(62,64,69)';
+  ctx.fillStyle = 'rgb(46,48,53)';
   ctx.fillRect(0, 0, size, size);
   hctx.fillStyle = '#808080'; hctx.fillRect(0, 0, size, size);
   rctx.fillStyle = '#787878'; rctx.fillRect(0, 0, size, size);

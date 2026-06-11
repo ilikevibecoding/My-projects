@@ -125,8 +125,8 @@ export function buildShip(scene, rand) {
       map: hazardMap, roughness: 0.7, metalness: 0.3, envMapIntensity: 0.5,
     }),
     glass: new THREE.MeshStandardMaterial({
-      color: 0x9fd8e8, roughness: 0.06, metalness: 0.9,
-      transparent: true, opacity: 0.10, envMapIntensity: 1.6,
+      color: 0x6a8fa0, roughness: 0.08, metalness: 0.0,
+      transparent: true, opacity: 0.06, envMapIntensity: 0.3,
       depthWrite: false, side: THREE.DoubleSide,
     }),
     mirror: new THREE.MeshStandardMaterial({
@@ -137,7 +137,7 @@ export function buildShip(scene, rand) {
     }),
     // emissives
     stripWarm: new THREE.MeshStandardMaterial({
-      color: 0x111111, emissive: 0xffd9a8, emissiveIntensity: 3.2, roughness: 0.4,
+      color: 0x111111, emissive: 0xffd9a8, emissiveIntensity: 2.4, roughness: 0.4,
     }),
     stripTeal: new THREE.MeshStandardMaterial({
       color: 0x05110f, emissive: 0x19d4d0, emissiveIntensity: 1.8, roughness: 0.4,
@@ -149,7 +149,7 @@ export function buildShip(scene, rand) {
       color: 0x110404, emissive: 0xff3020, emissiveIntensity: 2.0, roughness: 0.4,
     }),
   };
-  emissives.push({ mat: mats.stripWarm, day: 3.2, night: 0.35 });
+  emissives.push({ mat: mats.stripWarm, day: 2.4, night: 0.35 });
   emissives.push({ mat: mats.stripTeal, day: 1.8, night: 2.6 });
   emissives.push({ mat: mats.stripOrange, day: 2.2, night: 1.2 });
 
@@ -157,10 +157,10 @@ export function buildShip(scene, rand) {
   for (const kind of ['nav', 'eng', 'wave', 'text']) {
     const m = makeScreenMap(rand, kind);
     screenMats[kind] = new THREE.MeshStandardMaterial({
-      color: 0x000000, emissive: 0xffffff, emissiveMap: m, emissiveIntensity: 1.6,
+      color: 0x000000, emissive: 0xffffff, emissiveMap: m, emissiveIntensity: 1.35,
       roughness: 0.25, metalness: 0.0,
     });
-    emissives.push({ mat: screenMats[kind], day: 1.6, night: 0.9 });
+    emissives.push({ mat: screenMats[kind], day: 1.35, night: 0.85 });
   }
 
   // ------------------------------------------------------------ geometry utils
@@ -253,7 +253,7 @@ export function buildShip(scene, rand) {
     batch.add(mats.glass, g);
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2 + 0.39;
-      box(mats.metalDark, 0.05, 0.07, 0.07, x - dir * 0.06, 1.6 + Math.cos(a) * 0.5, z + Math.sin(a) * 0.5, { rx: -a });
+      cyl(mats.metalDark, 0.028, 0.028, 0.05, 8, x - dir * 0.05, 1.6 + Math.cos(a) * 0.51, z + Math.sin(a) * 0.51, { rz: Math.PI / 2 });
     }
     // depth tube through the wall
     cyl(mats.metalTube, 0.42, 0.42, 0.45, 18, x + dir * 0.08, 1.6, z, { rz: Math.PI / 2, open: true });
@@ -339,10 +339,10 @@ export function buildShip(scene, rand) {
     box(mats.stripWarm, 0.5, 0.02, 1.2, 0, CEIL - 0.075, z, {});
   }
   for (const z of [-6, 0, 6]) {
-    const pl = new THREE.PointLight(0xffd9a8, 14, 6.5, 2);
+    const pl = new THREE.PointLight(0xffd9a8, 9, 5.5, 2);
     pl.position.set(0, CEIL - 0.25, z);
     group.add(pl);
-    lights.push({ light: pl, day: 14, night: 1.2 });
+    lights.push({ light: pl, day: 9, night: 1.0 });
   }
   {
     const nl = new THREE.PointLight(0x2a55a0, 0, 12, 2);
@@ -445,6 +445,14 @@ export function buildShip(scene, rand) {
     // dashboard
     box(mats.metalDark, 3.4, 0.16, 0.9, 0, 0.97, -12.15, { rx: -0.18, texel: 1 });
     box(mats.hullLower, 3.4, 0.55, 0.7, 0, 0.62, -12.05, { hullUV: true, collide: true });
+    // screen housing bank behind the screens
+    {
+      const g = new THREE.BoxGeometry(3.0, 0.46, 0.1);
+      uvBoxWorld(g, 3.0, 0.46, 0.1, 1, 1);
+      M.compose(V.set(0, 1.21, -12.42), Q.setFromEuler(E.set(-0.42, 0, 0)), ONE);
+      g.applyMatrix4(M);
+      batch.add(mats.metalDark, g);
+    }
     const dashScreens = [
       { x: -1.05, kind: 'nav', w: 0.62 }, { x: -0.35, kind: 'wave', w: 0.6 },
       { x: 0.35, kind: 'eng', w: 0.6 }, { x: 1.05, kind: 'text', w: 0.62 },
@@ -499,10 +507,10 @@ export function buildShip(scene, rand) {
 
     // lights
     box(mats.stripWarm, 0.6, 0.02, 0.3, 0, CEIL - 0.06, -9.0, {});
-    const cl = new THREE.PointLight(0xffd0a0, 9, 6, 2);
+    const cl = new THREE.PointLight(0xffd0a0, 6.5, 5.5, 2);
     cl.position.set(0, CEIL - 0.4, -9.2);
     group.add(cl);
-    lights.push({ light: cl, day: 9, night: 1.0 });
+    lights.push({ light: cl, day: 6.5, night: 1.0 });
     const cg = new THREE.PointLight(0x2ad2cc, 5, 4, 2);
     cg.position.set(0, 1.25, -11.9);
     group.add(cg);
@@ -598,7 +606,7 @@ export function buildShip(scene, rand) {
     cyl(mats.metalDark, 0.025, 0.04, 0.5, 8, 5.3, 1.85, 5.0, { rz: 0.5 });
     cyl(mats.metal, 0.09, 0.13, 0.16, 10, 5.18, 2.05, 5.0, { rz: 0.7, open: true });
     box(mats.stripWarm, 0.06, 0.04, 0.06, 5.18, 2.0, 5.0, {});
-    const lamp = new THREE.SpotLight(0xffc890, 30, 8, 0.9, 0.55, 1.6);
+    const lamp = new THREE.SpotLight(0xffc890, 20, 8, 0.9, 0.55, 1.6);
     lamp.position.set(5.1, 2.1, 5.0);
     lamp.target.position.set(4.0, 0.5, 5.6);
     lamp.castShadow = true;
@@ -606,12 +614,12 @@ export function buildShip(scene, rand) {
     lamp.shadow.bias = -0.0015;
     lamp.shadow.normalBias = 0.02;
     group.add(lamp, lamp.target);
-    lights.push({ light: lamp, day: 30, night: 4 });
+    lights.push({ light: lamp, day: 20, night: 4 });
     box(mats.stripWarm, 0.5, 0.02, 0.5, 3.0, CEIL - 0.04, 3.2, {});
-    const ql = new THREE.PointLight(0xffd9a8, 7, 6, 2);
+    const ql = new THREE.PointLight(0xffd9a8, 5, 5.5, 2);
     ql.position.set(3.0, CEIL - 0.3, 3.2);
     group.add(ql);
-    lights.push({ light: ql, day: 7, night: 0.8 });
+    lights.push({ light: ql, day: 5, night: 0.8 });
     const qn = new THREE.PointLight(0x1980d4, 0, 7, 2);
     qn.position.set(4.5, 1.0, 5.5);
     group.add(qn);
@@ -696,7 +704,7 @@ export function buildShip(scene, rand) {
     cyl(mats.metalDark, 0.012, 0.012, 0.5, 6, -2.6, CEIL - 0.25, -2.3, {});
     cyl(mats.metal, 0.16, 0.05, 0.18, 12, -2.6, CEIL - 0.55, -2.3, { open: true });
     box(mats.stripWarm, 0.1, 0.03, 0.1, -2.6, CEIL - 0.62, -2.3, {});
-    const pend = new THREE.SpotLight(0xffc890, 26, 7, 1.15, 0.6, 1.5);
+    const pend = new THREE.SpotLight(0xffc890, 18, 7, 1.15, 0.6, 1.5);
     pend.position.set(-2.6, CEIL - 0.6, -2.3);
     pend.target.position.set(-2.6, 0, -2.3);
     pend.castShadow = true;
@@ -704,11 +712,11 @@ export function buildShip(scene, rand) {
     pend.shadow.bias = -0.0015;
     pend.shadow.normalBias = 0.02;
     group.add(pend, pend.target);
-    lights.push({ light: pend, day: 26, night: 3 });
-    const gFill = new THREE.PointLight(0xffd9a8, 6, 6, 2);
+    lights.push({ light: pend, day: 18, night: 3 });
+    const gFill = new THREE.PointLight(0xffd9a8, 4.5, 5.5, 2);
     gFill.position.set(-4.2, 2.1, -3.4);
     group.add(gFill);
-    lights.push({ light: gFill, day: 6, night: 0.7 });
+    lights.push({ light: gFill, day: 4.5, night: 0.7 });
 
     interactables.push({
       id: 'galley',
@@ -763,10 +771,10 @@ export function buildShip(scene, rand) {
 
     // cool light
     box(mats.stripTeal, 0.4, 0.02, 0.4, cxm, CEIL - 0.04, czm, {});
-    const bl = new THREE.PointLight(0x9fe8e0, 8, 5.5, 2);
+    const bl = new THREE.PointLight(0x9fe8e0, 6, 5, 2);
     bl.position.set(cxm, CEIL - 0.3, czm);
     group.add(bl);
-    lights.push({ light: bl, day: 8, night: 2.5 });
+    lights.push({ light: bl, day: 6, night: 2.5 });
 
     interactables.push({
       id: 'bathroom',

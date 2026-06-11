@@ -83,9 +83,9 @@ try {
 
   // --- interaction smoke test ---
   const interactions = [
-    { id: 'bed', x: 3.4, z: 4.2, yaw: 2.4, pitch: -0.35 },
-    { id: 'galley', x: -3.9, z: -3.2, yaw: Math.PI / 2, pitch: -0.25 },
-    { id: 'bathroom', x: -2.8, z: 4.4, yaw: Math.PI / 2, pitch: -0.15 },
+    { id: 'bed', x: 3.4, z: 4.2, yaw: -2.59, pitch: -0.55 },
+    { id: 'galley', x: -3.9, z: -3.2, yaw: Math.PI / 2, pitch: -0.7 },
+    { id: 'bathroom', x: -2.6, z: 3.9, yaw: 2.16, pitch: -0.57 },
   ];
   const interactResults = {};
   for (const it of interactions) {

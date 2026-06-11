@@ -46,7 +46,7 @@ const GrainVignetteShader = {
 
 export function createPost(renderer, scene, camera) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 0.95;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const size = renderer.getSize(new THREE.Vector2());
@@ -63,7 +63,7 @@ export function createPost(renderer, scene, camera) {
   n8ao.setQualityMode('Medium');
   composer.addPass(n8ao);
 
-  const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.55, 0.55, 0.82);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.42, 0.5, 0.85);
   composer.addPass(bloom);
 
   composer.addPass(new OutputPass());

@@ -31,7 +31,7 @@ const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerH
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envScene = new RoomEnvironment();
   scene.environment = pmrem.fromScene(envScene, 0.04).texture;
-  scene.environmentIntensity = 0.25;
+  scene.environmentIntensity = 0.10;
   pmrem.dispose();
 }
 
@@ -42,7 +42,7 @@ const space = buildSpace(scene, mulberry32(SEED + 7));
 
 // cool space key light through the cockpit viewport
 {
-  const sun = new THREE.DirectionalLight(0xbcd8ff, 2.6);
+  const sun = new THREE.DirectionalLight(0xbcd8ff, 2.2);
   sun.position.copy(SUN_DIR).multiplyScalar(40);
   sun.target.position.set(0, 1, -10);
   sun.castShadow = true;
@@ -56,11 +56,11 @@ const space = buildSpace(scene, mulberry32(SEED + 7));
   sun.shadow.bias = -0.0008;
   sun.shadow.normalBias = 0.03;
   scene.add(sun, sun.target);
-  ship.lights.push({ light: sun, day: 2.6, night: 2.6 });
+  ship.lights.push({ light: sun, day: 2.2, night: 2.2 });
   // faint ambient so blacks never fully crush
-  const amb = new THREE.AmbientLight(0x404a5a, 0.5);
+  const amb = new THREE.AmbientLight(0x36404e, 0.28);
   scene.add(amb);
-  ship.lights.push({ light: amb, day: 0.5, night: 0.35 });
+  ship.lights.push({ light: amb, day: 0.28, night: 0.2 });
 }
 
 const player = new Player(camera, renderer.domElement, ship.colliders);
