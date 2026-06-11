@@ -102,7 +102,12 @@
       ctx.moveTo(A.mx, A.my);
       ctx.lineTo(B.mx, B.my);
       ctx.stroke();
-      UI.text(ctx, r.label, Math.round((A.mx + B.mx) / 2) - 9, Math.round((A.my + B.my) / 2) - 10, "#8a6a40");
+      const vertical = Math.abs(A.mx - B.mx) < 20;
+      const lx = vertical
+        ? Math.round((A.mx + B.mx) / 2) + 6              // beside a vertical route
+        : Math.round((A.mx + B.mx) / 2) - UI.textWidth(r.label) / 2;
+      const ly = Math.round((A.my + B.my) / 2) - (vertical ? 3 : 11);
+      UI.text(ctx, r.label, lx, ly, "#8a6a40");
     }
     ctx.setLineDash([]);
 
