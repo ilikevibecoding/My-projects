@@ -1,0 +1,482 @@
+// Instanced grass (wind-swayed cards), two tree species, scattered rocks.
+import * as THREE from 'three';
+import { mulberry32, SimplexNoise, clamp, smoothstep } from './noise.js';
+import { placementInfo, POND, getTerrainNormal } from './terrain.js';
+import { makeBarkTexture, makeBirchBarkTexture, makeRockTexture } from './textures.js';
+
+export const LAYER_NO_REFLECT = 2; // grass excluded from water reflection
+
+const placeNoise = new SimplexNoise(777);
+
+// ---------------------------------------------------------------------------
+// Grass
+// ---------------------------------------------------------------------------
+function makeGrassCardTexture(size = 128) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  const rand = mulberry32(5150);
+  for (let i = 0; i < 9; i++) {
+    const bx = size * (0.12 + 0.76 * rand());
+    const topX = bx + (rand() - 0.5) * size * 0.3;
+    const w = size * (0.03 + rand() * 0.035);
+    const hgt = size * (0.55 + rand() * 0.45);
+    const g = ctx.createLinearGradient(0, size, 0, size - hgt);
+    const tone = 110 + rand() * 70;
+    g.addColorStop(0, `rgba(${tone * 0.45},${tone * 0.62},${tone * 0.28},1)`);
+    g.addColorStop(1, `rgba(${tone * 0.85},${tone},${tone * 0.5},1)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(bx - w, size);
+    ctx.quadraticCurveTo(bx - w * 0.4, size - hgt * 0.6, topX, size - hgt);
+    ctx.quadraticCurveTo(bx + w * 0.4, size - hgt * 0.6, bx + w, size);
+    ctx.closePath();
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+export function createGrass() {
+  const COUNT = 60000;
+  // crossed pair of cards
+  const card = new THREE.PlaneGeometry(0.85, 0.75, 1, 2);
+  card.translate(0, 0.375, 0);
+  const card2 = card.clone().rotateY(Math.PI / 2);
+  const merged = mergeGeoms([card, card2]);
+
+  const tex = makeGrassCardTexture();
+  const material = new THREE.MeshStandardMaterial({
+    map: tex,
+    alphaTest: 0.42,
+    side: THREE.DoubleSide,
+    roughness: 0.92,
+    metalness: 0,
+  });
+
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = { value: 0 };
+    shader.uniforms.uCamPos = { value: new THREE.Vector3() };
+    material.userData.shader = shader;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+uniform float uTime;
+uniform vec3 uCamPos;
+`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+{
+  vec3 ipos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+  float phase = ipos.x * 1.7 + ipos.z * 2.3;
+  float hFrac = clamp(transformed.y / 0.75, 0.0, 1.0);
+  float sway = sin(uTime * 1.6 + phase) * 0.5 + sin(uTime * 2.7 + phase * 1.3) * 0.3;
+  float gust = sin(uTime * 0.5 + ipos.x * 0.05 + ipos.z * 0.07);
+  gust = max(gust, 0.0) * 0.7;
+  float amp = 0.10 + gust * 0.14;
+  transformed.x += sway * amp * hFrac * hFrac;
+  transformed.z += sway * amp * 0.6 * hFrac * hFrac;
+  // distance density fade: shrink far blades to nothing
+  float dCam = distance(ipos, uCamPos);
+  float fade = 1.0 - smoothstep(48.0, 78.0, dCam);
+  transformed.xyz *= fade;
+}
+`);
+  };
+
+  const mesh = new THREE.InstancedMesh(merged, material, COUNT);
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  mesh.layers.set(LAYER_NO_REFLECT);
+  mesh.name = 'grass';
+
+  const rand = mulberry32(31415);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const col = new THREE.Color();
+  let placed = 0;
+  let guard = 0;
+  while (placed < COUNT && guard++ < COUNT * 30) {
+    const r = Math.sqrt(rand()) * 92;
+    const a = rand() * Math.PI * 2;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    const info = placementInfo(x, z);
+    if (info.water || info.grassW < 0.35) continue;
+    // clumpy density via noise
+    const clump = placeNoise.noise2D(x * 0.05, z * 0.05) * 0.5 + 0.5;
+    if (rand() > info.grassW * (0.35 + clump * 0.75)) continue;
+
+    const s = 0.7 + rand() * 0.8 + clump * 0.3;
+    q.setFromAxisAngle(up, rand() * Math.PI * 2);
+    m.compose(
+      new THREE.Vector3(x, info.height - 0.03, z),
+      q,
+      new THREE.Vector3(0.8 + rand() * 0.5, s, 0.8 + rand() * 0.5),
+    );
+    mesh.setMatrixAt(placed, m);
+    // per-instance tint: green ↔ olive/yellow meadow variation
+    const t = clamp(clump * 0.8 + rand() * 0.35 - 0.15, 0, 1);
+    col.setRGB(0.55 + t * 0.5, 0.85 + t * 0.12, 0.45 - t * 0.12);
+    mesh.setColorAt(placed, col);
+    placed++;
+  }
+  mesh.count = placed;
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+
+  return mesh;
+}
+
+function mergeGeoms(geoms) {
+  // minimal merge for identical-attribute geometries (position/normal/uv)
+  let posCount = 0;
+  let idxCount = 0;
+  for (const g of geoms) {
+    posCount += g.attributes.position.count;
+    idxCount += g.index ? g.index.count : g.attributes.position.count;
+  }
+  const pos = new Float32Array(posCount * 3);
+  const norm = new Float32Array(posCount * 3);
+  const uv = new Float32Array(posCount * 2);
+  const idx = new Uint32Array(idxCount);
+  let vo = 0, io = 0;
+  for (const g of geoms) {
+    pos.set(g.attributes.position.array, vo * 3);
+    norm.set(g.attributes.normal.array, vo * 3);
+    uv.set(g.attributes.uv.array, vo * 2);
+    const gi = g.index ? g.index.array : [...Array(g.attributes.position.count).keys()];
+    for (let i = 0; i < gi.length; i++) idx[io + i] = gi[i] + vo;
+    vo += g.attributes.position.count;
+    io += gi.length;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
+  out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  out.setIndex(new THREE.BufferAttribute(idx, 1));
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Trees
+// ---------------------------------------------------------------------------
+function jitterGeometry(geo, noise, freq, amp, seedOff = 0) {
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const n = noise.noise3D(x * freq + seedOff, y * freq, z * freq);
+    const len = Math.hypot(x, z) || 1;
+    p.setX(i, x + (x / len) * n * amp);
+    p.setZ(i, z + (z / len) * n * amp);
+    p.setY(i, y + noise.noise3D(y * freq, x * freq + 9 + seedOff, z * freq) * amp * 0.5);
+  }
+  p.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function makePineGeometries() {
+  const jn = new SimplexNoise(8888);
+  const trunk = new THREE.CylinderGeometry(0.14, 0.26, 3.0, 7, 2);
+  trunk.translate(0, 1.5, 0);
+
+  const skirts = [];
+  const tiers = [
+    { r: 1.9, h: 2.6, y: 1.7 },
+    { r: 1.5, h: 2.3, y: 3.4 },
+    { r: 1.1, h: 2.0, y: 5.0 },
+    { r: 0.7, h: 1.7, y: 6.4 },
+  ];
+  for (const t of tiers) {
+    const cone = new THREE.ConeGeometry(t.r, t.h, 9, 2);
+    cone.translate(0, t.y + t.h * 0.4, 0);
+    jitterGeometry(cone, jn, 0.9, 0.16, t.y);
+    skirts.push(cone);
+  }
+  const foliage = mergeBasic(skirts);
+  return { trunk, foliage, height: 7.6 };
+}
+
+function makeBroadleafGeometries() {
+  const jn = new SimplexNoise(4444);
+  const trunk = new THREE.CylinderGeometry(0.10, 0.20, 2.8, 7, 3);
+  // slight lean + bend
+  const tp = trunk.attributes.position;
+  for (let i = 0; i < tp.count; i++) {
+    const y = tp.getY(i) + 1.4;
+    tp.setX(i, tp.getX(i) + Math.sin(y * 0.5) * 0.18);
+  }
+  trunk.translate(0, 1.4, 0);
+  trunk.computeVertexNormals();
+
+  const blobs = [];
+  const blobSpecs = [
+    { r: 1.5, x: 0.1, y: 3.6, z: 0 },
+    { r: 1.15, x: -0.9, y: 3.0, z: 0.5 },
+    { r: 1.05, x: 0.9, y: 3.1, z: -0.5 },
+    { r: 0.95, x: 0.2, y: 4.6, z: 0.3 },
+  ];
+  let k = 0;
+  for (const b of blobSpecs) {
+    const s = new THREE.IcosahedronGeometry(b.r, 1);
+    s.translate(b.x, b.y, b.z);
+    jitterGeometry(s, jn, 0.8, 0.3, k * 13.7);
+    blobs.push(s);
+    k++;
+  }
+  const foliage = mergeBasic(blobs);
+  return { trunk, foliage, height: 5.6 };
+}
+
+function mergeBasic(geoms) {
+  let posCount = 0, idxCount = 0;
+  for (const g of geoms) {
+    posCount += g.attributes.position.count;
+    idxCount += g.index ? g.index.count : g.attributes.position.count;
+  }
+  const pos = new Float32Array(posCount * 3);
+  const norm = new Float32Array(posCount * 3);
+  const idx = new Uint32Array(idxCount);
+  let vo = 0, io = 0;
+  for (const g of geoms) {
+    pos.set(g.attributes.position.array, vo * 3);
+    norm.set(g.attributes.normal.array, vo * 3);
+    const gi = g.index ? g.index.array : [...Array(g.attributes.position.count).keys()];
+    for (let i = 0; i < gi.length; i++) idx[io + i] = gi[i] + vo;
+    vo += g.attributes.position.count;
+    io += gi.length;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
+  out.setIndex(new THREE.BufferAttribute(idx, 1));
+  return out;
+}
+
+function windSwayMaterial(material, strength = 0.1) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = { value: 0 };
+    material.userData.shader = shader;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float uTime;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+{
+  vec3 ipos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+  float phase = ipos.x * 0.8 + ipos.z * 1.1;
+  float hf = clamp(transformed.y / 6.0, 0.0, 1.0);
+  transformed.x += sin(uTime * 0.9 + phase) * ${strength.toFixed(3)} * hf * hf;
+  transformed.z += cos(uTime * 0.7 + phase * 1.4) * ${(strength * 0.7).toFixed(3)} * hf * hf;
+}
+`);
+  };
+  return material;
+}
+
+function scatterTrees({ count, rand, minR, maxR, clusterCount, clusterRadius, avoid }) {
+  // clustered, organic placement — never a grid
+  const clusters = [];
+  for (let i = 0; i < clusterCount; i++) {
+    const a = rand() * Math.PI * 2;
+    const r = minR + (maxR - minR) * Math.pow(rand(), 0.7);
+    clusters.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
+  const out = [];
+  let guard = 0;
+  while (out.length < count && guard++ < count * 40) {
+    const c = clusters[Math.floor(rand() * clusters.length)];
+    const a = rand() * Math.PI * 2;
+    const rr = Math.pow(rand(), 0.6) * clusterRadius;
+    const x = c[0] + Math.cos(a) * rr;
+    const z = c[1] + Math.sin(a) * rr;
+    const r = Math.hypot(x, z);
+    if (r < minR * 0.8 || r > maxR * 1.15) continue;
+    const dPond = Math.hypot(x - POND.x, z - POND.z);
+    if (dPond < POND.r + 4) continue;
+    if (avoid && avoid(x, z)) continue;
+    const info = placementInfo(x, z);
+    if (info.water || info.slopeY < 0.62) continue;
+    // density modulated by noise so the edge looks grown
+    const dens = placeNoise.noise2D(x * 0.02 + 40, z * 0.02) * 0.5 + 0.5;
+    if (rand() > 0.35 + dens * 0.65) continue;
+    out.push({ x, z, h: info.height });
+  }
+  return out;
+}
+
+export function createTrees() {
+  const group = new THREE.Group();
+  group.name = 'trees';
+  const rand = mulberry32(777111);
+
+  const barkTex = makeBarkTexture();
+  const birchTex = makeBirchBarkTexture();
+
+  // --- pines ---
+  const pine = makePineGeometries();
+  const pineTrunkMat = new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95, color: 0xa88a6a });
+  const pineFoliageMat = windSwayMaterial(new THREE.MeshStandardMaterial({
+    color: 0xffffff, roughness: 0.9, flatShading: true,
+  }), 0.07);
+
+  const pinePts = [
+    // dense treeline ring bounding the world
+    ...scatterTrees({ count: 240, rand, minR: 88, maxR: 135, clusterCount: 26, clusterRadius: 16 }),
+    // forest edge lobe to the south-west (forest shot)
+    ...scatterTrees({ count: 110, rand, minR: 34, maxR: 80, clusterCount: 7, clusterRadius: 14, avoid: (x, z) => !(x < 8 && z < 4) }),
+    // sparse lone pines in the meadow
+    ...scatterTrees({ count: 10, rand, minR: 25, maxR: 70, clusterCount: 10, clusterRadius: 22 }),
+  ];
+
+  const pineTrunks = new THREE.InstancedMesh(pine.trunk, pineTrunkMat, pinePts.length);
+  const pineFol = new THREE.InstancedMesh(pine.foliage, pineFoliageMat, pinePts.length);
+  fillTreeInstances(pinePts, rand, pineTrunks, pineFol, {
+    sMin: 0.8, sMax: 1.9, sink: 0.25,
+    tintA: new THREE.Color(0x4d7a4a), tintB: new THREE.Color(0x2f5d40), tintC: new THREE.Color(0x6f8c4a),
+  });
+
+  // --- broadleaf (aspen-like) ---
+  const leaf = makeBroadleafGeometries();
+  const leafTrunkMat = new THREE.MeshStandardMaterial({ map: birchTex, roughness: 0.85, color: 0xf2ead8 });
+  const leafFoliageMat = windSwayMaterial(new THREE.MeshStandardMaterial({
+    color: 0xffffff, roughness: 0.88, flatShading: true,
+  }), 0.12);
+
+  const leafPts = [
+    ...scatterTrees({ count: 70, rand, minR: 28, maxR: 95, clusterCount: 8, clusterRadius: 10 }),
+    ...scatterTrees({ count: 18, rand, minR: 14, maxR: 42, clusterCount: 5, clusterRadius: 8 }),
+  ];
+  const leafTrunks = new THREE.InstancedMesh(leaf.trunk, leafTrunkMat, leafPts.length);
+  const leafFol = new THREE.InstancedMesh(leaf.foliage, leafFoliageMat, leafPts.length);
+  fillTreeInstances(leafPts, rand, leafTrunks, leafFol, {
+    sMin: 0.7, sMax: 1.5, sink: 0.2,
+    tintA: new THREE.Color(0x7ba04a), tintB: new THREE.Color(0xa8b04e), tintC: new THREE.Color(0x5e8c42),
+  });
+
+  for (const mh of [pineTrunks, pineFol, leafTrunks, leafFol]) {
+    mh.castShadow = true;
+    mh.receiveShadow = true;
+    group.add(mh);
+  }
+  return group;
+}
+
+function fillTreeInstances(pts, rand, trunkMesh, folMesh, opt) {
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const col = new THREE.Color();
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const s = opt.sMin + rand() * (opt.sMax - opt.sMin);
+    q.setFromAxisAngle(up, rand() * Math.PI * 2);
+    // slight random lean
+    const lean = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(rand() - 0.5, 0, rand() - 0.5).normalize(), (rand() - 0.5) * 0.09);
+    q.multiply(lean);
+    m.compose(new THREE.Vector3(p.x, p.h - opt.sink, p.z), q, new THREE.Vector3(s, s * (0.9 + rand() * 0.25), s));
+    trunkMesh.setMatrixAt(i, m);
+    folMesh.setMatrixAt(i, m);
+    const t = rand();
+    if (t < 0.5) col.copy(opt.tintA).lerp(opt.tintB, t * 2);
+    else col.copy(opt.tintA).lerp(opt.tintC, (t - 0.5) * 2);
+    col.multiplyScalar(0.85 + rand() * 0.35);
+    folMesh.setColorAt(i, col);
+  }
+  trunkMesh.instanceMatrix.needsUpdate = true;
+  folMesh.instanceMatrix.needsUpdate = true;
+  if (folMesh.instanceColor) folMesh.instanceColor.needsUpdate = true;
+}
+
+// ---------------------------------------------------------------------------
+// Rocks (triplanar-ish noise texture, FBM-displaced icosahedra, sunk in)
+// ---------------------------------------------------------------------------
+export function createRocks() {
+  const rockTex = makeRockTexture(256);
+  const jn = new SimplexNoise(2025);
+  const geo = new THREE.IcosahedronGeometry(1, 2);
+  jitterGeometry(geo, jn, 1.4, 0.32, 0);
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0.02, color: 0xffffff });
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.rockMap = { value: rockTex };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos2;\nvarying vec3 vWNorm2;')
+      .replace('#include <fog_vertex>', `#include <fog_vertex>
+#ifdef USE_INSTANCING
+vWPos2 = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;
+vWNorm2 = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal);
+#else
+vWPos2 = (modelMatrix * vec4(position, 1.0)).xyz;
+vWNorm2 = normalize(mat3(modelMatrix) * normal);
+#endif
+`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos2;\nvarying vec3 vWNorm2;\nuniform sampler2D rockMap;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+{
+  vec3 an = abs(vWNorm2);
+  an = an / (an.x + an.y + an.z);
+  float rs = 0.55;
+  vec3 rc = texture2D(rockMap, vWPos2.zy * rs).rgb * an.x
+          + texture2D(rockMap, vWPos2.xz * rs).rgb * an.y
+          + texture2D(rockMap, vWPos2.xy * rs).rgb * an.z;
+  diffuseColor.rgb *= rc * 1.05;
+}
+`);
+  };
+
+  const COUNT = 64;
+  const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+  const rand = mulberry32(606060);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  let placed = 0;
+  let guard = 0;
+  const norm = new THREE.Vector3();
+  while (placed < COUNT && guard++ < 4000) {
+    const a = rand() * Math.PI * 2;
+    const r = 12 + Math.pow(rand(), 0.6) * 110;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    const info = placementInfo(x, z);
+    if (info.water) continue;
+    // prefer slopes and shoreline
+    const dPond = Math.hypot(x - POND.x, z - POND.z);
+    const shoreBonus = smoothstep(POND.r + 6, POND.r + 1, dPond) * 0.7;
+    const want = info.rockW * 0.9 + shoreBonus + 0.08;
+    if (rand() > want) continue;
+    const s = 0.35 + Math.pow(rand(), 1.6) * 2.4;
+    e.set(rand() * Math.PI, rand() * Math.PI, rand() * Math.PI);
+    q.setFromEuler(e);
+    getTerrainNormal(x, z, norm);
+    m.compose(
+      new THREE.Vector3(x, info.height - s * (0.25 + rand() * 0.2), z),
+      q,
+      new THREE.Vector3(s * (0.8 + rand() * 0.5), s * (0.6 + rand() * 0.5), s * (0.8 + rand() * 0.5)),
+    );
+    mesh.setMatrixAt(placed, m);
+    placed++;
+  }
+  mesh.count = placed;
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.name = 'rocks';
+  return mesh;
+}
+
+// per-frame updates (wind time)
+export function updateVegetation(meshes, time, camPos) {
+  for (const mh of meshes) {
+    const sh = mh.material.userData.shader;
+    if (sh) {
+      if (sh.uniforms.uTime) sh.uniforms.uTime.value = time;
+      if (sh.uniforms.uCamPos) sh.uniforms.uCamPos.value.copy(camPos);
+    }
+  }
+}
