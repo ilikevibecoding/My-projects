@@ -1,0 +1,33 @@
+iteration: 1
+date: 2026-06-12T18:06:12.767Z
+
+FRAME STATS (SwiftShader headless — budgets, not real fps):
+{
+ "drawCalls": 58,
+ "triangles": 16063,
+ "frameMsAvg": 76.19,
+ "particles": {
+  "flames": 16,
+  "smoke": 33,
+  "dust": 0,
+  "poofs": 0,
+  "stars": 0
+ },
+ "renderer": "note: headless CI uses SwiftShader; ms not representative of real GPUs"
+}
+
+TELEMETRY VERDICTS:
+main: space reached at t=49.05 (target 60-90s)
+main: accel early=2.47 late=10.90 (late should exceed early)
+main: peak dragAcc below 2500m=0.402 vs dragAcc @>4500m=0.116 (low must exceed high even though speed is higher up there)
+lowtwr: maxAlt=0 (must stay ~0), fuel burned 720.0999999999999kg
+coast: apogee=108570.9m (< 5000), end phase=space (expect crashed)
+staged: stage events=[]
+
+BUILDER STATS: before={"mass":"6.95 t","thrust":"76 kN","fuel":"4.30 t","twr":"1.22"} after={"mass":"12.10 t","thrust":"76 kN","fuel":"8.60 t","twr":"0.70"} changed=true
+
+CONSOLE:
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[warning] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead.
+[error] Failed to load resource: the server responded with a status of 404 (Not Found)

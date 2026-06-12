@@ -1,0 +1,244 @@
+t=     0s alt=       0m v=      0 vUp=      0 m=    2130kg fuel=    510kg twr=     0 drag=     0 rho=    1.2 ready
+t=  1.01s alt=     5.5m v=  10.88 vUp=  10.88 m=  2113.9kg fuel=  493.9kg twr= 2.214 drag= 0.031 rho= 1.1941 flying
+t=  2.01s alt=    21.9m v=  21.81 vUp=  21.81 m=  2097.9kg fuel=  477.9kg twr= 2.249 drag= 0.123 rho= 1.1765 flying
+t=  3.01s alt=    49.3m v=  32.86 vUp=  32.86 m=  2081.9kg fuel=  461.9kg twr= 2.297 drag= 0.275 rho= 1.1477 flying
+t=  4.01s alt=    87.8m v=  44.04 vUp=  44.04 m=  2065.9kg fuel=  445.9kg twr= 2.359 drag= 0.482 rho= 1.1084 flying
+t=     5s alt=     137m v=  55.23 vUp=  55.23 m=    2050kg fuel=    430kg twr= 2.434 drag= 0.731 rho= 1.0599 flying
+t=     6s alt=     198m v=  66.63 vUp=  66.63 m=    2034kg fuel=    414kg twr= 2.526 drag= 1.015 rho= 1.0029 flying
+t=     7s alt=   270.4m v=  78.15 vUp=  78.15 m=    2018kg fuel=    398kg twr= 2.635 drag= 1.318 rho=  0.939 flying
+t=     8s alt=   354.4m v=  89.82 vUp=  89.82 m=    2002kg fuel=    382kg twr= 2.761 drag= 1.627 rho= 0.8701 flying
+t=     9s alt=   450.2m v= 101.67 vUp= 101.67 m=    1986kg fuel=    366kg twr= 2.907 drag= 1.926 rho= 0.7976 flying
+t=    10s alt=   557.9m v= 113.73 vUp= 113.73 m=    1970kg fuel=    350kg twr= 3.074 drag= 2.204 rho= 0.7232 flying
+t=    11s alt=   677.9m v= 126.05 vUp= 126.05 m=    1954kg fuel=    334kg twr= 3.265 drag= 2.448 rho= 0.6486 flying
+t= 12.01s alt=   811.4m v= 138.78 vUp= 138.78 m=  1937.9kg fuel=  317.9kg twr= 3.482 drag= 2.651 rho= 0.5745 flying
+t= 13.01s alt=   956.7m v= 151.77 vUp= 151.77 m=  1921.9kg fuel=  301.9kg twr= 3.726 drag= 2.802 rho= 0.5035 flying
+t= 14.01s alt=  1115.2m v= 165.18 vUp= 165.18 m=  1905.9kg fuel=  285.9kg twr= 4.002 drag= 2.898 rho= 0.4359 flying
+t= 15.01s alt=  1287.3m v= 179.06 vUp= 179.06 m=  1889.9kg fuel=  269.9kg twr= 4.312 drag= 2.937 rho= 0.3728 flying
+t= 16.01s alt=  1473.6m v= 193.46 vUp= 193.46 m=  1873.9kg fuel=  253.9kg twr=  4.66 drag=  2.92 rho= 0.3148 flying
+t= 17.01s alt=  1674.6m v= 208.44 vUp= 208.44 m=  1857.9kg fuel=  237.9kg twr= 5.052 drag= 2.848 rho= 0.2623 flying
+t= 18.01s alt=  1890.8m v= 224.04 vUp= 224.04 m=  1841.9kg fuel=  221.9kg twr= 5.491 drag= 2.727 rho= 0.2155 flying
+t= 19.01s alt=    2123m v=  240.3 vUp=  240.3 m=  1825.9kg fuel=  205.9kg twr= 5.985 drag= 2.563 rho= 0.1745 flying
+t= 20.01s alt=  2371.8m v= 257.25 vUp= 257.25 m=  1809.9kg fuel=  189.9kg twr= 6.538 drag= 2.364 rho= 0.1392 flying
+t= 21.01s alt=  2637.9m v=  274.9 vUp=  274.9 m=  1793.9kg fuel=  173.9kg twr= 7.159 drag= 2.139 rho= 0.1093 flying
+t= 22.01s alt=    2922m v= 293.26 vUp= 293.26 m=  1777.9kg fuel=  157.9kg twr= 7.854 drag= 1.897 rho= 0.0844 flying
+t= 23.01s alt=  3224.8m v= 312.33 vUp= 312.33 m=  1761.9kg fuel=  141.9kg twr= 8.634 drag= 1.649 rho= 0.0641 flying
+t= 24.01s alt=    3547m v= 332.11 vUp= 332.11 m=  1745.9kg fuel=  125.9kg twr= 9.508 drag= 1.404 rho= 0.0478 flying
+t= 25.01s alt=  3889.4m v= 352.57 vUp= 352.57 m=  1729.9kg fuel=  109.9kg twr=10.486 drag=  1.17 rho= 0.0351 flying
+t= 26.01s alt=  4252.6m v= 373.69 vUp= 373.69 m=  1713.9kg fuel=   93.9kg twr= 11.58 drag= 0.954 rho= 0.0252 flying
+t= 27.01s alt=  4637.2m v= 395.44 vUp= 395.44 m=  1697.9kg fuel=   77.9kg twr=12.804 drag=  0.76 rho= 0.0178 flying
+t= 28.01s alt=  5043.8m v= 417.77 vUp= 417.77 m=  1681.9kg fuel=   61.9kg twr=14.172 drag= 0.592 rho= 0.0123 space
+t= 29.01s alt=  5473.1m v= 440.66 vUp= 440.66 m=  1665.9kg fuel=   45.9kg twr=15.699 drag=  0.45 rho= 0.0083 space
+t= 30.01s alt=  5925.5m v= 464.07 vUp= 464.07 m=  1649.9kg fuel=   29.9kg twr=17.401 drag= 0.334 rho= 0.0055 space
+t= 31.01s alt=  6401.6m v= 487.97 vUp= 487.97 m=  1633.9kg fuel=   13.9kg twr=19.297 drag= 0.242 rho= 0.0036 space
+t= 32.01s alt=  6901.6m v= 509.08 vUp= 509.08 m=    1620kg fuel=      0kg twr=     0 drag= 0.169 rho= 0.0023 space
+t= 33.01s alt=    7410m v= 507.79 vUp= 507.79 m=    1620kg fuel=      0kg twr=     0 drag= 0.106 rho= 0.0014 space
+t= 34.01s alt=  7917.2m v= 506.65 vUp= 506.65 m=    1620kg fuel=      0kg twr=     0 drag= 0.066 rho= 0.0009 space
+t= 35.01s alt=  8423.3m v= 505.62 vUp= 505.62 m=    1620kg fuel=      0kg twr=     0 drag= 0.042 rho= 0.0006 space
+t= 36.01s alt=  8928.5m v= 504.69 vUp= 504.69 m=    1620kg fuel=      0kg twr=     0 drag= 0.026 rho= 0.0004 space
+t= 37.01s alt=  9432.7m v= 503.84 vUp= 503.84 m=    1620kg fuel=      0kg twr=     0 drag= 0.017 rho= 0.0002 space
+t= 38.01s alt=  9936.2m v= 503.06 vUp= 503.06 m=    1620kg fuel=      0kg twr=     0 drag=  0.01 rho= 0.0001 space
+t= 39.01s alt= 10438.9m v= 502.33 vUp= 502.33 m=    1620kg fuel=      0kg twr=     0 drag= 0.007 rho= 0.0001 space
+t= 40.01s alt= 10940.9m v= 501.66 vUp= 501.66 m=    1620kg fuel=      0kg twr=     0 drag= 0.004 rho= 0.0001 space
+t= 41.01s alt= 11442.2m v= 501.03 vUp= 501.03 m=    1620kg fuel=      0kg twr=     0 drag= 0.003 rho=      0 space
+t= 42.01s alt= 11942.9m v= 500.45 vUp= 500.45 m=    1620kg fuel=      0kg twr=     0 drag= 0.002 rho=      0 space
+t= 43.01s alt= 12443.1m v=  499.9 vUp=  499.9 m=    1620kg fuel=      0kg twr=     0 drag= 0.001 rho=      0 space
+t= 44.01s alt= 12942.7m v= 499.38 vUp= 499.38 m=    1620kg fuel=      0kg twr=     0 drag= 0.001 rho=      0 space
+t= 45.01s alt= 13441.9m v= 498.89 vUp= 498.89 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 46.01s alt= 13940.5m v= 498.43 vUp= 498.43 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 47.01s alt= 14438.7m v= 497.99 vUp= 497.99 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 48.01s alt= 14936.5m v= 497.58 vUp= 497.58 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 49.01s alt= 15433.9m v= 497.19 vUp= 497.19 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 50.01s alt= 15930.9m v= 496.82 vUp= 496.82 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 51.01s alt= 16427.5m v= 496.46 vUp= 496.46 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 52.01s alt= 16923.8m v= 496.13 vUp= 496.13 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 53.01s alt= 17419.8m v= 495.81 vUp= 495.81 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 54.01s alt= 17915.4m v=  495.5 vUp=  495.5 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 55.01s alt= 18410.8m v= 495.21 vUp= 495.21 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 56.01s alt= 18905.8m v= 494.92 vUp= 494.92 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 57.01s alt= 19400.6m v= 494.66 vUp= 494.66 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 58.01s alt= 19895.2m v=  494.4 vUp=  494.4 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 59.01s alt= 20389.4m v= 494.15 vUp= 494.15 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 60.01s alt= 20883.5m v= 493.91 vUp= 493.91 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 61.01s alt= 21377.3m v= 493.69 vUp= 493.69 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 62.01s alt= 21870.8m v= 493.47 vUp= 493.47 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 63.01s alt= 22364.2m v= 493.26 vUp= 493.26 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 64.01s alt= 22857.3m v= 493.05 vUp= 493.05 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 65.01s alt= 23350.3m v= 492.86 vUp= 492.86 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 66.01s alt= 23843.1m v= 492.67 vUp= 492.67 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t= 67.01s alt= 24335.6m v= 492.48 vUp= 492.48 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    68s alt= 24823.9m v= 492.31 vUp= 492.31 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    69s alt= 25316.2m v= 492.14 vUp= 492.14 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    70s alt= 25808.2m v= 491.97 vUp= 491.97 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    71s alt= 26300.1m v= 491.81 vUp= 491.81 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    72s alt= 26791.8m v= 491.66 vUp= 491.66 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    73s alt= 27283.4m v= 491.51 vUp= 491.51 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    74s alt= 27774.9m v= 491.37 vUp= 491.37 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    75s alt= 28266.2m v= 491.23 vUp= 491.23 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    76s alt= 28757.3m v= 491.09 vUp= 491.09 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    77s alt= 29248.3m v= 490.96 vUp= 490.96 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    78s alt= 29739.2m v= 490.83 vUp= 490.83 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    79s alt=   30230m v=  490.7 vUp=  490.7 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    80s alt= 30720.6m v= 490.58 vUp= 490.58 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    81s alt= 31211.2m v= 490.46 vUp= 490.46 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    82s alt= 31701.6m v= 490.35 vUp= 490.35 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    83s alt= 32191.9m v= 490.24 vUp= 490.24 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    84s alt=   32682m v= 490.13 vUp= 490.13 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    85s alt= 33172.1m v= 490.02 vUp= 490.02 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    86s alt= 33662.1m v= 489.92 vUp= 489.92 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    87s alt=   34152m v= 489.82 vUp= 489.82 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    88s alt= 34641.7m v= 489.72 vUp= 489.72 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    89s alt= 35131.4m v= 489.63 vUp= 489.63 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    90s alt=   35621m v= 489.54 vUp= 489.54 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    91s alt= 36110.5m v= 489.45 vUp= 489.45 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    92s alt= 36599.9m v= 489.36 vUp= 489.36 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    93s alt= 37089.2m v= 489.27 vUp= 489.27 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    94s alt= 37578.4m v= 489.19 vUp= 489.19 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    95s alt= 38067.6m v=  489.1 vUp=  489.1 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    96s alt= 38556.6m v= 489.02 vUp= 489.02 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    97s alt= 39045.6m v= 488.94 vUp= 488.94 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    98s alt= 39534.5m v= 488.87 vUp= 488.87 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=    99s alt= 40023.3m v= 488.79 vUp= 488.79 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   100s alt= 40512.1m v= 488.72 vUp= 488.72 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   101s alt= 41000.8m v= 488.65 vUp= 488.65 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   102s alt= 41489.4m v= 488.58 vUp= 488.58 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   103s alt= 41977.9m v= 488.51 vUp= 488.51 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   104s alt= 42466.4m v= 488.44 vUp= 488.44 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   105s alt= 42954.8m v= 488.37 vUp= 488.37 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   106s alt= 43443.2m v= 488.31 vUp= 488.31 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   107s alt= 43931.4m v= 488.25 vUp= 488.25 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   108s alt= 44419.7m v= 488.18 vUp= 488.18 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   109s alt= 44907.8m v= 488.12 vUp= 488.12 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   110s alt= 45395.9m v= 488.06 vUp= 488.06 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   111s alt= 45883.9m v= 488.01 vUp= 488.01 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   112s alt= 46371.9m v= 487.95 vUp= 487.95 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   113s alt= 46859.8m v= 487.89 vUp= 487.89 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   114s alt= 47347.7m v= 487.84 vUp= 487.84 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   115s alt= 47835.5m v= 487.78 vUp= 487.78 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   116s alt= 48323.3m v= 487.73 vUp= 487.73 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   117s alt=   48811m v= 487.68 vUp= 487.68 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   118s alt= 49298.6m v= 487.63 vUp= 487.63 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   119s alt= 49786.2m v= 487.58 vUp= 487.58 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   120s alt= 50273.8m v= 487.53 vUp= 487.53 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   121s alt= 50761.3m v= 487.48 vUp= 487.48 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   122s alt= 51248.7m v= 487.43 vUp= 487.43 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   123s alt= 51736.1m v= 487.38 vUp= 487.38 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   124s alt= 52223.5m v= 487.34 vUp= 487.34 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   125s alt= 52710.8m v= 487.29 vUp= 487.29 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   126s alt= 53198.1m v= 487.25 vUp= 487.25 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   127s alt= 53685.3m v= 487.21 vUp= 487.21 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   128s alt= 54172.5m v= 487.16 vUp= 487.16 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   129s alt= 54659.6m v= 487.12 vUp= 487.12 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   130s alt= 55146.7m v= 487.08 vUp= 487.08 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   131s alt= 55633.8m v= 487.04 vUp= 487.04 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   132s alt= 56120.8m v=    487 vUp=    487 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   133s alt= 56607.8m v= 486.96 vUp= 486.96 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   134s alt= 57094.7m v= 486.92 vUp= 486.92 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   135s alt= 57581.6m v= 486.88 vUp= 486.88 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   136s alt= 58068.5m v= 486.84 vUp= 486.84 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   137s alt= 58555.3m v= 486.81 vUp= 486.81 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   138s alt= 59042.1m v= 486.77 vUp= 486.77 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   139s alt= 59528.9m v= 486.73 vUp= 486.73 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   140s alt= 60015.6m v=  486.7 vUp=  486.7 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   141s alt= 60502.2m v= 486.66 vUp= 486.66 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   142s alt= 60988.9m v= 486.63 vUp= 486.63 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   143s alt= 61475.5m v=  486.6 vUp=  486.6 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   144s alt= 61962.1m v= 486.56 vUp= 486.56 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   145s alt= 62448.6m v= 486.53 vUp= 486.53 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   146s alt= 62935.1m v=  486.5 vUp=  486.5 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   147s alt= 63421.6m v= 486.46 vUp= 486.46 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   148s alt= 63908.1m v= 486.43 vUp= 486.43 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   149s alt= 64394.5m v=  486.4 vUp=  486.4 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   150s alt= 64880.9m v= 486.37 vUp= 486.37 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   151s alt= 65367.2m v= 486.34 vUp= 486.34 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   152s alt= 65853.6m v= 486.31 vUp= 486.31 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   153s alt= 66339.9m v= 486.28 vUp= 486.28 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   154s alt= 66826.1m v= 486.25 vUp= 486.25 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   155s alt= 67312.4m v= 486.23 vUp= 486.23 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   156s alt= 67798.6m v=  486.2 vUp=  486.2 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   157s alt= 68284.8m v= 486.17 vUp= 486.17 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   158s alt= 68770.9m v= 486.14 vUp= 486.14 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   159s alt=   69257m v= 486.11 vUp= 486.11 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   160s alt= 69743.1m v= 486.09 vUp= 486.09 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   161s alt= 70229.2m v= 486.06 vUp= 486.06 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   162s alt= 70715.3m v= 486.04 vUp= 486.04 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   163s alt= 71201.3m v= 486.01 vUp= 486.01 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   164s alt= 71687.3m v= 485.98 vUp= 485.98 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   165s alt= 72173.3m v= 485.96 vUp= 485.96 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   166s alt= 72659.2m v= 485.94 vUp= 485.94 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   167s alt= 73145.1m v= 485.91 vUp= 485.91 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   168s alt=   73631m v= 485.89 vUp= 485.89 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   169s alt= 74116.9m v= 485.86 vUp= 485.86 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   170s alt= 74602.8m v= 485.84 vUp= 485.84 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   171s alt= 75088.6m v= 485.82 vUp= 485.82 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   172s alt= 75574.4m v= 485.79 vUp= 485.79 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   173s alt= 76060.2m v= 485.77 vUp= 485.77 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   174s alt= 76545.9m v= 485.75 vUp= 485.75 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   175s alt= 77031.7m v= 485.73 vUp= 485.73 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   176s alt= 77517.4m v=  485.7 vUp=  485.7 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   177s alt= 78003.1m v= 485.68 vUp= 485.68 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   178s alt= 78488.7m v= 485.66 vUp= 485.66 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   179s alt= 78974.4m v= 485.64 vUp= 485.64 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=   180s alt=   79460m v= 485.62 vUp= 485.62 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=181.01s alt= 79949.7m v=  485.6 vUp=  485.6 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=182.01s alt= 80435.3m v= 485.58 vUp= 485.58 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=183.01s alt= 80920.8m v= 485.56 vUp= 485.56 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=184.01s alt= 81406.4m v= 485.54 vUp= 485.54 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=185.01s alt= 81891.9m v= 485.52 vUp= 485.52 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=186.01s alt= 82377.4m v=  485.5 vUp=  485.5 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=187.01s alt= 82862.9m v= 485.48 vUp= 485.48 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=188.01s alt= 83348.4m v= 485.46 vUp= 485.46 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=189.01s alt= 83833.8m v= 485.44 vUp= 485.44 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=190.01s alt= 84319.3m v= 485.42 vUp= 485.42 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=191.01s alt= 84804.7m v= 485.41 vUp= 485.41 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=192.01s alt= 85290.1m v= 485.39 vUp= 485.39 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=193.01s alt= 85775.5m v= 485.37 vUp= 485.37 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=194.01s alt= 86260.8m v= 485.35 vUp= 485.35 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=195.01s alt= 86746.2m v= 485.33 vUp= 485.33 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=196.01s alt= 87231.5m v= 485.32 vUp= 485.32 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=197.01s alt= 87716.8m v=  485.3 vUp=  485.3 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=198.01s alt= 88202.1m v= 485.28 vUp= 485.28 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=199.01s alt= 88687.4m v= 485.27 vUp= 485.27 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=200.01s alt= 89172.6m v= 485.25 vUp= 485.25 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=201.01s alt= 89657.9m v= 485.23 vUp= 485.23 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=202.01s alt= 90143.1m v= 485.22 vUp= 485.22 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=203.01s alt= 90628.3m v=  485.2 vUp=  485.2 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=204.01s alt= 91113.5m v= 485.18 vUp= 485.18 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=205.01s alt= 91598.7m v= 485.17 vUp= 485.17 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=206.01s alt= 92083.8m v= 485.15 vUp= 485.15 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=207.01s alt=   92569m v= 485.14 vUp= 485.14 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=208.01s alt= 93054.1m v= 485.12 vUp= 485.12 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=209.01s alt= 93539.2m v= 485.11 vUp= 485.11 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=210.01s alt= 94024.3m v= 485.09 vUp= 485.09 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=211.01s alt= 94509.4m v= 485.08 vUp= 485.08 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=212.01s alt= 94994.5m v= 485.06 vUp= 485.06 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=213.01s alt= 95479.5m v= 485.05 vUp= 485.05 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=214.01s alt= 95964.6m v= 485.03 vUp= 485.03 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=215.01s alt= 96449.6m v= 485.02 vUp= 485.02 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=216.01s alt= 96934.6m v=    485 vUp=    485 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=217.01s alt= 97419.6m v= 484.99 vUp= 484.99 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=218.01s alt= 97904.6m v= 484.98 vUp= 484.98 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=219.01s alt= 98389.6m v= 484.96 vUp= 484.96 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=220.01s alt= 98874.5m v= 484.95 vUp= 484.95 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=221.01s alt= 99359.5m v= 484.94 vUp= 484.94 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=222.01s alt= 99844.4m v= 484.92 vUp= 484.92 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=223.01s alt=100329.3m v= 484.91 vUp= 484.91 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=224.01s alt=100814.2m v=  484.9 vUp=  484.9 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=225.01s alt=101299.1m v= 484.88 vUp= 484.88 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=226.01s alt=  101784m v= 484.87 vUp= 484.87 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=227.01s alt=102268.8m v= 484.86 vUp= 484.86 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=228.01s alt=102753.7m v= 484.84 vUp= 484.84 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=229.01s alt=103238.5m v= 484.83 vUp= 484.83 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=230.01s alt=103723.4m v= 484.82 vUp= 484.82 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=231.01s alt=104208.2m v= 484.81 vUp= 484.81 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=232.01s alt=  104693m v= 484.79 vUp= 484.79 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=233.01s alt=105177.8m v= 484.78 vUp= 484.78 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=234.01s alt=105662.5m v= 484.77 vUp= 484.77 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=235.01s alt=106147.3m v= 484.76 vUp= 484.76 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=236.01s alt=  106632m v= 484.75 vUp= 484.75 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=237.01s alt=107116.8m v= 484.73 vUp= 484.73 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=238.01s alt=107601.5m v= 484.72 vUp= 484.72 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=239.01s alt=108086.2m v= 484.71 vUp= 484.71 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=240.01s alt=108570.9m v=  484.7 vUp=  484.7 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+t=240.01s alt=108570.9m v=  484.7 vUp=  484.7 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho=      0 space
+
+EVENTS: 0s:ignition  0.31s:liftoff  27.91s:space  31.88s:flameout
