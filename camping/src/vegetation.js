@@ -334,9 +334,25 @@ export function createTrees() {
   const barkTex = makeBarkTexture(256, 0.34); // brighter than camp logs: trunks live in canopy shade
   const birchTex = makeBirchBarkTexture();
 
+  // Trunks live under their own canopies: zero direct sun, and the hemisphere
+  // term lands deep in the ACES toe (probed at ~4/255). Boost INDIRECT light
+  // only — direct sun response stays physical, day/night ratios preserved.
+  function trunkAmbientBoost(material, boost) {
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uAmbientBoost = { value: boost };
+      material.userData.uAmbientBoost = shader.uniforms.uAmbientBoost;
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform float uAmbientBoost;')
+        .replace('#include <lights_fragment_end>',
+          '#include <lights_fragment_end>\n\treflectedLight.indirectDiffuse *= uAmbientBoost;');
+    };
+    return material;
+  }
+
   // --- pines ---
   const pine = makePineGeometries();
-  const pineTrunkMat = new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95, color: 0xc4a37c });
+  const pineTrunkMat = trunkAmbientBoost(
+    new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95, color: 0xc4a37c }), 6.0);
   const pineFoliageMat = windSwayMaterial(new THREE.MeshStandardMaterial({
     color: 0xffffff, roughness: 0.9, flatShading: true, side: THREE.DoubleSide,
   }), 0.07);

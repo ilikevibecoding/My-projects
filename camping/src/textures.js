@@ -119,7 +119,7 @@ export function makeBarkTexture(size = 256, base = 0.20) {
     const ridge = Math.abs(Math.sin((u + fbmTile(texNoise, u, v, 6) * 0.08) * Math.PI * 18));
     const grain = fbmTile(texNoise2, u * 2, v, 24, 3);
     let l = base + ridge * 0.18 + grain * 0.09;
-    return [l * 255 * 1.10, l * 255 * 0.80, l * 255 * 0.56];
+    return [l * 255 * 1.08, l * 255 * 0.84, l * 255 * 0.64];
   });
   return canvasTexture(c, { repeat: 1 });
 }
