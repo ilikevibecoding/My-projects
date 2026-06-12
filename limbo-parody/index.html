@@ -204,9 +204,9 @@ var blocks = [
   { x0: 5800, x1: 6900, top: 905  },        // clearing before the wheel pit
 
   /* --- S1: stone wheel pit --- */
-  { x0: 6900, x1: 7200, top: 1065 },        // pit: too deep to jump out bare
+  { x0: 6900, x1: 7160, top: 1065 },        // pit: too deep to jump out bare
   { x0: 6900, x1: 6936, top: 985  },        // left recovery step (back out only)
-  { x0: 7200, x1: 8060, top: 905  },        // S1 → S2 flats
+  { x0: 7160, x1: 8060, top: 905  },        // S1 → S2 flats
 
   /* --- S2: seesaw pool (8060-8660 is water) --- */
   { x0: 8060, x1: 8660, top: 1175 },        // pool 3 floor
@@ -225,7 +225,7 @@ var blocks = [
   { x0: 11160, x1: 12150, top: 905 },       // S5 cart flats
 
   /* --- S5: cart wall + finale --- */
-  { x0: 12150, x1: WORLD_X1, top: 715 }     // final high clearing
+  { x0: 12150, x1: WORLD_X1, top: 740 }     // final high clearing
 ];
 
 var terrainBodies = [];
@@ -326,7 +326,7 @@ var plankPin = Constraint.create({
 Composite.add(world, [plank, plankPin]);
 
 /* --- S5: wooden cart — deck on two free-spinning wheels --- */
-var cartDeck = Bodies.rectangle(11500, 820, 240, 26, {
+var cartDeck = Bodies.rectangle(11500, 826, 240, 26, {
   density: 0.0008,
   friction: 0.5,
   frictionStatic: 0.8,
@@ -335,8 +335,8 @@ var cartDeck = Bodies.rectangle(11500, 820, 240, 26, {
   label: 'cart'
 });
 var cartWheels = [
-  Bodies.circle(11420, 859, 46, { density: 0.0007, friction: 0.9, frictionAir: 0.018, label: 'cartwheel' }),
-  Bodies.circle(11580, 859, 46, { density: 0.0007, friction: 0.9, frictionAir: 0.018, label: 'cartwheel' })
+  Bodies.circle(11420, 865, 40, { density: 0.0011, friction: 0.9, frictionAir: 0.03, label: 'cartwheel' }),
+  Bodies.circle(11580, 865, 40, { density: 0.0011, friction: 0.9, frictionAir: 0.03, label: 'cartwheel' })
 ];
 var cartAxles = [
   Constraint.create({ bodyA: cartDeck, pointA: { x: -80, y: 39 }, bodyB: cartWheels[0], pointB: { x: 0, y: 0 }, length: 0, stiffness: 0.9 }),
@@ -1359,8 +1359,8 @@ var worldTrees = [
   { x: 8930, baseY: 907, h: 520, baseW: 30, seed: 99, cocoon: false, foliage: false, tuftVine: true },
   { x: 9890, baseY: 752, h: 560, baseW: 36, seed: 107, cocoon: false, foliage: false },
   { x: 11700, baseY: 907, h: 620, baseW: 44, seed: 113, cocoon: true, foliage: false },
-  { x: 12700, baseY: 717, h: 520, baseW: 34, seed: 127, cocoon: false, foliage: false },
-  { x: 13130, baseY: 717, h: 310, baseW: 26, seed: 131, cocoon: false, foliage: true }
+  { x: 12700, baseY: 742, h: 520, baseW: 34, seed: 127, cocoon: false, foliage: false },
+  { x: 13130, baseY: 742, h: 310, baseW: 26, seed: 131, cocoon: false, foliage: true }
 ];
 worldTrees.forEach(function (tr) { tr.geom = genTree(tr.seed, tr.h, tr.baseW, tr.foliage); });
 
@@ -1971,8 +1971,8 @@ function drawCart(c) {
   c.rect(113, -24, 7, 13);
   c.fill();
   c.restore();
-  drawWheelBody(c, cartWheels[0], 46);
-  drawWheelBody(c, cartWheels[1], 46);
+  drawWheelBody(c, cartWheels[0], 40);
+  drawWheelBody(c, cartWheels[1], 40);
 }
 
 function drawSeesaw(c) {
@@ -2000,7 +2000,7 @@ var LIGHT_POLES = [
   { x: 5862,  baseY: 903, h: 235, arm: -60, drip: true,  ph: 2.3 },
   { x: 8032,  baseY: 903, h: 262, arm: 84,  drip: true,  ph: 4.1 },
   { x: 9520,  baseY: 903, h: 245, arm: 56,  drip: false, ph: 1.5 },
-  { x: 12330, baseY: 713, h: 285, arm: 92,  drip: false, ph: 5.2 }
+  { x: 12330, baseY: 738, h: 285, arm: 92,  drip: false, ph: 5.2 }
 ];
 
 function lampPos(pole, t) {
