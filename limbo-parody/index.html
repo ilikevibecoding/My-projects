@@ -2152,8 +2152,8 @@ function drawLightPoles(c) {
 function drawEndGlow(c) {
   var t = tickCount / 60;
   for (var i = 0; i < 3; i++) {
-    var gx = 13040 + i * 36 + Math.sin(t * 0.9 + i * 2.1) * 14;
-    var gy = 610 + Math.sin(t * 1.3 + i * 1.4) * 18 - i * 26;
+    var gx = 12920 + i * 32 + Math.sin(t * 0.9 + i * 2.1) * 14;
+    var gy = 655 + Math.sin(t * 1.3 + i * 1.4) * 18 - i * 26;
     var r = 26 + Math.sin(t * 2 + i) * 5;
     var g = c.createRadialGradient(gx, gy, 0, gx, gy, r);
     g.addColorStop(0, 'rgba(255,255,255,0.5)');
