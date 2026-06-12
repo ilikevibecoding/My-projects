@@ -184,3 +184,60 @@ error-free. All renders pixel-comparable to iter 4 thanks to seeded determinism.
 Zero code changes. Re-run the full pipeline and re-judge every item against the
 fresh evidence. Stop only if 11/11 holds.
 
+## Iteration 6 — confirmation run (second all-green → STOP)
+
+Evidence: `shots/iter_6/`. Zero code changes; full pipeline re-run and every shot
+re-judged from scratch. All renders match iter 5 (deterministic seeds), telemetry
+verdicts identical, console clean (only vite connect debug lines).
+
+| # | Item | Verdict | Notes |
+|---|------|---------|-------|
+| 1 | Rocket stylized-real | **PASS** | cream/orange/teal livery, KARMAN wordmark, pinstripes, portholes, panel lines — reads at pad, midair and space distances |
+| 2 | Exhaust sells | **PASS** | liftoff pad billow + hot core; midair bright wedge; high-alt orange-pink falloff; space wide translucent violet-pink vacuum plume; liftoff vs liftoff_b visibly different |
+| 3 | Climb gradient | **PASS** | light blue (pad) → blue + cumulus (960 m) → lavender (2.6 km) → deep indigo + limb + stars (3.9 km) → black (5.4 km) |
+| 4 | Launch site finished | **PASS** | striped/mottled terrain, pad ring + 01 + scorch, clamps, tower, floodlights, flag, generators; one sun, shadows agree |
+| 5 | Builder clean | **PASS** | stats assertion green both runs (TWR turns red on overload) |
+| 6 | Physics honest | **PASS** | space @64 s; accel 0.79→9.48; drag 0.319 low vs 0.099 high; lowtwr pinned at 0 m; coast apogee 3 388 m then crash; stage event @40.5 s |
+| 7 | Staging works | **PASS** | spent stage detached, tumbling ~90° over, falling clear of the plume; clean UI |
+| 8 | Camera never fails | **PASS** | every shot framed, no clipping, no UI/3D collisions |
+| 9 | Post balanced | **PASS** | ACES + bloom + AO + vignette + grain on; no blown or crushed regions |
+| 10 | Tech clean | **PASS*** | 304 calls / 117 k tris full pipeline (incl. shadow+GTAO+bloom chain); particles 14 flame/31 smoke vs caps 80/300; console clean; *SwiftShader caveat |
+| 11 | Cold-look | **PASS** | liftoff and high_altitude both pass as shots from a real stylized indie game |
+
+**Score: 11/11 — second consecutive all-green. Loop complete at iteration 6 of 14.**
+
+---
+
+## Final summary
+
+**Result: all 11 rubric items green for two consecutive iterations (5 and 6); the
+self-evaluating loop terminated at iteration 6 of a possible 14.**
+
+What got built (all procedural — zero downloaded models/textures):
+- **Builder**: stylized parts palette (canvas-rendered thumbnails), smart snap
+  stacking, live mass/thrust/fuel/TWR stats with red warning, launch handoff.
+- **Flight**: fixed-step (120 Hz) physics on a 4 km-radius mini planet —
+  exponential atmosphere, altitude-dependent drag, stage mass drops, debris
+  ballistics, crash/landing detection; deterministic via seeded RNGs.
+- **Visuals**: PBR-lit procedural rocket (canvas livery: wordmark, pinstripes,
+  portholes, panel lines), launch site (pad/tower/clamps/props/flag), clustered
+  cumulus billboards, gradient sky dome with altitude-driven palette, planet
+  limb shell, 2 200 stars, two-cone noise-shader plume + sprite billows with
+  vacuum widening/tinting, ground dust on ignition.
+- **Cameras**: chase rig with smoothing + terrain clamp, orbit (builder), debug
+  views for every money shot.
+- **Post**: ACES, GTAO, bloom (0.42/thr 0.9), vignette + film grain.
+- **Eval harness**: `tools/shots.mjs` (Playwright, SwiftShader headless) captures
+  8 deterministic screenshots, 4 telemetry scenarios, builder assertion and
+  frame budgets per iteration; `tools/tune.mjs` for physics sweeps in Node.
+
+Score history: iter 1 — 2/11 · iter 2 — 4/11 · iter 3 — 4/11 · iter 4 — 10/11 ·
+iter 5 — 11/11 · **iter 6 — 11/11 (stop)**.
+
+Known caveats (documented during the loop):
+- Headless frame-times are SwiftShader (software) numbers; the 60 fps target is
+  judged via budgets (304 draw calls / 117 k tris / particle caps / 1 k shadow
+  map), comfortably within mid-range laptop GPU territory.
+- Scope freeze respected: no orbit mechanics, no re-entry heating, no other
+  celestial bodies, no save system.
+
