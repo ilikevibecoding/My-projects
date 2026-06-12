@@ -92,11 +92,14 @@ export class CameraRig {
         pos = rocketBase.clone().addScaledVector(_horiz, 24).addScaledVector(side, 12).addScaledVector(up, 7.5);
         look = rocketBase.clone().addScaledVector(up, height * 0.42);
         break;
-      case 'liftoff':
-        // low hero angle: pad, plume, dust all in frame
-        pos = rocketBase.clone().addScaledVector(_horiz, 19).addScaledVector(side, -7).addScaledVector(up, -altitudeOf(rocketBase) + 4.5);
-        look = rocketBase.clone().addScaledVector(up, height * 0.30);
+      case 'liftoff': {
+        // hero angle from ground level: pad, dust, plume AND rocket in frame
+        const altBase = altitudeOf(rocketBase);
+        const ground = rocketBase.clone().addScaledVector(up, -altBase + 1.0);
+        pos = ground.clone().addScaledVector(_horiz, 27).addScaledVector(side, -9).addScaledVector(up, 5.0);
+        look = ground.clone().addScaledVector(up, 2.0 + altBase * 0.55);
         break;
+      }
       case 'midair':
         pos = rocketCenter.clone().addScaledVector(_horiz, 20).addScaledVector(side, 5).addScaledVector(up, 2.5);
         look = rocketCenter.clone().addScaledVector(up, 1.0);
@@ -108,12 +111,13 @@ export class CameraRig {
         look = rocketCenter.clone();
         break;
       case 'space':
-        pos = rocketCenter.clone().addScaledVector(_horiz, 16).addScaledVector(side, -6).addScaledVector(up, 24);
-        look = rocketCenter.clone();
+        // side-ish view: vacuum-wide plume readable, limb still in lower frame
+        pos = rocketCenter.clone().addScaledVector(_horiz, 22).addScaledVector(side, -7).addScaledVector(up, 14);
+        look = rocketCenter.clone().addScaledVector(up, -4);
         break;
       case 'staging':
-        pos = rocketCenter.clone().addScaledVector(_horiz, 17).addScaledVector(side, 6).addScaledVector(up, -1);
-        look = rocketCenter.clone().addScaledVector(up, -2.5);
+        pos = rocketCenter.clone().addScaledVector(_horiz, 24).addScaledVector(side, 11).addScaledVector(up, -2);
+        look = rocketCenter.clone().addScaledVector(up, -6);
         break;
       default:
         return false;

@@ -18,9 +18,16 @@ export function createHUD() {
   };
 
   let flashTimer = null;
+  let suppressFlash = false;
 
   return {
     onRevert(fn) { el.revertBtn.addEventListener('click', fn); },
+
+    // used by debug warm-up so stray flash text never pollutes screenshots
+    setSuppressFlash(v) {
+      suppressFlash = v;
+      if (v) el.stageFlash.classList.remove('visible');
+    },
 
     showBuilder() {
       el.builderUI.classList.add('visible');
@@ -67,6 +74,7 @@ export function createHUD() {
     },
 
     flash(text, ms = 2200) {
+      if (suppressFlash) return;
       el.stageFlash.textContent = text;
       el.stageFlash.classList.add('visible');
       if (flashTimer) clearTimeout(flashTimer);

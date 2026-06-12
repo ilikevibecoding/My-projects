@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { CONST } from './physics.js';
-import { mulberry32, makePuffTexture } from './effects.js';
+import { mulberry32, makeCumulusTexture } from './effects.js';
 
 const rng = mulberry32(98765);
 
@@ -29,16 +29,16 @@ const SKY_FRAG = /* glsl */`
     vec3 dir = normalize(vWorldPos - cameraPosition);
     float elev = dot(dir, uUp);
     float t = clamp(uAlt / uSpaceAlt, 0.0, 1.0);
-    float tMid = smoothstep(0.06, 0.55, t);   // low -> indigo
-    float tHigh = smoothstep(0.5, 0.96, t);   // indigo -> space black
+    float tMid = smoothstep(0.16, 0.62, t);   // low -> indigo (stay blue down low)
+    float tHigh = smoothstep(0.55, 0.97, t);  // indigo -> space black
 
     // altitude-dependent palette
-    vec3 zenith = mix(vec3(0.13, 0.38, 0.78), vec3(0.065, 0.085, 0.30), tMid);
-    zenith = mix(zenith, vec3(0.004, 0.005, 0.012), tHigh);
-    vec3 horizon = mix(vec3(0.62, 0.83, 0.97), vec3(0.24, 0.32, 0.62), tMid);
-    horizon = mix(horizon, vec3(0.02, 0.03, 0.07), tHigh);
+    vec3 zenith = mix(vec3(0.11, 0.35, 0.76), vec3(0.045, 0.055, 0.22), tMid);
+    zenith = mix(zenith, vec3(0.003, 0.004, 0.010), tHigh);
+    vec3 horizon = mix(vec3(0.47, 0.72, 0.94), vec3(0.14, 0.19, 0.46), tMid);
+    horizon = mix(horizon, vec3(0.015, 0.022, 0.06), tHigh);
 
-    float h = pow(1.0 - clamp(elev, 0.0, 1.0), 2.2);
+    float h = pow(1.0 - clamp(elev, 0.0, 1.0), 2.8);
     vec3 sky = mix(zenith, horizon, h);
 
     // below-horizon: darker ground haze (mostly hidden by the planet)
@@ -79,10 +79,10 @@ const LIMB_FRAG = /* glsl */`
   varying vec3 vWorldPos;
   void main() {
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
-    float rim = pow(1.0 - abs(dot(vNormal, viewDir)), 3.0);
+    float rim = pow(1.0 - abs(dot(vNormal, viewDir)), 6.0);
     float sunlit = clamp(dot(vNormal, uSunDir) * 0.5 + 0.55, 0.05, 1.0);
-    vec3 col = mix(vec3(0.18, 0.42, 0.95), vec3(0.55, 0.8, 1.0), rim);
-    gl_FragColor = vec4(col * rim * sunlit * 1.6, rim * uOpacity);
+    vec3 col = mix(vec3(0.16, 0.40, 0.95), vec3(0.6, 0.85, 1.0), rim);
+    gl_FragColor = vec4(col * rim * sunlit * 1.35, rim * uOpacity);
   }
 `;
 
@@ -149,14 +149,14 @@ export function createAtmosphere(scene, sunDir) {
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
-  const limb = new THREE.Mesh(new THREE.SphereGeometry(CONST.R + 950, 96, 64), limbMat);
+  const limb = new THREE.Mesh(new THREE.SphereGeometry(CONST.R + 360, 96, 64), limbMat);
   limb.position.set(0, -CONST.R, 0);
   limb.renderOrder = -5;
   group.add(limb);
 
-  // ---- cloud layer: instanced billboards in a disc around the launch site
-  const cloudTex = makePuffTexture(31);
-  const CLOUD_N = 110;
+  // ---- cloud layer: clustered cumulus billboards around the launch site
+  const cloudTex = makeCumulusTexture(31);
+  const CLOUD_N = 108;
   const base = new THREE.PlaneGeometry(1, 1);
   const cgeo = new THREE.InstancedBufferGeometry();
   cgeo.index = base.index;
@@ -168,23 +168,48 @@ export function createAtmosphere(scene, sunDir) {
   const cRot = new Float32Array(CLOUD_N);
   const cOp = new Float32Array(CLOUD_N);
   const sun2 = new THREE.Vector2(sunDir.x, sunDir.z).normalize();
-  for (let i = 0; i < CLOUD_N; i++) {
+  // 16 clusters of 5-8 puffs each — reads as cumulus, not confetti.
+  // First clusters sit near the launch vertical so the rocket punches through.
+  let ci = 0;
+  const clusters = [];
+  while (clusters.length < 16) {
+    let cd, ca;
+    if (clusters.length < 3) { cd = 160 + rng() * 360; ca = rng() * Math.PI * 2; }
+    else { cd = 420 + Math.pow(rng(), 0.8) * 1500; ca = rng() * Math.PI * 2; }
+    clusters.push({ x: Math.cos(ca) * cd, z: Math.sin(ca) * cd, alt: 880 + rng() * 340, d: cd });
+  }
+  for (const cl of clusters) {
+    const n = 5 + Math.floor(rng() * 4);
+    for (let k = 0; k < n && ci < CLOUD_N; k++, ci++) {
+      const ox = (rng() - 0.5) * 320;
+      const oz = (rng() - 0.5) * 320;
+      const x = cl.x + ox, zz = cl.z + oz;
+      const d = Math.sqrt(x * x + zz * zz);
+      cPos[ci * 3] = x;
+      cPos[ci * 3 + 1] = cl.alt + (rng() - 0.5) * 60 - (d * d) / (2 * CONST.R);
+      cPos[ci * 3 + 2] = zz;
+      cScale[ci] = 150 + rng() * 230;
+      // sun-side clouds get a warm lit tint, far side cooler
+      const sunness = 0.5 + 0.5 * ((x * sun2.x + zz * sun2.y) / Math.max(1, d));
+      const lit = 0.84 + 0.2 * sunness;
+      cCol[ci * 3] = lit * 1.03;
+      cCol[ci * 3 + 1] = lit * 1.0;
+      cCol[ci * 3 + 2] = lit * (0.96 + 0.09 * (1 - sunness));
+      cRot[ci] = (rng() - 0.5) * 0.22; // cumulus stays mostly upright
+      cOp[ci] = 0.72 + rng() * 0.26;
+    }
+  }
+  // fill any leftovers far out
+  for (; ci < CLOUD_N; ci++) {
     const a = rng() * Math.PI * 2;
-    const d = 240 + Math.pow(rng(), 0.7) * 2500;
-    const x = Math.cos(a) * d, zz = Math.sin(a) * d;
-    const alt = 820 + rng() * 380;
-    cPos[i * 3] = x;
-    cPos[i * 3 + 1] = alt - (d * d) / (2 * CONST.R);
-    cPos[i * 3 + 2] = zz;
-    cScale[i] = 130 + rng() * 240;
-    // sun-side clouds get a warm lit tint, far side cooler
-    const sunness = 0.5 + 0.5 * ((x * sun2.x + zz * sun2.y) / Math.max(1, d));
-    const lit = 0.82 + 0.22 * sunness;
-    cCol[i * 3] = lit * 1.02;
-    cCol[i * 3 + 1] = lit * 0.99;
-    cCol[i * 3 + 2] = lit * (0.96 + 0.1 * (1 - sunness));
-    cRot[i] = rng() * 6.28;
-    cOp[i] = 0.5 + rng() * 0.35;
+    const d = 1200 + rng() * 800;
+    cPos[ci * 3] = Math.cos(a) * d;
+    cPos[ci * 3 + 1] = 900 + rng() * 300 - (d * d) / (2 * CONST.R);
+    cPos[ci * 3 + 2] = Math.sin(a) * d;
+    cScale[ci] = 170 + rng() * 180;
+    cCol[ci * 3] = cCol[ci * 3 + 1] = cCol[ci * 3 + 2] = 0.95;
+    cRot[ci] = 0;
+    cOp[ci] = 0.7;
   }
   cgeo.setAttribute('iPos', new THREE.InstancedBufferAttribute(cPos, 3));
   cgeo.setAttribute('iScale', new THREE.InstancedBufferAttribute(cScale, 1));
@@ -219,7 +244,7 @@ export function createAtmosphere(scene, sunDir) {
         vec2 p = position.xy;
         vec2 rp = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
         vec3 drift = vec3(uTime * 1.5, 0.0, uTime * 0.6);
-        vec3 world = iPos + drift + uCamRight * (rp.x * iScale) + uCamUp * (rp.y * iScale * 0.62);
+        vec3 world = iPos + drift + uCamRight * (rp.x * iScale) + uCamUp * (rp.y * iScale * 0.55);
         gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
       }
     `,
@@ -230,7 +255,7 @@ export function createAtmosphere(scene, sunDir) {
       varying float vOpacity;
       void main() {
         vec4 t = texture2D(map, vUv);
-        gl_FragColor = vec4(vColor * t.rgb * 1.35, t.a * vOpacity);
+        gl_FragColor = vec4(vColor * t.rgb * 1.12, t.a * vOpacity);
         if (gl_FragColor.a < 0.004) discard;
       }
     `,
@@ -253,7 +278,7 @@ export function createAtmosphere(scene, sunDir) {
       // stars fade in through the indigo band
       starMat.opacity = THREE.MathUtils.smoothstep(altitude, 2300, 4600);
       // limb appears once you're above the shell
-      limbMat.uniforms.uOpacity.value = THREE.MathUtils.smoothstep(altitude, 1700, 3400) * 0.9;
+      limbMat.uniforms.uOpacity.value = THREE.MathUtils.smoothstep(altitude, 2000, 3600) * 0.85;
       cloudMat.uniforms.uTime.value = time;
       const e = camera.matrixWorld.elements;
       cloudMat.uniforms.uCamRight.value.set(e[0], e[1], e[2]);

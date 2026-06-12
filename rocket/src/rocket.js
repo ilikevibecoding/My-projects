@@ -31,7 +31,7 @@ export const PARTS = {
   tankSmall: { id: 'tankSmall', name: 'Tank S “Pip”', type: 'tank', massDry: 380, fuel: 1700, height: 1.9, radius: 0.62, cdA: 0.16, blurb: '1.7 t fuel' },
   tankLarge: { id: 'tankLarge', name: 'Tank L “Tubby”', type: 'tank', massDry: 850, fuel: 4300, height: 3.4, radius: 0.62, cdA: 0.28, blurb: '4.3 t fuel' },
   engineSmall: { id: 'engineSmall', name: 'Engine S “Sprig”', type: 'engine', massDry: 320, thrust: 42000, burn: 16, height: 1.1, radius: 0.5, cdA: 0.08, blurb: '42 kN' },
-  engineLarge: { id: 'engineLarge', name: 'Engine L “Mastodon”', type: 'engine', massDry: 880, thrust: 76000, burn: 24, height: 1.45, radius: 0.62, cdA: 0.10, blurb: '76 kN' },
+  engineLarge: { id: 'engineLarge', name: 'Engine L “Mastodon”', type: 'engine', massDry: 880, thrust: 66000, burn: 21, height: 1.45, radius: 0.62, cdA: 0.10, blurb: '66 kN' },
   fins: { id: 'fins', name: 'Fin Set ×4', type: 'fins', massDry: 120, height: 0, radius: 0, cdA: 0.14, blurb: 'stability' },
   decoupler: { id: 'decoupler', name: 'Decoupler', type: 'decoupler', massDry: 90, height: 0.3, radius: 0.63, cdA: 0.05, blurb: 'stage split' },
 };

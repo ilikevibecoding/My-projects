@@ -33,7 +33,7 @@ export function makePuffTexture(rngSeed = 7) {
   const rng = mulberry32(rngSeed);
   return spriteCanvas(128, (ctx, s) => {
     ctx.clearRect(0, 0, s, s);
-    // lumpy cloud puff: several offset radial blobs, shaded top-light
+    // lumpy smoke puff: several offset radial blobs, shaded top-light
     for (let i = 0; i < 9; i++) {
       const a = rng() * Math.PI * 2;
       const d = rng() * s * 0.18;
@@ -47,6 +47,36 @@ export function makePuffTexture(rngSeed = 7) {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, s, s);
     }
+  });
+}
+
+// dense puffy cumulus sprite: wide coverage, flat-ish base, bright core
+export function makeCumulusTexture(rngSeed = 19) {
+  const rng = mulberry32(rngSeed);
+  return spriteCanvas(256, (ctx, s) => {
+    ctx.clearRect(0, 0, s, s);
+    const baseY = s * 0.64;
+    // body blobs along a horizontal band
+    for (let i = 0; i < 22; i++) {
+      const x = s * (0.16 + 0.68 * rng());
+      const lift = Math.sin((x / s) * Math.PI); // taller in the middle
+      const y = baseY - rng() * s * 0.26 * lift;
+      const r = s * (0.10 + rng() * 0.13) * (0.7 + 0.5 * lift);
+      const g = ctx.createRadialGradient(x, y - r * 0.3, r * 0.12, x, y, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.85)');
+      g.addColorStop(0.5, 'rgba(244,246,250,0.55)');
+      g.addColorStop(1, 'rgba(228,232,240,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, s, s);
+    }
+    // soft flat base shadow
+    const sh = ctx.createLinearGradient(0, baseY - s * 0.08, 0, baseY + s * 0.16);
+    sh.addColorStop(0, 'rgba(0,0,0,0)');
+    sh.addColorStop(1, 'rgba(150,160,185,0.18)');
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = sh;
+    ctx.fillRect(0, baseY - s * 0.08, s, s * 0.3);
+    ctx.globalCompositeOperation = 'source-over';
   });
 }
 
@@ -222,20 +252,25 @@ export class BillboardSystem {
 // --------------------------------------------------------------------------
 const CONE_VERT = /* glsl */`
   varying vec2 vUv;
-  varying float vY;
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
   void main() {
     vUv = uv;
-    vY = uv.y; // 1 at top (nozzle), 0 at bottom (tip) for CylinderGeometry
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vNormal = normalize(mat3(modelMatrix) * normal);
+    vec4 wp = modelMatrix * vec4(position, 1.0);
+    vWorldPos = wp.xyz;
+    gl_Position = projectionMatrix * viewMatrix * wp;
   }
 `;
 const CONE_FRAG = /* glsl */`
   uniform float uTime;
   uniform float uIntensity;
+  uniform float uVac;       // 0 at sea level -> 1 in vacuum
   uniform vec3 uColorCore;
   uniform vec3 uColorEdge;
   varying vec2 vUv;
-  varying float vY;
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
@@ -244,15 +279,21 @@ const CONE_FRAG = /* glsl */`
                mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
   }
   void main() {
-    float along = 1.0 - vY;             // 0 at nozzle -> 1 at tip
+    float along = 1.0 - vUv.y;          // 0 at nozzle -> 1 at tip
     float n = noise(vec2(vUv.x * 7.0, along * 4.5 - uTime * 7.0));
     float n2 = noise(vec2(vUv.x * 13.0 + 5.0, along * 9.0 - uTime * 11.0));
-    float flicker = 0.72 + 0.28 * n;
-    float body = pow(1.0 - along, 1.35);
-    float diamonds = 0.85 + 0.15 * sin(along * 26.0 - uTime * 3.0);
-    vec3 col = mix(uColorCore, uColorEdge, smoothstep(0.05, 0.85, along + 0.25 * (n2 - 0.5)));
-    float a = body * flicker * diamonds * uIntensity;
-    gl_FragColor = vec4(col * (1.4 - along * 0.5), a);
+    float flicker = 0.74 + 0.26 * n;
+    float body = pow(1.0 - along, 1.3);
+    float diamonds = 0.82 + 0.18 * sin(along * 26.0 - uTime * 3.0) * (1.0 - uVac * 0.7);
+    // volumetric read: dense looking through the middle, soft at silhouette
+    vec3 viewDir = normalize(cameraPosition - vWorldPos);
+    float facing = abs(dot(normalize(vNormal), viewDir));
+    float radial = smoothstep(0.0, 0.62, facing);
+    // hot white throat -> orange body -> reddish tail; vacuum shifts violet-blue
+    vec3 col = mix(uColorCore, uColorEdge, smoothstep(0.04, 0.7, along + 0.22 * (n2 - 0.5)));
+    col = mix(col, vec3(0.55, 0.5, 1.0), uVac * smoothstep(0.15, 0.9, along) * 0.55);
+    float a = body * flicker * diamonds * radial * uIntensity;
+    gl_FragColor = vec4(col * (1.25 - along * 0.45) * (1.0 + uVac * 0.5), a);
   }
 `;
 
@@ -266,6 +307,7 @@ export function createPlume(exitRadius) {
       uniforms: {
         uTime: { value: 0 },
         uIntensity: { value: 0 },
+        uVac: { value: 0 },
         uColorCore: { value: new THREE.Color(core) },
         uColorEdge: { value: new THREE.Color(edge) },
       },
@@ -285,8 +327,8 @@ export function createPlume(exitRadius) {
     group.add(mesh);
     return mesh;
   };
-  const outer = mkCone(0.95, 2.1, 7.5, '#ffd9a0', '#ff5a14', 0.65);
-  const inner = mkCone(0.62, 0.95, 3.6, '#ffffff', '#ffc24d', 1.0);
+  const outer = mkCone(0.95, 2.1, 7.5, '#ffd9a0', '#ff5a14', 0.5);
+  const inner = mkCone(0.62, 0.95, 3.6, '#ffffff', '#ffc24d', 0.85);
   group.userData = { outer, inner, exitRadius };
   return group;
 }
@@ -299,6 +341,7 @@ export function updatePlume(group, { time, throttle, rho, rho0 }) {
     const m = mesh.material;
     m.uniforms.uTime.value = time;
     m.uniforms.uIntensity.value = throttle * mesh.userData.opacityBoost;
+    m.uniforms.uVac.value = vac;
     mesh.visible = throttle > 0.01;
   }
   group.userData.outer.scale.set(widen, group.userData.outer.userData.baseLen * lengthen, widen);
@@ -358,18 +401,19 @@ export class ExhaustSystem {
               .add(new THREE.Vector3(jx * 6 * (1 + 2 * vac), 0, jz * 6 * (1 + 2 * vac)))
               .add(ctx.rocketVel),
             life: 0.12 + rng() * 0.12,
-            size0: nz.exitRadius * (1.3 + rng() * 0.8) * (1 + 1.6 * vac),
+            size0: nz.exitRadius * (1.1 + rng() * 0.7) * (1 + 1.6 * vac),
             size1: nz.exitRadius * (0.4 + 0.4 * rng()),
             color0: new THREE.Color(1.0, 0.95, 0.8),
             color1: new THREE.Color(1.0, 0.45, 0.12),
-            opacity0: 0.85,
+            opacity0: 0.5,
             rot: rng() * 6.28, rotVel: (rng() - 0.5) * 6,
             fadeIn: 0,
           });
         }
 
         // ---- smoke: only meaningful inside atmosphere
-        const smokeRate = 34 * Math.min(1, ctx.rho / (ctx.rho0 * 0.25));
+        const smokeRate = ctx.rho < ctx.rho0 * 0.06 ? 0
+          : 34 * Math.min(1, ctx.rho / (ctx.rho0 * 0.25));
         this.smokeAcc += dt * smokeRate;
         const nearGround = ctx.groundAlt < 14;
         while (this.smokeAcc >= 1) {
@@ -404,7 +448,7 @@ export class ExhaustSystem {
               size1: 7 + rng() * 6,
               color0: new THREE.Color(0.96, 0.94, 0.92),
               color1: new THREE.Color(0.78, 0.77, 0.79),
-              opacity0: 0.55 * Math.min(1, ctx.rho / (ctx.rho0 * 0.3)),
+              opacity0: 0.38 * Math.min(1, ctx.rho / (ctx.rho0 * 0.3)),
               rot: rng() * 6.28, rotVel: (rng() - 0.5) * 1.2,
             });
           }

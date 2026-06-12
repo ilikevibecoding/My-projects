@@ -44,9 +44,9 @@ sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.8;
 scene.add(sun, sun.target);
 
-const hemi = new THREE.HemisphereLight('#bcd9ff', '#5f8350', 0.85);
+const hemi = new THREE.HemisphereLight('#bcd9ff', '#5f8350', 0.65);
 scene.add(hemi);
-const amb = new THREE.AmbientLight('#3c4356', 0.35);
+const amb = new THREE.AmbientLight('#3c4356', 0.25);
 scene.add(amb);
 
 const rig = new CameraRig(window.innerWidth, window.innerHeight);
@@ -305,8 +305,8 @@ function updateVisualsAndRender(dt) {
 
   const camAlt = Math.max(0, altitudeOf(rig.camera.position));
   atmo.update(rig.camera, camAlt, game.simTime);
-  hemi.intensity = THREE.MathUtils.lerp(0.85, 0.18, THREE.MathUtils.smoothstep(camAlt, 1500, CONST.SPACE_ALT));
-  amb.intensity = THREE.MathUtils.lerp(0.35, 0.16, THREE.MathUtils.smoothstep(camAlt, 1500, CONST.SPACE_ALT));
+  hemi.intensity = THREE.MathUtils.lerp(0.65, 0.16, THREE.MathUtils.smoothstep(camAlt, 1500, CONST.SPACE_ALT));
+  amb.intensity = THREE.MathUtils.lerp(0.25, 0.14, THREE.MathUtils.smoothstep(camAlt, 1500, CONST.SPACE_ALT));
   renderer.shadowMap.autoUpdate = camAlt < 2500;
 
   // plumes + engine glow
@@ -420,6 +420,7 @@ function guessAscentSpeed(alt) {
 
 // Step the live game world WITHOUT rendering until the rocket hits targetAlt.
 function warmFlight({ stackIds = DEFAULT_STACK, startAlt = 0, startSpeed = 0, targetAlt = null, throttleOn = true, maxSim = 45, extraSeconds = 0 }) {
+  hud.setSuppressFlash(true);
   game.mode = 'flight';
   game.eventCursor = 0;
   game.flightRng = mulberry32(4242);
@@ -444,6 +445,7 @@ function warmFlight({ stackIds = DEFAULT_STACK, startAlt = 0, startSpeed = 0, ta
     if (game.sim.phase === 'crashed') break;
   }
   for (let i = 0; i < Math.round(extraSeconds * 60); i++) stepWorld(frame);
+  hud.setSuppressFlash(false);
   return altitudeOf(game.sim.pos);
 }
 
@@ -492,14 +494,17 @@ const debugAPI = {
         break;
       }
       case 'space': {
-        warmFlight({ startAlt: 5050, startSpeed: 235, targetAlt: 5450, maxSim: 25 });
+        // start below the line so the SPACE REACHED banner fires during warm-up
+        warmFlight({ startAlt: 4700, startSpeed: 225, targetAlt: 5450, maxSim: 25 });
         rig.applyDebugView('space', debugViewContext());
         break;
       }
       case 'staging': {
         warmFlight({ stackIds: TWO_STAGE_STACK, startAlt: 2250, startSpeed: 145, targetAlt: 2420, maxSim: 25 });
+        hud.setSuppressFlash(true);
         doStage();
-        for (let i = 0; i < 66; i++) stepWorld(1 / 60);
+        for (let i = 0; i < 60; i++) stepWorld(1 / 60);
+        hud.setSuppressFlash(false);
         rig.applyDebugView('staging', debugViewContext());
         break;
       }
@@ -558,8 +563,8 @@ const debugAPI = {
     const configs = {
       main: { stack: DEFAULT_STACK, fuelFraction: 1, maxT: 130 },
       lowtwr: { stack: ['engineSmall', 'tankLarge', 'pod'], fuelFraction: 1, maxT: 45 },
-      coast: { stack: ['engineSmall', 'fins', 'tankSmall', 'pod'], fuelFraction: 0.3, maxT: 240 },
-      staged: { stack: TWO_STAGE_STACK, fuelFraction: 1, maxT: 130, stageOnFlameout: true },
+      coast: { stack: ['engineSmall', 'fins', 'tankSmall', 'pod'], fuelFraction: 0.10, maxT: 240 },
+      staged: { stack: TWO_STAGE_STACK, fuelFraction: 1, maxT: 130, stageAtAlt: 2200 },
     };
     const cfg = configs[scenario];
     if (!cfg) return { error: `unknown scenario ${scenario}` };
@@ -568,11 +573,12 @@ const debugAPI = {
     ignite(st);
     const samples = [telemetrySample(st)];
     let nextSample = 1;
+    let staged = false;
     while (st.t < cfg.maxT) {
       step(st, { throttle: 1 }, CONST.DT);
-      if (cfg.stageOnFlameout) {
-        const act = activeStage(st);
-        if (act && act.fuel <= 0 && canStage(st)) fireStage(st, rng);
+      if (cfg.stageAtAlt && !staged && altitudeOf(st.pos) >= cfg.stageAtAlt && canStage(st)) {
+        fireStage(st, rng);
+        staged = true;
       }
       if (st.t >= nextSample) {
         samples.push(telemetrySample(st));

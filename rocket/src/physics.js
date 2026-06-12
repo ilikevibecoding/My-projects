@@ -127,7 +127,7 @@ export function fireStage(state, rng = Math.random) {
   spent.attached = false;
   state.activeStage = idx + 1;
   const up = localUp(state.pos);
-  const side = new THREE.Vector3(rng() - 0.5, 0, rng() - 0.5).normalize().multiplyScalar(2.2);
+  const side = new THREE.Vector3(rng() - 0.5, 0, rng() - 0.5).normalize().multiplyScalar(5.5);
   const debris = {
     id: `stage${idx}`,
     stageIndex: idx,

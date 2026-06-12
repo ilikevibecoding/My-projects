@@ -64,3 +64,32 @@ scenarios, builder stats assertion. Evidence: `shots/iter_1/`.
 10. Suppress HUD flash text during debug warm-up (stray "IGNITION" ghosts in shots).
 11. Pad dressing: smaller pad disc, higher-contrast markings, restyle clamps, more props.
 
+## Iteration 2 — clouds, plume taming, physics tuning, cameras
+
+Evidence: `shots/iter_2/`. Node-side tuning sweep (`tools/tune.mjs`) picked 66 kN/21 kg·s⁻¹.
+
+| # | Item | Verdict | Notes |
+|---|------|---------|-------|
+| 1 | Rocket stylized-real | **FAIL** | Better lit (hemi/amb down), stripes read; but decals still illegible in all flight shots, pod plain, engine bell invisible under plume; not yet "materially convincing" |
+| 2 | Exhaust sells | **FAIL** | Liftoff pad billow is good now ✓, frames differ ✓, but plume is a flat white pillar (no radial falloff → ribbon look), staging.png is still one giant white column, vacuum widening present but ghostly-dim in space.png |
+| 3 | Climb gradient | **FAIL** | Clouds finally read as cumulus ✓✓, high_altitude is genuinely strong; but midair reads washed gray-blue (horizon band too pale) and staging-alt sky is lavender mush |
+| 4 | Launch site finished | **PASS** | Pad ring/number/scorch ✓ clamps ✓ generators/cable tray ✓ mottled striped grass ✓ shadows agree ✓ (watch: flag drape, mount leg clutter) |
+| 5 | Builder clean | **PASS** | Stats: 6.95 t/66 kN/4.30 t/TWR 1.06 → add tank: 12.10 t/0.61 red ✓; styled; snap clean |
+| 6 | Physics honest | **PASS** | space at t=64.0 s ✓ (60–90); accel 0.79→9.48 ✓; drag 0.319 low vs 0.099 high ✓; lowtwr maxAlt 0 ✓; coast apogee 3 388 m → crashed ✓ |
+| 7 | Staging works | **FAIL** | staged telemetry has the stage event + mass drop ✓, but staging.png STILL shows no visible tumbling debris (lost behind plume / below frame) |
+| 8 | Camera never fails | **FAIL** | liftoff/pad/midair/high all framed well now; space.png rocket is hidden behind the REVERT button (UI collision = framing failure); staging framing misses the money shot |
+| 9 | Post balanced | **FAIL** | Bloom 0.42/thr 0.9 helped; plume core still blows to paper-white over large areas in staging.png |
+| 10 | Tech clean | **PASS*** | 58 calls / 16 k tris / particles within budget; no acne/z-fight seen; *SwiftShader caveat |
+| 11 | Cold-look | **FAIL** | liftoff + high_altitude are close; staging/space wash and plume flatness still betray it |
+
+**Score: 4/11.**
+
+### Fix list for iteration 3 (worst first)
+1. Plume volumetrics: radial fresnel falloff in cone shader, hotter orange staging,
+   vacuum brightness boost + violet-blue tail tint (uVac uniform).
+2. Sky: deepen horizon colors low+mid, sharpen falloff (washed midair fix).
+3. Banner to top 22% / revert button to 76% so the rocket is never covered (space shot).
+4. Staging camera further out + lower look target; shorter post-stage delay (debris in frame).
+5. Space camera less steep (up 14, look −4) so limb + wide plume share the frame.
+6. Limb shell tighter (R+360).
+

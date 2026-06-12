@@ -1,0 +1,103 @@
+t=     0s alt=       0m v=      0 vUp=      0 m=    1790kg fuel=    170kg twr=     0 drag=     0 rho=    1.2 ready
+t=  1.01s alt=     7.4m v=  14.68 vUp=  14.68 m=  1773.9kg fuel=  153.9kg twr=  2.64 drag= 0.066 rho=  1.192 flying
+t=  2.01s alt=    29.5m v=  29.38 vUp=  29.38 m=  1757.9kg fuel=  137.9kg twr= 2.694 drag= 0.265 rho= 1.1685 flying
+t=  3.01s alt=    66.4m v=  44.17 vUp=  44.17 m=  1741.9kg fuel=  121.9kg twr= 2.768 drag= 0.585 rho= 1.1301 flying
+t=  4.01s alt=     118m v=     59 vUp=     59 m=  1725.9kg fuel=  105.9kg twr= 2.865 drag= 1.007 rho= 1.0784 flying
+t=     5s alt=   183.9m v=  73.71 vUp=  73.71 m=    1710kg fuel=     90kg twr= 2.985 drag= 1.496 rho= 1.0158 flying
+t=     6s alt=   265.1m v=  88.55 vUp=  88.55 m=    1694kg fuel=     74kg twr= 3.131 drag= 2.025 rho= 0.9437 flying
+t=     7s alt=   361.1m v= 103.42 vUp= 103.42 m=    1678kg fuel=     58kg twr= 3.304 drag= 2.557 rho= 0.8649 flying
+t=     8s alt=   472.1m v= 118.36 vUp= 118.36 m=    1662kg fuel=     42kg twr= 3.508 drag= 3.059 rho=  0.782 flying
+t=     9s alt=     598m v= 133.46 vUp= 133.46 m=    1646kg fuel=     26kg twr= 3.744 drag= 3.503 rho= 0.6975 flying
+t=    10s alt=   739.2m v= 148.79 vUp= 148.79 m=    1630kg fuel=     10kg twr= 4.016 drag= 3.868 rho= 0.6135 flying
+t=    11s alt=     894m v= 154.81 vUp= 154.81 m=    1620kg fuel=      0kg twr=     0 drag=  3.67 rho=  0.533 flying
+t= 12.01s alt=  1045.3m v= 145.68 vUp= 145.68 m=    1620kg fuel=      0kg twr=     0 drag= 2.832 rho= 0.4645 flying
+t= 13.01s alt=  1186.9m v= 137.67 vUp= 137.67 m=    1620kg fuel=      0kg twr=     0 drag= 2.223 rho= 0.4083 flying
+t= 14.01s alt=  1320.9m v= 130.47 vUp= 130.47 m=    1620kg fuel=      0kg twr=     0 drag= 1.768 rho= 0.3615 flying
+t= 15.01s alt=    1448m v= 123.91 vUp= 123.91 m=    1620kg fuel=      0kg twr=     0 drag=  1.42 rho=  0.322 flying
+t= 16.01s alt=  1568.8m v= 117.89 vUp= 117.89 m=    1620kg fuel=      0kg twr=     0 drag= 1.152 rho= 0.2885 flying
+t= 17.01s alt=  1683.9m v=  112.3 vUp=  112.3 m=    1620kg fuel=      0kg twr=     0 drag= 0.941 rho= 0.2599 flying
+t= 18.01s alt=  1793.5m v= 107.07 vUp= 107.07 m=    1620kg fuel=      0kg twr=     0 drag= 0.775 rho= 0.2352 flying
+t= 19.01s alt=  1898.1m v= 102.15 vUp= 102.15 m=    1620kg fuel=      0kg twr=     0 drag= 0.641 rho= 0.2139 flying
+t= 20.01s alt=  1997.9m v=  97.49 vUp=  97.49 m=    1620kg fuel=      0kg twr=     0 drag= 0.533 rho= 0.1953 flying
+t= 21.01s alt=  2093.1m v=  93.07 vUp=  93.07 m=    1620kg fuel=      0kg twr=     0 drag= 0.446 rho= 0.1791 flying
+t= 22.01s alt=    2184m v=  88.84 vUp=  88.84 m=    1620kg fuel=      0kg twr=     0 drag= 0.374 rho= 0.1649 flying
+t= 23.01s alt=  2270.8m v=  84.78 vUp=  84.78 m=    1620kg fuel=      0kg twr=     0 drag= 0.315 rho= 0.1524 flying
+t= 24.01s alt=  2353.6m v=  80.88 vUp=  80.88 m=    1620kg fuel=      0kg twr=     0 drag= 0.266 rho= 0.1413 flying
+t= 25.01s alt=  2432.6m v=  77.11 vUp=  77.11 m=    1620kg fuel=      0kg twr=     0 drag= 0.225 rho= 0.1315 flying
+t= 26.01s alt=  2507.8m v=  73.46 vUp=  73.46 m=    1620kg fuel=      0kg twr=     0 drag=  0.19 rho= 0.1228 flying
+t= 27.01s alt=  2579.5m v=  69.92 vUp=  69.92 m=    1620kg fuel=      0kg twr=     0 drag= 0.162 rho= 0.1151 flying
+t= 28.01s alt=  2647.7m v=  66.48 vUp=  66.48 m=    1620kg fuel=      0kg twr=     0 drag= 0.137 rho= 0.1082 flying
+t= 29.01s alt=  2712.5m v=  63.13 vUp=  63.13 m=    1620kg fuel=      0kg twr=     0 drag= 0.117 rho=  0.102 flying
+t= 30.01s alt=  2773.9m v=  59.85 vUp=  59.85 m=    1620kg fuel=      0kg twr=     0 drag= 0.099 rho= 0.0964 flying
+t= 31.01s alt=  2832.2m v=  56.65 vUp=  56.65 m=    1620kg fuel=      0kg twr=     0 drag= 0.084 rho= 0.0915 flying
+t= 32.01s alt=  2887.2m v=  53.51 vUp=  53.51 m=    1620kg fuel=      0kg twr=     0 drag= 0.072 rho=  0.087 flying
+t= 33.01s alt=  2939.2m v=  50.43 vUp=  50.43 m=    1620kg fuel=      0kg twr=     0 drag= 0.061 rho=  0.083 flying
+t= 34.01s alt=  2988.1m v=  47.41 vUp=  47.41 m=    1620kg fuel=      0kg twr=     0 drag= 0.051 rho= 0.0794 flying
+t= 35.01s alt=    3034m v=  44.43 vUp=  44.43 m=    1620kg fuel=      0kg twr=     0 drag= 0.043 rho= 0.0761 flying
+t= 36.01s alt=  3076.9m v=   41.5 vUp=   41.5 m=    1620kg fuel=      0kg twr=     0 drag= 0.036 rho= 0.0732 flying
+t= 37.01s alt=    3117m v=  38.61 vUp=  38.61 m=    1620kg fuel=      0kg twr=     0 drag=  0.03 rho= 0.0706 flying
+t= 38.01s alt=  3154.1m v=  35.75 vUp=  35.75 m=    1620kg fuel=      0kg twr=     0 drag= 0.025 rho= 0.0682 flying
+t= 39.01s alt=  3188.5m v=  32.93 vUp=  32.93 m=    1620kg fuel=      0kg twr=     0 drag= 0.021 rho= 0.0661 flying
+t= 40.01s alt=    3220m v=  30.14 vUp=  30.14 m=    1620kg fuel=      0kg twr=     0 drag= 0.017 rho= 0.0643 flying
+t= 41.01s alt=  3248.7m v=  27.37 vUp=  27.37 m=    1620kg fuel=      0kg twr=     0 drag= 0.013 rho= 0.0626 flying
+t= 42.01s alt=  3274.7m v=  24.63 vUp=  24.63 m=    1620kg fuel=      0kg twr=     0 drag= 0.011 rho= 0.0611 flying
+t= 43.01s alt=    3298m v=  21.91 vUp=  21.91 m=    1620kg fuel=      0kg twr=     0 drag= 0.008 rho= 0.0599 flying
+t= 44.01s alt=  3318.5m v=   19.2 vUp=   19.2 m=    1620kg fuel=      0kg twr=     0 drag= 0.006 rho= 0.0588 flying
+t= 45.01s alt=  3336.4m v=  16.52 vUp=  16.52 m=    1620kg fuel=      0kg twr=     0 drag= 0.005 rho= 0.0578 flying
+t= 46.01s alt=  3351.5m v=  13.84 vUp=  13.84 m=    1620kg fuel=      0kg twr=     0 drag= 0.003 rho=  0.057 flying
+t= 47.01s alt=    3364m v=  11.18 vUp=  11.18 m=    1620kg fuel=      0kg twr=     0 drag= 0.002 rho= 0.0564 flying
+t= 48.01s alt=  3373.9m v=   8.53 vUp=   8.53 m=    1620kg fuel=      0kg twr=     0 drag= 0.001 rho= 0.0559 flying
+t= 49.01s alt=  3381.1m v=   5.88 vUp=   5.88 m=    1620kg fuel=      0kg twr=     0 drag= 0.001 rho= 0.0555 flying
+t= 50.01s alt=  3385.6m v=   3.24 vUp=   3.24 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho= 0.0553 flying
+t= 51.01s alt=  3387.5m v=    0.6 vUp=    0.6 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho= 0.0552 flying
+t= 52.01s alt=  3386.8m v=   2.04 vUp=  -2.04 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho= 0.0552 flying
+t= 53.01s alt=  3383.4m v=   4.68 vUp=  -4.68 m=    1620kg fuel=      0kg twr=     0 drag=     0 rho= 0.0554 flying
+t= 54.01s alt=  3377.4m v=   7.32 vUp=  -7.32 m=    1620kg fuel=      0kg twr=     0 drag= 0.001 rho= 0.0557 flying
+t= 55.01s alt=  3368.7m v=   9.97 vUp=  -9.97 m=    1620kg fuel=      0kg twr=     0 drag= 0.002 rho= 0.0561 flying
+t= 56.01s alt=  3357.4m v=  12.62 vUp= -12.62 m=    1620kg fuel=      0kg twr=     0 drag= 0.003 rho= 0.0567 flying
+t= 57.01s alt=  3343.5m v=  15.29 vUp= -15.29 m=    1620kg fuel=      0kg twr=     0 drag= 0.004 rho= 0.0574 flying
+t= 58.01s alt=  3326.8m v=  17.96 vUp= -17.96 m=    1620kg fuel=      0kg twr=     0 drag= 0.005 rho= 0.0583 flying
+t= 59.01s alt=  3307.5m v=  20.64 vUp= -20.64 m=    1620kg fuel=      0kg twr=     0 drag= 0.007 rho= 0.0593 flying
+t= 60.01s alt=  3285.5m v=  23.34 vUp= -23.34 m=    1620kg fuel=      0kg twr=     0 drag= 0.009 rho= 0.0605 flying
+t= 61.01s alt=  3260.8m v=  26.05 vUp= -26.05 m=    1620kg fuel=      0kg twr=     0 drag= 0.012 rho= 0.0619 flying
+t= 62.01s alt=  3233.4m v=  28.78 vUp= -28.78 m=    1620kg fuel=      0kg twr=     0 drag= 0.015 rho= 0.0635 flying
+t= 63.01s alt=  3203.2m v=  31.52 vUp= -31.52 m=    1620kg fuel=      0kg twr=     0 drag= 0.019 rho= 0.0652 flying
+t= 64.01s alt=  3170.3m v=  34.29 vUp= -34.29 m=    1620kg fuel=      0kg twr=     0 drag= 0.023 rho= 0.0672 flying
+t= 65.01s alt=  3134.6m v=  37.08 vUp= -37.08 m=    1620kg fuel=      0kg twr=     0 drag= 0.027 rho= 0.0694 flying
+t= 66.01s alt=  3096.1m v=  39.89 vUp= -39.89 m=    1620kg fuel=      0kg twr=     0 drag= 0.033 rho= 0.0719 flying
+t= 67.01s alt=  3054.8m v=  42.73 vUp= -42.73 m=    1620kg fuel=      0kg twr=     0 drag= 0.039 rho= 0.0746 flying
+t=    68s alt=    3011m v=  45.58 vUp= -45.58 m=    1620kg fuel=      0kg twr=     0 drag= 0.046 rho= 0.0777 flying
+t=    69s alt=    2964m v=  48.48 vUp= -48.48 m=    1620kg fuel=      0kg twr=     0 drag= 0.055 rho= 0.0811 flying
+t=    70s alt=    2914m v=  51.41 vUp= -51.41 m=    1620kg fuel=      0kg twr=     0 drag= 0.064 rho= 0.0848 flying
+t=    71s alt=  2861.1m v=  54.37 vUp= -54.37 m=    1620kg fuel=      0kg twr=     0 drag= 0.075 rho=  0.089 flying
+t=    72s alt=  2805.2m v=  57.37 vUp= -57.37 m=    1620kg fuel=      0kg twr=     0 drag= 0.088 rho= 0.0936 flying
+t=    73s alt=  2746.3m v=  60.42 vUp= -60.42 m=    1620kg fuel=      0kg twr=     0 drag= 0.103 rho= 0.0988 flying
+t=    74s alt=  2684.4m v=   63.5 vUp=  -63.5 m=    1620kg fuel=      0kg twr=     0 drag= 0.121 rho= 0.1045 flying
+t=    75s alt=  2619.3m v=  66.62 vUp= -66.62 m=    1620kg fuel=      0kg twr=     0 drag= 0.141 rho= 0.1109 flying
+t=    76s alt=  2551.1m v=  69.79 vUp= -69.79 m=    1620kg fuel=      0kg twr=     0 drag= 0.165 rho=  0.118 flying
+t=    77s alt=  2479.7m v=     73 vUp=    -73 m=    1620kg fuel=      0kg twr=     0 drag= 0.192 rho= 0.1259 flying
+t=    78s alt=    2405m v=  76.26 vUp= -76.26 m=    1620kg fuel=      0kg twr=     0 drag= 0.225 rho= 0.1347 flying
+t=    79s alt=  2327.1m v=  79.57 vUp= -79.57 m=    1620kg fuel=      0kg twr=     0 drag= 0.263 rho= 0.1446 flying
+t=    80s alt=  2245.9m v=  82.93 vUp= -82.93 m=    1620kg fuel=      0kg twr=     0 drag= 0.307 rho= 0.1557 flying
+t=    81s alt=  2161.2m v=  86.34 vUp= -86.34 m=    1620kg fuel=      0kg twr=     0 drag= 0.359 rho= 0.1681 flying
+t=    82s alt=  2073.1m v=   89.8 vUp=  -89.8 m=    1620kg fuel=      0kg twr=     0 drag= 0.421 rho= 0.1821 flying
+t=    83s alt=  1981.6m v=   93.3 vUp=  -93.3 m=    1620kg fuel=      0kg twr=     0 drag= 0.494 rho= 0.1979 flying
+t=    84s alt=  1886.5m v=  96.85 vUp= -96.85 m=    1620kg fuel=      0kg twr=     0 drag= 0.581 rho= 0.2158 flying
+t=    85s alt=  1787.8m v= 100.45 vUp=-100.45 m=    1620kg fuel=      0kg twr=     0 drag= 0.683 rho=  0.236 flying
+t=    86s alt=  1685.6m v= 104.08 vUp=-104.08 m=    1620kg fuel=      0kg twr=     0 drag= 0.805 rho=  0.259 flying
+t=    87s alt=  1579.6m v= 107.74 vUp=-107.74 m=    1620kg fuel=      0kg twr=     0 drag=  0.95 rho= 0.2852 flying
+t=    88s alt=    1470m v= 111.42 vUp=-111.42 m=    1620kg fuel=      0kg twr=     0 drag= 1.122 rho= 0.3151 flying
+t=    89s alt=  1356.8m v= 115.11 vUp=-115.11 m=    1620kg fuel=      0kg twr=     0 drag= 1.328 rho= 0.3493 flying
+t=    90s alt=  1239.8m v=  118.8 vUp= -118.8 m=    1620kg fuel=      0kg twr=     0 drag= 1.573 rho= 0.3884 flying
+t=    91s alt=  1119.1m v= 122.45 vUp=-122.45 m=    1620kg fuel=      0kg twr=     0 drag= 1.864 rho= 0.4334 flying
+t=    92s alt=   994.9m v= 126.04 vUp=-126.04 m=    1620kg fuel=      0kg twr=     0 drag= 2.212 rho= 0.4853 flying
+t=    93s alt=   867.1m v= 129.55 vUp=-129.55 m=    1620kg fuel=      0kg twr=     0 drag= 2.625 rho=  0.545 flying
+t=    94s alt=   735.8m v= 132.93 vUp=-132.93 m=    1620kg fuel=      0kg twr=     0 drag= 3.114 rho= 0.6141 flying
+t=    95s alt=   601.2m v= 136.14 vUp=-136.14 m=    1620kg fuel=      0kg twr=     0 drag= 3.691 rho=  0.694 flying
+t=    96s alt=   463.6m v= 139.13 vUp=-139.13 m=    1620kg fuel=      0kg twr=     0 drag= 4.368 rho= 0.7865 flying
+t=    97s alt=     323m v= 141.83 vUp=-141.83 m=    1620kg fuel=      0kg twr=     0 drag= 5.158 rho= 0.8937 flying
+t=    98s alt=     180m v= 144.19 vUp=-144.19 m=    1620kg fuel=      0kg twr=     0 drag= 6.072 rho= 1.0178 flying
+t=    99s alt=    34.8m v= 146.13 vUp=-146.13 m=    1620kg fuel=      0kg twr=     0 drag= 7.117 rho= 1.1614 flying
+t= 99.24s alt=    -0.6m v= 146.54 vUp=-146.54 m=    1620kg fuel=      0kg twr=     0 drag= 7.391 rho= 1.1993 crashed
+
+EVENTS: 0s:ignition  0.27s:liftoff  10.63s:flameout  99.24s:crash

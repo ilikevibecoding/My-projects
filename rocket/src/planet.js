@@ -80,9 +80,18 @@ function grassTexture() {
   const S = 512;
   const [c, ctx] = makeCanvas(S, S);
   ctx.fillStyle = '#5aa843'; ctx.fillRect(0, 0, S, S);
+  // large soft mottling so the field doesn't read as flat neon
+  for (let i = 0; i < 38; i++) {
+    const x = rng() * S, y = rng() * S, r = 40 + rng() * 110;
+    const dark = rng() > 0.45;
+    const g = ctx.createRadialGradient(x, y, 4, x, y, r);
+    g.addColorStop(0, dark ? 'rgba(36,92,30,0.22)' : 'rgba(150,200,90,0.18)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
   // mow stripes
   for (let y = 0; y < S; y += 64) {
-    ctx.fillStyle = (y / 64) % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,40,0,0.06)';
+    ctx.fillStyle = (y / 64) % 2 === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(0,40,0,0.08)';
     ctx.fillRect(0, y, S, 64);
   }
   // tuft noise
@@ -138,29 +147,36 @@ function padTopTexture() {
     const a = (i / 8) * Math.PI * 2;
     ctx.beginPath(); ctx.moveTo(cx, cx); ctx.lineTo(cx + Math.cos(a) * S, cx + Math.sin(a) * S); ctx.stroke();
   }
-  // yellow warning ring + center circle marking
-  ctx.strokeStyle = '#e0b428'; ctx.lineWidth = 14;
+  // yellow warning ring + center circle marking (high contrast)
+  ctx.strokeStyle = '#f2bd1d'; ctx.lineWidth = 20;
   ctx.beginPath(); ctx.arc(cx, cx, S * 0.43, 0, 7); ctx.stroke();
-  ctx.strokeStyle = '#ddd9ce'; ctx.lineWidth = 10;
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cx, S * 0.41, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cx, S * 0.45, 0, 7); ctx.stroke();
+  ctx.strokeStyle = '#f4f0e4'; ctx.lineWidth = 12;
   ctx.beginPath(); ctx.arc(cx, cx, S * 0.18, 0, 7); ctx.stroke();
-  // "01" pad number
-  ctx.font = `900 ${S * 0.11}px "Trebuchet MS", sans-serif`;
-  ctx.fillStyle = '#ddd9ce'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('01', cx, cx + S * 0.31);
+  // "01" pad number (oriented toward the standard camera heading)
+  ctx.save();
+  ctx.translate(cx, cx);
+  ctx.rotate(-Math.PI / 2.55);
+  ctx.font = `900 ${S * 0.12}px "Trebuchet MS", sans-serif`;
+  ctx.fillStyle = '#f4f0e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('01', 0, S * 0.31);
+  ctx.restore();
   // center scorch
-  const sc = ctx.createRadialGradient(cx, cx, 4, cx, cx, S * 0.16);
-  sc.addColorStop(0, 'rgba(28,24,22,0.92)');
-  sc.addColorStop(0.55, 'rgba(40,36,32,0.55)');
+  const sc = ctx.createRadialGradient(cx, cx, 4, cx, cx, S * 0.2);
+  sc.addColorStop(0, 'rgba(24,20,18,0.95)');
+  sc.addColorStop(0.5, 'rgba(38,34,30,0.6)');
   sc.addColorStop(1, 'rgba(40,36,32,0)');
   ctx.fillStyle = sc; ctx.fillRect(0, 0, S, S);
   // streak scorches outward
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 30; i++) {
     const a = rng() * Math.PI * 2;
     ctx.save(); ctx.translate(cx, cx); ctx.rotate(a);
-    const len = S * (0.12 + rng() * 0.12);
+    const len = S * (0.14 + rng() * 0.14);
     const g = ctx.createLinearGradient(0, 0, len, 0);
-    g.addColorStop(0, 'rgba(30,26,24,0.5)'); g.addColorStop(1, 'rgba(30,26,24,0)');
-    ctx.fillStyle = g; ctx.fillRect(S * 0.05, -6 - rng() * 8, len, 12 + rng() * 16);
+    g.addColorStop(0, 'rgba(28,24,22,0.6)'); g.addColorStop(1, 'rgba(30,26,24,0)');
+    ctx.fillStyle = g; ctx.fillRect(S * 0.05, -6 - rng() * 8, len, 12 + rng() * 18);
     ctx.restore();
   }
   const t = tex(c);
@@ -346,7 +362,7 @@ export function createWorld(scene) {
 
   // ---- concrete launch pad
   const padGroup = new THREE.Group();
-  const PAD_R = 16, PAD_H = 1.0;
+  const PAD_R = 13, PAD_H = 1.0;
   const padSide = new THREE.Mesh(
     new THREE.CylinderGeometry(PAD_R, PAD_R + 0.7, PAD_H, 48, 1, true),
     new THREE.MeshStandardMaterial({ map: concreteTexture(), roughness: 0.9 }));
@@ -376,14 +392,24 @@ export function createWorld(scene) {
     leg.castShadow = true;
     padGroup.add(leg);
   }
-  // hold-down clamps
+  // hold-down clamps: chunky yellow bases with angled arms toward the mount
+  const clampYellow = new THREE.MeshStandardMaterial({ color: '#e8b32a', roughness: 0.55, metalness: 0.35 });
   for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2;
-    const clamp = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.9), mountMat);
-    clamp.position.set(Math.cos(a) * 3.4, PAD_H + 0.25, Math.sin(a) * 3.4);
-    clamp.rotation.y = -a;
-    clamp.castShadow = true; clamp.receiveShadow = true;
-    padGroup.add(clamp);
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const cg = new THREE.Group();
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.42, 0.6), clampYellow);
+    base.position.y = 0.21;
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.22, 0.3), mountMat);
+    arm.position.set(-0.62, 0.62, 0);
+    arm.rotation.z = 0.45;
+    const piston = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.8, 8), mountMat);
+    piston.position.set(-0.25, 0.5, 0);
+    piston.rotation.z = 0.9;
+    cg.add(base, arm, piston);
+    cg.position.set(Math.cos(a) * 2.7, PAD_H, Math.sin(a) * 2.7);
+    cg.rotation.y = -a;
+    cg.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    padGroup.add(cg);
   }
   world.add(padGroup);
 
@@ -391,6 +417,26 @@ export function createWorld(scene) {
   const tower = buildTower();
   tower.position.set(-7.4, PAD_H, 0);
   world.add(tower);
+
+  // generator boxes + cable run between tower and mount
+  {
+    const genMat = new THREE.MeshStandardMaterial({ color: PALETTE.navy, roughness: 0.6, metalness: 0.3 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: PALETTE.teal, roughness: 0.55 });
+    for (const [x, z, w] of [[-9.6, 3.4, 1.5], [-9.2, -3.0, 1.1]]) {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(w, 0.85, 0.9), genMat);
+      box.position.set(x, PAD_H + 0.43, z);
+      box.castShadow = true; box.receiveShadow = true;
+      const vent = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, 0.16, 0.94), accentMat);
+      vent.position.set(x, PAD_H + 0.78, z);
+      world.add(box, vent);
+    }
+    const tray = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 0.5),
+      new THREE.MeshStandardMaterial({ color: '#3a4250', roughness: 0.7, metalness: 0.4 }));
+    tray.position.set(-4.2, PAD_H + 0.06, 0.8);
+    tray.rotation.y = 0.18;
+    tray.receiveShadow = true; tray.castShadow = true;
+    world.add(tray);
+  }
 
   // ---- props
   const tank1 = buildPropTank(2.4); tank1.position.set(30, 0, -16); world.add(tank1);

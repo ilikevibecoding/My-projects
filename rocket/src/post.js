@@ -84,9 +84,9 @@ export function createPost(renderer, scene, camera, width, height) {
 
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(Math.floor(width / 2), Math.floor(height / 2)),
-    0.55,   // strength
-    0.6,    // radius
-    0.82    // threshold (linear HDR space: only plume/sun/emissives bloom)
+    0.42,   // strength
+    0.55,   // radius
+    0.9     // threshold (linear HDR space: only plume/sun/emissives bloom)
   );
   composer.addPass(bloomPass);
 
