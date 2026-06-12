@@ -69,7 +69,7 @@ export function buildCampsite(scene, models, getHeight) {
     pit.traverse((n) => {
       if (n.isMesh && n.material) {
         n.material.roughness = Math.max(n.material.roughness ?? 1, 0.9);
-        n.material.envMapIntensity = 1.15;
+        n.material.envMapIntensity = 1.5; // shadow side must read stone-grey, not black rubber
         // warm the grey scan albedo — under the blue sky fill the shadow
         // sides tone-mapped to cold blue-grey ("deflated rubber" look).
         // (0xe6d4ba over-cooked the sunlit tops into orange sandstone)
