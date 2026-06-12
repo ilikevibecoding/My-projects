@@ -13,6 +13,42 @@ import { createPost } from './post.js';
 import { installDebugAPI } from './debug.js';
 
 // ---------------------------------------------------------------------------
+// Self-contained embed: if the host page lacks the HUD markup (e.g. the built
+// JS is loaded from a CDN on someone else's site), create it ourselves.
+// ---------------------------------------------------------------------------
+function ensureHudDom() {
+  if (document.getElementById('hud')) return;
+  const style = document.createElement('style');
+  style.textContent = `
+    html, body { margin: 0; padding: 0; overflow: hidden; background: #000; height: 100%; }
+    canvas { display: block; }
+    #hud { position: fixed; inset: 0; pointer-events: none;
+      font-family: 'Segoe UI', system-ui, sans-serif; color: #f3efe6; }
+    #crosshair { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px;
+      margin: -2.5px 0 0 -2.5px; border-radius: 50%;
+      background: rgba(245, 240, 225, 0.85); box-shadow: 0 0 4px rgba(0,0,0,0.7); }
+    #prompt { position: absolute; left: 50%; top: 54%; transform: translateX(-50%);
+      font-size: 17px; letter-spacing: 0.04em; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+    #status { position: absolute; left: 50%; bottom: 4.5%; transform: translateX(-50%);
+      font-size: 15px; opacity: 0.92; letter-spacing: 0.03em;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8); transition: opacity 0.6s ease; }
+    #hint { position: absolute; left: 50%; top: 8%; transform: translateX(-50%);
+      font-size: 14px; opacity: 0.65; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+    #fade { position: fixed; inset: 0; background: #000; opacity: 0;
+      pointer-events: none; transition: opacity 0.5s ease; }`;
+  document.head.appendChild(style);
+  const hudEl = document.createElement('div');
+  hudEl.id = 'hud';
+  hudEl.innerHTML = '<div id="crosshair"></div><div id="prompt"></div><div id="status"></div>'
+    + '<div id="hint">Click to look around — WASD to walk — E to interact</div>';
+  document.body.appendChild(hudEl);
+  const fadeEl = document.createElement('div');
+  fadeEl.id = 'fade';
+  document.body.appendChild(fadeEl);
+}
+ensureHudDom();
+
+// ---------------------------------------------------------------------------
 // Renderer / scene / camera
 // ---------------------------------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
