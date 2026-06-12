@@ -102,11 +102,13 @@ function buildVignette() {
   var vctx = vignetteCanvas.getContext('2d');
   var cx = canvas.width / 2, cy = canvas.height / 2;
   var rOut = Math.sqrt(cx * cx + cy * cy);
-  var g = vctx.createRadialGradient(cx, cy * 0.92, rOut * 0.32, cx, cy, rOut * 1.02);
+  /* aggressive, claustrophobic: pitch-black edges encroaching deep into frame */
+  var g = vctx.createRadialGradient(cx, cy * 0.92, rOut * 0.18, cx, cy, rOut * 0.98);
   g.addColorStop(0.0, 'rgba(0,0,0,0)');
-  g.addColorStop(0.55, 'rgba(0,0,0,0.18)');
-  g.addColorStop(0.8, 'rgba(0,0,0,0.45)');
-  g.addColorStop(1.0, 'rgba(0,0,0,0.72)');
+  g.addColorStop(0.38, 'rgba(0,0,0,0.26)');
+  g.addColorStop(0.62, 'rgba(0,0,0,0.62)');
+  g.addColorStop(0.85, 'rgba(0,0,0,0.92)');
+  g.addColorStop(1.0, 'rgba(0,0,0,1)');
   vctx.fillStyle = g;
   vctx.fillRect(0, 0, vignetteCanvas.width, vignetteCanvas.height);
 }
@@ -554,6 +556,22 @@ function makeTile(draw) {
   return t;
 }
 
+/* DOF: draw the tile unfiltered, then blur ONCE while stamping — applying
+   ctx.filter per-stroke would gaussian-blur every single draw call */
+function makeBlurredTile(draw, blurPx) {
+  var tmp = document.createElement('canvas');
+  tmp.width = TILE_W; tmp.height = TILE_H;
+  draw(tmp.getContext('2d'));
+  return makeTile(function (c) {
+    c.filter = 'blur(' + blurPx + 'px)';
+    /* stamp neighbors too so the gaussian wraps seamlessly at tile edges */
+    c.drawImage(tmp, -TILE_W, 0);
+    c.drawImage(tmp, 0, 0);
+    c.drawImage(tmp, TILE_W, 0);
+    c.filter = 'none';
+  });
+}
+
 function hillPath(c, baseY, amps, phases, freqs) {
   c.beginPath();
   c.moveTo(0, TILE_H);
@@ -569,74 +587,87 @@ function hillPath(c, baseY, amps, phases, freqs) {
   c.fill();
 }
 
-function bareTree(c, x, baseY, h, lean, rnd, depth) {
-  var topX = x + lean * h;
-  c.lineCap = 'round';
+/* recursive fractal tree: every child branch starts EXACTLY at its parent's tip,
+   so the whole tree is one connected silhouette (no floating sticks) */
+function fractalTree(c, x, y, len, ang, width, depth, rnd) {
+  var ex = x + Math.cos(ang) * len;
+  var ey = y + Math.sin(ang) * len;
+  c.lineWidth = Math.max(1, width);
   c.beginPath();
-  c.moveTo(x, baseY);
-  c.quadraticCurveTo(x + lean * h * 0.4, baseY - h * 0.55, topX, baseY - h);
-  c.lineWidth = Math.max(2, h * 0.045);
+  c.moveTo(x, y);
+  c.quadraticCurveTo(x + Math.cos(ang) * len * 0.5 + (rnd() - 0.5) * len * 0.18,
+                     y + Math.sin(ang) * len * 0.5, ex, ey);
   c.stroke();
-  var nb = 2 + Math.floor(rnd() * 3);
-  for (var i = 0; i < nb; i++) {
-    var f = 0.45 + rnd() * 0.5;
-    var bx = x + lean * h * f * 0.7;
-    var by = baseY - h * f;
-    var dir = rnd() < 0.5 ? -1 : 1;
-    var bl = h * (0.18 + rnd() * 0.22);
-    c.beginPath();
-    c.moveTo(bx, by);
-    c.quadraticCurveTo(bx + dir * bl * 0.6, by - bl * 0.5, bx + dir * bl, by - bl * (0.55 + rnd() * 0.4));
-    c.lineWidth = Math.max(1.5, h * 0.02);
-    c.stroke();
-    if (depth > 1 && rnd() < 0.8) {
-      var tx2 = bx + dir * bl, ty2 = by - bl * 0.7;
-      c.beginPath();
-      c.moveTo(tx2, ty2);
-      c.lineTo(tx2 + dir * bl * 0.5, ty2 - bl * 0.5);
-      c.lineWidth = Math.max(1, h * 0.012);
-      c.stroke();
-    }
+  if (depth <= 0 || width < 1.1 || len < 7) return;
+  var n = rnd() < 0.7 ? 2 : 3;
+  for (var i = 0; i < n; i++) {
+    var spread = 0.22 + rnd() * 0.5;
+    var na = ang + (i === 0 ? -spread : i === 1 ? spread : (rnd() - 0.5) * 0.3);
+    fractalTree(c, ex, ey, len * (0.62 + rnd() * 0.16), na, width * 0.6, depth - 1, rnd);
+  }
+}
+
+/* a dense rank of fractal trees across one tile — "wall of forest" */
+function forestWall(c, rnd, count, baseY, hMin, hVar, wScale, depth) {
+  for (var i = 0; i < count; i++) {
+    var x = (i + rnd() * 0.9) * (TILE_W / count);
+    var h = hMin + rnd() * hVar;
+    fractalTree(c, x, baseY + rnd() * 30, h * 0.42, -Math.PI / 2 + (rnd() - 0.5) * 0.2,
+                h * wScale, depth, rnd);
   }
 }
 
 (function buildLayers() {
-  /* far hills + spindly distant trees — lightest gray, softened with blur */
+  /* deepest: a solid wall of heavily blurred, overlapping gray trunks
+     melting into the fog — DOF grade: deepest layer = strongest blur */
   var rnd1 = mulberry32(101);
   layers.push({
-    factor: 0.2, alpha: 0.55,
-    tile: makeTile(function (c) {
-      c.filter = 'blur(3px)';
-      c.fillStyle = '#999999'; c.strokeStyle = '#999999';
-      hillPath(c, 600, [70, 30, 12], [0.4, 1.9, 4.0], [1, 3, 7]);
-      for (var i = 0; i < 6; i++) {
-        bareTree(c, 150 + i * 380 + rnd1() * 120, 620 + rnd1() * 40, 130 + rnd1() * 90, (rnd1() - 0.5) * 0.25, rnd1, 1);
+    factor: 0.2, alpha: 0.85,
+    tile: makeBlurredTile(function (c) {
+      c.fillStyle = '#5d5d5d'; c.strokeStyle = '#5d5d5d';
+      hillPath(c, 640, [70, 30, 12], [0.4, 1.9, 4.0], [1, 3, 7]);
+      /* overlapping fat trunk columns running off the top of the frame */
+      c.lineCap = 'round';
+      for (var i = 0; i < 34; i++) {
+        var x = i * (TILE_W / 34) + rnd1() * 70;
+        var w = 26 + rnd1() * 95;
+        var lean2 = (rnd1() - 0.5) * 110;
+        c.beginPath();
+        c.moveTo(x - w / 2, TILE_H);
+        c.lineTo(x - w * 0.3 + lean2, -80);
+        c.lineTo(x + w * 0.3 + lean2, -80);
+        c.lineTo(x + w / 2, TILE_H);
+        c.closePath();
+        c.fill();
       }
-      c.filter = 'none';
-    })
+      for (i = 0; i < 14; i++) {
+        fractalTree(c, 70 + i * 146 + rnd1() * 90, 720 + rnd1() * 40,
+                    (170 + rnd1() * 130) * 0.42, -Math.PI / 2 + (rnd1() - 0.5) * 0.25,
+                    9 + rnd1() * 7, 4, rnd1);
+      }
+    }, 7)
   });
-  /* mid ridge + big organic trees — soft gray masses in the fog */
+  /* mid: darker, slightly less blurred, dense fractal forest */
   var rnd2 = mulberry32(202);
   layers.push({
-    factor: 0.42, alpha: 0.7,
-    tile: makeTile(function (c) {
-      c.filter = 'blur(2px)';
-      c.fillStyle = '#666666'; c.strokeStyle = '#666666';
-      hillPath(c, 660, [85, 38, 16], [1.2, 2.8, 0.3], [2, 5, 11]);
+    factor: 0.42, alpha: 0.92,
+    tile: makeBlurredTile(function (c) {
+      c.fillStyle = '#333333'; c.strokeStyle = '#333333';
+      hillPath(c, 680, [85, 38, 16], [1.2, 2.8, 0.3], [2, 5, 11]);
+      forestWall(c, rnd2, 26, 760, 320, 320, 0.055, 5);
       for (var i = 0; i < 4; i++) {
-        var gg = genTree(2020 + i * 17, 300 + rnd2() * 200, 34 + rnd2() * 30, false);
-        drawTreeGeom(c, gg, 280 + i * 560 + rnd2() * 140, 740 + rnd2() * 40, 0, 0);
+        var gg = genTree(2020 + i * 17, 340 + rnd2() * 220, 38 + rnd2() * 32, false);
+        drawTreeGeom(c, gg, 280 + i * 560 + rnd2() * 140, 760 + rnd2() * 40, 0, 0);
       }
-      c.filter = 'none';
-    })
+    }, 3)
   });
   /* near brush + hanging vines — darkest gray ground texture
      (the big near trees are drawn per-frame by the animated bands) */
   var rnd3 = mulberry32(303);
   layers.push({
-    factor: 0.68, alpha: 0.85,
-    tile: makeTile(function (c) {
-      c.fillStyle = '#333333'; c.strokeStyle = '#333333';
+    factor: 0.68, alpha: 0.92,
+    tile: makeBlurredTile(function (c) {
+      c.fillStyle = '#1f1f1f'; c.strokeStyle = '#1f1f1f';
       c.beginPath();
       c.moveTo(0, TILE_H);
       for (var x2 = 0; x2 <= TILE_W; x2 += 26) {
@@ -655,7 +686,7 @@ function bareTree(c, x, baseY, h, lean, rnd, depth) {
         c.quadraticCurveTo(vx + 18 + rnd3() * 22, vl * 0.6, vx + 6 + rnd3() * 14, vl);
         c.stroke();
       }
-    })
+    }, 1)
   });
 })();
 
@@ -667,8 +698,14 @@ var terrainPaths = [];
   var rnd = mulberry32(777);
   blocks.forEach(function (b) {
     var pts = [];
-    for (var x = b.x0; x <= b.x1; x += 14) {
-      pts.push({ x: x, y: b.top - rnd() * 3 });
+    /* uneven bumpy edge: overlapping sine waves + random clods, spikes only
+       upward so the physics top remains the visual base */
+    for (var x = b.x0; x <= b.x1; x += 9) {
+      var j = 1.2 + rnd() * 2.2
+            + Math.abs(Math.sin(x * 0.011 + b.x0 * 0.7)) * 3.4
+            + Math.abs(Math.sin(x * 0.031 + b.x0)) * 1.8;
+      if (rnd() < 0.13) j += 4 + rnd() * 9;       // jutting clod / rock
+      pts.push({ x: x, y: b.top - j });
     }
     pts.push({ x: b.x1, y: b.top });
     var blades = [];
@@ -1000,9 +1037,9 @@ var darkSwayProbe = 0;   // read by the eval harness to prove the animation is l
 var bandCache = {};
 
 var TREE_BANDS = [
-  { id: 'mid',  factor: 0.68, color: '#333333', alpha: 0.85, spacing: 640, seedBase: 5000,
+  { id: 'mid',  factor: 0.68, color: '#1f1f1f', alpha: 0.92, spacing: 640, seedBase: 5000,
     baseV: 330, hMin: 420, hVar: 300, wMin: 46, wVar: 44, swayAmp: 4, cocoonChance: 0.12, giantEvery: 0 },
-  { id: 'near', factor: 0.85, color: '#141414', alpha: 0.92, spacing: 560, seedBase: 9000,
+  { id: 'near', factor: 0.85, color: '#0c0c0c', alpha: 0.95, spacing: 560, seedBase: 9000,
     baseV: 345, hMin: 400, hVar: 300, wMin: 34, wVar: 40, swayAmp: 5, cocoonChance: 0.25, giantEvery: 5 }
 ];
 
@@ -1093,13 +1130,73 @@ function drawGlowPockets() {
     if (!p) {
       var rnd = mulberry32(31 + k * 197);
       p = pocketCache[k] = { jit: (rnd() - 0.5) * 300, gy: -160 + rnd() * 300,
-                             r: 280 + rnd() * 200, a: 0.17 + rnd() * 0.11, ph: rnd() * 6.283 };
+                             r: 280 + rnd() * 200, a: 0.08 + rnd() * 0.06, ph: rnd() * 6.283 };
     }
     var gx = k * 760 + p.jit - px;
     c.globalAlpha = p.a * (0.82 + 0.18 * Math.sin(t * 0.17 + p.ph));
     c.drawImage(glowSprite, gx - p.r, p.gy - p.r, p.r * 2, p.r * 2);
   }
   c.globalAlpha = 1;
+}
+
+/* --- colossal pure-black foreground trunks, IN FRONT of the player —
+       they slide past faster than the world and crowd the screen edges --- */
+var fgCache = {};
+function drawForegroundTrunks() {
+  var W = canvas.width, H = canvas.height;
+  var sc2 = dpr * zoom;
+  ctx.setTransform(sc2, 0, 0, sc2, W / 2, H / 2);
+  ctx.fillStyle = '#000000';
+  ctx.strokeStyle = '#000000';
+  ctx.lineCap = 'round';
+  var FACT = 1.35, SP = 1500;
+  var px = cam.x * FACT;
+  var k0 = Math.floor((px - 1300) / SP), k1 = Math.ceil((px + 1300) / SP);
+  for (var k = k0; k <= k1; k++) {
+    var s = fgCache[k];
+    if (!s) {
+      var rnd = mulberry32(7000 + k * 271);
+      s = fgCache[k] = {
+        skip: rnd() < 0.5,
+        jit: (rnd() - 0.5) * SP * 0.5,
+        w: 130 + rnd() * 115,
+        lean: (rnd() - 0.5) * 0.2,
+        branchY: -60 - rnd() * 200,
+        branchDir: rnd() < 0.5 ? -1 : 1,
+        branchLen: 170 + rnd() * 220,
+        branchDroop: 30 + rnd() * 120
+      };
+    }
+    if (s.skip) continue;
+    var x = k * SP + s.jit - px;
+    if (x < -760 - s.w || x > 760 + s.w) continue;
+    var w2 = s.w / 2, ln = s.lean;
+    /* gnarled colossus: flared roots, curved bole, runs off both frame edges */
+    ctx.beginPath();
+    ctx.moveTo(x - w2 * 1.8, 430);
+    ctx.quadraticCurveTo(x - w2 * 1.02, 180, x - w2 + ln * 260, -60);
+    ctx.quadraticCurveTo(x - w2 * 0.94 + ln * 480, -240, x - w2 * 0.88 + ln * 700, -440);
+    ctx.lineTo(x + w2 * 0.92 + ln * 700, -440);
+    ctx.quadraticCurveTo(x + w2 * 0.96 + ln * 480, -250, x + w2 + ln * 260, -70);
+    ctx.quadraticCurveTo(x + w2 * 1.08, 170, x + w2 * 1.8, 430);
+    ctx.closePath();
+    ctx.fill();
+    /* one massive gnarled limb: tapered polygon, jagged tip */
+    var bx0 = x + s.branchDir * w2 * 0.5 + ln * 200;
+    var bx1 = x + s.branchDir * (w2 + s.branchLen);
+    var by1 = s.branchY - s.branchDroop * 0.2;
+    var bw0 = s.w * 0.16;
+    ctx.beginPath();
+    ctx.moveTo(bx0, s.branchY - bw0);
+    ctx.quadraticCurveTo(x + s.branchDir * (w2 + s.branchLen * 0.5), s.branchY - s.branchDroop * 0.9 - bw0 * 0.4,
+                         bx1, by1 - bw0 * 0.12);
+    ctx.lineTo(bx1 + s.branchDir * s.branchLen * 0.22, by1 + s.branchDroop * 0.18);     // jagged spike tip
+    ctx.lineTo(bx1 - s.branchDir * s.branchLen * 0.06, by1 + bw0 * 0.5);
+    ctx.quadraticCurveTo(x + s.branchDir * (w2 + s.branchLen * 0.5), s.branchY - s.branchDroop * 0.9 + bw0 * 0.55,
+                         bx0, s.branchY + bw0);
+    ctx.closePath();
+    ctx.fill();
+  }
 }
 
 /* --- diagonal god rays drifting through the fog --- */
@@ -1114,7 +1211,7 @@ function drawGodRays() {
     if (!r) {
       var rnd = mulberry32(401 + k * 53);
       r = rayCache[k] = { skip: rnd() < 0.3, jit: (rnd() - 0.5) * 260, w: 110 + rnd() * 160,
-                          ang: 0.40 + rnd() * 0.14, a: 0.20 + rnd() * 0.12, ph: rnd() * 6.283 };
+                          ang: 0.40 + rnd() * 0.14, a: 0.10 + rnd() * 0.07, ph: rnd() * 6.283 };
     }
     if (r.skip) continue;
     var topX = k * 540 + r.jit - px;
@@ -1141,79 +1238,94 @@ function drawBoy(c) {
 
   var speed = Math.abs(vx);
   var running = grounded && speed > 0.6;
-  var lean = Math.max(-0.22, Math.min(0.22, vx * 0.035));
-  var bob = running ? Math.abs(Math.sin(walkPhase)) * 2.2 : Math.sin(t * 2.1) * 0.8;
+  var leanL = Math.min(0.22, speed * 0.035);          // forward lean in local space
+  var bob = running ? Math.abs(Math.sin(walkPhase)) * 1.6 : Math.sin(t * 2.1) * 0.6;
 
+  /* tiny hunched silhouette, drawn facing +x and mirrored via scale —
+     feet stay planted at the physics body's base (y +30) */
   c.save();
   c.translate(p.x, p.y);
+  c.scale(facing, 1);
   c.fillStyle = '#000000';
   c.strokeStyle = '#000000';
   c.lineCap = 'round';
 
-  var hipY = 10;
-  var shoulderY = -14;
+  var hipY = 14;
 
-  /* legs */
-  c.lineWidth = 7.5;
+  /* spindly stick legs */
+  c.lineWidth = 3.1;
   if (onRope) {
-    var sway = Math.sin(t * 2.4) * 3;
-    c.beginPath(); c.moveTo(-3, hipY);
-    c.quadraticCurveTo(-6 + sway, hipY + 11, -4 + sway, hipY + 20); c.stroke();
-    c.beginPath(); c.moveTo(3, hipY);
-    c.quadraticCurveTo(7 + sway, hipY + 10, 5 + sway, hipY + 19); c.stroke();
+    var sway = Math.sin(t * 2.4) * 2.4;
+    c.beginPath(); c.moveTo(-1.5, hipY);
+    c.quadraticCurveTo(-3.5 + sway, hipY + 8, -2.5 + sway, hipY + 14); c.stroke();
+    c.beginPath(); c.moveTo(2, hipY);
+    c.quadraticCurveTo(4.5 + sway, hipY + 7, 3.5 + sway, hipY + 13); c.stroke();
   } else if (!grounded && swim < 0.2) {
     /* jump tuck */
-    c.beginPath(); c.moveTo(-3, hipY);
-    c.quadraticCurveTo(-9, hipY + 7, -8 + facing * 3, hipY + (vy < 0 ? 11 : 16)); c.stroke();
-    c.beginPath(); c.moveTo(3, hipY);
-    c.quadraticCurveTo(8, hipY + 9, 4 + facing * 4, hipY + (vy < 0 ? 13 : 18)); c.stroke();
+    c.beginPath(); c.moveTo(-1.5, hipY);
+    c.quadraticCurveTo(-5.5, hipY + 5, -3, hipY + (vy < 0 ? 8 : 12)); c.stroke();
+    c.beginPath(); c.moveTo(2, hipY);
+    c.quadraticCurveTo(5.5, hipY + 6, 3.5, hipY + (vy < 0 ? 9 : 13)); c.stroke();
   } else if (running) {
     var s1 = Math.sin(walkPhase), s2 = Math.sin(walkPhase + Math.PI);
-    c.beginPath(); c.moveTo(-2, hipY);
-    c.quadraticCurveTo(s1 * 6 + facing * 2, hipY + 9, s1 * 11, hipY + 20 - Math.max(0, Math.cos(walkPhase)) * 4.5); c.stroke();
-    c.beginPath(); c.moveTo(2, hipY);
-    c.quadraticCurveTo(s2 * 6 + facing * 2, hipY + 9, s2 * 11, hipY + 20 - Math.max(0, Math.cos(walkPhase + Math.PI)) * 4.5); c.stroke();
+    c.beginPath(); c.moveTo(-1, hipY);
+    c.quadraticCurveTo(s1 * 4 + 1, hipY + 8, s1 * 8.5, hipY + 16 - Math.max(0, Math.cos(walkPhase)) * 3.5); c.stroke();
+    c.beginPath(); c.moveTo(1.5, hipY);
+    c.quadraticCurveTo(s2 * 4 + 1, hipY + 8, s2 * 8.5, hipY + 16 - Math.max(0, Math.cos(walkPhase + Math.PI)) * 3.5); c.stroke();
   } else {
-    c.beginPath(); c.moveTo(-3, hipY); c.lineTo(-4.5, hipY + 20); c.stroke();
-    c.beginPath(); c.moveTo(3, hipY); c.lineTo(4.5, hipY + 20); c.stroke();
+    c.beginPath(); c.moveTo(-1.5, hipY); c.lineTo(-2.8, hipY + 16); c.stroke();
+    c.beginPath(); c.moveTo(2, hipY); c.lineTo(3, hipY + 16); c.stroke();
   }
 
-  /* torso */
-  c.save();
-  c.rotate(lean);
+  /* hunched torso: jagged closed path — back bulge, shoulder hump */
   c.beginPath();
-  c.roundRect(-9, shoulderY - 9 - bob * 0.4, 18, 32 + bob * 0.4, 8);
+  c.moveTo(-2.5, hipY + 1);
+  c.quadraticCurveTo(-5.5 - leanL * 4, 3 - bob * 0.3, -1.8 + leanL * 5, -5.5 - bob * 0.5);
+  c.quadraticCurveTo(0.6 + leanL * 6, -8 - bob * 0.6, 3.6 + leanL * 6, -6 - bob * 0.5);
+  c.quadraticCurveTo(4.6 + leanL * 3, 0, 3, 8);
+  c.quadraticCurveTo(2.7, 12, 2.2, hipY + 1);
+  c.closePath();
   c.fill();
-  c.restore();
 
-  /* arms */
-  c.lineWidth = 5.5;
+  /* thin arms */
+  c.lineWidth = 2.3;
+  var shX = 2 + leanL * 5, shY = -4.5 - bob * 0.4;
   if (onRope && ropeGrab.segment) {
     var seg = ropeGrab.segment.position;
-    var ax = seg.x - p.x, ay = seg.y - p.y;
-    c.beginPath(); c.moveTo(-4, shoulderY - bob * 0.3); c.quadraticCurveTo(ax * 0.4 - 4, ay * 0.55, ax - 2.5, ay + 2); c.stroke();
-    c.beginPath(); c.moveTo(4, shoulderY - bob * 0.3); c.quadraticCurveTo(ax * 0.4 + 4, ay * 0.55, ax + 2.5, ay + 2); c.stroke();
+    var ax = (seg.x - p.x) * facing, ay = seg.y - p.y;
+    c.beginPath(); c.moveTo(shX - 2.5, shY); c.quadraticCurveTo(ax * 0.4 - 2.5, ay * 0.55, ax - 1.8, ay + 2); c.stroke();
+    c.beginPath(); c.moveTo(shX + 1.5, shY); c.quadraticCurveTo(ax * 0.4 + 2.5, ay * 0.55, ax + 1.8, ay + 2); c.stroke();
   } else if (grabConstraint) {
-    var cdir = crate.position.x > p.x ? 1 : -1;
-    c.beginPath(); c.moveTo(-3, shoulderY + 1); c.quadraticCurveTo(cdir * 8, shoulderY + 4, cdir * 16, shoulderY + 7); c.stroke();
-    c.beginPath(); c.moveTo(3, shoulderY + 1); c.quadraticCurveTo(cdir * 9, shoulderY + 6, cdir * 16, shoulderY + 10); c.stroke();
+    var cdir = (crate.position.x > p.x ? 1 : -1) * facing;
+    c.beginPath(); c.moveTo(shX - 2, shY + 1); c.quadraticCurveTo(cdir * 6, shY + 4, cdir * 12, shY + 7); c.stroke();
+    c.beginPath(); c.moveTo(shX + 1, shY + 2); c.quadraticCurveTo(cdir * 7, shY + 6, cdir * 12, shY + 9); c.stroke();
   } else if (!grounded && swim < 0.2) {
-    c.beginPath(); c.moveTo(-4, shoulderY); c.quadraticCurveTo(-11, shoulderY + 2, -13, shoulderY - 6); c.stroke();
-    c.beginPath(); c.moveTo(4, shoulderY); c.quadraticCurveTo(11, shoulderY + 3, 12, shoulderY - 4); c.stroke();
+    c.beginPath(); c.moveTo(shX - 3, shY); c.quadraticCurveTo(-7, shY + 1, -8.5, shY - 5); c.stroke();
+    c.beginPath(); c.moveTo(shX + 1, shY); c.quadraticCurveTo(7.5, shY + 2, 8.5, shY - 3); c.stroke();
   } else if (running) {
-    var a1 = Math.sin(walkPhase + Math.PI) * 8, a2 = Math.sin(walkPhase) * 8;
-    c.beginPath(); c.moveTo(-3, shoulderY); c.quadraticCurveTo(a1 * 0.5 - 3, shoulderY + 8, a1, shoulderY + 15); c.stroke();
-    c.beginPath(); c.moveTo(3, shoulderY); c.quadraticCurveTo(a2 * 0.5 + 3, shoulderY + 8, a2, shoulderY + 15); c.stroke();
+    var a1 = Math.sin(walkPhase + Math.PI) * 5.5, a2 = Math.sin(walkPhase) * 5.5;
+    c.beginPath(); c.moveTo(shX - 2.5, shY); c.quadraticCurveTo(a1 * 0.5 - 2, shY + 6, a1, shY + 11); c.stroke();
+    c.beginPath(); c.moveTo(shX + 1, shY); c.quadraticCurveTo(a2 * 0.5 + 2, shY + 6, a2, shY + 11); c.stroke();
   } else {
-    c.beginPath(); c.moveTo(-4, shoulderY); c.lineTo(-5.5, shoulderY + 15); c.stroke();
-    c.beginPath(); c.moveTo(4, shoulderY); c.lineTo(5.5, shoulderY + 15); c.stroke();
+    c.beginPath(); c.moveTo(shX - 2.5, shY); c.lineTo(shX - 3.5, shY + 11); c.stroke();
+    c.beginPath(); c.moveTo(shX + 1, shY); c.lineTo(shX + 2, shY + 11); c.stroke();
   }
 
-  /* head */
-  var headX = facing * 2.8 + lean * 14;
-  var headY = shoulderY - 13 - bob;
+  /* small head thrust forward of the hunch + messy jagged hair */
+  var headX = 6 + leanL * 9;
+  var headY = -11.5 - bob * 0.6;
   c.beginPath();
-  c.arc(headX, headY, 10.5, 0, Math.PI * 2);
+  c.arc(headX, headY, 5.6, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();                                   // messy tufts, swept back
+  c.moveTo(headX - 5.2, headY - 1.6);
+  c.lineTo(headX - 7.4, headY - 4.4);
+  c.lineTo(headX - 3.4, headY - 4.5);
+  c.lineTo(headX - 3.2, headY - 7.4);
+  c.lineTo(headX - 0.2, headY - 5.3);
+  c.lineTo(headX + 2.4, headY - 6.6);
+  c.lineTo(headX + 3.6, headY - 3.6);
+  c.closePath();
   c.fill();
 
   /* the eyes — the only detail on him: two tiny glowing white dots */
@@ -1225,10 +1337,10 @@ function drawBoy(c) {
     c.save();
     c.fillStyle = '#ffffff';
     c.shadowColor = '#ffffff';
-    c.shadowBlur = 7;
+    c.shadowBlur = 6;
     c.beginPath();
-    c.arc(headX + facing * 3.4 - 2.1, headY - 1.5, 1.55, 0, Math.PI * 2);
-    c.arc(headX + facing * 3.4 + 2.4, headY - 1.5, 1.55, 0, Math.PI * 2);
+    c.arc(headX + 1.7, headY - 0.9, 1.05, 0, Math.PI * 2);
+    c.arc(headX + 4.2, headY - 0.9, 1.05, 0, Math.PI * 2);
     c.fill();
     c.restore();
   }
@@ -1271,8 +1383,8 @@ function drawWater(c) {
 function drawWaterSurface(c) {
   var t = tickCount / 60;
   /* pale surface highlight lines, drawn over the floating logs */
-  c.strokeStyle = 'rgba(110,110,110,0.5)';
-  c.lineWidth = 2;
+  c.strokeStyle = 'rgba(85,85,85,0.32)';
+  c.lineWidth = 1.6;
   for (var p = 0; p < WATERS.length; p++) {
     var pool = WATERS[p];
     c.beginPath();
@@ -1364,18 +1476,20 @@ function render() {
      upscale doubles as atmospheric depth blur === */
   bc.setTransform(1, 0, 0, 1, 0, 0);
 
-  /* --- sky: foggy gray gradient + soft glow --- */
+  /* --- sky: near-black, claustrophobic — the world lives in darkness --- */
   var sky = bc.createLinearGradient(0, 0, 0, bh);
-  sky.addColorStop(0, '#8e8e8e');
-  sky.addColorStop(0.52, '#b2b2b2');
-  sky.addColorStop(1, '#3f3f3f');
+  sky.addColorStop(0, '#161616');
+  sky.addColorStop(0.5, '#2e2e2e');
+  sky.addColorStop(1, '#040404');
   bc.fillStyle = sky;
   bc.fillRect(0, 0, bw, bh);
-  var glow = bc.createRadialGradient(bw * 0.5, bh * 0.42, 0, bw * 0.5, bh * 0.42, bw * 0.42);
-  glow.addColorStop(0, 'rgba(255,255,255,0.16)');
-  glow.addColorStop(1, 'rgba(255,255,255,0)');
-  bc.fillStyle = glow;
-  bc.fillRect(0, 0, bw, bh);
+  /* --- the ONLY light: a glowing wall of fog dead-center in the background --- */
+  var corePulse = 0.92 + 0.08 * Math.sin(tickCount / 60 * 0.21);
+  bc.globalAlpha = 0.62 * corePulse;
+  bc.drawImage(glowSprite, bw * 0.5 - bw * 0.52, bh * 0.42 - bw * 0.52, bw * 1.04, bw * 1.04);
+  bc.globalAlpha = 0.5 * corePulse;
+  bc.drawImage(glowSprite, bw * 0.5 - bw * 0.26, bh * 0.40 - bw * 0.26, bw * 0.52, bw * 0.52);
+  bc.globalAlpha = 1;
 
   /* --- parallax layers, driven by the camera's LERP coordinates --- */
   mistDrift += 0.12;
@@ -1397,7 +1511,7 @@ function render() {
       var mw = bw * 0.7;
       var mx = ((mistDrift * (li + 1) * 0.35) % (bw + mw)) - mw + (li === 0 ? 0 : bw * 0.4);
       var my = bh * (0.45 + li * 0.18);
-      bc.globalAlpha = 0.09;
+      bc.globalAlpha = 0.05;
       bc.drawImage(glowSprite, mx, my - mw * 0.18, mw, mw * 0.36);
       bc.globalAlpha = 1;
     }
@@ -1423,6 +1537,9 @@ function render() {
   drawLogs(ctx);
   drawWaterSurface(ctx);
   drawBoy(ctx);
+
+  /* --- colossal black foreground trunks pass in front of everything --- */
+  drawForegroundTrunks();
 
   /* --- post stack --- */
   ctx.setTransform(1, 0, 0, 1, 0, 0);
