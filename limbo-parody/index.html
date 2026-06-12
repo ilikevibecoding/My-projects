@@ -56,7 +56,7 @@ var COYOTE_TICKS = 6;
 var WATER_X0 = 900, WATER_X1 = 1500, WATER_SURFACE_Y = 920, WATER_FLOOR_Y = 1160;
 
 var ROPE_PIN = { x: 3350, y: 412 };
-var ROPE_SEGS = 7, ROPE_SEG_LEN = 30, ROPE_SEG_W = 8;
+var ROPE_SEGS = 8, ROPE_SEG_LEN = 30, ROPE_SEG_W = 8;
 
 /* seeded rng so jagged silhouettes are identical every run */
 function mulberry32(a) {
@@ -169,8 +169,8 @@ var blocks = [
   { x0: 1500, x1: 2500, top: 900  },        // crate flats
   { x0: 2500, x1: 3200, top: 750  },        // upper ledge
   { x0: 3200, x1: 3580, top: 1020 },        // gap floor (rope above)
-  { x0: 3200, x1: 3300, top: 930  },        // recovery step 1
-  { x0: 3268, x1: 3330, top: 835  },        // recovery step 2
+  { x0: 3200, x1: 3320, top: 930  },        // recovery step (lower)
+  { x0: 3200, x1: 3290, top: 840  },        // recovery step (upper)
   { x0: 3580, x1: WORLD_X1, top: 750 }      // landing / end
 ];
 
@@ -428,9 +428,9 @@ function updateRopeGrab() {
 
   if (ropeGrab.cooldown > 0 || isGrounded() || grabConstraint) return;
   var handX = player.position.x, handY = player.position.y - 22;
-  for (var i = 2; i < ropeSegments.length; i++) {
+  for (var i = 1; i < ropeSegments.length; i++) {
     var seg = ropeSegments[i];
-    if (Math.hypot(seg.position.x - handX, seg.position.y - handY) < 42) {
+    if (Math.hypot(seg.position.x - handX, seg.position.y - handY) < 50) {
       ropeGrab.constraint = Constraint.create({
         bodyA: player, pointA: { x: 0, y: -22 },
         bodyB: seg, pointB: { x: 0, y: 0 },
