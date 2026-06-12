@@ -72,6 +72,8 @@ var canvas = document.getElementById('game');
 var ctx = canvas.getContext('2d');
 var cssW = 0, cssH = 0, dpr = 1, zoom = 1;
 var vignetteCanvas = null;
+/* half-resolution offscreen for the soft atmospheric stack (pockets, tree bands, rays) */
+var bg = { canvas: null, c: null, w: 0, h: 0, scl: 1 };
 
 function resize() {
   var w = window.innerWidth, h = window.innerHeight;
@@ -84,6 +86,11 @@ function resize() {
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
   zoom = cssW / VIEW_W;
+  bg.canvas = document.createElement('canvas');
+  bg.w = bg.canvas.width = Math.max(2, Math.round(canvas.width / 2));
+  bg.h = bg.canvas.height = Math.max(2, Math.round(canvas.height / 2));
+  bg.c = bg.canvas.getContext('2d');
+  bg.scl = (dpr * zoom) / 2;
   buildVignette();
 }
 window.addEventListener('resize', resize);
@@ -594,50 +601,42 @@ function bareTree(c, x, baseY, h, lean, rnd, depth) {
 }
 
 (function buildLayers() {
-  /* far hills + spindly distant trees — lightest gray */
+  /* far hills + spindly distant trees — lightest gray, softened with blur */
   var rnd1 = mulberry32(101);
   layers.push({
     factor: 0.2, alpha: 0.55,
     tile: makeTile(function (c) {
+      c.filter = 'blur(3px)';
       c.fillStyle = '#999999'; c.strokeStyle = '#999999';
       hillPath(c, 600, [70, 30, 12], [0.4, 1.9, 4.0], [1, 3, 7]);
       for (var i = 0; i < 6; i++) {
         bareTree(c, 150 + i * 380 + rnd1() * 120, 620 + rnd1() * 40, 130 + rnd1() * 90, (rnd1() - 0.5) * 0.25, rnd1, 1);
       }
+      c.filter = 'none';
     })
   });
-  /* mid ridge + big bare trees */
+  /* mid ridge + big organic trees — soft gray masses in the fog */
   var rnd2 = mulberry32(202);
   layers.push({
     factor: 0.42, alpha: 0.7,
     tile: makeTile(function (c) {
+      c.filter = 'blur(2px)';
       c.fillStyle = '#666666'; c.strokeStyle = '#666666';
       hillPath(c, 660, [85, 38, 16], [1.2, 2.8, 0.3], [2, 5, 11]);
       for (var i = 0; i < 4; i++) {
-        bareTree(c, 260 + i * 560 + rnd2() * 140, 700 + rnd2() * 40, 260 + rnd2() * 160, (rnd2() - 0.5) * 0.35, rnd2, 2);
+        var gg = genTree(2020 + i * 17, 300 + rnd2() * 200, 34 + rnd2() * 30, rnd2() < 0.3);
+        drawTreeGeom(c, gg, 280 + i * 560 + rnd2() * 140, 740 + rnd2() * 40, 0, 0);
       }
+      c.filter = 'none';
     })
   });
-  /* near trunks + brush — darkest gray */
+  /* near brush + hanging vines — darkest gray ground texture
+     (the big near trees are drawn per-frame by the animated bands) */
   var rnd3 = mulberry32(303);
   layers.push({
     factor: 0.68, alpha: 0.85,
     tile: makeTile(function (c) {
       c.fillStyle = '#333333'; c.strokeStyle = '#333333';
-      /* tall trunks running off the top of the frame */
-      for (var i = 0; i < 7; i++) {
-        var x = 120 + i * 330 + rnd3() * 90;
-        var w = 10 + rnd3() * 16;
-        var lean = (rnd3() - 0.5) * 60;
-        c.beginPath();
-        c.moveTo(x - w / 2, TILE_H);
-        c.lineTo(x - w * 0.32 + lean, 0);
-        c.lineTo(x + w * 0.32 + lean, 0);
-        c.lineTo(x + w / 2, TILE_H);
-        c.closePath();
-        c.fill();
-      }
-      /* low brush spikes */
       c.beginPath();
       c.moveTo(0, TILE_H);
       for (var x2 = 0; x2 <= TILE_W; x2 += 26) {
@@ -647,7 +646,6 @@ function bareTree(c, x, baseY, h, lean, rnd, depth) {
       c.lineTo(TILE_W, TILE_H);
       c.closePath();
       c.fill();
-      /* hanging vines */
       for (var v = 0; v < 5; v++) {
         var vx = 200 + v * 470 + rnd3() * 160;
         var vl = 120 + rnd3() * 170;
@@ -663,20 +661,54 @@ function bareTree(c, x, baseY, h, lean, rnd, depth) {
 
 /* ============================== terrain silhouette geometry ============================== */
 
-/* jagged top edges: small upward-only spikes so physics top == visual base */
+/* jagged top edges (small) + a fringe of individual grass blades on walkable tops */
 var terrainPaths = [];
 (function buildTerrainPaths() {
   var rnd = mulberry32(777);
   blocks.forEach(function (b) {
     var pts = [];
     for (var x = b.x0; x <= b.x1; x += 14) {
-      var spike = rnd() < 0.32 ? rnd() * 7 : rnd() * 2.5;
-      pts.push({ x: x, y: b.top - spike });
+      pts.push({ x: x, y: b.top - rnd() * 3 });
     }
     pts.push({ x: b.x1, y: b.top });
-    terrainPaths.push({ block: b, pts: pts });
+    var blades = [];
+    if (b.top <= 1000) {            // no grass on submerged / chasm floors
+      for (x = b.x0 + 3; x < b.x1 - 2; x += 4 + rnd() * 9) {
+        if (rnd() < 0.22) { x += 14 + rnd() * 26; continue; }      // bald patches
+        var clump = 1 + Math.floor(rnd() * 3);                     // clumpy growth
+        for (var ci = 0; ci < clump; ci++) {
+          var tall = rnd() < 0.07;
+          blades.push({ x: x + ci * (1.5 + rnd() * 2.5),
+                        h: tall ? 20 + rnd() * 12 : 4 + rnd() * 13,
+                        lean: (rnd() - 0.5) * (tall ? 16 : 10) });
+        }
+      }
+    }
+    terrainPaths.push({ block: b, pts: pts, blades: blades });
   });
 })();
+
+/* grass fringe, drawn per frame with a soft wind shear */
+function drawGrass(c) {
+  var t = tickCount / 60;
+  var x0 = cam.x - VIEW_W / 2 - 40, x1 = cam.x + VIEW_W / 2 + 40;
+  c.strokeStyle = '#000000';
+  c.lineWidth = 1.7;
+  c.lineCap = 'round';
+  c.beginPath();
+  for (var i = 0; i < terrainPaths.length; i++) {
+    var tp = terrainPaths[i];
+    if (tp.block.x1 < x0 || tp.block.x0 > x1) continue;
+    for (var j = 0; j < tp.blades.length; j++) {
+      var bl = tp.blades[j];
+      if (bl.x < x0 || bl.x > x1) continue;
+      var shear = Math.sin(t * 1.4 + bl.x * 0.06) * 1.8 * (bl.h / 14);
+      c.moveTo(bl.x, tp.block.top + 1);
+      c.lineTo(bl.x + bl.lean + shear, tp.block.top - bl.h);
+    }
+  }
+  c.stroke();
+}
 
 /* dead tree + branch over the gap that the rope pins to (visual only, out of reach) */
 function drawGallowsTree(c) {
@@ -708,21 +740,161 @@ function drawGallowsTree(c) {
   c.beginPath(); c.moveTo(3220, 408); c.quadraticCurveTo(3230, 380, 3252, 366); c.stroke();
 }
 
-/* ============================== animated dead trees & eerie set dressing ============================== */
+/* ============================== organic tree generator & eerie set dressing ==============================
+   Geometry is generated once per tree (seeded, deterministic); sway is applied at
+   draw time by displacing spine/branch points, so animation costs almost nothing. */
 
-var worldTrees = [
-  { x: 690,  baseY: 902, h: 560, lean: -0.06, seed: 11, cocoon: false },
-  { x: 1850, baseY: 902, h: 480, lean: 0.08,  seed: 23, cocoon: false },
-  { x: 2720, baseY: 752, h: 600, lean: -0.05, seed: 37, cocoon: false },
-  { x: 4480, baseY: 752, h: 620, lean: 0.05,  seed: 41, cocoon: true  },
-  { x: 5020, baseY: 907, h: 520, lean: -0.09, seed: 53, cocoon: false },
-  { x: 6080, baseY: 907, h: 580, lean: 0.06,  seed: 67, cocoon: true  }
-];
-var worldVines = [
-  { x: 2080, tipY: 560, phase: 0.9 },
-  { x: 4640, tipY: 500, phase: 2.2 },
-  { x: 5950, tipY: 600, phase: 4.1 }
-];
+function genTree(seed, h, baseW, foliage) {
+  var rnd = mulberry32(seed);
+  var SEGS = 8;
+  var g = { h: h, spine: [], widths: [], branches: [], blobs: [],
+            swayFreq: 0.22 + rnd() * 0.28, swayPhase: rnd() * 6.283 };
+  var x = 0, drift = (rnd() - 0.5) * 0.1;
+  for (var i = 0; i <= SEGS; i++) {
+    var f = i / SEGS;
+    g.spine.push({ x: x, y: -h * f });
+    x += (rnd() - 0.5) * h * 0.045 + drift * h * 0.1;          // wander + lean
+    var w = Math.max(baseW * Math.pow(1 - f, 1.2) + baseW * 0.05, baseW * 0.18);
+    if (i === 0) w = baseW * 1.8;                               // root flare
+    else if (i === 1) w = baseW * 1.12;
+    g.widths.push(w);
+  }
+  var nb = 3 + Math.floor(rnd() * 3);
+  for (var b = 0; b < nb; b++) {
+    var k = 3 + Math.floor(rnd() * (SEGS - 3));
+    var dir = rnd() < 0.5 ? -1 : 1;
+    var bl = h * (0.18 + rnd() * 0.3);
+    var ang = -0.45 - rnd() * 0.55;                             // start upward-outward
+    var BS = 4, bx = 0, by = 0;
+    var pts = [{ x: 0, y: 0 }];
+    var bw0 = Math.max(2.2, g.widths[Math.min(k, SEGS)] * 0.32);  // slender, not club-like
+    var widths = [bw0], thorns = [];
+    for (var s = 1; s <= BS; s++) {
+      ang += (rnd() - 0.38) * 0.5;                              // curve up, then droop
+      bx += Math.cos(ang) * (bl / BS) * dir;
+      by += Math.sin(ang) * (bl / BS);
+      pts.push({ x: bx, y: by });
+      widths.push(Math.max(1, bw0 * (1 - s / (BS + 0.25))));    // taper to a point
+      /* thorn spikes along the branch — the jagged Limbo silhouette */
+      var nt = 1 + Math.floor(rnd() * 2);
+      for (var q = 0; q < nt; q++) {
+        var tf = rnd();
+        var hx = pts[s - 1].x + (bx - pts[s - 1].x) * tf;
+        var hy = pts[s - 1].y + (by - pts[s - 1].y) * tf;
+        var ta = ang + (rnd() < 0.5 ? -1 : 1) * (0.85 + rnd() * 0.75);
+        var tl = 5 + rnd() * 15;
+        thorns.push({ x0: hx, y0: hy, x1: hx + Math.cos(ta) * tl * dir, y1: hy + Math.sin(ta) * tl, seg: s });
+      }
+    }
+    for (q = 0; q < 2; q++) {                                   // frayed tip
+      var fa = ang + (rnd() - 0.5) * 1.5;
+      thorns.push({ x0: bx, y0: by, x1: bx + Math.cos(fa) * (9 + rnd() * 13) * dir, y1: by + Math.sin(fa) * (9 + rnd() * 13), seg: BS });
+    }
+    g.branches.push({ k: k, pts: pts, widths: widths, thorns: thorns,
+                      freq: 0.35 + rnd() * 0.45, phase: rnd() * 6.283 });
+  }
+  if (foliage) {
+    /* dense leafy canopy: a solid core with tightly overlapping discs (no bubble gaps) */
+    var top = g.spine[SEGS];
+    g.blobs.push({ x: top.x, y: top.y - h * 0.04, r: h * 0.21 });
+    var nBlob = 16 + Math.floor(rnd() * 6);
+    for (i = 0; i < nBlob; i++) {
+      var a2 = rnd() * 6.283, rr = Math.sqrt(rnd()) * h * 0.17;
+      g.blobs.push({ x: top.x + Math.cos(a2) * rr * 1.6, y: top.y + Math.sin(a2) * rr * 0.62 - h * 0.04,
+                     r: h * (0.10 + rnd() * 0.07) });
+    }
+    for (b = 0; b < g.branches.length; b++) {
+      var br2 = g.branches[b], tip = br2.pts[br2.pts.length - 1], at = g.spine[br2.k];
+      g.blobs.push({ x: at.x + tip.x * 0.8, y: at.y + tip.y * 0.8, r: h * (0.10 + rnd() * 0.05) });
+    }
+  }
+  return g;
+}
+
+function drawTreeGeom(c, g, x, baseY, t, swayAmp, lowDetail) {
+  var SEGS = g.spine.length - 1;
+  var sway = Math.sin(t * g.swayFreq + g.swayPhase) * swayAmp;
+  var i, f;
+  /* smooth trunk outline: quadratics through segment midpoints (no faceting) */
+  var L = [], R = [];
+  for (i = 0; i <= SEGS; i++) {
+    f = i / SEGS;
+    var cxx = x + g.spine[i].x + sway * f * f;
+    var cy = baseY + g.spine[i].y;
+    L.push({ x: cxx - g.widths[i] / 2, y: cy });
+    R.push({ x: cxx + g.widths[i] / 2, y: cy });
+  }
+  c.beginPath();
+  c.moveTo(L[0].x, L[0].y);
+  for (i = 1; i < SEGS; i++) c.quadraticCurveTo(L[i].x, L[i].y, (L[i].x + L[i + 1].x) / 2, (L[i].y + L[i + 1].y) / 2);
+  c.lineTo(L[SEGS].x, L[SEGS].y);
+  c.lineTo(R[SEGS].x, R[SEGS].y);
+  for (i = SEGS - 1; i > 0; i--) c.quadraticCurveTo(R[i].x, R[i].y, (R[i].x + R[i - 1].x) / 2, (R[i].y + R[i - 1].y) / 2);
+  c.lineTo(R[0].x, R[0].y);
+  c.closePath();
+  c.fill();
+  c.lineCap = 'round';
+  for (var b = 0; b < g.branches.length; b++) {
+    var br = g.branches[b];
+    var fk = br.k / SEGS;
+    var bx = x + g.spine[br.k].x + sway * fk * fk;
+    var by = baseY + g.spine[br.k].y;
+    var bsway = sway * 0.6 + Math.sin(t * br.freq + br.phase) * swayAmp * 0.55;
+    var n = br.pts.length - 1;
+    if (lowDetail) {
+      /* one tapered-ish polyline per branch keeps band rendering cheap */
+      c.lineWidth = Math.max(1.2, br.widths[1] * 0.85);
+      c.beginPath();
+      c.moveTo(bx + br.pts[0].x, by + br.pts[0].y);
+      for (var s0 = 1; s0 <= n; s0++) {
+        c.lineTo(bx + br.pts[s0].x + bsway * Math.pow(s0 / n, 2), by + br.pts[s0].y);
+      }
+      c.stroke();
+    } else {
+      for (var s = 0; s < n; s++) {
+        var o1 = bsway * Math.pow(s / n, 2), o2 = bsway * Math.pow((s + 1) / n, 2);
+        c.lineWidth = Math.max(1.2, br.widths[s]);
+        c.beginPath();
+        c.moveTo(bx + br.pts[s].x + o1, by + br.pts[s].y);
+        c.lineTo(bx + br.pts[s + 1].x + o2, by + br.pts[s + 1].y);
+        c.stroke();
+      }
+    }
+    c.lineWidth = 1.7;
+    c.beginPath();
+    for (var q = 0; q < br.thorns.length; q++) {
+      var th = br.thorns[q];
+      var of = bsway * Math.pow(th.seg / n, 2);
+      c.moveTo(bx + th.x0 + of, by + th.y0);
+      c.lineTo(bx + th.x1 + of * 1.15, by + th.y1);
+    }
+    c.stroke();
+  }
+  if (g.blobs.length) {
+    c.beginPath();
+    for (i = 0; i < g.blobs.length; i++) {
+      var bl2 = g.blobs[i];
+      c.moveTo(x + bl2.x + sway + bl2.r, baseY + bl2.y);
+      c.arc(x + bl2.x + sway, baseY + bl2.y, bl2.r, 0, 6.283);
+    }
+    c.fill();
+  }
+  return sway;
+}
+
+/* world position of a branch tip (for hanging cocoons) */
+function treeBranchTip(g, x, baseY, t, swayAmp) {
+  var SEGS = g.spine.length - 1;
+  var sway = Math.sin(t * g.swayFreq + g.swayPhase) * swayAmp;
+  var br = g.branches[0];
+  var fk = br.k / SEGS;
+  var tip = br.pts[br.pts.length - 1];
+  var bsway = sway * 0.6 + Math.sin(t * br.freq + br.phase) * swayAmp * 0.55;
+  return {
+    x: x + g.spine[br.k].x + sway * fk * fk + tip.x + bsway,
+    y: baseY + g.spine[br.k].y + tip.y
+  };
+}
 
 /* a wrapped bundle swinging slowly on a thread — drawn in the current fill color */
 function drawCocoon(c, px, py, t, phase, scale) {
@@ -744,54 +916,44 @@ function drawCocoon(c, px, py, t, phase, scale) {
   c.restore();
 }
 
-/* gnarled dead tree with slowly swaying branches; uses the current fill/stroke color */
-function drawDeadTree(c, x, baseY, h, lean, seed, t, cocoon) {
-  var rnd = mulberry32(seed);
-  var topSway = Math.sin(t * (0.32 + rnd() * 0.25) + seed) * 4;
-  var topX = x + lean * h + topSway;
-  var w = 14 + rnd() * 16;
-  c.lineCap = 'round';
-  /* trunk: tapered, slightly curved, top swaying gently */
-  c.beginPath();
-  c.moveTo(x - w / 2, baseY);
-  c.quadraticCurveTo(x - w * 0.3 + lean * h * 0.4, baseY - h * 0.55, topX - w * 0.14, baseY - h);
-  c.lineTo(topX + w * 0.14, baseY - h);
-  c.quadraticCurveTo(x + w * 0.36 + lean * h * 0.42, baseY - h * 0.5, x + w / 2, baseY);
-  c.closePath();
-  c.fill();
-  /* swaying gnarled branches with twigs */
-  var nb = 3 + Math.floor(rnd() * 3);
-  for (var i = 0; i < nb; i++) {
-    var f = 0.5 + rnd() * 0.45;
-    var bx = x + lean * h * f * 0.8;
-    var by = baseY - h * f;
-    var dir = rnd() < 0.5 ? -1 : 1;
-    var bl = h * (0.2 + rnd() * 0.26);
-    var sway = Math.sin(t * (0.4 + rnd() * 0.4) + seed * 1.7 + i * 1.3) * (5 + bl * 0.05);
-    var ex = bx + dir * bl + sway;
-    var ey = by - bl * (0.5 + rnd() * 0.45);
-    c.lineWidth = Math.max(3, w * 0.34);
-    c.beginPath();
-    c.moveTo(bx, by);
-    c.quadraticCurveTo(bx + dir * bl * 0.55, by - bl * 0.42 + sway * 0.3, ex, ey);
-    c.stroke();
-    c.lineWidth = Math.max(1.6, w * 0.14);
-    c.beginPath();
-    c.moveTo(ex, ey);
-    c.quadraticCurveTo(ex + dir * bl * 0.3 + sway, ey - bl * 0.24, ex + dir * bl * 0.46 + sway * 1.6, ey - bl * 0.4);
-    c.stroke();
-    if (cocoon && i === nb - 1) drawCocoon(c, ex, ey, t, seed, 1);
-  }
-}
+/* --- playable-layer trees (pure black): geometry cached at init --- */
+var worldTrees = [
+  { x: 690,  baseY: 902, h: 560, baseW: 34, seed: 11, cocoon: false, foliage: false },
+  { x: 1850, baseY: 902, h: 480, baseW: 26, seed: 23, cocoon: false, foliage: false },
+  { x: 2720, baseY: 752, h: 600, baseW: 40, seed: 37, cocoon: false, foliage: false },
+  { x: 4480, baseY: 752, h: 620, baseW: 46, seed: 41, cocoon: true,  foliage: false },
+  { x: 5020, baseY: 907, h: 520, baseW: 30, seed: 53, cocoon: false, foliage: false },
+  { x: 6080, baseY: 907, h: 360, baseW: 28, seed: 68, cocoon: false, foliage: true }
+];
+worldTrees.forEach(function (tr) { tr.geom = genTree(tr.seed, tr.h, tr.baseW, tr.foliage); });
 
-/* pure-black playable-layer trees and high swaying vines */
+/* --- high swaying vines with ragged tufts at the tip --- */
+var worldVines = [
+  { x: 2080, tipY: 560, phase: 0.9 },
+  { x: 4640, tipY: 500, phase: 2.2 },
+  { x: 5950, tipY: 600, phase: 4.1 }
+];
+worldVines.forEach(function (v, i) {
+  var rnd = mulberry32(77 + i * 131);
+  v.tuft = [];
+  for (var q = 0; q < 5; q++) {
+    var a = 1.05 + rnd() * 1.05;          // fan downward-outward
+    var l = 8 + rnd() * 12;
+    v.tuft.push({ x: Math.cos(a) * l * (rnd() < 0.5 ? -1 : 1), y: Math.sin(a) * l });
+  }
+});
+
 function drawWorldTrees(c) {
   var t = tickCount / 60;
   c.fillStyle = '#000000';
   c.strokeStyle = '#000000';
   for (var i = 0; i < worldTrees.length; i++) {
     var tr = worldTrees[i];
-    drawDeadTree(c, tr.x, tr.baseY, tr.h, tr.lean, tr.seed, t, tr.cocoon);
+    drawTreeGeom(c, tr.geom, tr.x, tr.baseY, t, 5);
+    if (tr.cocoon) {
+      var tip = treeBranchTip(tr.geom, tr.x, tr.baseY, t, 5);
+      drawCocoon(c, tip.x, tip.y, t, tr.seed, 1);
+    }
   }
   c.lineCap = 'round';
   for (i = 0; i < worldVines.length; i++) {
@@ -803,37 +965,146 @@ function drawWorldTrees(c) {
     c.moveTo(v.x, 60);
     c.quadraticCurveTo(v.x + sway2, (60 + v.tipY) * 0.55, v.x + sway, v.tipY);
     c.stroke();
+    c.lineWidth = 2;
     c.beginPath();
-    c.arc(v.x + sway, v.tipY + 4, 4.5, 0, Math.PI * 2);
-    c.fill();
+    for (var q = 0; q < v.tuft.length; q++) {
+      c.moveTo(v.x + sway, v.tipY);
+      c.lineTo(v.x + sway + v.tuft[q].x + sway * 0.08, v.tipY + v.tuft[q].y);
+    }
+    c.stroke();
   }
 }
 
-/* near-black background tree band — drawn fresh every frame so it can sway */
-var DARK_FACTOR = 0.85;
+/* --- animated parallax tree bands, geometry cached per slot --- */
 var darkSwayProbe = 0;   // read by the eval harness to prove the animation is live
+var bandCache = {};
 
-function drawDarkTrees() {
-  var W = canvas.width, H = canvas.height;
-  var sc = dpr * zoom;
+var TREE_BANDS = [
+  { id: 'mid',  factor: 0.68, color: '#333333', alpha: 0.85, spacing: 640, seedBase: 5000,
+    baseV: 330, hMin: 420, hVar: 300, wMin: 46, wVar: 44, swayAmp: 4, cocoonChance: 0.12, giantEvery: 0 },
+  { id: 'near', factor: 0.85, color: '#141414', alpha: 0.92, spacing: 560, seedBase: 9000,
+    baseV: 345, hMin: 400, hVar: 300, wMin: 34, wVar: 40, swayAmp: 5, cocoonChance: 0.25, giantEvery: 5 }
+];
+
+function drawTreeBand(band, probe) {
+  var c = bg.c;
   var t = tickCount / 60;
-  ctx.setTransform(sc, 0, 0, sc, W / 2, H / 2);
-  ctx.globalAlpha = 0.92;
-  ctx.fillStyle = '#141414';
-  ctx.strokeStyle = '#141414';
-  var px = cam.x * DARK_FACTOR;
-  var voff = Math.max(-60, Math.min(60, -(cam.y - 760) * DARK_FACTOR * 0.35));
-  var k0 = Math.floor((px - 840) / 430), k1 = Math.ceil((px + 840) / 430);
-  darkSwayProbe = 0;
+  c.setTransform(bg.scl, 0, 0, bg.scl, bg.w / 2, bg.h / 2);
+  c.globalAlpha = band.alpha;
+  c.fillStyle = band.color;
+  c.strokeStyle = band.color;
+  var px = cam.x * band.factor;
+  var voff = Math.max(-60, Math.min(60, -(cam.y - 760) * band.factor * 0.35));
+  var k0 = Math.floor((px - 900) / band.spacing), k1 = Math.ceil((px + 900) / band.spacing);
+  if (probe) darkSwayProbe = 0;
   for (var k = k0; k <= k1; k++) {
-    var rnd = mulberry32(k * 911 + 13);
-    var tx = k * 430 + (rnd() - 0.5) * 190 - px;
-    var h = 360 + rnd() * 330;
-    var lean = (rnd() - 0.5) * 0.22;
-    darkSwayProbe += Math.sin(t * (0.3 + rnd() * 0.3) + k);
-    drawDeadTree(ctx, tx, 340 + voff, h, lean, 1000 + k * 7, t, rnd() < 0.3);
+    var key = band.id + ':' + k;
+    var slot = bandCache[key];
+    if (!slot) {
+      var rnd = mulberry32(band.seedBase + k * 911);
+      var giant = band.giantEvery > 0 && ((k % band.giantEvery) + band.giantEvery) % band.giantEvery === 0;
+      slot = bandCache[key] = {
+        jit: (rnd() - 0.5) * band.spacing * 0.4,
+        geom: genTree(band.seedBase + k * 13 + 7,
+                      giant ? 780 + rnd() * 180 : band.hMin + rnd() * band.hVar,
+                      giant ? 100 + rnd() * 44 : band.wMin + rnd() * band.wVar,
+                      false),
+        cocoon: rnd() < band.cocoonChance,
+        seed: k
+      };
+    }
+    var tx = k * band.spacing + slot.jit - px;
+    if (tx < -1000 || tx > 1000) continue;
+    var sway = drawTreeGeom(c, slot.geom, tx, band.baseV + voff, t, band.swayAmp, true);
+    if (probe) darkSwayProbe += sway;
+    if (slot.cocoon) {
+      var tip = treeBranchTip(slot.geom, tx, band.baseV + voff, t, band.swayAmp);
+      drawCocoon(c, tip.x, tip.y, t, slot.seed, 0.8);
+    }
   }
-  ctx.globalAlpha = 1;
+  c.globalAlpha = 1;
+}
+
+/* --- pre-rendered light sprites (gradients are too expensive per frame) --- */
+var glowSprite = (function () {
+  var s = document.createElement('canvas');
+  s.width = 256; s.height = 256;
+  var c = s.getContext('2d');
+  var g = c.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.55, 'rgba(255,255,255,0.4)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, 256, 256);
+  return s;
+})();
+var raySprite = (function () {
+  var s = document.createElement('canvas');
+  s.width = 128; s.height = 1024;
+  var c = s.getContext('2d');
+  var g = c.createLinearGradient(0, 0, 0, 1024);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.45, 'rgba(255,255,255,0.7)');
+  g.addColorStop(1, 'rgba(255,255,255,0.12)');
+  c.fillStyle = g;
+  /* soft side falloff */
+  c.fillRect(0, 0, 128, 1024);
+  c.globalCompositeOperation = 'destination-in';
+  var gs = c.createLinearGradient(0, 0, 128, 0);
+  gs.addColorStop(0, 'rgba(0,0,0,0)');
+  gs.addColorStop(0.25, 'rgba(0,0,0,1)');
+  gs.addColorStop(0.75, 'rgba(0,0,0,1)');
+  gs.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = gs;
+  c.fillRect(0, 0, 128, 1024);
+  return s;
+})();
+
+/* --- bright fog pockets glowing behind the tree silhouettes --- */
+var pocketCache = {};
+function drawGlowPockets() {
+  var c = bg.c;
+  var t = tickCount / 60;
+  c.setTransform(bg.scl, 0, 0, bg.scl, bg.w / 2, bg.h / 2);
+  var px = cam.x * 0.3;
+  var k0 = Math.floor((px - 1100) / 760), k1 = Math.ceil((px + 1100) / 760);
+  for (var k = k0; k <= k1; k++) {
+    var p = pocketCache[k];
+    if (!p) {
+      var rnd = mulberry32(31 + k * 197);
+      p = pocketCache[k] = { jit: (rnd() - 0.5) * 300, gy: -160 + rnd() * 300,
+                             r: 280 + rnd() * 200, a: 0.17 + rnd() * 0.11, ph: rnd() * 6.283 };
+    }
+    var gx = k * 760 + p.jit - px;
+    c.globalAlpha = p.a * (0.82 + 0.18 * Math.sin(t * 0.17 + p.ph));
+    c.drawImage(glowSprite, gx - p.r, p.gy - p.r, p.r * 2, p.r * 2);
+  }
+  c.globalAlpha = 1;
+}
+
+/* --- diagonal god rays drifting through the fog --- */
+var rayCache = {};
+function drawGodRays() {
+  var c = bg.c;
+  var t = tickCount / 60;
+  var px = cam.x * 0.22;
+  var k0 = Math.floor((px - 1000) / 540), k1 = Math.ceil((px + 1000) / 540);
+  for (var k = k0; k <= k1; k++) {
+    var r = rayCache[k];
+    if (!r) {
+      var rnd = mulberry32(401 + k * 53);
+      r = rayCache[k] = { skip: rnd() < 0.3, jit: (rnd() - 0.5) * 260, w: 110 + rnd() * 160,
+                          ang: 0.40 + rnd() * 0.14, a: 0.20 + rnd() * 0.12, ph: rnd() * 6.283 };
+    }
+    if (r.skip) continue;
+    var topX = k * 540 + r.jit - px;
+    c.setTransform(bg.scl, 0, 0, bg.scl, bg.w / 2, bg.h / 2);
+    c.translate(topX, -390);
+    c.rotate(r.ang);                                  // lean: upper-right → lower-left
+    c.globalAlpha = r.a * (0.8 + 0.2 * Math.sin(t * 0.13 + r.ph));
+    c.drawImage(raySprite, -r.w / 2, 0, r.w, 1060);
+  }
+  c.globalAlpha = 1;
 }
 
 /* ============================== boy rendering ============================== */
@@ -1065,56 +1336,64 @@ var mistDrift = 0;
 
 function render() {
   var W = canvas.width, H = canvas.height;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  var sc = dpr * zoom;
+  var bc = bg.c, bw = bg.w, bh = bg.h;
+
+  /* === the entire atmospheric stack renders at half resolution into bg,
+     then is upscaled once — cheap on the raster thread, and the soft
+     upscale doubles as atmospheric depth blur === */
+  bc.setTransform(1, 0, 0, 1, 0, 0);
 
   /* --- sky: foggy gray gradient + soft glow --- */
-  var sky = ctx.createLinearGradient(0, 0, 0, H);
+  var sky = bc.createLinearGradient(0, 0, 0, bh);
   sky.addColorStop(0, '#8e8e8e');
   sky.addColorStop(0.52, '#b2b2b2');
   sky.addColorStop(1, '#3f3f3f');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, H);
-  var glow = ctx.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.42, W * 0.42);
+  bc.fillStyle = sky;
+  bc.fillRect(0, 0, bw, bh);
+  var glow = bc.createRadialGradient(bw * 0.5, bh * 0.42, 0, bw * 0.5, bh * 0.42, bw * 0.42);
   glow.addColorStop(0, 'rgba(255,255,255,0.16)');
   glow.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
+  bc.fillStyle = glow;
+  bc.fillRect(0, 0, bw, bh);
 
   /* --- parallax layers, driven by the camera's LERP coordinates --- */
-  var sc = dpr * zoom;
   mistDrift += 0.12;
   for (var li = 0; li < layers.length; li++) {
     var L = layers[li];
-    ctx.setTransform(sc, 0, 0, sc, W / 2, H / 2);
-    ctx.globalAlpha = L.alpha;
+    bc.setTransform(bg.scl, 0, 0, bg.scl, bw / 2, bh / 2);
+    bc.globalAlpha = L.alpha;
     var px = cam.x * L.factor;
     var voff = Math.max(-60, Math.min(60, -(cam.y - 760) * L.factor * 0.35));
     var k0 = Math.floor((px - VIEW_W / 2) / TILE_W);
     for (var k = k0; k * TILE_W - px < VIEW_W / 2; k++) {
-      ctx.drawImage(L.tile, k * TILE_W - px, -450 + voff);
+      bc.drawImage(L.tile, k * TILE_W - px, -450 + voff);
     }
-    ctx.globalAlpha = 1;
+    bc.globalAlpha = 1;
 
     /* drifting mist bands between layers */
     if (li < 2) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      var mw = W * 0.7;
-      var mx = ((mistDrift * (li + 1) * 0.7) % (W + mw)) - mw + (li === 0 ? 0 : W * 0.4);
-      var my = H * (0.45 + li * 0.18);
-      var mg = ctx.createRadialGradient(mx + mw / 2, my, 0, mx + mw / 2, my, mw / 2);
-      mg.addColorStop(0, 'rgba(255,255,255,0.07)');
-      mg.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = mg;
-      ctx.fillRect(mx, my - mw * 0.18, mw, mw * 0.36);
+      bc.setTransform(1, 0, 0, 1, 0, 0);
+      var mw = bw * 0.7;
+      var mx = ((mistDrift * (li + 1) * 0.35) % (bw + mw)) - mw + (li === 0 ? 0 : bw * 0.4);
+      var my = bh * (0.45 + li * 0.18);
+      bc.globalAlpha = 0.09;
+      bc.drawImage(glowSprite, mx, my - mw * 0.18, mw, mw * 0.36);
+      bc.globalAlpha = 1;
     }
+    if (li === 0) drawGlowPockets();   // bright fog pockets behind the mid/near trees
   }
 
-  /* --- animated near-black tree band behind the playable layer --- */
-  drawDarkTrees();
+  drawTreeBand(TREE_BANDS[0], false);
+  drawTreeBand(TREE_BANDS[1], true);
+  drawGodRays();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(bg.canvas, 0, 0, W, H);
 
   /* --- world space: pure black silhouettes --- */
   ctx.setTransform(sc, 0, 0, sc, W / 2 - cam.x * sc, H / 2 - cam.y * sc);
   drawTerrain(ctx);
+  drawGrass(ctx);
   drawGallowsTree(ctx);
   drawWorldTrees(ctx);
   drawEndGlow(ctx);
