@@ -205,8 +205,11 @@ export function buildGrass(scene, getHeight, campCenter) {
     // The specular sheen is now killed in-shader, so the card colors no
     // longer need to fight a sky-mirror glow: base value comes back UP
     // (iter-17 read swampy-dark) and the far dim shrinks to a gentle fade.
-    const farDim = 1 - 0.2 * THREE.MathUtils.smoothstep(r, 40, GRASS_RADIUS);
-    const v = (0.78 + rng() * 0.4) * farDim; // overall value
+    // sized from pixel measurements: iter-18 mid-field read ~88 luminance vs
+    // a ~120 dry-grass target → +25% card value (ghost-glow risk is gone now
+    // that the cards are matte)
+    const farDim = 1 - 0.15 * THREE.MathUtils.smoothstep(r, 40, GRASS_RADIUS);
+    const v = (0.92 + rng() * 0.44) * farDim; // overall value
     const warm = rng(); // 0 = green, 1 = golden
     color.setRGB(
       v * (0.78 + warm * 0.34),
