@@ -168,10 +168,10 @@ var blocks = [
   { x0: 900,  x1: 1500, top: WATER_FLOOR_Y }, // water pit floor
   { x0: 1500, x1: 2500, top: 900  },        // crate flats
   { x0: 2500, x1: 3200, top: 750  },        // upper ledge
-  { x0: 3200, x1: 3620, top: 1020 },        // gap floor (rope above)
+  { x0: 3200, x1: 3580, top: 1020 },        // gap floor (rope above)
   { x0: 3200, x1: 3300, top: 930  },        // recovery step 1
   { x0: 3268, x1: 3330, top: 835  },        // recovery step 2
-  { x0: 3620, x1: WORLD_X1, top: 750 }      // landing / end
+  { x0: 3580, x1: WORLD_X1, top: 750 }      // landing / end
 ];
 
 var terrainBodies = [];
@@ -281,13 +281,21 @@ function pairOther(pair, body) {
 function notePlayerPair(pair) {
   var other = pairOther(pair, player);
   if (!other || other.isSensor) return;
+  /* grounded only on near-vertical contact normals under the feet —
+     wall-slides and corner grazes must not read as grounded */
+  var ny = Math.abs(pair.collision.normal.y);
   var supports = pair.collision.supports;
-  for (var s = 0; s < supports.length; s++) {
-    if (supports[s] && supports[s].y > player.position.y + 16) {
-      groundPairs[pair.id] = true;
-      return;
+  var isGround = false;
+  if (ny > 0.72) {
+    for (var s = 0; s < supports.length; s++) {
+      if (supports[s] && supports[s].y > player.position.y + 20) {
+        isGround = true;
+        break;
+      }
     }
   }
+  if (isGround) groundPairs[pair.id] = true;
+  else delete groundPairs[pair.id];   // pair persists but the contact moved to a wall face
 }
 
 function noteWaterPair(pair, entering) {
@@ -401,7 +409,7 @@ function updateRopeGrab() {
     /* pump the swing with left / right */
     var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
     if (dir !== 0) {
-      Body.applyForce(player, player.position, { x: dir * player.mass * 0.00045, y: 0 });
+      Body.applyForce(player, player.position, { x: dir * player.mass * 0.0007, y: 0 });
     }
     /* up releases with a small launch boost */
     if (upPressedEdge) {
@@ -410,8 +418,8 @@ function updateRopeGrab() {
       ropeGrab.segment = null;
       ropeGrab.cooldown = 30;
       Body.setVelocity(player, {
-        x: player.velocity.x * 1.25,
-        y: player.velocity.y - 4.5
+        x: player.velocity.x * 1.35,
+        y: player.velocity.y - 5.5
       });
       upPressedEdge = false;
     }
@@ -804,12 +812,16 @@ function drawWater(c) {
   c.lineTo(WATER_X1, WATER_FLOOR_Y + 80);
   c.lineTo(WATER_X0, WATER_FLOOR_Y + 80);
   c.closePath();
-  c.fillStyle = 'rgba(30,30,30,0.62)';
+  c.fillStyle = '#1b1b1b';   // opaque murky dark gray — nothing reads through the depths
   c.fill();
-  /* pale surface highlight line */
+}
+
+function drawWaterSurface(c) {
+  var t = tickCount / 60;
+  /* pale surface highlight line, drawn over the floating logs */
   c.beginPath();
   c.moveTo(WATER_X0, surfaceAt(WATER_X0, t));
-  for (x = WATER_X0 + 10; x <= WATER_X1; x += 10) c.lineTo(x, surfaceAt(x, t));
+  for (var x = WATER_X0 + 10; x <= WATER_X1; x += 10) c.lineTo(x, surfaceAt(x, t));
   c.strokeStyle = 'rgba(110,110,110,0.5)';
   c.lineWidth = 2;
   c.stroke();
@@ -940,8 +952,9 @@ function render() {
   drawEndGlow(ctx);
   drawCrate(ctx);
   drawRope(ctx);
-  drawLogs(ctx);
   drawWater(ctx);
+  drawLogs(ctx);
+  drawWaterSurface(ctx);
   drawBoy(ctx);
 
   /* --- post stack --- */
