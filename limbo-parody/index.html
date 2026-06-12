@@ -25,16 +25,11 @@
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="loaderr">failed to load matter.js from CDN &mdash; an internet connection is required once</div>
+<div id="loaderr">could not reach the matter.js CDN &mdash; check your internet connection (still retrying&hellip;)</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
 <script>
 'use strict';
-(function () {
-
-if (typeof Matter === 'undefined') {
-  document.getElementById('loaderr').style.display = 'block';
-  return;
-}
+function __bootPenumbra() {
 
 var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body,
     Composite = Matter.Composite, Constraint = Matter.Constraint, Events = Matter.Events;
@@ -1038,7 +1033,33 @@ window.__LIMBO_DEBUG__ = {
   }
 };
 window.__LIMBO_READY__ = true;
+}
 
+/* ============================== resilient loader ==============================
+   Boots once Matter.js is available. Survives async script injection (e.g. HTML
+   preview proxies) and falls back to a second CDN if the first one is blocked. */
+(function () {
+  var tries = 0, fallbackInjected = false, errorShown = false;
+  function attempt() {
+    if (typeof Matter !== 'undefined') {
+      if (errorShown) document.getElementById('loaderr').style.display = 'none';
+      __bootPenumbra();
+      return;
+    }
+    tries++;
+    if (tries === 25 && !fallbackInjected) {   // ~2.5s: try the fallback CDN
+      fallbackInjected = true;
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/matter-js@0.20.0/build/matter.min.js';
+      document.body.appendChild(s);
+    }
+    if (tries === 150 && !errorShown) {        // ~15s: surface the problem, keep waiting
+      errorShown = true;
+      document.getElementById('loaderr').style.display = 'block';
+    }
+    if (tries < 600) setTimeout(attempt, 100);
+  }
+  attempt();
 })();
 </script>
 </body>
