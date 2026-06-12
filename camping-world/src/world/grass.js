@@ -201,13 +201,12 @@ export function buildGrass(scene, getHeight, campCenter) {
     m.compose(new THREE.Vector3(x, y - 0.015, z), q, new THREE.Vector3(sw, sh, sw));
     mesh.setMatrixAt(i, m);
 
-    // hue variation as a multiplier centered near 1.0: dry gold ↔ lush green
-    // (cap < ~1.05 — over-bright multipliers made tall wisps read ghostly).
-    // Far cards still darken toward the far-terrain olive, but gently — the
-    // pale band was mostly grazing-angle env sheen (now killed in-shader),
-    // and the old 0.5 dim on top of that fix would crush the field to mud.
-    const farDim = 1 - 0.35 * THREE.MathUtils.smoothstep(r, 36, GRASS_RADIUS);
-    const v = (0.68 + rng() * 0.36) * farDim; // overall value
+    // hue variation as a multiplier centered near 1.0: dry gold ↔ lush green.
+    // The specular sheen is now killed in-shader, so the card colors no
+    // longer need to fight a sky-mirror glow: base value comes back UP
+    // (iter-17 read swampy-dark) and the far dim shrinks to a gentle fade.
+    const farDim = 1 - 0.2 * THREE.MathUtils.smoothstep(r, 40, GRASS_RADIUS);
+    const v = (0.78 + rng() * 0.4) * farDim; // overall value
     const warm = rng(); // 0 = green, 1 = golden
     color.setRGB(
       v * (0.78 + warm * 0.34),

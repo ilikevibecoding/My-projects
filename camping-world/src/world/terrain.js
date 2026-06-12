@@ -155,7 +155,7 @@ export function buildTerrain(scene) {
           // sheen — see roughness/indirectSpecular below — so this albedo can
           // sit at a natural matted-grass value instead of compensating.)
           float farField = smoothstep(26.0, 55.0, r);
-          vec3 dryGrass = vec3(0.225, 0.21, 0.12)
+          vec3 dryGrass = vec3(0.27, 0.25, 0.14)
                         * (0.82 + 0.36 * tnoise(vWorldPos.xz * 0.06))
                         * (0.88 + 0.24 * tfbm(vWorldPos.xz * 0.013 + 9.4));
           blended.rgb = mix(blended.rgb, dryGrass, farField * 0.92);

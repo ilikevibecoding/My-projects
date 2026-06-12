@@ -22,8 +22,9 @@ renderer.setPixelRatio(pixelRatioOverride ?? Math.min(window.devicePixelRatio, 2
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // sunny-exterior exposure: keeps ground out of the ACES shoulder so colors
-// stay saturated and shadow contrast reads
-renderer.toneMappingExposure = 0.66;
+// stay saturated and shadow contrast reads. (0.66 was tuned while the ground
+// still had its specular sky-sheen — with that killed, lift slightly.)
+renderer.toneMappingExposure = 0.7;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 // manual reset: with autoReset, renderer.info only reflects the LAST internal
