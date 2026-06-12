@@ -149,3 +149,30 @@ entrance; bark/tent textures more contrast; water deep color lighter; seat eye +
 Fixes applied for iter 6: golden sun elevation 0.20→0.34 (shadows still long but reach the camp);
 tree-free ESE "sun corridor" wedge (r<45, az 0.12–1.05); dt clamp 0.05→0.12 so sim time tracks
 wall time at low fps; harness waits for `!busy && !seated` before the sleep test + longer settles.
+
+---
+
+## Iteration 6 — camp lit at golden, sleep verified (shots/iter_6, full run)
+
+- camp_golden: **camp finally lit at golden hour** — warm light on tent, path, logs through the
+  sun corridor. Foreground no longer black.
+- interact_after_sleep: sleep fired (stats golden→night ok) AND the shot **visibly shows night**
+  — dark scene, tent + "[E] Sleep" prompt, fixed-fade verified. Interaction loop fully proven.
+- camp_night_fire: best fire shot yet (tongue flames, smoke column, embers, warm pool, stars).
+- Motion pairs all animated: grass 7.2 / water 5.8 / fire 11.2 mean-abs-diff (noise floor ≈2).
+- Walk physics: eye height constant 1.7, grounded, in bounds. Draw calls 135–335, ≤2.6M tris
+  (incl. shadow+reflection+GTAO passes) — within budget.
+- **Remaining failures:**
+  - interact_seated: caught the post-add-wood surge up close → flame sprites scale with
+    uIntensity (1.4) and additive-stack to a white column. FAIL 4/7 contributor.
+  - camp_golden sky reads **mauve/lavender** (cloudShadow 0x9a7a88 + blue-grey top over half the
+    sky) — mood is "dusty purple", not golden. FAIL 3/8 contributor.
+  - pond rocks render near-black (rock albedo × 1.05 too dark); pine trunks read black in
+    forest_day.
+- Scoring: 1 PASS · 2 PASS · 3 FAIL (mauve sky) · 4 PASS · 5 PASS · 6 PASS · 7 FAIL (seated
+  blowout) · 8 FAIL (golden cast) · 9 PASS · 10 PASS · 11 FAIL. **= 7/11**
+
+Fixes applied for iter 7: golden sky warmed (horizon 0xffa552, top 0x3a5f95, cloud shadow
+0xa87f5e, fog 0xe8b481, clouds 0.44); flame sprite intensity capped at 1.12 (surge feeds light +
+embers instead); harness waits for fireBoost<0.12 before the seated shot; rock albedo ×1.55;
+pine trunk tint 0xc4a37c.

@@ -1,0 +1,76 @@
+{
+  "camp_day": {
+    "fps": 12.5,
+    "drawCalls": 229,
+    "triangles": 2130299,
+    "frame": 22
+  },
+  "vista_day": {
+    "fps": 14.1,
+    "drawCalls": 335,
+    "triangles": 2600241,
+    "frame": 31
+  },
+  "forest_day": {
+    "fps": 13,
+    "drawCalls": 135,
+    "triangles": 2126819,
+    "frame": 40
+  },
+  "pond_day": {
+    "fps": 8.3,
+    "drawCalls": 151,
+    "triangles": 2593347,
+    "frame": 49
+  },
+  "camp_golden": {
+    "fps": 5.3,
+    "drawCalls": 229,
+    "triangles": 2130299,
+    "frame": 58
+  },
+  "camp_night_fire": {
+    "fps": 11.4,
+    "drawCalls": 235,
+    "triangles": 2130571,
+    "frame": 67
+  },
+  "sleepChangedTime": {
+    "before": "golden",
+    "after": "night",
+    "ok": true
+  },
+  "walk": {
+    "samples": [
+      {
+        "eyeAboveGround": 1.7,
+        "radius": 1.2
+      },
+      {
+        "eyeAboveGround": 1.7,
+        "radius": 0.1
+      },
+      {
+        "eyeAboveGround": 1.7,
+        "radius": 1
+      },
+      {
+        "eyeAboveGround": 1.7,
+        "radius": 2.1
+      },
+      {
+        "eyeAboveGround": 1.7,
+        "radius": 3.2
+      },
+      {
+        "eyeAboveGround": 1.7,
+        "radius": 4.3
+      }
+    ],
+    "grounded": true,
+    "inBounds": true
+  },
+  "pageErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

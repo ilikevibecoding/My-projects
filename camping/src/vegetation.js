@@ -336,7 +336,7 @@ export function createTrees() {
 
   // --- pines ---
   const pine = makePineGeometries();
-  const pineTrunkMat = new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95, color: 0xa88a6a });
+  const pineTrunkMat = new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95, color: 0xc4a37c });
   const pineFoliageMat = windSwayMaterial(new THREE.MeshStandardMaterial({
     color: 0xffffff, roughness: 0.9, flatShading: true, side: THREE.DoubleSide,
   }), 0.07);
@@ -458,7 +458,7 @@ vWNorm2 = normalize(mat3(modelMatrix) * normal);
   vec3 rc = texture2D(rockMap, vWPos2.zy * rs).rgb * an.x
           + texture2D(rockMap, vWPos2.xz * rs).rgb * an.y
           + texture2D(rockMap, vWPos2.xy * rs).rgb * an.z;
-  diffuseColor.rgb *= rc * 1.05;
+  diffuseColor.rgb *= rc * 1.55;
 }
 `);
   };

@@ -156,6 +156,8 @@ async function main() {
     await settle(page, 800, 3);
     await page.screenshot({ path: join(OUT, 'interact_log_prompt.png') });
     await page.evaluate(() => window.debugAPI.interact());
+    // wait for the add-wood surge to die down so the seated shot shows a calm fire
+    await page.waitForFunction(() => window.debugAPI.getState().fireBoost < 0.12, null, { timeout: 60000, polling: 400 });
     await settle(page, 3000, 8);
     await page.screenshot({ path: join(OUT, 'interact_seated.png') });
     await page.evaluate(() => window.debugAPI.interact()); // stand

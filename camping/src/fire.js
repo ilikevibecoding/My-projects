@@ -233,6 +233,9 @@ export class Fire {
       u.uTime.value = time;
       u.uIntensity.value = next;
     }
+    // cap visual flame size: the "add wood" surge mostly feeds the light and
+    // embers; uncapped additive flame sprites blow out to white up close.
+    this.flameUniforms.uIntensity.value = Math.min(next, 1.12);
     this.sparkUniforms.uTime.value += dt;
     if (this.sparkUniforms.uTime.value > 1.4) this.sparks.visible = false;
 

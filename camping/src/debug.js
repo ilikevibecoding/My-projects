@@ -74,6 +74,7 @@ export function installDebugAPI({ player, timeOfDay, camp, interactions, rendere
       return {
         timeOfDay: timeOfDay.current,
         fireLit: camp.fire.lit,
+        fireBoost: camp.fire.boost,
         seated: interactions.seated,
         busy: interactions.busy,
       };
