@@ -100,6 +100,20 @@ function inSunCorridor(x, z, halfWidth = 0.38) {
 }
 
 export function buildVegetation(scene, models, getHeight) {
+  // One-time warm bias on the cool-toned scans: searsia's glaucous blue-green
+  // and nettle's lush tropical green read like plastic hedging against the
+  // dry golden meadow. Materials are shared by every clone/instance, so tint
+  // the source models exactly once.
+  for (const [id, gltf] of Object.entries(models)) {
+    if (!id.startsWith('searsia_lucida') && !id.startsWith('nettle_plant')) continue;
+    gltf.scene.traverse((n) => {
+      if (n.isMesh && n.material?.color && !n.material.userData.warmTinted) {
+        n.material.color.multiply(new THREE.Color(1.08, 1.0, 0.72));
+        n.material.userData.warmTinted = true;
+      }
+    });
+  }
+
   const rng = makeRng(4242);
   const colliders = [];
   const placed = []; // {x, z, r} for spacing

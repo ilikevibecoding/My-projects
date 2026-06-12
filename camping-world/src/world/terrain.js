@@ -151,11 +151,11 @@ export function buildTerrain(scene) {
           blended.rgb *= mix(dryTint, lushTint, smoothstep(0.32, 0.62, macro)) * (0.86 + 0.28 * tnoise(vWorldPos.xz * 0.09));
 
           // far field: REPLACE the texture with a matte dry-grassland tone.
-          // Isolation test (iter-13 dbg): albedo 0.30 still tone-maps to pale
-          // cream under full sun — target must sit MUCH darker so far hills
-          // read as matted grass, matching the olive of the meadow cards.
+          // (iter-16: the real "pale band" culprit was grazing-angle specular
+          // sheen — see roughness/indirectSpecular below — so this albedo can
+          // sit at a natural matted-grass value instead of compensating.)
           float farField = smoothstep(26.0, 55.0, r);
-          vec3 dryGrass = vec3(0.185, 0.175, 0.10)
+          vec3 dryGrass = vec3(0.225, 0.21, 0.12)
                         * (0.82 + 0.36 * tnoise(vWorldPos.xz * 0.06))
                         * (0.88 + 0.24 * tfbm(vWorldPos.xz * 0.013 + 9.4));
           blended.rgb = mix(blended.rgb, dryGrass, farField * 0.92);
@@ -186,7 +186,11 @@ export function buildTerrain(scene) {
           vec4 aB = detile(uArmB, wuv);
           vec4 aC = detile(uArmC, wuv * 1.18);
           vec4 armBlend = mix(mix(aA, aB, vSplat.x), aC, vSplat.y);
-          roughnessFactor *= armBlend.g;
+          // floor at 0.96: the scans' mid roughness + grazing-angle Fresnel
+          // turned the whole far field into a cream sky-mirror (iter-16 dbg:
+          // ground rendered 243,228,197 with a 0.185 albedo — pure sheen).
+          // Meadow litter is matte; it has no business reflecting the sky.
+          roughnessFactor = max(roughnessFactor * armBlend.g, 0.96);
           vArmCache = armBlend;
         }`
       )
@@ -199,6 +203,9 @@ export function buildTerrain(scene) {
             float dotNV = saturate( dot( geometryNormal, geometryViewDir ) );
             reflectedLight.indirectSpecular *= computeSpecularOcclusion( dotNV, ambientOcclusion, material.roughness );
           #endif
+          // matted grass/litter is a diffuse surface — kill the residual
+          // grazing-angle env sheen that washed the 40m+ field to cream
+          reflectedLight.indirectSpecular *= 0.12;
         }`
       )
       .replace(

@@ -141,6 +141,15 @@ export function buildGrass(scene, getHeight, campCenter) {
        normal = normalize( vNormal );
        nonPerturbedNormal = normal;`
     );
+
+    // Up-facing normals + horizontal sightlines = grazing dotNV on every
+    // distant card → Fresnel pushes env specular toward 1.0 and the whole
+    // mid-field sheens pale sky (iter-16 dbg). Dry grass is matte — kill it.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <aomap_fragment>',
+      `#include <aomap_fragment>
+       reflectedLight.indirectSpecular *= 0.15;`
+    );
   };
 
   const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
@@ -190,9 +199,10 @@ export function buildGrass(scene, getHeight, campCenter) {
 
     // hue variation as a multiplier centered near 1.0: dry gold ↔ lush green
     // (cap < ~1.05 — over-bright multipliers made tall wisps read ghostly).
-    // Far cards darken toward the far-terrain olive so the band at the
-    // treeline doesn't glow pale straw against the darker ground.
-    const farDim = 1 - 0.5 * THREE.MathUtils.smoothstep(r, 32, GRASS_RADIUS);
+    // Far cards still darken toward the far-terrain olive, but gently — the
+    // pale band was mostly grazing-angle env sheen (now killed in-shader),
+    // and the old 0.5 dim on top of that fix would crush the field to mud.
+    const farDim = 1 - 0.35 * THREE.MathUtils.smoothstep(r, 36, GRASS_RADIUS);
     const v = (0.68 + rng() * 0.36) * farDim; // overall value
     const warm = rng(); // 0 = green, 1 = golden
     color.setRGB(

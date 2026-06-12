@@ -71,42 +71,42 @@ export function buildCampsite(scene, models, getHeight) {
         n.material.roughness = Math.max(n.material.roughness ?? 1, 0.9);
         n.material.envMapIntensity = 1.15;
         // warm the grey scan albedo — under the blue sky fill the shadow
-        // sides tone-mapped to cold blue-grey ("deflated rubber" look)
-        n.material.color = new THREE.Color(0xe6d4ba);
+        // sides tone-mapped to cold blue-grey ("deflated rubber" look).
+        // (0xe6d4ba over-cooked the sunlit tops into orange sandstone)
+        n.material.color = new THREE.Color(0xdbcdb9);
       }
     });
     group.add(pit);
   }
 
-  // --- ash bed inside the ring (irregular edge, sits just above the soil) ---
+  // --- ash bed inside the ring: a low LUMPY dome, not a flat disc ---
+  // (the smooth +0.07 CircleGeometry read as a lens of milky liquid — real
+  // ash is a ragged heap, so displace a flattened dome with noise)
   {
-    const ashGeo = new THREE.CircleGeometry(0.48, 22);
-    ashGeo.rotateX(-Math.PI / 2);
+    const ashGeo = new THREE.SphereGeometry(0.46, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2);
     const ap = ashGeo.attributes.position;
     for (let i = 0; i < ap.count; i++) {
-      const x = ap.getX(i), z = ap.getZ(i);
-      const r = Math.hypot(x, z);
-      if (r > 0.1) {
-        const j = 1 + (rng() - 0.5) * 0.22; // ragged edge
-        ap.setX(i, x * j);
-        ap.setZ(i, z * j);
-      }
+      const x = ap.getX(i), y = ap.getY(i), z = ap.getZ(i);
+      const rr = Math.hypot(x, z);
+      const edge = 1 + (rng() - 0.5) * 0.2; // ragged rim
+      ap.setX(i, x * edge);
+      ap.setZ(i, z * edge);
+      // squash to a 9cm mound and add clumpy relief
+      ap.setY(i, y * 0.2 + (rng() - 0.5) * 0.035 * (1 - rr / 0.46));
     }
     ashGeo.computeVertexNormals();
-    // pale grey wood-ash, fully matte and nearly env-dead — the dark
-    // glossy version read as a puddle of water inside the ring
     const ash = new THREE.Mesh(
       ashGeo,
       new THREE.MeshStandardMaterial({
-        color: 0x4d4943,
+        color: 0x46423c, // matte grey wood-ash
         roughness: 1.0,
-        envMapIntensity: 0.25,
+        envMapIntensity: 0.2,
       })
     );
-    // +0.07: must sit ABOVE the scan's own (dark muddy) interior floor —
-    // at +0.03 it was buried and the pit read as a puddle of dark water
-    ash.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) + 0.07, CAMP.y);
+    // base just above the scan's own (dark muddy) interior floor
+    ash.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) + 0.045, CAMP.y);
     ash.receiveShadow = true;
+    ash.castShadow = true;
     group.add(ash);
   }
 
