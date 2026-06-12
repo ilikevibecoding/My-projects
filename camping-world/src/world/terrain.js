@@ -204,8 +204,12 @@ export function buildTerrain(scene) {
             reflectedLight.indirectSpecular *= computeSpecularOcclusion( dotNV, ambientOcclusion, material.roughness );
           #endif
           // matted grass/litter is a diffuse surface — kill the residual
-          // grazing-angle env sheen that washed the 40m+ field to cream
+          // grazing-angle env sheen that washed the 40m+ field to cream.
+          // DIRECT sun specular is the bigger term when facing the sun:
+          // V_GGX ~ 1/a at grazing dotNV and Fresnel→1 forward-scatter make
+          // a 16-intensity sun bounce ~6× the diffuse response. Kill both.
           reflectedLight.indirectSpecular *= 0.12;
+          reflectedLight.directSpecular *= 0.08;
         }`
       )
       .replace(

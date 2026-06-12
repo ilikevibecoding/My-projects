@@ -85,6 +85,7 @@ export function buildCampsite(scene, models, getHeight) {
   {
     const ashGeo = new THREE.SphereGeometry(0.46, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2);
     const ap = ashGeo.attributes.position;
+    const ashCol = new Float32Array(ap.count * 3);
     for (let i = 0; i < ap.count; i++) {
       const x = ap.getX(i), y = ap.getY(i), z = ap.getZ(i);
       const rr = Math.hypot(x, z);
@@ -92,15 +93,22 @@ export function buildCampsite(scene, models, getHeight) {
       ap.setX(i, x * edge);
       ap.setZ(i, z * edge);
       // squash to a 9cm mound and add clumpy relief
-      ap.setY(i, y * 0.2 + (rng() - 0.5) * 0.035 * (1 - rr / 0.46));
+      ap.setY(i, y * 0.2 + (rng() - 0.5) * 0.055 * (1 - rr / 0.55));
+      // mottled grey↔charcoal vertex tint — a flat-color dome read as wet plaster
+      const v = 0.55 + rng() * 0.75;
+      ashCol[i * 3] = v;
+      ashCol[i * 3 + 1] = v;
+      ashCol[i * 3 + 2] = v * (0.92 + rng() * 0.1);
     }
+    ashGeo.setAttribute('color', new THREE.BufferAttribute(ashCol, 3));
     ashGeo.computeVertexNormals();
     const ash = new THREE.Mesh(
       ashGeo,
       new THREE.MeshStandardMaterial({
-        color: 0x46423c, // matte grey wood-ash
+        color: 0x4a4640, // matte grey wood-ash
         roughness: 1.0,
         envMapIntensity: 0.2,
+        vertexColors: true,
       })
     );
     // base just above the scan's own (dark muddy) interior floor
@@ -108,6 +116,29 @@ export function buildCampsite(scene, models, getHeight) {
     ash.receiveShadow = true;
     ash.castShadow = true;
     group.add(ash);
+
+    // charcoal chunks half-buried in the ash (burnt-down remains)
+    const coalGeo = new THREE.IcosahedronGeometry(1, 0);
+    const coalMat = new THREE.MeshStandardMaterial({
+      color: 0x1f1c19,
+      roughness: 0.78, // charcoal has a faint facet shine
+      envMapIntensity: 0.5,
+    });
+    for (let i = 0; i < 9; i++) {
+      const a = rng() * Math.PI * 2;
+      const rr = rng() * 0.3;
+      const s = 0.025 + rng() * 0.045;
+      const coal = new THREE.Mesh(coalGeo, coalMat);
+      coal.scale.set(s * (0.7 + rng() * 0.8), s * 0.6, s * (0.7 + rng() * 0.8));
+      coal.rotation.set(rng() * Math.PI, rng() * Math.PI, rng() * Math.PI);
+      coal.position.set(
+        CAMP.x + Math.cos(a) * rr,
+        groundAt(CAMP.x, CAMP.y) + 0.1 - rr * 0.12,
+        CAMP.y + Math.sin(a) * rr
+      );
+      coal.castShadow = coal.receiveShadow = true;
+      group.add(coal);
+    }
   }
 
   // helper: spawn a log cut from the chunky dead_tree_trunk_02 scan.

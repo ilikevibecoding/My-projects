@@ -148,7 +148,11 @@ export function buildGrass(scene, getHeight, campCenter) {
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <aomap_fragment>',
       `#include <aomap_fragment>
-       reflectedLight.indirectSpecular *= 0.15;`
+       reflectedLight.indirectSpecular *= 0.15;
+       // direct sun specular at grazing incidence is even stronger than the
+       // env sheen when the camera faces the sun (Fresnel forward-scatter) —
+       // dry grass blades scatter diffusely, they are not a mirror field
+       reflectedLight.directSpecular *= 0.15;`
     );
   };
 
