@@ -274,6 +274,45 @@ Re-ran the full harness on the identical build (zero code changes since iter 9):
 **Loop result: 11/11 twice in a row (iterations 9 & 10), finished in 10 of 12 allowed
 iterations.** Score trajectory: 1 → 4 → 7 → 8 → 6 → 7 → 10 → 10 → 11 → 11.
 
+## What passed
+
+All 11 rubric items, verified twice on the identical build (shots/iter_9 + shots/iter_10):
+natural terrain with hazed mountains (1), dense/alive vegetation with provable wind motion
+(2), per-preset atmosphere incl. a genuinely warm golden hour (3), a fire that glows without
+smearing (4), reflecting pond with soft shoreline (5), distinct camp materials (6), tasteful
+ACES/bloom/AO/vignette/grain post stack (7), cohesive palettes per time of day (8), clean tech
+budget — 135–335 draw calls, instancing throughout, no acne/z-fighting, deterministic seeded
+world (9), all four interactions working headlessly end-to-end incl. sleep golden→night (10),
+and the cold-look test (11).
+
+## Still weak (honest nits, all sub-rubric)
+
+- **Seated/surged fire core** is still bright at golden hour — reads as a hot fire, but a
+  proper radiance falloff (instead of capped sprite intensity) would be more filmic.
+- **Broadleaf foliage blobs** read more "low-poly stylized" than "stylized-realistic" up
+  close; the silhouette could use shells or alpha-card leaf clusters.
+- **60 fps is argued from budgets**, not measured on a GPU (this VM renders via SwiftShader);
+  the draw-call/triangle/instancing numbers leave a wide margin, but a real-GPU run remains
+  the missing datapoint.
+- **GTAO contributes little** at its current settings (the trunk probe showed it barely
+  darkens contact regions) — it costs a pass without buying much grounding.
+- Distant treeline repeats two silhouettes; a third species or scale jitter band would help.
+
+## Next five iterations (if the loop continued)
+
+1. Fire radiance rework: HDR-aware flame gradient + smaller additive core, so surge feeds
+   light radius instead of sprite brightness; re-judge seated/golden close-ups.
+2. Broadleaf canopy upgrade: per-face leaf-cluster cards with alpha cutout + backlit
+   translucency term; keep instancing (same budget).
+3. Real-GPU validation pass: run the harness on hardware WebGL, record true fps at 1080p,
+   tune GTAO radius/intensity until it visibly grounds rocks/logs at <1 ms cost.
+4. Micro-detail pass: terrain detail normals near the camera, pebble/twig scatter on the
+   path, dry-grass patches around the fire ring (heat-kill ring).
+5. Skyline variety: third pine variant + broadleaf height jitter in the boundary ring, plus a
+   distant birds particle for the day vista.
+
+## Architecture recap
+
 Everything is procedural (no downloaded assets): analytic-FBM radial terrain with a splat
 shader (grass/dirt/rock by slope/height/path/noise), canvas-painted detail textures, gradient
 sky dome (sun/moon/stars/FBM clouds), 60k instanced grass cards with forced-up normals and
