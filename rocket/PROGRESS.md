@@ -122,3 +122,37 @@ Evidence: `shots/iter_3/`. Telemetry unchanged-green (64 s, drag, lowtwr, coast,
 4. Rocket textures: 64 px outlined wordmark, 11 px pinstripes, bigger flag patch,
    38 px portholes, 4 px panel lines.
 
+## Iteration 4 — banner fix, plume color curve, staging money shot, bolder livery
+
+Evidence: `shots/iter_4/`. Telemetry green and unchanged (space @64 s, drag, lowtwr,
+coast crash, stage event @40.5 s). Frame-stat methodology note: `renderer.info`
+autoReset is now off and counts the FULL pipeline (shadow pass + GTAO + bloom mip
+chain + output), so numbers jumped from "last pass only" 58 calls/16 k tris to an
+honest 304 calls/117 k tris — that is the total per frame, well within mid-range
+GPU budgets (bloom's blur chain alone is ~25 fullscreen quads).
+
+| # | Item | Verdict | Notes |
+|---|------|---------|-------|
+| 1 | Rocket stylized-real | **PASS** | KARMAN wordmark legible in midair, orange band + pinstripes + teal fins read at every distance; portholes/panel lines visible on pad; no gray anywhere |
+| 2 | Exhaust sells | **PASS** | Liftoff: hot core + big pad billow ✓; midair: bright wedge w/ orange fringe ✓; high: orange-pink falloff ✓; space: wide translucent vacuum plume, violet-pink tail ✓; liftoff vs liftoff_b differ ✓ |
+| 3 | Climb gradient | **PASS** | pad light blue → midair blue + cumulus → staging (2.6 km) lavender → high (3.9 km) deep indigo + limb + stars → space black: continuous. Watch: midair below-horizon haze a touch pale |
+| 4 | Launch site finished | **PASS** | holds (pad ring/01/scorch, clamps, generators, mottled grass, agreeing shadows) |
+| 5 | Builder clean | **PASS** | stats assertion green (6.95 t/1.06 → add tank 12.10 t/0.61 red) |
+| 6 | Physics honest | **PASS** | all five telemetry verdicts green, unchanged since iter 2 |
+| 7 | Staging works | **FAIL→hair** | Tumbling spent stage clearly visible mid-frame (fins+tank+bell, ~90° over) ✓ mass-drop event ✓ banner ghost gone ✓ — BUT stale "SPACE REACHED — REVERT WHEN READY" *hint bar* (from prior space view) contaminates the shot; hint state must reset per view |
+| 8 | Camera never fails | **PASS** | space shot: rocket clear of all UI ✓; staging: planet-backdrop three-quarter works ✓; liftoff/midair/high framed; no clipping |
+| 9 | Post balanced | **PASS** | no blown regions left; bloom glow subtle; vignette+grain present, shadows not crushed |
+| 10 | Tech clean | **PASS*** | 304 calls/117 k tris = full pipeline (see note); no z-fight/acne; *SwiftShader caveat. Cleanup owed: favicon 404 + deprecated PCFSoftShadowMap warning in console |
+| 11 | Cold-look | **PASS** | liftoff (smoke billow/tower/clouds) and high_altitude (planet ball + limb + stars) both pass the squint test as a real stylized indie game |
+
+**Score: 10/11.**
+
+### Fix list for iteration 5 (worst first)
+1. Hint/banner state machine: clear hint + banner at the start of every debug
+   setView/warmFlight so no UI state leaks between views (kills the stale
+   "SPACE REACHED" hint in staging.png).
+2. favicon 404: inline data-URI icon in index.html (console must be clean).
+3. Shadow type: PCFSoftShadowMap is deprecated in three 0.184 → set PCFShadowMap
+   explicitly, silence the warning.
+4. NO visual retuning of passing items (regression risk) — double-green is the goal.
+
