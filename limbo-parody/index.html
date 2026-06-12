@@ -1192,7 +1192,24 @@ function genTree(seed, h, baseW, foliage) {
       var fa = ang + (rnd() - 0.5) * 1.5;
       thorns.push({ x0: bx, y0: by, x1: bx + Math.cos(fa) * (9 + rnd() * 13) * dir, y1: by + Math.sin(fa) * (9 + rnd() * 13), seg: BS });
     }
-    g.branches.push({ k: k, pts: pts, widths: widths, thorns: thorns,
+    /* sub-twigs: curved children sprouting off the branch — depth & detail */
+    var twigs = [];
+    var ntw = 1 + (rnd() < 0.55 ? 1 : 0);
+    for (q = 0; q < ntw; q++) {
+      var ts = 1 + Math.floor(rnd() * (BS - 1));
+      var base = pts[ts];
+      var ta2 = ang + (rnd() < 0.5 ? -1 : 1) * (0.5 + rnd() * 0.6);
+      var tl2 = bl * (0.22 + rnd() * 0.2);
+      var mx = base.x + Math.cos(ta2) * tl2 * 0.5 * dir;
+      var my = base.y + Math.sin(ta2) * tl2 * 0.5;
+      ta2 += (rnd() - 0.3) * 0.7;                               // kink then droop
+      twigs.push({ x0: base.x, y0: base.y,
+                   xm: mx, ym: my,
+                   x1: mx + Math.cos(ta2) * tl2 * 0.5 * dir,
+                   y1: my + Math.sin(ta2) * tl2 * 0.5,
+                   w: Math.max(1.3, bw0 * 0.42), seg: ts });
+    }
+    g.branches.push({ k: k, pts: pts, widths: widths, thorns: thorns, twigs: twigs,
                       freq: 0.35 + rnd() * 0.45, phase: rnd() * 6.283 });
   }
   if (foliage) {
@@ -1261,6 +1278,16 @@ function drawTreeGeom(c, g, x, baseY, t, swayAmp, lowDetail) {
         c.lineTo(bx + br.pts[s + 1].x + o2, by + br.pts[s + 1].y);
         c.stroke();
       }
+    }
+    /* curved sub-twigs give the canopy depth */
+    for (var w2 = 0; w2 < br.twigs.length; w2++) {
+      var tw = br.twigs[w2];
+      var ofw = bsway * Math.pow(tw.seg / n, 2);
+      c.lineWidth = tw.w;
+      c.beginPath();
+      c.moveTo(bx + tw.x0 + ofw, by + tw.y0);
+      c.quadraticCurveTo(bx + tw.xm + ofw, by + tw.ym, bx + tw.x1 + ofw * 1.1, by + tw.y1);
+      c.stroke();
     }
     c.lineWidth = 1.7;
     c.beginPath();
@@ -1550,6 +1577,10 @@ function drawForegroundTrunks() {
         branchLen: 170 + rnd() * 220,
         branchDroop: 30 + rnd() * 120
       };
+      /* never let a colossus park in front of a lamp at its puzzle framing */
+      for (var lp2 = 0; lp2 < LIGHT_POLES.length; lp2++) {
+        if (Math.abs(k * SP + s.jit - FACT * LIGHT_POLES[lp2].x) < s.w * 2 + 260) { s.skip = true; break; }
+      }
     }
     if (s.skip) continue;
     var x = k * SP + s.jit - px;
@@ -2019,19 +2050,52 @@ function updateDrips() {
   }
 }
 
+function poleFlick(pole, t) {
+  /* irregular flicker — never fully steady */
+  return 0.78 + 0.13 * Math.sin(t * 8.3 + pole.ph) * Math.sin(t * 2.6 + pole.ph * 2) + 0.09 * Math.sin(t * 0.9 + pole.ph);
+}
+
+/* lamp light blooms OVER the vignette — real light sources punch through the dark */
+function drawLampGlows(c) {
+  var t = tickCount / 60;
+  c.globalCompositeOperation = 'lighter';            // additive: a true bloom
+  for (var i = 0; i < LIGHT_POLES.length; i++) {
+    var pole = LIGHT_POLES[i];
+    if (Math.abs(pole.x - cam.x) > viewW * 0.75) continue;
+    var lp = lampPos(pole, t);
+    var flick = poleFlick(pole, t);
+    c.globalAlpha = 0.1 * flick;
+    c.drawImage(glowSprite, lp.x - 200, lp.y - 200, 400, 400);
+    c.globalAlpha = 0.3 * flick;
+    c.drawImage(glowSprite, lp.x - 100, lp.y - 100, 200, 200);
+    c.globalAlpha = 0.55 * flick;
+    c.drawImage(glowSprite, lp.x - 42, lp.y - 42, 84, 84);
+    c.globalAlpha = 1;
+  }
+  c.globalCompositeOperation = 'source-over';
+  for (i = 0; i < LIGHT_POLES.length; i++) {
+    var pole2 = LIGHT_POLES[i];
+    if (Math.abs(pole2.x - cam.x) > viewW * 0.75) continue;
+    var lp2 = lampPos(pole2, t);
+    /* hot core inside the lamp box */
+    c.save();
+    c.translate(lp2.x, lp2.y);
+    c.rotate(lp2.sway);
+    c.fillStyle = '#ffffff';
+    c.globalAlpha = 0.92 * poleFlick(pole2, t);
+    c.fillRect(-5, -3, 10, 7);
+    c.globalAlpha = 1;
+    c.restore();
+  }
+}
+
 function drawLightPoles(c) {
   var t = tickCount / 60;
   for (var i = 0; i < LIGHT_POLES.length; i++) {
     var pole = LIGHT_POLES[i];
     var topY = pole.baseY - pole.h;
     var lp = lampPos(pole, t);
-    /* glow behind the silhouette: irregular flicker, never fully steady */
-    var flick = 0.78 + 0.13 * Math.sin(t * 8.3 + pole.ph) * Math.sin(t * 2.6 + pole.ph * 2) + 0.09 * Math.sin(t * 0.9 + pole.ph);
-    c.globalAlpha = 0.5 * flick;
-    c.drawImage(glowSprite, lp.x - 95, lp.y - 95, 190, 190);
-    c.globalAlpha = 0.62 * flick;
-    c.drawImage(glowSprite, lp.x - 34, lp.y - 34, 68, 68);
-    c.globalAlpha = 1;
+    var flick = poleFlick(pole, t);
     /* pole: tapered, slightly leaning post with a foot mound */
     c.fillStyle = '#000000';
     var leanT = pole.arm * 0.06;
@@ -2065,11 +2129,6 @@ function drawLightPoles(c) {
     c.translate(lp.x, lp.y);
     c.rotate(lp.sway);
     c.fillRect(-9, -8, 18, 15);
-    /* hot core */
-    c.fillStyle = '#ffffff';
-    c.globalAlpha = 0.92 * flick;
-    c.fillRect(-5, -3, 10, 7);
-    c.globalAlpha = 1;
     c.restore();
   }
   /* droplets + rings */
@@ -2194,6 +2253,11 @@ function render() {
   /* --- post stack --- */
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(vignetteCanvas, 0, 0);
+
+  /* lamp glows bloom through the vignette */
+  ctx.setTransform(sc, 0, 0, sc, W / 2 - cam.x * sc, H / 2 - cam.y * sc);
+  drawLampGlows(ctx);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 
   /* heavy film grain: 'overlay' keeps pure blacks pure */
   ctx.globalCompositeOperation = 'overlay';
