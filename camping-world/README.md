@@ -7,6 +7,20 @@ instanced grass cards swaying in the wind.
 
 ![wide vista](docs/iter-20-v3-wide-vista.png)
 
+## Play it in the browser (no install, no merge)
+
+The production build is committed at [`play/`](play/) and served straight
+off this branch through the githack CDN:
+
+- **Play now (pinned, fast):**
+  <https://rawcdn.githack.com/ilikevibecoding/My-projects/dd19ef3f8d535839b9ad1ed1f9b64f840d6da209/camping-world/play/index.html>
+- **Always-latest (tracks this branch, slower first load):**
+  <https://raw.githack.com/ilikevibecoding/My-projects/cursor/bc-5fd2158d-847b-44d3-b77f-90ba063719c5-2695/camping-world/play/index.html>
+
+githack shows a one-time "External Content Notice" — click **Open the page**
+and the game loads. First visit downloads ~160 MB of photoscanned assets, so
+give it a moment on the loading screen.
+
 ## Run it
 
 ```bash
