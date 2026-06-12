@@ -26,8 +26,11 @@ function prepFoliageMaterial(mat) {
     mat.alphaTest = 0.45;
     mat.depthWrite = true;
     mat.side = THREE.DoubleSide;
+    // leaves picking up the blue sky dome as gloss reads glaucous/plastic —
+    // matte them out and damp env reflections (diffuse IBL still applies)
+    mat.roughness = Math.max(mat.roughness ?? 1, 0.85);
+    mat.envMapIntensity = 0.55;
   }
-  mat.roughness = Math.min(1, (mat.roughness ?? 1) * 1.0);
   // subtle wind sway for alpha foliage
   if (hasAlpha) {
     mat.onBeforeCompile = (shader) => {

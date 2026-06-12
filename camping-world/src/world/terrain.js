@@ -148,8 +148,8 @@ export function buildTerrain(scene) {
 
           // far field: beyond the card-grass radius pull the ground toward a
           // matted dry-grassland tone so it never reads as bald bright sand
-          float farField = smoothstep(42.0, 75.0, r);
-          blended.rgb *= mix(vec3(1.0), vec3(0.62, 0.64, 0.46), farField);
+          float farField = smoothstep(38.0, 72.0, r);
+          blended.rgb *= mix(vec3(1.0), vec3(0.55, 0.58, 0.42), farField);
 
           diffuseColor *= blended;
           // stash masks for normal/arm stages

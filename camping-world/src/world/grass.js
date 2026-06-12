@@ -18,8 +18,8 @@ const ATLAS_ROWS = 2;
 // favor the leafy clumps; the dark-seed-head cells (2,4,5) stay rare accents
 const CELL_WEIGHTS = [0.26, 0.24, 0.015, 0.24, 0.015, 0.015, 0.105, 0.11];
 
-const GRASS_RADIUS = 70;
-const COUNT = 110000;
+const GRASS_RADIUS = 95; // run the meadow into the treeline — no bald band
+const COUNT = 130000;
 
 function pickCell(rng) {
   let r = rng();
@@ -168,7 +168,7 @@ export function buildGrass(scene, getHeight, campCenter) {
     if (dCamp < 2.4) continue; // fire ring + sitting area stay walkable
     const n = densityNoise(x * 0.03, z * 0.03); // [-1,1]
     let keep = 0.8 + n * 0.2;
-    if (r > 50) keep *= THREE.MathUtils.mapLinear(r, 50, GRASS_RADIUS, 1.0, 0.6);
+    if (r > 55) keep *= THREE.MathUtils.mapLinear(r, 55, GRASS_RADIUS, 1.0, 0.42);
     if (dCamp < 7) keep *= THREE.MathUtils.mapLinear(dCamp, 2.4, 7, 0.3, 1.0);
     if (rng() > keep) continue;
 
@@ -176,9 +176,11 @@ export function buildGrass(scene, getHeight, campCenter) {
     const cell = pickCell(rng);
     cellAttr[i] = cell;
 
-    // card size = real-world size of the baked clump, with natural variation
+    // card size = real-world size of the baked clump, with natural variation;
+    // far cards grow up to ~35% so sparse coverage still closes at distance
     const frame = atlasMeta.cells[cell]?.frameM ?? 0.35;
-    const s = frame * (0.85 + rng() * 0.55) * 1.6; // lush of life-size, overlapping
+    const farBoost = 1 + 0.35 * THREE.MathUtils.smoothstep(r, 55, GRASS_RADIUS);
+    const s = frame * (0.85 + rng() * 0.55) * 1.6 * farBoost; // lush of life-size, overlapping
     const sw = s * (0.9 + rng() * 0.25);
     const sh = s * (0.8 + rng() * 0.4);
     const y = getHeight(x, z);

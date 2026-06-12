@@ -33,6 +33,17 @@ function listParts(models, id) {
   return parts;
 }
 
+// Place obj so its world-bounds bottom-center lands exactly on (x, y, z) —
+// robust against glb scenes whose mesh is offset from the scene root.
+function placeOn(obj, x, y, z) {
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  const c = box.getCenter(new THREE.Vector3());
+  obj.position.x += x - c.x;
+  obj.position.z += z - c.z;
+  obj.position.y += y - box.min.y;
+}
+
 export function buildCampsite(scene, models, getHeight) {
   const rng = makeRng(777);
   const group = new THREE.Group();
@@ -52,13 +63,13 @@ export function buildCampsite(scene, models, getHeight) {
     pit.rotation.y = rng() * Math.PI * 2;
     // bed the rim into the soil (scan floor sits below terrain — the ash
     // disc below covers the interior)
-    pit.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) - box.min.y * s - 0.1, CAMP.y);
+    pit.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) - box.min.y * s - 0.13, CAMP.y);
     group.add(pit);
   }
 
   // --- ash bed inside the ring (irregular edge, sits just above the soil) ---
   {
-    const ashGeo = new THREE.CircleGeometry(0.55, 22);
+    const ashGeo = new THREE.CircleGeometry(0.48, 22);
     ashGeo.rotateX(-Math.PI / 2);
     const ap = ashGeo.attributes.position;
     for (let i = 0; i < ap.count; i++) {
@@ -73,7 +84,7 @@ export function buildCampsite(scene, models, getHeight) {
     ashGeo.computeVertexNormals();
     const ash = new THREE.Mesh(
       ashGeo,
-      new THREE.MeshStandardMaterial({ color: 0x35302a, roughness: 1.0 })
+      new THREE.MeshStandardMaterial({ color: 0x2e2a25, roughness: 1.0 })
     );
     ash.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) + 0.03, CAMP.y);
     ash.receiveShadow = true;
@@ -202,9 +213,9 @@ export function buildCampsite(scene, models, getHeight) {
     const hatchet = clonePart(models, 'hatchet');
     if (hatchet) {
       const sBox = new THREE.Box3().setFromObject(stump);
-      hatchet.position.set(x + 0.05, sBox.max.y + 0.015, z - 0.05);
       hatchet.rotation.set(0.04, 1.2, Math.PI / 2 - 0.12); // lying on its side on the stump
       group.add(hatchet);
+      placeOn(hatchet, x + 0.05, sBox.max.y + 0.01, z - 0.05);
     }
   }
 
@@ -222,9 +233,9 @@ export function buildCampsite(scene, models, getHeight) {
     if (lantern) {
       const cBox = new THREE.Box3().setFromObject(crate);
       const cc = cBox.getCenter(new THREE.Vector3());
-      lantern.position.set(cc.x, cBox.max.y + 0.005, cc.z); // centered on the crate lid
       lantern.rotation.y = -0.4;
       group.add(lantern);
+      placeOn(lantern, cc.x, cBox.max.y + 0.002, cc.z); // centered on the crate lid
     }
   }
 
