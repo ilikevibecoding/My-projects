@@ -90,12 +90,12 @@ export class Fire {
     // --- flames ---
     this.flameUniforms = {
       uTime: { value: 0 }, uIntensity: { value: 0 }, uLife: { value: 0.9 },
-      uRise: { value: 1.15 }, uSpread: { value: 0.5 }, uBaseSize: { value: 0.75 }, uGrow: { value: -0.6 },
+      uRise: { value: 1.15 }, uSpread: { value: 0.45 }, uBaseSize: { value: 0.62 }, uGrow: { value: -0.6 },
       uMap: { value: makeFlameSprite() },
     };
     const flameMat = new THREE.ShaderMaterial({
       uniforms: this.flameUniforms,
-      vertexShader: BILLBOARD_VS,
+      vertexShader: BILLBOARD_VS.replace('mv.xy += rc * s;', 'mv.xy += rc * s * vec2(0.78, 1.55);'),
       fragmentShader: /* glsl */ `
         uniform sampler2D uMap;
         varying vec2 vUv;
@@ -106,7 +106,7 @@ export class Fire {
           float a = tex.a * vFade;
           // hotter core, redder tips by life
           vec3 col = tex.rgb * mix(vec3(1.5, 1.25, 0.9), vec3(1.6, 0.65, 0.25), vSeed * 0.5 + 0.25);
-          gl_FragColor = vec4(col * 2.6, a);
+          gl_FragColor = vec4(col * 1.55, a);
         }
       `,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -132,7 +132,7 @@ export class Fire {
         varying float vSeed;
         void main() {
           vec4 tex = texture2D(uMap, vUv);
-          gl_FragColor = vec4(tex.rgb * 3.0, tex.a * vFade);
+          gl_FragColor = vec4(tex.rgb * 2.2, tex.a * vFade);
         }
       `,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -157,7 +157,7 @@ export class Fire {
         varying float vFade;
         void main() {
           vec4 tex = texture2D(uMap, vUv);
-          gl_FragColor = vec4(vec3(0.32, 0.32, 0.34), tex.a * vFade * 0.55);
+          gl_FragColor = vec4(vec3(0.26, 0.26, 0.28), tex.a * vFade * 0.30);
         }
       `,
       transparent: true, depthWrite: false, blending: THREE.NormalBlending,
@@ -198,7 +198,7 @@ export class Fire {
     this.group.add(this.sparks);
 
     // --- light ---
-    this.light = new THREE.PointLight(0xff8e3c, 0, 26, 2);
+    this.light = new THREE.PointLight(0xff8e3c, 0, 34, 2);
     this.light.position.set(0, 1.1, 0);
     this.light.castShadow = false;
     this.group.add(this.light);
@@ -242,7 +242,7 @@ export class Fire {
 
     // flicker
     const fl = flickerNoise.noise2D(time * 6.5, 0.5) * 0.5 + flickerNoise.noise2D(time * 17, 9.3) * 0.22;
-    this.light.intensity = next * (34 + fl * 16);
+    this.light.intensity = next * (52 + fl * 22);
     this.light.position.x = fl * 0.07;
     this.light.position.z = flickerNoise.noise2D(time * 5.1, 23.7) * 0.07;
     this.coalMat.color.setRGB(1.4 * next * (0.8 + fl * 0.25), 0.35 * next, 0.06 * next);

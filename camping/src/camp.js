@@ -25,7 +25,7 @@ function logMesh(barkTex, ringsTex, len, radius) {
     new THREE.CylinderGeometry(radius, radius, len, 9, 1, true),
     new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95, color: 0xb09578 }),
   );
-  const capMat = new THREE.MeshStandardMaterial({ map: ringsTex, roughness: 0.9, color: 0xd8c0a0 });
+  const capMat = new THREE.MeshStandardMaterial({ map: ringsTex, roughness: 0.9, color: 0xb89d7d });
   const capGeo = new THREE.CircleGeometry(radius, 9);
   const cap1 = new THREE.Mesh(capGeo, capMat);
   cap1.position.y = len / 2;
@@ -53,7 +53,7 @@ export function createCamp(scene) {
   const fireY = getTerrainHeight(fireX, fireZ);
   const firePos = new THREE.Vector3(fireX, fireY, fireZ);
 
-  const stoneMat = new THREE.MeshStandardMaterial({ map: rockTex, roughness: 0.85, color: 0x9a9a98 });
+  const stoneMat = new THREE.MeshStandardMaterial({ map: rockTex, roughness: 0.85, color: 0xbab4a8 });
   const ringGroup = new THREE.Group();
   ringGroup.name = 'firepit';
   const N_STONES = 11;
@@ -130,7 +130,7 @@ export function createCamp(scene) {
   const tent = new THREE.Group();
   tent.name = 'tent';
 
-  const W = 2.6, H = 1.7, D = 3.0; // width, height, depth
+  const W = 3.0, H = 1.95, D = 3.2; // width, height, depth
   // A-frame canvas: two sloped quads with slight sag
   const tentMat = new THREE.MeshStandardMaterial({
     map: tentTex, roughness: 0.82, color: 0xffffff, side: THREE.DoubleSide,

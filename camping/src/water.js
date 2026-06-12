@@ -32,8 +32,8 @@ export function createWater(renderer, scene) {
     uTexMatrix: { value: new THREE.Matrix4() },
     uNormalMap: { value: normalTex },
     uTime: { value: 0 },
-    uShallowColor: { value: new THREE.Color(0x3a6b58) },
-    uDeepColor: { value: new THREE.Color(0x16313e) },
+    uShallowColor: { value: new THREE.Color(0x4d7f70) },
+    uDeepColor: { value: new THREE.Color(0x1d3f52) },
     uSunDir: { value: new THREE.Vector3(0, 1, 0) },
     uSunColor: { value: new THREE.Color(0xffffff) },
     fogColor: { value: new THREE.Color(0xffffff) },
@@ -74,14 +74,14 @@ export function createWater(renderer, scene) {
         vec2 uv2 = vWPos.xz * 0.16 + vec2(-uTime * 0.027, uTime * 0.011);
         vec3 n1 = texture2D(uNormalMap, uv1).xyz * 2.0 - 1.0;
         vec3 n2 = texture2D(uNormalMap, uv2).xyz * 2.0 - 1.0;
-        vec3 nrm = normalize(vec3(n1.x + n2.x, 6.0, n1.y + n2.y));
+        vec3 nrm = normalize(vec3(n1.x + n2.x, 11.0, n1.y + n2.y));
 
         vec3 viewDir = normalize(cameraPosition - vWPos);
         float fres = pow(1.0 - max(dot(viewDir, vec3(0.0, 1.0, 0.0)), 0.0), 3.0);
-        fres = mix(0.18, 1.0, fres);
+        fres = mix(0.26, 1.0, fres);
 
         vec4 refUV = vRefUV;
-        refUV.xy += nrm.xz * 0.6 * refUV.w;
+        refUV.xy += nrm.xz * 0.22 * refUV.w;
         vec3 refl = texture2DProj(tReflection, refUV).rgb;
 
         float depthT = clamp(vDepth / 1.6, 0.0, 1.0);
@@ -90,8 +90,8 @@ export function createWater(renderer, scene) {
 
         // sun glints
         vec3 hv = normalize(viewDir + uSunDir);
-        float spec = pow(max(dot(nrm, hv), 0.0), 180.0);
-        col += uSunColor * spec * 1.5;
+        float spec = pow(max(dot(nrm, hv), 0.0), 120.0);
+        col += uSunColor * spec * 1.1;
 
         // shoreline: fade alpha + slight foam lightening
         float edge = smoothstep(0.0, 0.5, vDepth);

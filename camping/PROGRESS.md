@@ -39,7 +39,7 @@ Playwright harness. Harness run: ~13.5 min, all shots captured, no fatal page er
 
 **Score: 1/11 pass.**
 
-### Fix list for iteration 2 (worst first)
+### Fix list for iteration 2 (worst first, all implemented in iter 2)
 1. **Grass rebuild** — blade height 0.35–0.6m (not 1.5m), narrower blades in card texture, ~3×
    density at half size, normals forced UP so cards shade like the ground (kills black backfaces),
    brighter yellow-green palette matched to terrain texture, clear grass from camp area (r<7) and
@@ -56,3 +56,54 @@ Playwright harness. Harness run: ~13.5 min, all shots captured, no fatal page er
 6. **Fire balance** — flame brightness 2.6→~1.6, slightly smaller flame cluster, smoke opacity down.
 7. **Stats fix** — renderer.info.autoReset=false + manual reset per frame (real drawCalls/tris).
 8. Vista view: move so foreground pine doesn't block center.
+
+---
+
+## Iteration 2 — grass rebuild, haze, pond view, stats (shots/iter_2)
+
+Implemented all 8 fixes. Visual-only run (interactions re-verified later).
+Findings from the shots (rubric deltas only):
+
+- Camp now fully readable (tent/fire-ring/wood-pile/seat log all distinct) — big win.
+- Grass: correct scale now, BUT dark backface speckle remains (DoubleSide flips the forced-up
+  normals per face) → meadow reads black-stubbled at mid-distance. **Still FAIL (2).**
+- Mountains: snowline better; NEW artifact found — black sawtooth halo tracing every ridge
+  silhouette (zoomed crop confirms). Suspect GTAO depth-discontinuity halo at far range. **FAIL (1,3).**
+- Pond now visible BUT surface reads as dark-green noise: normal-map distortion far too strong
+  (0.6 in clip space) scrambles the reflection. **FAIL (5).**
+- Pine cone tiers show grey undersides (closed cone caps lit by ground hemisphere) — reads like
+  rock showing through the tree. **FAIL (2 contributor).**
+- Golden warmer but foreground still too dark; night fire-light pool too small.
+- Stats now real: 135–335 draw calls, ~2.1–2.6M tris *per frame including shadow + reflection +
+  GTAO re-renders* (scene itself ~0.9M). Within budget for a mid-range GPU.
+
+**Score: 1/11** (interactions, carried). Fix list → iter 3: grass face-up normals in fragment
+stage; GTAO scene clip box (exclude mountains); water distortion 0.6→0.22 + flatter normals;
+open-ended pine cones (DoubleSide); golden exposure 1.18 + vignette 0.32; fire light 52/34m.
+
+## Iteration 3 — normals, GTAO clip, water fix (shots/iter_3)
+
+All six shots + motion pairs captured. Findings:
+
+- **Grass fixed** — bright yellow-green meadow w/ clump variation; backface speckle gone.
+- **GTAO sawtooth gone** (scene clip box). Mountains clean silhouettes in haze.
+- **Pond works now** — reflects far-shore trees + sky, shoreline blends, rocks at shore.
+  Bank lip a touch high (sunken-crater feel), water a bit dark.
+- Golden hour: gold grass + long tree shadows + warm haze = strong. Foreground dirt patch huge/red.
+- Night: fire light pool now sells the camp; smoke slightly milky.
+- Motion pairs (mean abs pixel diff): grass 4.53, water 4.97, fire 8.57 — all clearly animated
+  (static-scene noise floor from film grain ≈ 2).
+- Remaining weaknesses: distant mountainsides read as smooth "golf lawn" green (need distant-forest
+  mottling), bald lawn patches between grass clumps, camp wear disc too big, flames too round,
+  rim treeline has a gap on the pond side.
+
+**Score (harsh): 1 Terrain FAIL (distant lawn slopes) · 2 Veg FAIL (bald patches) · 3 Atmos PASS ·
+4 Fire FAIL (round blob flames, milky smoke) · 5 Water PASS (reflection+shore+motion verified) ·
+6 Materials FAIL (dirt disc oversaturated/red, dominates camp shots) · 7 Post PASS · 8 Palette PASS ·
+9 Tech PASS (budgets real: ≤335 calls incl. all passes; no acne/z-fight/floaters seen) ·
+10 Interactions PASS (carried iter‑1 evidence) · 11 Cold-look FAIL (distant slopes + flame blob).
+= 7/11**
+
+Fix list → iter 4 (worst first): distant-forest mottling on far slopes; grass density floor up;
+camp wear disc 4.6m/0.72; pond bank +0.32; flame sprites taller 0.78×1.55, smoke 0.30 alpha;
+rim pines 300/85–142m; day fog 0.0023; puffier clouds.

@@ -17,15 +17,15 @@ function makeGrassCardTexture(size = 128) {
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, size, size);
   const rand = mulberry32(5150);
-  for (let i = 0; i < 9; i++) {
-    const bx = size * (0.12 + 0.76 * rand());
-    const topX = bx + (rand() - 0.5) * size * 0.3;
-    const w = size * (0.03 + rand() * 0.035);
-    const hgt = size * (0.55 + rand() * 0.45);
+  for (let i = 0; i < 22; i++) {
+    const bx = size * (0.06 + 0.88 * rand());
+    const topX = bx + (rand() - 0.5) * size * 0.34;
+    const w = size * (0.012 + rand() * 0.016);
+    const hgt = size * (0.45 + rand() * 0.5);
     const g = ctx.createLinearGradient(0, size, 0, size - hgt);
-    const tone = 110 + rand() * 70;
-    g.addColorStop(0, `rgba(${tone * 0.45},${tone * 0.62},${tone * 0.28},1)`);
-    g.addColorStop(1, `rgba(${tone * 0.85},${tone},${tone * 0.5},1)`);
+    const tone = 135 + rand() * 80;
+    g.addColorStop(0, `rgba(${tone * 0.52},${tone * 0.66},${tone * 0.30},1)`);
+    g.addColorStop(1, `rgba(${tone * 0.95},${tone * 1.04},${tone * 0.52},1)`);
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.moveTo(bx - w, size);
@@ -41,12 +41,18 @@ function makeGrassCardTexture(size = 128) {
 }
 
 export function createGrass() {
-  const COUNT = 60000;
-  // crossed pair of cards
-  const card = new THREE.PlaneGeometry(0.85, 0.75, 1, 2);
-  card.translate(0, 0.375, 0);
+  const COUNT = 90000;
+  // crossed pair of cards (short meadow tufts, not walls)
+  const card = new THREE.PlaneGeometry(0.62, 0.5, 1, 2);
+  card.translate(0, 0.25, 0);
   const card2 = card.clone().rotateY(Math.PI / 2);
   const merged = mergeGeoms([card, card2]);
+  // force all normals UP: tufts shade like the ground (no black backfaces)
+  {
+    const n = merged.attributes.normal;
+    for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0);
+    n.needsUpdate = true;
+  }
 
   const tex = makeGrassCardTexture();
   const material = new THREE.MeshStandardMaterial({
@@ -61,6 +67,14 @@ export function createGrass() {
     shader.uniforms.uTime = { value: 0 };
     shader.uniforms.uCamPos = { value: new THREE.Vector3() };
     material.userData.shader = shader;
+    // grass always shades as if facing up — kills dark backfaces entirely
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <normal_fragment_begin>',
+      `#include <normal_fragment_begin>
+normal = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+nonPerturbedNormal = normal;
+`,
+    );
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
 uniform float uTime;
@@ -70,16 +84,16 @@ uniform vec3 uCamPos;
 {
   vec3 ipos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
   float phase = ipos.x * 1.7 + ipos.z * 2.3;
-  float hFrac = clamp(transformed.y / 0.75, 0.0, 1.0);
+  float hFrac = clamp(transformed.y / 0.5, 0.0, 1.0);
   float sway = sin(uTime * 1.6 + phase) * 0.5 + sin(uTime * 2.7 + phase * 1.3) * 0.3;
   float gust = sin(uTime * 0.5 + ipos.x * 0.05 + ipos.z * 0.07);
   gust = max(gust, 0.0) * 0.7;
-  float amp = 0.10 + gust * 0.14;
+  float amp = 0.08 + gust * 0.11;
   transformed.x += sway * amp * hFrac * hFrac;
   transformed.z += sway * amp * 0.6 * hFrac * hFrac;
   // distance density fade: shrink far blades to nothing
   float dCam = distance(ipos, uCamPos);
-  float fade = 1.0 - smoothstep(48.0, 78.0, dCam);
+  float fade = 1.0 - smoothstep(55.0, 90.0, dCam);
   transformed.xyz *= fade;
 }
 `);
@@ -103,23 +117,26 @@ uniform vec3 uCamPos;
     const a = rand() * Math.PI * 2;
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
+    // keep the camp area and the pond shore clear
+    if (Math.hypot(x, z) < 6.5) continue;
+    if (Math.hypot(x - POND.x, z - POND.z) < POND.r + 3) continue;
     const info = placementInfo(x, z);
     if (info.water || info.grassW < 0.35) continue;
     // clumpy density via noise
     const clump = placeNoise.noise2D(x * 0.05, z * 0.05) * 0.5 + 0.5;
-    if (rand() > info.grassW * (0.35 + clump * 0.75)) continue;
+    if (rand() > info.grassW * (0.62 + clump * 0.45)) continue;
 
-    const s = 0.7 + rand() * 0.8 + clump * 0.3;
+    const s = 0.55 + rand() * 0.55 + clump * 0.25;
     q.setFromAxisAngle(up, rand() * Math.PI * 2);
     m.compose(
-      new THREE.Vector3(x, info.height - 0.03, z),
+      new THREE.Vector3(x, info.height - 0.02, z),
       q,
-      new THREE.Vector3(0.8 + rand() * 0.5, s, 0.8 + rand() * 0.5),
+      new THREE.Vector3(0.85 + rand() * 0.5, s, 0.85 + rand() * 0.5),
     );
     mesh.setMatrixAt(placed, m);
-    // per-instance tint: green ↔ olive/yellow meadow variation
+    // per-instance tint: green ↔ olive/yellow meadow variation (kept bright)
     const t = clamp(clump * 0.8 + rand() * 0.35 - 0.15, 0, 1);
-    col.setRGB(0.55 + t * 0.5, 0.85 + t * 0.12, 0.45 - t * 0.12);
+    col.setRGB(0.78 + t * 0.38, 0.98 + t * 0.14, 0.6 - t * 0.05);
     mesh.setColorAt(placed, col);
     placed++;
   }
@@ -191,7 +208,7 @@ function makePineGeometries() {
     { r: 0.7, h: 1.7, y: 6.4 },
   ];
   for (const t of tiers) {
-    const cone = new THREE.ConeGeometry(t.r, t.h, 9, 2);
+    const cone = new THREE.ConeGeometry(t.r, t.h, 9, 2, true); // open-ended: no grey under-caps
     cone.translate(0, t.y + t.h * 0.4, 0);
     jitterGeometry(cone, jn, 0.9, 0.16, t.y);
     skirts.push(cone);
@@ -318,12 +335,12 @@ export function createTrees() {
   const pine = makePineGeometries();
   const pineTrunkMat = new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95, color: 0xa88a6a });
   const pineFoliageMat = windSwayMaterial(new THREE.MeshStandardMaterial({
-    color: 0xffffff, roughness: 0.9, flatShading: true,
+    color: 0xffffff, roughness: 0.9, flatShading: true, side: THREE.DoubleSide,
   }), 0.07);
 
   const pinePts = [
     // dense treeline ring bounding the world
-    ...scatterTrees({ count: 240, rand, minR: 88, maxR: 135, clusterCount: 26, clusterRadius: 16 }),
+    ...scatterTrees({ count: 300, rand, minR: 85, maxR: 142, clusterCount: 30, clusterRadius: 17 }),
     // forest edge lobe to the south-west (forest shot)
     ...scatterTrees({ count: 110, rand, minR: 34, maxR: 80, clusterCount: 7, clusterRadius: 14, avoid: (x, z) => !(x < 8 && z < 4) }),
     // sparse lone pines in the meadow
@@ -348,6 +365,20 @@ export function createTrees() {
     ...scatterTrees({ count: 70, rand, minR: 28, maxR: 95, clusterCount: 8, clusterRadius: 10 }),
     ...scatterTrees({ count: 18, rand, minR: 14, maxR: 42, clusterCount: 5, clusterRadius: 8 }),
   ];
+  // a stand of trees on the far side of the pond — they appear in the reflection
+  {
+    let n = 0, guard = 0;
+    while (n < 9 && guard++ < 300) {
+      const a = (rand() - 0.5) * Math.PI * 1.1; // arc facing the camp
+      const d = POND.r + 4 + rand() * 7;
+      const x = POND.x + Math.cos(a) * d;
+      const z = POND.z - Math.sin(a) * d * 0.9;
+      const info = placementInfo(x, z);
+      if (info.water || info.slopeY < 0.62) continue;
+      leafPts.push({ x, z, h: info.height });
+      n++;
+    }
+  }
   const leafTrunks = new THREE.InstancedMesh(leaf.trunk, leafTrunkMat, leafPts.length);
   const leafFol = new THREE.InstancedMesh(leaf.foliage, leafFoliageMat, leafPts.length);
   fillTreeInstances(leafPts, rand, leafTrunks, leafFol, {

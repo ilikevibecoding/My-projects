@@ -22,9 +22,9 @@ function hillsHeight(x, z) {
   const rimT = Math.pow(smoothstep(92, 200, r), 1.35);
   h += rimT * 50 * (0.65 + 0.7 * ridged2(worldNoise, x * 0.01 + 5.1, z * 0.01 - 3.7, 3));
   // distant mountains (same surface, far beyond the rim, sit in fog)
-  const mT = smoothstep(235, 800, r);
+  const mT = smoothstep(330, 950, r);
   if (mT > 0) {
-    h += mT * (55 + ridged2(worldNoise, x * 0.0014 + 11.7, z * 0.0014 + 4.2, 5) * 330);
+    h += mT * (45 + ridged2(worldNoise, x * 0.0011 + 11.7, z * 0.0011 + 4.2, 5, 2, 0.45) * 300);
   }
   return h;
 }
@@ -52,9 +52,9 @@ export function getTerrainHeight(x, z) {
   const dP = Math.hypot(x - POND.x, z - POND.z);
   if (dP < POND.r * 2.3) {
     const shoreT = smoothstep(POND.r * 2.3, POND.r * 0.9, dP);
-    h = lerp(h, WATER_LEVEL + 0.5, shoreT * 0.88);
+    h = lerp(h, WATER_LEVEL + 0.32, shoreT * 0.9);
     const bowlT = smoothstep(POND.r, POND.r * 0.12, dP);
-    h -= 2.6 * bowlT;
+    h -= 2.4 * bowlT;
   }
   return h;
 }
@@ -99,7 +99,7 @@ export function pathMask(x, z) {
   }
   // worn camp area
   const dCamp = Math.hypot(x - CAMP.x, z - CAMP.z);
-  m = Math.max(m, smoothstep(6.5, 1.5, dCamp) * 0.85);
+  m = Math.max(m, smoothstep(4.6, 1.2, dCamp) * 0.72);
   return clamp(m, 0, 1);
 }
 
@@ -267,9 +267,18 @@ float terrDirtW;
   float dry = fbm(vWPos.xz * 0.006 + 19.3);
   col = mix(col, col * vec3(1.16, 1.04, 0.62), grassW * smoothstep(0.45, 0.78, dry) * 0.5);
 
-  // snow on high peaks
-  float snow = smoothstep(165.0, 235.0, vWPos.y) * smoothstep(0.52, 0.78, slopeV + fbm(vWPos.xz * 0.02) * 0.18);
-  col = mix(col, vec3(0.80, 0.85, 0.94), snow);
+  // distant slopes: fake conifer-forest mottling instead of bare lawn green
+  float distR = length(vWPos.xz);
+  float farT = smoothstep(170.0, 320.0, distR);
+  float forestN = fbm(vWPos.xz * 0.045) * 0.6 + fbm(vWPos.xz * 0.012 + 4.1) * 0.4;
+  vec3 farForest = mix(vec3(0.10, 0.16, 0.09), vec3(0.16, 0.23, 0.12), forestN);
+  float treeBand = smoothstep(0.25, 0.6, forestN) * smoothstep(0.55, 0.75, slopeV);
+  col = mix(col, mix(col * 0.7, farForest, treeBand), farT * grassW * 0.85);
+
+  // snow only on the high peaks, noisy snowline
+  float snow = smoothstep(225.0, 285.0, vWPos.y + fbm(vWPos.xz * 0.01) * 60.0)
+             * smoothstep(0.45, 0.72, slopeV);
+  col = mix(col, vec3(0.72, 0.78, 0.90), snow);
 
   diffuseColor.rgb *= col;
   terrRockW = rockW;

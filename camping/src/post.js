@@ -11,7 +11,7 @@ const GrainVignetteShader = {
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
-    uVignette: { value: 0.42 },
+    uVignette: { value: 0.32 },
     uGrain: { value: 0.035 },
   },
   vertexShader: /* glsl */ `
@@ -58,6 +58,8 @@ export function createPost(renderer, scene, camera) {
 
   const gtao = new GTAOPass(scene, camera, size.x, size.y);
   gtao.output = GTAOPass.OUTPUT.Default;
+  // restrict AO to the playable bowl: kills silhouette halos on far mountains
+  gtao.setSceneClipBox(new THREE.Box3(new THREE.Vector3(-170, -30, -170), new THREE.Vector3(170, 90, 170)));
   composer.addPass(gtao);
 
   const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.25, 0.55, 1.0);

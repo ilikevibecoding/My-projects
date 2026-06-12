@@ -16,6 +16,7 @@ import { installDebugAPI } from './debug.js';
 // Renderer / scene / camera
 // ---------------------------------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+renderer.info.autoReset = false;
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.shadowMap.enabled = true;
@@ -154,6 +155,7 @@ function animate() {
 
   post.update(time);
   debugAPI._tickFPS();
+  renderer.info.reset(); // count ALL passes of this frame (autoReset is off)
   post.composer.render();
 
   window.__FRAME++;

@@ -1,0 +1,42 @@
+{
+  "camp_day": {
+    "fps": 19,
+    "drawCalls": 229,
+    "triangles": 2094299,
+    "frame": 23
+  },
+  "vista_day": {
+    "fps": 18.9,
+    "drawCalls": 335,
+    "triangles": 2546241,
+    "frame": 32
+  },
+  "forest_day": {
+    "fps": 16.3,
+    "drawCalls": 135,
+    "triangles": 2090819,
+    "frame": 41
+  },
+  "pond_day": {
+    "fps": 10.4,
+    "drawCalls": 151,
+    "triangles": 2539347,
+    "frame": 50
+  },
+  "camp_golden": {
+    "fps": 7.7,
+    "drawCalls": 229,
+    "triangles": 2094299,
+    "frame": 59
+  },
+  "camp_night_fire": {
+    "fps": 16.4,
+    "drawCalls": 235,
+    "triangles": 2094571,
+    "frame": 68
+  },
+  "pageErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

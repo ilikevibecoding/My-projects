@@ -93,7 +93,7 @@ export function createSky() {
         if (h > 0.02) {
           vec2 cp = dir.xz / (dir.y + 0.18) * 1.6 + vec2(uTime * 0.004, uTime * 0.0013);
           float cl = fbm(cp * 1.6) * 0.65 + fbm(cp * 5.0 + 7.7) * 0.35;
-          float cov = smoothstep(0.62 - uCloudAmount * 0.25, 0.78, cl);
+          float cov = smoothstep(0.60 - uCloudAmount * 0.25, 0.72, cl);
           cov *= smoothstep(0.02, 0.14, h);          // fade at horizon
           float lit = fbm(cp * 1.6 + uSunDir.xz * 0.6);
           vec3 cloudCol = mix(uCloudShadow, uCloudColor, clamp(0.4 + (cl - lit) * 2.0, 0.0, 1.0));

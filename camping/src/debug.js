@@ -14,20 +14,20 @@ export function installDebugAPI({ player, timeOfDay, camp, interactions, rendere
     const tent = camp.positions.tent;
     return {
       camp: {
-        pos: [6.8, h(6.8, 6.2) + 1.75, 6.2],
-        target: [tent.x + 1.2, fire.y + 1.0, tent.z + 1.0],
+        pos: [5.6, h(5.6, 4.8) + 1.7, 4.8],
+        target: [tent.x, fire.y + 1.1, tent.z],
       },
       vista: {
-        pos: [-46, h(-46, 24) + 5.5, 24],
-        target: [180, 95, -70],
+        pos: [-50, h(-50, 6) + 5.5, 6],
+        target: [170, 75, -10],
       },
       forest: {
         pos: [-14, h(-14, -16) + 1.7, -16],
         target: [-55, h(-55, -48) + 6, -48],
       },
       pond: {
-        pos: [POND.x - 13.5, WATER_LEVEL + 1.5, POND.z + 7.5],
-        target: [POND.x + 12, WATER_LEVEL + 3.5, POND.z - 7],
+        pos: [POND.x - 14.5, WATER_LEVEL + 2.3, POND.z + 9],
+        target: [POND.x + 10, WATER_LEVEL + 1.2, POND.z - 6],
       },
       aim_fire: { pos: [fire.x + 2.2, fire.y + 1.7, fire.z + 0.6], target: [fire.x, fire.y + 0.35, fire.z] },
       aim_wood: { pos: [pile.x + 2.0, pile.y + 1.7, pile.z - 0.8], target: [pile.x, pile.y + 0.35, pile.z] },
