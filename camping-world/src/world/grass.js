@@ -74,6 +74,9 @@ export function setGrassTime(t) {
 }
 
 export function buildGrass(scene, getHeight, campCenter) {
+  // debug: ?grassboost=2.5 multiplies card instance color — isolates whether
+  // the instance-color path actually owns the rendered meadow brightness
+  const BOOST = parseFloat(new URLSearchParams(location.search).get('grassboost') ?? '1');
   const rng = makeRng(90210);
   const densityNoise = makeFbm2D(555, 3);
   const tex = new THREE.TextureLoader().load('./assets/textures/grass/grass_atlas.png');
@@ -205,11 +208,12 @@ export function buildGrass(scene, getHeight, campCenter) {
     // The specular sheen is now killed in-shader, so the card colors no
     // longer need to fight a sky-mirror glow: base value comes back UP
     // (iter-17 read swampy-dark) and the far dim shrinks to a gentle fade.
-    // sized from pixel measurements: iter-18 mid-field read ~88 luminance vs
-    // a ~120 dry-grass target → +25% card value (ghost-glow risk is gone now
-    // that the cards are matte)
+    // Empirically sized (dbg19-boost A/B): the baked atlas albedo is dark, so
+    // card colors >1.0 are deliberate — 2.0× lands between iter-19pre's swamp
+    // murk and the 2.5× test's minty over-lush. Response is sub-linear through
+    // lighting+ACES (2.5× in → ~1.5× out), so don't tune this by intuition.
     const farDim = 1 - 0.15 * THREE.MathUtils.smoothstep(r, 40, GRASS_RADIUS);
-    const v = (0.92 + rng() * 0.44) * farDim; // overall value
+    const v = (0.92 + rng() * 0.44) * 2.0 * farDim * BOOST; // overall value
     const warm = rng(); // 0 = green, 1 = golden
     color.setRGB(
       v * (0.78 + warm * 0.34),
