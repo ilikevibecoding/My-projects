@@ -59,6 +59,11 @@ const GradeShader = {
       float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
       c.rgb = mix(vec3(l), c.rgb, uSaturation);
 
+      // split-tone: warm the shadows — golden-hour ground bounce. Shadow
+      // sides lit only by blue sky read grey-blue/plastic without this.
+      float shadowMask = 1.0 - smoothstep(0.04, 0.5, l);
+      c.rgb *= mix(vec3(1.0), vec3(1.07, 1.0, 0.88), shadowMask);
+
       // vignette
       vec2 d = vUv - 0.5;
       float vig = 1.0 - uVignette * smoothstep(0.35, 0.95, length(d) * 1.35);

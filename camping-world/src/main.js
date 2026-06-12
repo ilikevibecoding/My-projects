@@ -26,6 +26,9 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.66;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
+// manual reset: with autoReset, renderer.info only reflects the LAST internal
+// composer pass (1 fullscreen quad) — stats were useless for budget checks
+renderer.info.autoReset = false;
 app.appendChild(renderer.domElement);
 
 // --- scene + camera ---
@@ -129,6 +132,7 @@ let lastTime = performance.now();
 let elapsed = 0;
 
 function renderFrame() {
+  renderer.info.reset(); // accumulate stats across ALL composer passes this frame
   const now = performance.now();
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;

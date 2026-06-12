@@ -131,12 +131,13 @@ export function buildTerrain(scene) {
           float nBig = tfbm(vWorldPos.xz * 0.012);
           float nMid = tfbm(vWorldPos.xz * 0.05 + 31.7);
           float underTrees = smoothstep(38.0, 60.0, r + nBig * 22.0 - 11.0);
-          float campLitter = 1.0 - smoothstep(3.5, 8.5, r + nMid * 4.0 - 2.0);
-          float wB = clamp(max(underTrees, campLitter) + smoothstep(0.62, 0.8, nMid) * 0.5, 0.0, 1.0);
+          float campLitter = 1.0 - smoothstep(3.0, 7.0, r + nMid * 4.0 - 2.0);
+          float wB = clamp(max(underTrees, campLitter) + smoothstep(0.62, 0.8, nMid) * 0.32, 0.0, 1.0);
           float wC = smoothstep(0.56, 0.78, tfbm(vWorldPos.xz * 0.03 + 77.3)) * (1.0 - wB);
 
           vec4 dA = detile(map, wuv);
           vec4 dB = detile(uDiffB, wuv);
+          dB.rgb *= 0.85; // dry-leaf scan is hot — sparkles like a decal at range
           vec4 dC = detile(uDiffC, wuv * 1.18);
           vec4 blended = mix(mix(dA, dB, wB), dC, wC);
 
@@ -146,10 +147,14 @@ export function buildTerrain(scene) {
           vec3 lushTint = vec3(0.7, 0.86, 0.58);
           blended.rgb *= mix(dryTint, lushTint, smoothstep(0.32, 0.62, macro)) * (0.86 + 0.28 * tnoise(vWorldPos.xz * 0.09));
 
-          // far field: beyond the card-grass radius pull the ground toward a
-          // matted dry-grassland tone so it never reads as bald bright sand
-          float farField = smoothstep(38.0, 72.0, r);
-          blended.rgb *= mix(vec3(1.0), vec3(0.55, 0.58, 0.42), farField);
+          // far field: REPLACE the texture with a matte dry-grassland tone
+          // (multiplicative tint alone still read as bald bright sand — the
+          // leaf-litter albedo is just too hot). Noise keeps it from going flat.
+          float farField = smoothstep(30.0, 62.0, r);
+          vec3 dryGrass = vec3(0.30, 0.28, 0.155)
+                        * (0.82 + 0.36 * tnoise(vWorldPos.xz * 0.06))
+                        * (0.88 + 0.24 * tfbm(vWorldPos.xz * 0.013 + 9.4));
+          blended.rgb = mix(blended.rgb, dryGrass, farField * 0.88);
 
           diffuseColor *= blended;
           // stash masks for normal/arm stages

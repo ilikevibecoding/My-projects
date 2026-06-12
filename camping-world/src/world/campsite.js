@@ -82,9 +82,15 @@ export function buildCampsite(scene, models, getHeight) {
       }
     }
     ashGeo.computeVertexNormals();
+    // pale grey wood-ash, fully matte and nearly env-dead — the dark
+    // glossy version read as a puddle of water inside the ring
     const ash = new THREE.Mesh(
       ashGeo,
-      new THREE.MeshStandardMaterial({ color: 0x2e2a25, roughness: 1.0 })
+      new THREE.MeshStandardMaterial({
+        color: 0x57534b,
+        roughness: 1.0,
+        envMapIntensity: 0.25,
+      })
     );
     ash.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) + 0.03, CAMP.y);
     ash.receiveShadow = true;
@@ -148,12 +154,16 @@ export function buildCampsite(scene, models, getHeight) {
       log.rotation.set((rng() - 0.5) * 0.08, H.yaw, H.roll);
       restLog(log, px + H.dx, pz + H.dz, H.lift);
     }
-    // bark scraps scattered around the heap (chopping leftovers)
+    // bark scraps scattered around the heap (chopping leftovers) — tinted
+    // down, the raw pale scan read like bleached bones on the litter
     const barkParts = listParts(models, 'bark_debris_01');
     if (barkParts.length) {
-      for (let i = 0; i < 5; i++) {
+      const barkMat = barkParts[0].material.clone();
+      barkMat.color = new THREE.Color(0xa08c74);
+      barkMat.roughness = 1.0;
+      for (let i = 0; i < 4; i++) {
         const part = barkParts[i % barkParts.length];
-        const mesh = new THREE.Mesh(part.geometry, part.material);
+        const mesh = new THREE.Mesh(part.geometry, barkMat);
         mesh.castShadow = mesh.receiveShadow = true;
         const box = new THREE.Box3().setFromObject(new THREE.Mesh(part.geometry));
         const s = (0.35 + rng() * 0.2) / Math.max(box.getSize(new THREE.Vector3()).x, 0.01);

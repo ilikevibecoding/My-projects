@@ -165,11 +165,11 @@ export function buildGrass(scene, getHeight, campCenter) {
 
     // density mask: meadow patches; thinner in deep treeline; clear at the camp pad
     const dCamp = Math.hypot(x - campCenter.x, z - campCenter.y);
-    if (dCamp < 2.4) continue; // fire ring + sitting area stay walkable
+    if (dCamp < 2.0) continue; // fire ring + sitting area stay walkable
     const n = densityNoise(x * 0.03, z * 0.03); // [-1,1]
     let keep = 0.8 + n * 0.2;
     if (r > 55) keep *= THREE.MathUtils.mapLinear(r, 55, GRASS_RADIUS, 1.0, 0.42);
-    if (dCamp < 7) keep *= THREE.MathUtils.mapLinear(dCamp, 2.4, 7, 0.3, 1.0);
+    if (dCamp < 6) keep *= THREE.MathUtils.mapLinear(dCamp, 2.0, 6, 0.45, 1.0);
     if (rng() > keep) continue;
 
     const i = placedCount++;
@@ -189,7 +189,8 @@ export function buildGrass(scene, getHeight, campCenter) {
     mesh.setMatrixAt(i, m);
 
     // hue variation as a multiplier centered near 1.0: dry gold ↔ lush green
-    const v = 0.72 + rng() * 0.42; // overall value
+    // (cap < ~1.05 — over-bright multipliers made tall wisps read ghostly)
+    const v = 0.68 + rng() * 0.36; // overall value
     const warm = rng(); // 0 = green, 1 = golden
     color.setRGB(
       v * (0.78 + warm * 0.34),
