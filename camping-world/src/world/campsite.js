@@ -70,6 +70,9 @@ export function buildCampsite(scene, models, getHeight) {
       if (n.isMesh && n.material) {
         n.material.roughness = Math.max(n.material.roughness ?? 1, 0.9);
         n.material.envMapIntensity = 1.15;
+        // warm the grey scan albedo — under the blue sky fill the shadow
+        // sides tone-mapped to cold blue-grey ("deflated rubber" look)
+        n.material.color = new THREE.Color(0xe6d4ba);
       }
     });
     group.add(pit);
@@ -95,7 +98,7 @@ export function buildCampsite(scene, models, getHeight) {
     const ash = new THREE.Mesh(
       ashGeo,
       new THREE.MeshStandardMaterial({
-        color: 0x57534b,
+        color: 0x4d4943,
         roughness: 1.0,
         envMapIntensity: 0.25,
       })

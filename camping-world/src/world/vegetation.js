@@ -160,8 +160,8 @@ export function buildVegetation(scene, models, getHeight) {
   // two staggered rows so the horizon is a continuous wall of canopy
   const ringTypes = ['island_tree_02_far', 'tree_small_02_far'];
   const ringSpots = [];
-  for (let i = 0; i < 210; i++) {
-    const a = (i / 210) * Math.PI * 2 + rng() * 0.05;
+  for (let i = 0; i < 240; i++) {
+    const a = (i / 240) * Math.PI * 2 + rng() * 0.05;
     // three staggered rows: 64–78, 80–98, and a tall outer row riding the
     // raised ridge (100–130) — together they wall off the horizon haze band
     const row = i % 3;
