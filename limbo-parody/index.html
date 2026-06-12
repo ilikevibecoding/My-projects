@@ -36,7 +36,9 @@ var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body,
 
 /* ============================== constants ============================== */
 
-var VIEW_W = 1280, VIEW_H = 720;          // virtual 16:9 view in world units
+var VIEW_W = 1280, VIEW_H = 720;          // legacy design units (tile/layout space)
+var ZBOOST = 2.3;                         // cinematic zoom-in: boy ≈ 1/6 screen height
+var viewW = 1280, viewH = 720;            // world units actually visible (window-dependent)
 var DT = 1000 / 60;                        // fixed physics step
 var WORLD_X0 = -300, WORLD_X1 = 6400;
 var GROUND_BOTTOM = 1600;
@@ -76,16 +78,17 @@ var vignetteCanvas = null;
 var bg = { canvas: null, c: null, w: 0, h: 0, scl: 1 };
 
 function resize() {
-  var w = window.innerWidth, h = window.innerHeight;
-  // largest 16:9 rectangle that fits → black bars come from the page background
-  if (w / h > 16 / 9) { cssH = h; cssW = Math.round(h * 16 / 9); }
-  else { cssW = w; cssH = Math.round(w * 9 / 16); }
+  // fill the entire window — no letterboxing
+  cssW = window.innerWidth;
+  cssH = window.innerHeight;
   dpr = Math.min(window.devicePixelRatio || 1, 1920 / cssW);
   canvas.style.width = cssW + 'px';
   canvas.style.height = cssH + 'px';
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
-  zoom = cssW / VIEW_W;
+  zoom = (cssH * ZBOOST) / VIEW_H;        // global scale: zoomed-in cinematic view
+  viewH = cssH / zoom;
+  viewW = cssW / zoom;
   bg.canvas = document.createElement('canvas');
   bg.w = bg.canvas.width = Math.max(2, Math.round(canvas.width / 2));
   bg.h = bg.canvas.height = Math.max(2, Math.round(canvas.height / 2));
@@ -147,6 +150,8 @@ function keyFlag(code) {
   return null;
 }
 window.addEventListener('keydown', function (e) {
+  startAudio();                       // autoplay policy: synth starts on first input
+  if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
   var f = keyFlag(e.code);
   if (f) {
     if (f === 'up' && !keys.up) upPressedEdge = true;
@@ -520,27 +525,94 @@ function controlUpdate() {
   if (grounded) walkPhase += Math.abs(player.velocity.x) * 0.105;
 }
 
+/* ============================== drowning & level reset ============================== */
+
+var drown = { ticks: 0, phase: 'none', fade: 0 };   // phase: none | out | in
+
+function levelReset() {
+  Body.setPosition(player, { x: 440, y: 830 });
+  Body.setVelocity(player, { x: 0, y: 0 });
+  cam.x = 440; cam.y = 760; cam.anchorX = 440; cam.leadVel = 0;
+  groundPairs = {};
+  drown.ticks = 0;
+}
+
+function updateDrowning() {
+  if (drown.phase === 'none') {
+    /* held fully under the surface for more than 1000ms → he drowns */
+    if (playerSubmergedFrac() >= 0.88) drown.ticks++;
+    else drown.ticks = 0;
+    if (drown.ticks > 60) drown.phase = 'out';
+  } else if (drown.phase === 'out') {
+    drown.fade += 0.045;                              // fade to black…
+    if (drown.fade >= 1) { drown.fade = 1; levelReset(); drown.phase = 'in'; }
+  } else if (drown.phase === 'in') {
+    drown.fade -= 0.03;                               // …respawn, fade back in
+    if (drown.fade <= 0) { drown.fade = 0; drown.phase = 'none'; }
+  }
+}
+
+/* ============================== atmospheric audio (synthesized drone) ============================== */
+
+var audio = { ctx: null, started: false };
+
+function startAudio() {
+  if (audio.started) return;
+  audio.started = true;
+  try {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    var ac = audio.ctx = new AC();
+    var master = ac.createGain();
+    master.gain.value = 0;
+    master.connect(ac.destination);
+    var lp = ac.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 130; lp.Q.value = 0.8;
+    lp.connect(master);
+    /* low detuned pair + a sub octave — the beat between 48 and 48.65Hz
+       gives the hum its slow, slightly irregular throb */
+    var defs = [
+      { type: 'sawtooth', f: 48,    g: 0.34 },
+      { type: 'sine',     f: 48.65, g: 0.4 },
+      { type: 'sine',     f: 24,    g: 0.5 }
+    ];
+    defs.forEach(function (d) {
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = d.type; o.frequency.value = d.f; g.gain.value = d.g;
+      o.connect(g); g.connect(lp); o.start();
+    });
+    /* slow LFOs wobble the filter and the level so it never sits still */
+    var lfo1 = ac.createOscillator(), lg1 = ac.createGain();
+    lfo1.frequency.value = 0.07; lg1.gain.value = 34;
+    lfo1.connect(lg1); lg1.connect(lp.frequency); lfo1.start();
+    var lfo2 = ac.createOscillator(), lg2 = ac.createGain();
+    lfo2.frequency.value = 0.041; lg2.gain.value = 0.014;
+    lfo2.connect(lg2); lg2.connect(master.gain); lfo2.start();
+    master.gain.setTargetAtTime(0.05, ac.currentTime, 2.5);   // slow swell from silence
+  } catch (e) { /* audio is atmosphere only — never break the game */ }
+}
+
 /* ============================== camera ============================== */
 
 var cam = { x: 440, y: 760, anchorX: 440, leadVel: 0 };
 
 function updateCamera() {
-  /* horizontal deadzone: anchor follows only when the boy escapes ±90px */
-  cam.anchorX = Math.max(cam.anchorX, player.position.x - 90);
-  cam.anchorX = Math.min(cam.anchorX, player.position.x + 90);
+  /* tight deadzone: the camera stays locked near his center of mass */
+  cam.anchorX = Math.max(cam.anchorX, player.position.x - 22);
+  cam.anchorX = Math.min(cam.anchorX, player.position.x + 22);
   /* push ahead of the velocity vector when running — low-passed so the camera
      first trails his acceleration, then drifts out in front */
   cam.leadVel += (player.velocity.x - cam.leadVel) * 0.018;
-  var lead = Math.max(-220, Math.min(220, cam.leadVel * 42));
+  var lead = Math.max(-80, Math.min(80, cam.leadVel * 15));
   var tx = cam.anchorX + lead;
   /* lower-third framing: the boy sits at 66% of view height */
-  var ty = player.position.y - 0.16 * VIEW_H;
+  var ty = player.position.y - 0.16 * viewH;
 
-  tx = Math.max(WORLD_X0 + VIEW_W / 2, Math.min(WORLD_X1 - VIEW_W / 2, tx));
-  ty = Math.max(380, Math.min(800, ty));
+  tx = Math.max(WORLD_X0 + viewW / 2, Math.min(WORLD_X1 - viewW / 2, tx));
+  ty = Math.max(560, Math.min(900, ty));
 
-  cam.x += (tx - cam.x) * 0.08;
-  cam.y += (ty - cam.y) * 0.045;
+  cam.x += (tx - cam.x) * 0.1;
+  cam.y += (ty - cam.y) * 0.055;
 }
 
 /* ============================== parallax layers (pre-rendered) ============================== */
@@ -728,7 +800,7 @@ var terrainPaths = [];
 /* grass fringe, drawn per frame with a soft wind shear */
 function drawGrass(c) {
   var t = tickCount / 60;
-  var x0 = cam.x - VIEW_W / 2 - 40, x1 = cam.x + VIEW_W / 2 + 40;
+  var x0 = cam.x - viewW / 2 - 40, x1 = cam.x + viewW / 2 + 40;
   c.strokeStyle = '#000000';
   c.lineWidth = 1.7;
   c.lineCap = 'round';
@@ -961,7 +1033,7 @@ var worldTrees = [
   { x: 2720, baseY: 752, h: 600, baseW: 40, seed: 37, cocoon: false, foliage: false, tuftVine: true },
   { x: 4480, baseY: 752, h: 620, baseW: 46, seed: 41, cocoon: true,  foliage: false },
   { x: 5020, baseY: 907, h: 520, baseW: 30, seed: 53, cocoon: false, foliage: false },
-  { x: 6080, baseY: 907, h: 360, baseW: 28, seed: 68, cocoon: false, foliage: true }
+  { x: 6080, baseY: 907, h: 300, baseW: 24, seed: 68, cocoon: false, foliage: true }
 ];
 worldTrees.forEach(function (tr) { tr.geom = genTree(tr.seed, tr.h, tr.baseW, tr.foliage); });
 
@@ -1037,10 +1109,10 @@ var darkSwayProbe = 0;   // read by the eval harness to prove the animation is l
 var bandCache = {};
 
 var TREE_BANDS = [
-  { id: 'mid',  factor: 0.68, color: '#1f1f1f', alpha: 0.92, spacing: 640, seedBase: 5000,
-    baseV: 330, hMin: 420, hVar: 300, wMin: 46, wVar: 44, swayAmp: 4, cocoonChance: 0.12, giantEvery: 0 },
-  { id: 'near', factor: 0.85, color: '#0c0c0c', alpha: 0.95, spacing: 560, seedBase: 9000,
-    baseV: 345, hMin: 400, hVar: 300, wMin: 34, wVar: 40, swayAmp: 5, cocoonChance: 0.25, giantEvery: 5 }
+  { id: 'mid',  factor: 0.68, color: '#1f1f1f', alpha: 0.92, spacing: 350, seedBase: 5000,
+    baseV: 185, hMin: 420, hVar: 300, wMin: 46, wVar: 44, swayAmp: 4, cocoonChance: 0.12, giantEvery: 0 },
+  { id: 'near', factor: 0.85, color: '#0c0c0c', alpha: 0.95, spacing: 285, seedBase: 9000,
+    baseV: 200, hMin: 400, hVar: 300, wMin: 34, wVar: 40, swayAmp: 5, cocoonChance: 0.25, giantEvery: 5 }
 ];
 
 function drawTreeBand(band, probe) {
@@ -1157,9 +1229,9 @@ function drawForegroundTrunks() {
     if (!s) {
       var rnd = mulberry32(7000 + k * 271);
       s = fgCache[k] = {
-        skip: rnd() < 0.5,
+        skip: rnd() < 0.55,
         jit: (rnd() - 0.5) * SP * 0.5,
-        w: 130 + rnd() * 115,
+        w: 85 + rnd() * 75,
         lean: (rnd() - 0.5) * 0.2,
         branchY: -60 - rnd() * 200,
         branchDir: rnd() < 0.5 ? -1 : 1,
@@ -1241,74 +1313,111 @@ function drawBoy(c) {
   var leanL = Math.min(0.22, speed * 0.035);          // forward lean in local space
   var bob = running ? Math.abs(Math.sin(walkPhase)) * 1.6 : Math.sin(t * 2.1) * 0.6;
 
-  /* tiny hunched silhouette, drawn facing +x and mirrored via scale —
-     feet stay planted at the physics body's base (y +30) */
+  /* jointed rig drawn over the invisible physics capsule, facing +x and
+     mirrored via scale — feet stay planted at the body's base (y +30).
+     Limbs are two segments meeting at a knee/elbow; the gait is a sin()
+     oscillator (walkPhase) rotating thighs around the hip and arms around
+     the shoulder. */
   c.save();
   c.translate(p.x, p.y);
   c.scale(facing, 1);
   c.fillStyle = '#000000';
   c.strokeStyle = '#000000';
   c.lineCap = 'round';
+  c.lineJoin = 'round';
 
-  var hipY = 14;
+  var hipY = 13;
+  var THIGH = 8.6, SHIN = 8.8;
+  var UARM = 6.2, FARM = 6.4;
 
-  /* spindly stick legs */
-  c.lineWidth = 3.1;
-  if (onRope) {
-    var sway = Math.sin(t * 2.4) * 2.4;
-    c.beginPath(); c.moveTo(-1.5, hipY);
-    c.quadraticCurveTo(-3.5 + sway, hipY + 8, -2.5 + sway, hipY + 14); c.stroke();
-    c.beginPath(); c.moveTo(2, hipY);
-    c.quadraticCurveTo(4.5 + sway, hipY + 7, 3.5 + sway, hipY + 13); c.stroke();
-  } else if (!grounded && swim < 0.2) {
-    /* jump tuck */
-    c.beginPath(); c.moveTo(-1.5, hipY);
-    c.quadraticCurveTo(-5.5, hipY + 5, -3, hipY + (vy < 0 ? 8 : 12)); c.stroke();
-    c.beginPath(); c.moveTo(2, hipY);
-    c.quadraticCurveTo(5.5, hipY + 6, 3.5, hipY + (vy < 0 ? 9 : 13)); c.stroke();
-  } else if (running) {
-    var s1 = Math.sin(walkPhase), s2 = Math.sin(walkPhase + Math.PI);
-    c.beginPath(); c.moveTo(-1, hipY);
-    c.quadraticCurveTo(s1 * 4 + 1, hipY + 8, s1 * 8.5, hipY + 16 - Math.max(0, Math.cos(walkPhase)) * 3.5); c.stroke();
-    c.beginPath(); c.moveTo(1.5, hipY);
-    c.quadraticCurveTo(s2 * 4 + 1, hipY + 8, s2 * 8.5, hipY + 16 - Math.max(0, Math.cos(walkPhase + Math.PI)) * 3.5); c.stroke();
-  } else {
-    c.beginPath(); c.moveTo(-1.5, hipY); c.lineTo(-2.8, hipY + 16); c.stroke();
-    c.beginPath(); c.moveTo(2, hipY); c.lineTo(3, hipY + 16); c.stroke();
+  /* two-segment limb: angles measured from straight-down; bend folds backward */
+  function limb(x0, y0, a1, l1, bend, l2) {
+    var kx = x0 + Math.sin(a1) * l1, ky = y0 + Math.cos(a1) * l1;
+    var a2 = a1 - bend;
+    var fx = kx + Math.sin(a2) * l2, fy = ky + Math.cos(a2) * l2;
+    c.beginPath(); c.moveTo(x0, y0); c.lineTo(kx, ky); c.lineTo(fx, fy); c.stroke();
   }
 
-  /* hunched torso: jagged closed path — back bulge, shoulder hump */
+  /* --- legs: thigh + shin with a knee joint --- */
+  c.lineWidth = 3.0;
+  if (onRope) {
+    var sway = Math.sin(t * 2.4) * 0.16;
+    limb(-1.2, hipY, 0.22 + sway, THIGH, 0.55, SHIN);
+    limb(1.6, hipY, -0.12 + sway, THIGH, 0.4, SHIN);
+  } else if (!grounded && swim < 0.2) {
+    /* jump tuck: front knee pulled up, rear leg trailing */
+    limb(-1.2, hipY, vy < 0 ? 0.95 : 0.55, THIGH, vy < 0 ? 1.5 : 1.0, SHIN);
+    limb(1.6, hipY, vy < 0 ? -0.45 : -0.2, THIGH, 0.7, SHIN);
+  } else if (swim >= 0.2 && !grounded) {
+    /* flutter kick while swimming */
+    limb(-1.2, hipY, Math.sin(t * 7) * 0.4 + 0.15, THIGH, 0.5, SHIN);
+    limb(1.6, hipY, Math.sin(t * 7 + Math.PI) * 0.4 + 0.15, THIGH, 0.5, SHIN);
+  } else if (running) {
+    var s1 = Math.sin(walkPhase), s2 = Math.sin(walkPhase + Math.PI);
+    limb(-1.2, hipY, s1 * 0.66, THIGH, Math.max(0, -Math.sin(walkPhase - 0.7)) * 1.05 + 0.06, SHIN);
+    limb(1.6, hipY, s2 * 0.66, THIGH, Math.max(0, -Math.sin(walkPhase + Math.PI - 0.7)) * 1.05 + 0.06, SHIN);
+  } else {
+    limb(-1.2, hipY, -0.08, THIGH, 0.05, SHIN);
+    limb(1.6, hipY, 0.07, THIGH, 0.04, SHIN);
+  }
+
+  /* --- shorts: separate hip polygon with a ragged hem --- */
   c.beginPath();
-  c.moveTo(-2.5, hipY + 1);
-  c.quadraticCurveTo(-5.5 - leanL * 4, 3 - bob * 0.3, -1.8 + leanL * 5, -5.5 - bob * 0.5);
-  c.quadraticCurveTo(0.6 + leanL * 6, -8 - bob * 0.6, 3.6 + leanL * 6, -6 - bob * 0.5);
-  c.quadraticCurveTo(4.6 + leanL * 3, 0, 3, 8);
-  c.quadraticCurveTo(2.7, 12, 2.2, hipY + 1);
+  c.moveTo(-3.0, 6.6);
+  c.lineTo(-3.4, 11.6);
+  c.lineTo(-2.7, 14.8);
+  c.lineTo(-0.8, 13.9);
+  c.lineTo(0.1, 12.7);                                 // crotch notch
+  c.lineTo(1.1, 14.1);
+  c.lineTo(3.1, 14.9);
+  c.lineTo(3.5, 11.4);
+  c.lineTo(2.9, 6.6);
   c.closePath();
   c.fill();
 
-  /* thin arms */
+  /* --- shirt: hunched torso polygon, jagged hem over the shorts --- */
+  c.beginPath();
+  c.moveTo(-3.1, 7.6);
+  c.quadraticCurveTo(-5.6 - leanL * 4, 1.5 - bob * 0.3, -2.0 + leanL * 5, -5.6 - bob * 0.5);
+  c.quadraticCurveTo(0.6 + leanL * 6, -8.2 - bob * 0.6, 3.7 + leanL * 6, -6.1 - bob * 0.5);
+  c.quadraticCurveTo(4.8 + leanL * 3, -1, 3.6, 5.4);
+  c.lineTo(2.0, 7.9);                                  // ragged hem
+  c.lineTo(0.6, 6.3);
+  c.lineTo(-1.1, 8.1);
+  c.closePath();
+  c.fill();
+
+  /* --- arms: upper + forearm with an elbow joint --- */
   c.lineWidth = 2.3;
-  var shX = 2 + leanL * 5, shY = -4.5 - bob * 0.4;
+  var shX = 1.6 + leanL * 5, shY = -4.6 - bob * 0.4;
   if (onRope && ropeGrab.segment) {
+    /* both hands reach the rope; elbows kink slightly outward */
     var seg = ropeGrab.segment.position;
     var ax = (seg.x - p.x) * facing, ay = seg.y - p.y;
-    c.beginPath(); c.moveTo(shX - 2.5, shY); c.quadraticCurveTo(ax * 0.4 - 2.5, ay * 0.55, ax - 1.8, ay + 2); c.stroke();
-    c.beginPath(); c.moveTo(shX + 1.5, shY); c.quadraticCurveTo(ax * 0.4 + 2.5, ay * 0.55, ax + 1.8, ay + 2); c.stroke();
+    var ex1 = (shX - 2.2 + ax) / 2 - 2.2, ey1 = (shY + ay) / 2 + 1;
+    var ex2 = (shX + 1.4 + ax) / 2 + 2.2, ey2 = (shY + ay) / 2 + 1.6;
+    c.beginPath(); c.moveTo(shX - 2.2, shY); c.lineTo(ex1, ey1); c.lineTo(ax - 1.6, ay + 2); c.stroke();
+    c.beginPath(); c.moveTo(shX + 1.4, shY); c.lineTo(ex2, ey2); c.lineTo(ax + 1.6, ay + 2); c.stroke();
   } else if (grabConstraint) {
+    /* hauling at the crate: arms thrust toward it, elbows low */
     var cdir = (crate.position.x > p.x ? 1 : -1) * facing;
-    c.beginPath(); c.moveTo(shX - 2, shY + 1); c.quadraticCurveTo(cdir * 6, shY + 4, cdir * 12, shY + 7); c.stroke();
-    c.beginPath(); c.moveTo(shX + 1, shY + 2); c.quadraticCurveTo(cdir * 7, shY + 6, cdir * 12, shY + 9); c.stroke();
+    c.beginPath(); c.moveTo(shX - 2, shY + 1); c.lineTo(cdir * 5.5, shY + 5.5); c.lineTo(cdir * 11.5, shY + 7); c.stroke();
+    c.beginPath(); c.moveTo(shX + 1, shY + 2); c.lineTo(cdir * 6.5, shY + 7.5); c.lineTo(cdir * 11.5, shY + 9.5); c.stroke();
   } else if (!grounded && swim < 0.2) {
-    c.beginPath(); c.moveTo(shX - 3, shY); c.quadraticCurveTo(-7, shY + 1, -8.5, shY - 5); c.stroke();
-    c.beginPath(); c.moveTo(shX + 1, shY); c.quadraticCurveTo(7.5, shY + 2, 8.5, shY - 3); c.stroke();
+    /* airborne: arms flung up and back */
+    limb(shX - 2.2, shY, -2.05, UARM, -0.5, FARM);
+    limb(shX + 1.4, shY, 1.85, UARM, 0.55, FARM);
+  } else if (swim >= 0.2 && !grounded) {
+    limb(shX - 2.2, shY, Math.sin(t * 5) * 0.9 - 1.1, UARM, -0.5, FARM);
+    limb(shX + 1.4, shY, Math.sin(t * 5 + 2) * 0.9 + 1.0, UARM, 0.5, FARM);
   } else if (running) {
-    var a1 = Math.sin(walkPhase + Math.PI) * 5.5, a2 = Math.sin(walkPhase) * 5.5;
-    c.beginPath(); c.moveTo(shX - 2.5, shY); c.quadraticCurveTo(a1 * 0.5 - 2, shY + 6, a1, shY + 11); c.stroke();
-    c.beginPath(); c.moveTo(shX + 1, shY); c.quadraticCurveTo(a2 * 0.5 + 2, shY + 6, a2, shY + 11); c.stroke();
+    /* counter-swing to the legs, elbows folding on the forward swing */
+    var aA = Math.sin(walkPhase + Math.PI) * 0.6, aB = Math.sin(walkPhase) * 0.6;
+    limb(shX - 2.2, shY, aA, UARM, -(0.35 + Math.max(0, Math.sin(walkPhase + Math.PI)) * 0.55), FARM);
+    limb(shX + 1.4, shY, aB, UARM, -(0.35 + Math.max(0, Math.sin(walkPhase)) * 0.55), FARM);
   } else {
-    c.beginPath(); c.moveTo(shX - 2.5, shY); c.lineTo(shX - 3.5, shY + 11); c.stroke();
-    c.beginPath(); c.moveTo(shX + 1, shY); c.lineTo(shX + 2, shY + 11); c.stroke();
+    limb(shX - 2.2, shY, -0.1, UARM, -0.18, FARM);
+    limb(shX + 1.4, shY, 0.08, UARM, -0.15, FARM);
   }
 
   /* small head thrust forward of the hunch + messy jagged hair */
@@ -1317,14 +1426,14 @@ function drawBoy(c) {
   c.beginPath();
   c.arc(headX, headY, 5.6, 0, Math.PI * 2);
   c.fill();
-  c.beginPath();                                   // messy tufts, swept back
-  c.moveTo(headX - 5.2, headY - 1.6);
-  c.lineTo(headX - 7.4, headY - 4.4);
-  c.lineTo(headX - 3.4, headY - 4.5);
-  c.lineTo(headX - 3.2, headY - 7.4);
-  c.lineTo(headX - 0.2, headY - 5.3);
-  c.lineTo(headX + 2.4, headY - 6.6);
-  c.lineTo(headX + 3.6, headY - 3.6);
+  c.beginPath();                                   // messy tufts, swept back low
+  c.moveTo(headX - 5.4, headY - 1.2);
+  c.lineTo(headX - 7.0, headY - 3.6);
+  c.lineTo(headX - 3.8, headY - 3.9);
+  c.lineTo(headX - 2.9, headY - 6.4);
+  c.lineTo(headX - 0.4, headY - 4.6);
+  c.lineTo(headX + 1.9, headY - 5.7);
+  c.lineTo(headX + 3.3, headY - 3.2);
   c.closePath();
   c.fill();
 
@@ -1337,10 +1446,10 @@ function drawBoy(c) {
     c.save();
     c.fillStyle = '#ffffff';
     c.shadowColor = '#ffffff';
-    c.shadowBlur = 6;
+    c.shadowBlur = 4;
     c.beginPath();
-    c.arc(headX + 1.7, headY - 0.9, 1.05, 0, Math.PI * 2);
-    c.arc(headX + 4.2, headY - 0.9, 1.05, 0, Math.PI * 2);
+    c.arc(headX + 1.6, headY - 0.9, 0.8, 0, Math.PI * 2);
+    c.arc(headX + 4.1, headY - 0.9, 0.8, 0, Math.PI * 2);
     c.fill();
     c.restore();
   }
@@ -1478,17 +1587,17 @@ function render() {
 
   /* --- sky: near-black, claustrophobic — the world lives in darkness --- */
   var sky = bc.createLinearGradient(0, 0, 0, bh);
-  sky.addColorStop(0, '#161616');
-  sky.addColorStop(0.5, '#2e2e2e');
+  sky.addColorStop(0, '#181818');
+  sky.addColorStop(0.5, '#383838');
   sky.addColorStop(1, '#040404');
   bc.fillStyle = sky;
   bc.fillRect(0, 0, bw, bh);
   /* --- the ONLY light: a glowing wall of fog dead-center in the background --- */
   var corePulse = 0.92 + 0.08 * Math.sin(tickCount / 60 * 0.21);
-  bc.globalAlpha = 0.62 * corePulse;
+  bc.globalAlpha = 0.85 * corePulse;
   bc.drawImage(glowSprite, bw * 0.5 - bw * 0.52, bh * 0.42 - bw * 0.52, bw * 1.04, bw * 1.04);
-  bc.globalAlpha = 0.5 * corePulse;
-  bc.drawImage(glowSprite, bw * 0.5 - bw * 0.26, bh * 0.40 - bw * 0.26, bw * 0.52, bw * 0.52);
+  bc.globalAlpha = 0.8 * corePulse;
+  bc.drawImage(glowSprite, bw * 0.5 - bw * 0.28, bh * 0.40 - bw * 0.28, bw * 0.56, bw * 0.56);
   bc.globalAlpha = 1;
 
   /* --- parallax layers, driven by the camera's LERP coordinates --- */
@@ -1499,9 +1608,9 @@ function render() {
     bc.globalAlpha = L.alpha;
     var px = cam.x * L.factor;
     var voff = Math.max(-60, Math.min(60, -(cam.y - 760) * L.factor * 0.35));
-    var k0 = Math.floor((px - VIEW_W / 2) / TILE_W);
-    for (var k = k0; k * TILE_W - px < VIEW_W / 2; k++) {
-      bc.drawImage(L.tile, k * TILE_W - px, -450 + voff);
+    var k0 = Math.floor((px - viewW / 2) / TILE_W);
+    for (var k = k0; k * TILE_W - px < viewW / 2; k++) {
+      bc.drawImage(L.tile, k * TILE_W - px, -672 + voff);   // ground band raised into the zoomed view
     }
     bc.globalAlpha = 1;
 
@@ -1558,6 +1667,12 @@ function render() {
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
+
+  /* drowning fade-to-black / respawn fade-in */
+  if (drown.fade > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,' + Math.min(1, drown.fade).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
 }
 
 /* ============================== main loop: fixed-step physics ============================== */
@@ -1584,6 +1699,7 @@ function frame(ts) {
     controlUpdate();
     updateCrateGrab();
     updateRopeGrab();
+    updateDrowning();
     upPressedEdge = false;       // edge consumed once per physics tick
     Engine.update(engine, DT);   // fixed 60Hz step → deterministic puzzles
     updateCamera();
@@ -1616,11 +1732,14 @@ window.__LIMBO_DEBUG__ = {
   get waterBodies() { return waterBodies.map(function (e) { return e.body.label; }); },
   get submerged() { return playerSubmergedFrac(); },
   get darkSway() { return darkSwayProbe; },
+  get drown() { return { ticks: drown.ticks, phase: drown.phase, fade: drown.fade }; },
+  get audioState() { return audio.ctx ? audio.ctx.state : 'none'; },
   surfaceAt: surfaceAt,
   pools: WATERS.map(function (p) { return { x0: p.x0, x1: p.x1, surfaceY: p.surfaceY }; }),
   layers: layers.map(function (l) { return l.factor; }),
   view: function () {
-    return { camX: cam.x, camY: cam.y, zoom: zoom, cssW: cssW, cssH: cssH };
+    return { camX: cam.x, camY: cam.y, zoom: zoom, cssW: cssW, cssH: cssH,
+             viewW: viewW, viewH: viewH };
   }
 };
 window.__LIMBO_READY__ = true;
