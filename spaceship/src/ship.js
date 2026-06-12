@@ -269,23 +269,30 @@ export function buildShip(scene, rand) {
   const CW = 1.2;
 
   {
-    const g = new THREE.BoxGeometry(2.0, 0.1, 16.4);
-    uvBoxWorld(g, 2.0, 0.1, 16.4, 1 / 2.4, 1 / 2.4);
+    // width 1.6 / length 16.0: butt-joints against the trenches and the
+    // cockpit floor instead of overlapping them coplanar at y=0
+    const g = new THREE.BoxGeometry(1.6, 0.1, 16.0);
+    uvBoxWorld(g, 1.6, 0.1, 16.0, 1 / 2.4, 1 / 2.4);
     M.makeTranslation(0, -0.05, 0);
     g.applyMatrix4(M);
     batch.add(mats.floor, g);
   }
   // side floor trenches with teal glow + grates
   for (const s of [-1, 1]) {
-    box(mats.metalDark, 0.4, 0.1, 16.4, s * 1.0, -0.1, 0, { texel: 1 });
-    box(mats.stripTeal, 0.34, 0.02, 16.0, s * 1.0, -0.062, 0, {});
-    const g = new THREE.BoxGeometry(0.4, 0.012, 16.4);
-    uvBoxWorld(g, 0.4, 0.012, 16.4, 2.5, 2.5);
+    box(mats.metalDark, 0.4, 0.1, 16.0, s * 1.0, -0.1, 0, { texel: 1 });
+    box(mats.stripTeal, 0.34, 0.02, 15.6, s * 1.0, -0.062, 0, {});
+    const g = new THREE.BoxGeometry(0.4, 0.012, 16.0);
+    uvBoxWorld(g, 0.4, 0.012, 16.0, 2.5, 2.5);
     M.makeTranslation(s * 1.0, -0.006, 0);
     g.applyMatrix4(M);
     batch.add(mats.grate, g);
-    // wall-base edge light strip
-    box(mats.stripTeal, 0.025, 0.03, 15.6, s * (CW - 0.015), 0.04, 0, {});
+    // wall-base edge light strips, broken at the doorways, embedded into the wall
+    const stripSegs = s > 0
+      ? [[-7.8, 1.55], [2.85, 7.8]]
+      : [[-7.8, -4.05], [-2.75, 3.05], [4.15, 7.8]];
+    for (const [z0, z1] of stripSegs) {
+      box(mats.stripTeal, 0.025, 0.03, z1 - z0, s * (CW + 0.01), 0.04, (z0 + z1) / 2, {});
+    }
   }
   box(mats.hullLower, 2.4, 0.1, 16.4, 0, CEIL + 0.05, 0, { hullUV: true });
 
@@ -312,14 +319,17 @@ export function buildShip(scene, rand) {
     const x = side * RWX;
     const len = z1 - z0, zc = (z0 + z1) / 2;
     box(mats.hull, WALL_T, CEIL - 2.1, len, x, (CEIL + 2.1) / 2, zc, { collide: true, hullUV: true });
-    box(mats.metalDark, 0.3, 2.16, 0.12, x, 1.05, z0 - 0.06, { texel: 1 });
-    box(mats.metalDark, 0.3, 2.16, 0.12, x, 1.05, z1 + 0.06, { texel: 1 });
+    // posts overlap 3 cm into the wall cut so no face is coplanar with the cut plane
+    box(mats.metalDark, 0.3, 2.16, 0.18, x, 1.05, z0 - 0.06, { texel: 1 });
+    box(mats.metalDark, 0.3, 2.16, 0.18, x, 1.05, z1 + 0.06, { texel: 1 });
     box(mats.metalDark, 0.3, 0.14, len + 0.36, x, 2.16, zc, { texel: 1 });
     // vertical hazard strips on door posts (corridor side)
     box(mats.hazard, 0.015, 1.8, 0.1, x - side * 0.155, 0.95, z0 - 0.06, {});
     box(mats.hazard, 0.015, 1.8, 0.1, x - side * 0.155, 0.95, z1 + 0.06, {});
     // door sign light above
     box(mats.stripOrange, 0.03, 0.06, 0.45, x - side * 0.145, 2.32, zc, {});
+    // threshold sill plate (covers the floor seam through the doorway)
+    box(mats.metalDark, 0.44, 0.02, len + 0.2, x, 0.01, zc, { texel: 2 });
   }
   doorTrim(1, 1.65, 2.75);
   doorTrim(-1, -3.95, -2.85);
@@ -342,9 +352,9 @@ export function buildShip(scene, rand) {
   // ceiling light fixtures (with diffuser slats to break up the glow quad)
   for (let z = -6; z <= 6; z += 3) {
     box(mats.metalDark, 0.7, 0.07, 1.4, 0, CEIL - 0.035, z, { texel: 1 });
-    box(mats.stripWarm, 0.4, 0.02, 1.05, 0, CEIL - 0.075, z, {});
+    box(mats.stripWarm, 0.4, 0.02, 1.05, 0, CEIL - 0.045, z, {});
     for (let k = -2; k <= 2; k++) {
-      box(mats.metalDark, 0.46, 0.025, 0.05, 0, CEIL - 0.085, z + k * 0.22, {});
+      box(mats.metalDark, 0.46, 0.025, 0.05, 0, CEIL - 0.07, z + k * 0.22, {});
     }
   }
   for (const z of [-6, 0, 6]) {
@@ -375,21 +385,30 @@ export function buildShip(scene, rand) {
     }
   }
 
-  // wall conduits + junction boxes between ribs
+  // wall conduits + junction boxes between ribs.
+  // Openings (doors with frames, portholes) per side — nothing may overlap these.
+  const wallOpenings = {
+    // right wall: quarters door frame + porthole
+    1: [[1.45, 2.95], [-4.75, -3.25]],
+    // left wall: galley door, bathroom door, porthole
+    [-1]: [[-4.15, -2.65], [2.95, 4.25], [0.1, 1.3]],
+  };
+  const overlapsOpening = (s, z0, z1) =>
+    wallOpenings[s].some(([b0, b1]) => z0 < b1 && z1 > b0);
   for (let z = -7; z < 8; z += 2) {
     for (const s of [-1, 1]) {
-      if (s > 0 && z > 0.6 && z < 3.4) continue;
-      if (s > 0 && z + 1 > -4.7 && z + 1 < -3.3) continue;
-      if (s < 0 && ((z > -4.6 && z < -2.2) || (z > 2.6 && z < 4.6))) continue;
-      if (s < 0 && z + 1 > 0.0 && z + 1 < 1.4) continue;
+      const zc = z + 1;
       const x = s * (CW - 0.04);
-      cyl(mats.metalDark, 0.025, 0.025, 1.7, 8, x, 0.95, z + 1, { rx: Math.PI / 2 });
-      cyl(mats.metalDark, 0.018, 0.018, 1.7, 8, x, 1.03, z + 1, { rx: Math.PI / 2 });
-      // junction boxes staggered per side to break the mirror symmetry
-      if ((s > 0 ? (z + 7) % 4 : (z + 9) % 4) === 0) {
-        box(mats.metal, 0.07, 0.34, 0.5, x, 1.3, z + 1, { texel: 2 });
-        box(mats.stripTeal, 0.02, 0.04, 0.04, x - s * 0.05, 1.4, z + 0.85, {});
-        box(mats.ledRed, 0.02, 0.04, 0.04, x - s * 0.05, 1.4, z + 1.0, {});
+      // conduit pair spans zc ± 0.85
+      if (!overlapsOpening(s, zc - 0.9, zc + 0.9)) {
+        cyl(mats.metalDark, 0.025, 0.025, 1.7, 8, x, 0.95, zc, { rx: Math.PI / 2 });
+        cyl(mats.metalDark, 0.018, 0.018, 1.7, 8, x, 1.03, zc, { rx: Math.PI / 2 });
+        // junction boxes staggered per side to break the mirror symmetry
+        if ((s > 0 ? (z + 7) % 4 : (z + 9) % 4) === 0 && !overlapsOpening(s, zc - 0.3, zc + 0.3)) {
+          box(mats.metal, 0.07, 0.34, 0.5, x, 1.3, zc, { texel: 2 });
+          box(mats.stripTeal, 0.02, 0.04, 0.04, x - s * 0.05, 1.4, zc - 0.15, {});
+          box(mats.ledRed, 0.02, 0.04, 0.04, x - s * 0.05, 1.4, zc, {});
+        }
       }
     }
   }
@@ -397,9 +416,10 @@ export function buildShip(scene, rand) {
   porthole(RWX, -4.0, 1);
   porthole(-RWX, 0.7, -1);
 
-  // hazard threshold stripes on the deck at both bulkheads
-  box(mats.hazard, 2.0, 0.006, 0.18, 0, 0.003, -7.72, {});
-  box(mats.hazard, 2.0, 0.006, 0.18, 0, 0.003, 7.6, {});
+  // hazard threshold stripes on the deck at both bulkheads (within the floor
+  // slab so they don't hang over the side trenches)
+  box(mats.hazard, 1.6, 0.006, 0.18, 0, 0.003, -7.72, {});
+  box(mats.hazard, 1.6, 0.006, 0.18, 0, 0.003, 7.6, {});
   // floor cable run from the maintenance recess toward engineering
   cyl(mats.rubber, 0.014, 0.014, 3.6, 6, -0.72, 0.014, 5.4, { rx: Math.PI / 2 });
   cyl(mats.rubber, 0.014, 0.014, 0.5, 6, -0.95, 0.014, 5.18, { rx: Math.PI / 2, ry: 1.1 });
@@ -511,10 +531,19 @@ export function buildShip(scene, rand) {
       g.applyMatrix4(M);
       batch.add(screenMats[s.kind], g);
     }
-    for (let i = 0; i < 26; i++) {
-      const bx = -1.5 + rand() * 3.0, bz2 = -12.25 + rand() * 0.45;
-      const mat = [mats.stripTeal, mats.stripOrange, mats.ledRed][rand() * 3 | 0];
-      box(mat, 0.035, 0.025, 0.035, bx, 1.06 - (bz2 + 12.25) * 0.18, bz2, {});
+    // buttons sit on the sloped dash plate via its local axes (matching rx so
+    // no face intersects the slope at a shallow angle)
+    {
+      const dashY = new THREE.Vector3(0, Math.cos(0.18), -Math.sin(0.18));
+      const dashZ = new THREE.Vector3(0, Math.sin(0.18), Math.cos(0.18));
+      const dashC = new THREE.Vector3(0, 0.97, -12.15);
+      for (let i = 0; i < 26; i++) {
+        const u = -1.5 + rand() * 3.0;
+        const v = -0.38 + rand() * 0.74;
+        const mat = [mats.stripTeal, mats.stripOrange, mats.ledRed][rand() * 3 | 0];
+        const p = dashC.clone().addScaledVector(dashY, 0.09).addScaledVector(dashZ, v);
+        box(mat, 0.035, 0.025, 0.035, u, p.y, p.z, { rx: -0.18 });
+      }
     }
     // center pedestal + throttle levers
     box(mats.metalDark, 0.5, 0.7, 0.8, 0, 0.35, -11.3, { collide: true, texel: 1 });
@@ -536,19 +565,28 @@ export function buildShip(scene, rand) {
       for (const a of [-1, 1]) box(mats.metalDark, 0.06, 0.05, 0.4, sx + a * 0.3, 0.62, sz + 0.05, { texel: 2 });
     }
 
-    // overhead switch panel
+    // overhead switch panel — switches placed on the panel's tilted underside
+    // using its local axes so they sit flush on the slope
     box(mats.metalDark, 1.4, 0.06, 0.6, 0, CEIL - 0.28, -11.9, { rx: 0.3, texel: 1 });
-    for (let i = 0; i < 12; i++) {
-      const mat = [mats.stripTeal, mats.stripWarm, mats.stripOrange][rand() * 3 | 0];
-      const row = (i / 6) | 0;
-      box(mat, 0.04, 0.02, 0.04, -0.6 + (i % 6) * 0.24, CEIL - 0.36 + row * 0.07, -11.78 + row * 0.22, { rx: 0.3 });
+    {
+      const panY = new THREE.Vector3(0, Math.cos(0.3), Math.sin(0.3));
+      const panZ = new THREE.Vector3(0, -Math.sin(0.3), Math.cos(0.3));
+      const panC = new THREE.Vector3(0, CEIL - 0.28, -11.9);
+      for (let i = 0; i < 12; i++) {
+        const mat = [mats.stripTeal, mats.stripWarm, mats.stripOrange][rand() * 3 | 0];
+        const row = (i / 6) | 0;
+        const p = panC.clone()
+          .addScaledVector(panY, -0.04)
+          .addScaledVector(panZ, row === 0 ? -0.14 : 0.12);
+        box(mat, 0.04, 0.02, 0.04, -0.6 + (i % 6) * 0.24, p.y, p.z, { rx: 0.3 });
+      }
     }
 
     // side consoles
     for (const s of [-1, 1]) {
       box(mats.hullLower, 0.5, 0.85, 1.8, s * 1.58, 0.42, -10.6, { ry: s * 0.2, hullUV: true, collide: true });
       const g = new THREE.BoxGeometry(0.44, 0.3, 0.02);
-      M.compose(V.set(s * 1.47, 0.92, -10.6), Q.setFromEuler(E.set(-1.25, s * 0.2, 0)), ONE);
+      M.compose(V.set(s * 1.47, 0.885, -10.6), Q.setFromEuler(E.set(-1.25, s * 0.2, 0)), ONE);
       g.applyMatrix4(M);
       batch.add(screenMats[s > 0 ? 'eng' : 'text'], g);
     }
@@ -626,10 +664,10 @@ export function buildShip(scene, rand) {
     box(mats.fabricOrange, 1.5, 0.08, 1.07, bedX - 0.38, 0.60, bedZ, { texel: 2 });
     box(mats.fabricWhite, 0.5, 0.12, 0.7, bedX + 0.82, 0.61, bedZ, { ry: 0.08, texel: 2 });
     for (let i = 0; i < 3; i++) {
-      box(mats.hullLower, 0.68, 0.26, 0.04, bedX - 0.72 + i * 0.74, 0.18, bedZ - 0.6, { hullUV: true });
-      box(mats.metal, 0.3, 0.03, 0.03, bedX - 0.72 + i * 0.74, 0.18, bedZ - 0.63, {});
+      box(mats.hullLower, 0.68, 0.26, 0.04, bedX - 0.72 + i * 0.74, 0.18, bedZ - 0.595, { hullUV: true });
+      box(mats.metal, 0.3, 0.03, 0.03, bedX - 0.72 + i * 0.74, 0.18, bedZ - 0.615, {});
     }
-    box(mats.stripTeal, 0.03, 0.03, 1.1, 5.62, 1.45, bedZ, {});
+    box(mats.stripTeal, 0.03, 0.03, 1.1, 5.59, 1.45, bedZ, {});
     box(mats.metalDark, 0.3, 0.04, 1.1, 5.46, 1.25, bedZ, { texel: 1 });
     cyl(mats.metal, 0.06, 0.06, 0.18, 10, 5.46, 1.36, bedZ - 0.3, { texel: 2 });
     box(mats.fabricOrange, 0.14, 0.18, 0.1, 5.46, 1.36, bedZ + 0.25, { ry: 0.4, texel: 2 });
@@ -639,13 +677,13 @@ export function buildShip(scene, rand) {
     box(mats.metal, 0.03, 0.2, 0.03, 5.24, 2.05, bedZ + 0.5, {});
     box(mats.stripOrange, 0.02, 0.03, 1.2, 5.26, 1.81, bedZ + 0.1, {});
 
-    // lockers along near wall
+    // lockers along near wall (backs embedded into the wall)
     for (let i = 0; i < 3; i++) {
       const lx = 2.2 + i * 0.78;
-      box(mats.hullLower, 0.72, 1.9, 0.5, lx, 0.95, z0 + 0.27, { collide: true, hullUV: true, ou: i * 0.3 });
-      box(mats.metal, 0.05, 0.3, 0.03, lx + 0.25, 1.0, z0 + 0.54, {});
-      for (let k = 0; k < 4; k++) box(mats.metalDark, 0.4, 0.025, 0.02, lx, 1.62 - k * 0.07, z0 + 0.53, {});
-      box(i === 1 ? mats.stripTeal : mats.stripOrange, 0.08, 0.03, 0.02, lx - 0.2, 1.78, z0 + 0.53, {});
+      box(mats.hullLower, 0.72, 1.9, 0.5, lx, 0.95, z0 + 0.24, { collide: true, hullUV: true, ou: i * 0.3 });
+      box(mats.metal, 0.05, 0.3, 0.03, lx + 0.25, 1.0, z0 + 0.5, {});
+      for (let k = 0; k < 4; k++) box(mats.metalDark, 0.4, 0.025, 0.02, lx, 1.62 - k * 0.07, z0 + 0.495, {});
+      box(i === 1 ? mats.stripTeal : mats.stripOrange, 0.08, 0.03, 0.02, lx - 0.2, 1.78, z0 + 0.495, {});
     }
 
     // desk + stool + wall screen
@@ -653,7 +691,7 @@ export function buildShip(scene, rand) {
     box(mats.hullLower, 0.5, 0.76, 0.5, 5.3, 0.38, 2.7, { hullUV: true, collide: true });
     {
       const qs = new THREE.BoxGeometry(0.02, 0.5, 0.8);
-      M.makeTranslation(5.52, 1.6, 2.4);
+      M.makeTranslation(5.595, 1.6, 2.4);
       qs.applyMatrix4(M);
       batch.add(screenMats['text'], qs);
     }
@@ -684,8 +722,8 @@ export function buildShip(scene, rand) {
     lights.push({ light: qn, day: 0, night: 5 });
 
     // greebles: conduit, junction, ceiling light housing + vent
-    cyl(mats.metalDark, 0.03, 0.03, 4.2, 8, 1.45, 2.3, czm + 0.3, { rx: Math.PI / 2 });
-    box(mats.metal, 0.08, 0.3, 0.4, 1.42, 2.1, 4.0, { texel: 2 });
+    cyl(mats.metalDark, 0.03, 0.03, 4.2, 8, 1.37, 2.3, czm + 0.3, { rx: Math.PI / 2 });
+    box(mats.metal, 0.08, 0.3, 0.4, 1.35, 2.1, 4.0, { texel: 2 });
     box(mats.metalDark, 0.7, 0.07, 1.2, 3.0, CEIL - 0.035, 3.2, { texel: 1 });
     box(mats.metalDark, 0.5, 0.06, 0.7, 4.6, CEIL - 0.03, 2.0, { texel: 2 });
     for (let k = 0; k < 4; k++) box(mats.metal, 0.4, 0.02, 0.07, 4.6, CEIL - 0.065, 1.75 + k * 0.16, {});
@@ -720,14 +758,15 @@ export function buildShip(scene, rand) {
     wallSpanX(z0 - WALL_T / 2, x0 - 0.15, x1 + 0.15, false);
     wallSpanX(z1 + WALL_T / 2, x0 - 0.15, x1 + 0.15, true);
 
-    // counter run along x0 wall
+    // counter run along x0 wall (body starts above the recessed toe-kick so
+    // their front faces are never coplanar)
     const cD = 0.62;
-    box(mats.hullLower, cD, 0.85, 3.6, x0 + cD / 2, 0.43, czm, { collide: true, hullUV: true });
+    box(mats.hullLower, cD, 0.76, 3.6, x0 + cD / 2, 0.48, czm, { collide: true, hullUV: true });
     box(mats.metal, cD + 0.06, 0.05, 3.66, x0 + cD / 2, 0.88, czm, { texel: 1 });
-    box(mats.rubber, cD, 0.1, 3.6, x0 + cD / 2, 0.05, czm, {});
-    box(mats.stripOrange, 0.02, 0.04, 3.3, x0 + cD + 0.01, 0.83, czm, {});
+    box(mats.rubber, cD - 0.05, 0.1, 3.6, x0 + (cD - 0.05) / 2, 0.05, czm, {});
+    box(mats.stripOrange, 0.02, 0.04, 3.3, x0 + cD + 0.005, 0.83, czm, {});
     for (let i = 0; i < 5; i++) {
-      box(mats.metal, 0.03, 0.03, 0.3, x0 + cD + 0.02, 0.68, z0 + 0.7 + i * 0.7, {});
+      box(mats.metal, 0.03, 0.03, 0.3, x0 + cD + 0.005, 0.68, z0 + 0.7 + i * 0.7, {});
     }
     // sink
     box(mats.metalDark, 0.4, 0.04, 0.5, x0 + cD / 2, 0.9, -4.5, { texel: 1 });
@@ -741,18 +780,18 @@ export function buildShip(scene, rand) {
     cyl(mats.metalDark, 0.015, 0.015, 0.22, 6, x0 + cD / 2 + 0.2, 0.96, -3.0, { rz: Math.PI / 2 });
     cyl(mats.plastic, 0.035, 0.035, 0.09, 10, x0 + cD / 2 + 0.05, 0.95, -4.0, {});
     cyl(mats.plastic, 0.035, 0.035, 0.09, 10, x0 + cD / 2 - 0.12, 0.95, -3.85, {});
-    // overhead cabinets + under-cabinet teal strip
-    box(mats.hullLower, 0.45, 0.75, 3.4, x0 + 0.27, 1.95, czm, { hullUV: true });
+    // overhead cabinets + under-cabinet teal strip (backs embedded in the wall)
+    box(mats.hullLower, 0.45, 0.75, 3.4, x0 + 0.2, 1.95, czm, { hullUV: true });
     for (let i = 0; i < 4; i++) {
-      box(mats.metal, 0.03, 0.25, 0.03, x0 + 0.51, 1.95, z0 + 0.85 + i * 0.85, {});
+      box(mats.metal, 0.03, 0.25, 0.03, x0 + 0.435, 1.95, z0 + 0.85 + i * 0.85, {});
     }
-    box(mats.stripTealDim, 0.012, 0.02, 3.2, x0 + 0.50, 1.56, czm, {});
+    box(mats.stripTealDim, 0.012, 0.02, 3.2, x0 + 0.428, 1.56, czm, {});
 
-    // shelf with canisters on z0 wall
-    box(mats.metal, 1.6, 0.04, 0.35, -2.0, 1.5, z0 + 0.3, { texel: 1 });
+    // shelf with canisters on z0 wall (back embedded in the wall)
+    box(mats.metal, 1.6, 0.04, 0.35, -2.0, 1.5, z0 + 0.16, { texel: 1 });
     for (let i = 0; i < 5; i++) {
       const ch = 0.16 + rand() * 0.18;
-      cyl(i % 2 ? mats.metal : mats.plastic, 0.07, 0.07, ch, 10, -2.7 + i * 0.36, 1.52 + ch / 2, z0 + 0.3, { texel: 2 });
+      cyl(i % 2 ? mats.metal : mats.plastic, 0.07, 0.07, ch, 10, -2.7 + i * 0.36, 1.52 + ch / 2, z0 + 0.18, { texel: 2 });
     }
 
     // table + stools
@@ -763,10 +802,10 @@ export function buildShip(scene, rand) {
       cyl(mats.fabricOrange, 0.18, 0.18, 0.06, 12, sx, 0.48, sz, { texel: 2 });
     }
 
-    // wall menu screen
+    // wall menu screen (back embedded 5 mm into the wall)
     {
       const ms = new THREE.BoxGeometry(0.9, 0.55, 0.02);
-      M.compose(V.set(-3.0, 1.65, z1 - 0.04), Q.setFromEuler(E.set(0, Math.PI, 0)), ONE);
+      M.compose(V.set(-3.0, 1.65, z1 + 0.005), Q.setFromEuler(E.set(0, Math.PI, 0)), ONE);
       ms.applyMatrix4(M);
       batch.add(screenMats['wave'], ms);
     }
@@ -813,20 +852,20 @@ export function buildShip(scene, rand) {
     wallSpanX(z0 - WALL_T / 2, x0 - 0.15, x1 + 0.15, false);
     wallSpanX(z1 + WALL_T / 2, x0 - 0.15, x1 + 0.15, true);
 
-    // sink unit
-    box(mats.hullLower, 0.45, 0.8, 0.9, x0 + 0.27, 0.45, 4.6, { collide: true, hullUV: true });
-    box(mats.metal, 0.5, 0.06, 0.95, x0 + 0.27, 0.88, 4.6, { texel: 1 });
-    cyl(mats.metalDark, 0.16, 0.2, 0.1, 16, x0 + 0.3, 0.93, 4.6, { open: true });
-    cyl(mats.metal, 0.02, 0.02, 0.25, 8, x0 + 0.16, 1.05, 4.6, { rz: -0.6 });
-    box(mats.mirror, 0.02, 0.7, 0.6, x0 + 0.09, 1.55, 4.6, {});
-    box(mats.metalDark, 0.04, 0.78, 0.68, x0 + 0.06, 1.55, 4.6, { texel: 1 });
-    box(mats.stripTeal, 0.03, 0.03, 0.6, x0 + 0.11, 1.95, 4.6, {});
+    // sink unit (backs embedded into the wall)
+    box(mats.hullLower, 0.45, 0.8, 0.9, x0 + 0.21, 0.45, 4.6, { collide: true, hullUV: true });
+    box(mats.metal, 0.5, 0.06, 0.95, x0 + 0.23, 0.88, 4.6, { texel: 1 });
+    cyl(mats.metalDark, 0.16, 0.2, 0.1, 16, x0 + 0.26, 0.93, 4.6, { open: true });
+    cyl(mats.metal, 0.02, 0.02, 0.25, 8, x0 + 0.12, 1.05, 4.6, { rz: -0.6 });
+    box(mats.mirror, 0.02, 0.7, 0.6, x0 + 0.04, 1.55, 4.6, {});
+    box(mats.metalDark, 0.04, 0.78, 0.68, x0 + 0.015, 1.55, 4.6, { texel: 1 });
+    box(mats.stripTeal, 0.03, 0.03, 0.6, x0 + 0.05, 1.95, 4.6, {});
 
-    // toilet unit
-    box(mats.hullLower, 0.5, 0.42, 0.42, x0 + 0.4, 0.21, 3.1, { collide: true, hullUV: true });
-    cyl(mats.plastic, 0.19, 0.21, 0.06, 14, x0 + 0.4, 0.45, 3.1, {});
-    box(mats.hullLower, 0.16, 0.6, 0.5, x0 + 0.1, 0.72, 3.1, { hullUV: true });
-    box(mats.stripTeal, 0.03, 0.04, 0.04, x0 + 0.19, 0.85, 3.1, {});
+    // toilet unit (tank embedded into the wall)
+    box(mats.hullLower, 0.5, 0.42, 0.42, x0 + 0.3, 0.21, 3.1, { collide: true, hullUV: true });
+    cyl(mats.plastic, 0.19, 0.21, 0.06, 14, x0 + 0.3, 0.45, 3.1, {});
+    box(mats.hullLower, 0.16, 0.6, 0.5, x0 + 0.05, 0.72, 3.1, { hullUV: true });
+    box(mats.stripTeal, 0.03, 0.04, 0.04, x0 + 0.135, 0.85, 3.1, {});
 
     // shower pod corner
     box(mats.rubber, 0.9, 0.04, 0.9, -1.85, 0.02, 4.85, {});

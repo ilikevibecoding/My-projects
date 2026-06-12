@@ -170,6 +170,13 @@ window.debugAPI = {
     player.frozen = false;
     player.setPose({ x, z }, yaw, pitch);
   },
+  playerPos() {
+    return [player.position.x, player.position.z, player.yaw];
+  },
+  setKey(code, down) {
+    if (down) player.keys.add(code); else player.keys.delete(code);
+  },
+  forceLock(v) { player.locked = v; },
   inspect() {
     const out = [];
     for (const ch of ship.group.children) {

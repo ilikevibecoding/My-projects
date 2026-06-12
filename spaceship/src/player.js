@@ -37,13 +37,27 @@ export class Player {
     });
     dom.ownerDocument.addEventListener('mousemove', (e) => {
       if (!this.locked || this.frozen) return;
+      // Chrome (esp. on Windows) occasionally injects huge spurious deltas
+      // under pointer lock; discard anything that can't be a real mouse move.
+      if (Math.abs(e.movementX) > 180 || Math.abs(e.movementY) > 180) return;
       this.yaw -= e.movementX * 0.0023;
       this.pitch -= e.movementY * 0.0023;
       this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch));
     });
   }
 
-  lock() { this.dom.requestPointerLock(); }
+  lock() {
+    // unadjustedMovement bypasses OS pointer acceleration (removes jitter);
+    // it throws synchronously or rejects on unsupported platforms.
+    try {
+      const p = this.dom.requestPointerLock({ unadjustedMovement: true });
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => this.dom.requestPointerLock());
+      }
+    } catch {
+      this.dom.requestPointerLock();
+    }
+  }
 
   setPose(pos, yaw, pitch) {
     this.position.set(pos.x, 0, pos.z);
@@ -68,9 +82,10 @@ export class Player {
     const moving = (fx !== 0 || fz !== 0) && this.locked;
 
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
-    // yaw=0 faces -Z
-    const wishX = (fx * cos - fz * sin);
-    const wishZ = (fz * cos + fx * sin);
+    // rotate local input (fx, fz) by yaw: with yaw=0 facing -Z,
+    // forward (fz=-1) must map to (-sin, -cos)
+    const wishX = fx * cos + fz * sin;
+    const wishZ = -fx * sin + fz * cos;
     const wish = new THREE.Vector2(wishX, wishZ);
     if (wish.lengthSq() > 0) wish.normalize().multiplyScalar(WALK_SPEED);
 
@@ -110,7 +125,8 @@ export class Player {
       this.position.z - bobX * Math.sin(this.yaw)
     );
     this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.set(this.pitch, this.yaw, Math.sin(this.bobPhase) * 0.0035 * this.bobAmount);
+    // position-only bob: no roll/tilt on the camera rotation
+    this.camera.rotation.set(this.pitch, this.yaw, 0);
   }
 
   resolveCollisions() {
