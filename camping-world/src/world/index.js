@@ -65,10 +65,16 @@ export async function buildWorld(scene, renderer, onProgress = () => {}) {
   const models = {};
   await Promise.all(
     MODEL_IDS.map(async (id) => {
-      try {
-        models[id] = await loader.loadAsync(`./assets/models/${id}.glb`);
-      } catch (e) {
-        console.error(`[world] failed to load model ${id}:`, e.message ?? e);
+      // up to 3 attempts — parallel multi-MB fetches from the dev server can
+      // transiently fail, and a silently missing model breaks the scene
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          models[id] = await loader.loadAsync(`./assets/models/${id}.glb`);
+          break;
+        } catch (e) {
+          if (attempt === 2) console.error(`[world] failed to load model ${id}:`, e.message ?? e);
+          else await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+        }
       }
       onProgress(++loaded / (MODEL_IDS.length + 1));
     })
