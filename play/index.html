@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drifter — Ship Interior</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    #app { position: fixed; inset: 0; }
+    canvas { display: block; }
+
+    #hud {
+      position: fixed; inset: 0; pointer-events: none;
+      font-family: "Lucida Console", Monaco, monospace;
+      color: #cfe8e6;
+      z-index: 10;
+    }
+    #reticle {
+      position: absolute; left: 50%; top: 50%;
+      width: 6px; height: 6px; margin: -3px 0 0 -3px;
+      border-radius: 50%;
+      background: rgba(210, 240, 238, 0.85);
+      box-shadow: 0 0 6px rgba(25, 212, 208, 0.8);
+      transition: transform .12s ease, background .12s ease;
+    }
+    #reticle.hot { transform: scale(1.7); background: #ffb46a; box-shadow: 0 0 10px rgba(255, 150, 60, .9); }
+    #prompt {
+      position: absolute; left: 50%; bottom: 18%;
+      transform: translateX(-50%);
+      padding: 8px 18px;
+      font-size: 15px; letter-spacing: 2px;
+      color: #ffd9a8;
+      background: rgba(8, 14, 18, 0.72);
+      border: 1px solid rgba(255, 180, 106, 0.45);
+      border-radius: 3px;
+      opacity: 0; transition: opacity .15s ease;
+      text-transform: uppercase;
+    }
+    #prompt.on { opacity: 1; }
+    #status {
+      position: absolute; left: 22px; top: 18px;
+      font-size: 13px; letter-spacing: 1.6px;
+      color: rgba(160, 226, 222, 0.92);
+      text-shadow: 0 0 8px rgba(25, 212, 208, 0.35);
+      text-transform: uppercase;
+    }
+    #status b { color: #ffb46a; font-weight: normal; }
+    #message {
+      position: absolute; left: 50%; top: 46%;
+      transform: translateX(-50%);
+      font-size: 22px; letter-spacing: 4px;
+      color: #e8ddcb;
+      opacity: 0; transition: opacity .6s ease;
+      text-transform: uppercase; text-align: center;
+      text-shadow: 0 0 18px rgba(255, 200, 140, 0.4);
+    }
+    #message.on { opacity: 1; }
+    #fade {
+      position: fixed; inset: 0; background: #000;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.7s ease;
+      z-index: 9;
+    }
+    #fade.on { opacity: 1; }
+    #start {
+      position: fixed; inset: 0; z-index: 20;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; cursor: pointer;
+      background: radial-gradient(ellipse at center, rgba(7, 14, 19, 0.86), rgba(2, 4, 7, 0.96));
+      font-family: "Lucida Console", Monaco, monospace;
+      color: #cfe8e6;
+    }
+    #start h1 { font-size: 26px; letter-spacing: 10px; color: #ffb46a; font-weight: normal; }
+    #start p { font-size: 13px; letter-spacing: 3px; opacity: .75; }
+    #start .key { color: #19d4d0; }
+    #start.hidden { display: none; }
+  </style>
+  <script type="module" crossorigin src="./assets/index-DkMeTQPc.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="hud">
+    <div id="reticle"></div>
+    <div id="prompt"></div>
+    <div id="status"></div>
+    <div id="message"></div>
+  </div>
+  <div id="fade"></div>
+  <div id="start">
+    <h1>DRIFTER · MCV-7</h1>
+    <p>CLICK TO BOARD</p>
+    <p><span class="key">WASD</span> MOVE &nbsp;·&nbsp; <span class="key">MOUSE</span> LOOK &nbsp;·&nbsp; <span class="key">E</span> INTERACT</p>
+  </div>
+</body>
+</html>
