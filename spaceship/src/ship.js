@@ -351,10 +351,11 @@ export function buildShip(scene, rand) {
 
   // ceiling light fixtures (with diffuser slats to break up the glow quad)
   for (let z = -6; z <= 6; z += 3) {
+    // housing spans y 2.43..2.5; strip pokes ~1.5cm below it (top embedded)
     box(mats.metalDark, 0.7, 0.07, 1.4, 0, CEIL - 0.035, z, { texel: 1 });
-    box(mats.stripWarm, 0.4, 0.02, 1.05, 0, CEIL - 0.045, z, {});
+    box(mats.stripWarm, 0.4, 0.02, 1.05, 0, CEIL - 0.075, z, {});
     for (let k = -2; k <= 2; k++) {
-      box(mats.metalDark, 0.46, 0.025, 0.05, 0, CEIL - 0.07, z + k * 0.22, {});
+      box(mats.metalDark, 0.46, 0.025, 0.05, 0, CEIL - 0.085, z + k * 0.22, {});
     }
   }
   for (const z of [-6, 0, 6]) {
