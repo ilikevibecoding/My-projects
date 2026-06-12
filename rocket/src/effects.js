@@ -379,7 +379,7 @@ export class ExhaustSystem {
     this.smoke = new BillboardSystem({ texture: this.puffTex, capacity: 300, renderOrder: 10 });
     this.dust = new BillboardSystem({ texture: this.puffTex, capacity: 150, renderOrder: 9 });
     this.poofs = new BillboardSystem({ texture: this.puffTex, capacity: 90, renderOrder: 14 });
-    this.stars = new BillboardSystem({ texture: this.starTex, capacity: 12, blending: THREE.AdditiveBlending, renderOrder: 15 });
+    this.stars = new BillboardSystem({ texture: this.starTex, capacity: 110, blending: THREE.AdditiveBlending, renderOrder: 15 });
     scene.add(this.flames.mesh, this.smoke.mesh, this.dust.mesh, this.poofs.mesh, this.stars.mesh);
 
     this.flameAcc = 0;
@@ -531,6 +531,32 @@ export class ExhaustSystem {
         opacity0: 1,
         rotVel: 4,
       });
+    }
+  }
+
+  // celebration fireworks (space reached!): colored star bursts around `center`
+  fireworks(center, up = new THREE.Vector3(0, 1, 0)) {
+    const rng = this.rng;
+    const colors = ['#ff5a4d', '#ffd24d', '#5ad1ff', '#7dff6e', '#ff8ef0'];
+    for (let b = 0; b < 5; b++) {
+      const c0 = new THREE.Color(colors[b]);
+      const origin = center.clone()
+        .add(new THREE.Vector3((rng() - 0.5) * 26, 0, (rng() - 0.5) * 26))
+        .addScaledVector(up, 4 + rng() * 14);
+      for (let i = 0; i < 16; i++) {
+        const dir = new THREE.Vector3(rng() - 0.5, rng() - 0.5, rng() - 0.5).normalize();
+        this.stars.spawn({
+          pos: origin.clone().addScaledVector(dir, 0.4),
+          vel: dir.multiplyScalar(7 + rng() * 13),
+          drag: 0.9,
+          life: 1.2 + rng() * 0.9,
+          size0: 1.7, size1: 0.4,
+          color0: c0,
+          color1: new THREE.Color('#ffffff'),
+          opacity0: 1,
+          rotVel: (rng() - 0.5) * 6,
+        });
+      }
     }
   }
 

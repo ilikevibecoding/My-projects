@@ -50,6 +50,33 @@ scene.add(hemi);
 const amb = new THREE.AmbientLight('#3c4356', 0.25);
 scene.add(amb);
 
+// procedural sky environment map: gives the stainless-steel rocket (and all
+// metals) something real to reflect — without it PBR metal reads as soot
+{
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envScene = new THREE.Scene();
+  const envMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: { uSun: { value: SUN_DIR.clone() } },
+    vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+    fragmentShader: `
+      varying vec3 vDir; uniform vec3 uSun;
+      void main(){
+        vec3 d = normalize(vDir);
+        vec3 sky = mix(vec3(0.62,0.70,0.80), vec3(0.30,0.50,0.92), smoothstep(-0.05,0.55,d.y));
+        vec3 ground = vec3(0.30,0.42,0.24);
+        vec3 col = mix(ground, sky, smoothstep(-0.10,0.04,d.y));
+        col += vec3(1.25,1.05,0.78) * pow(max(dot(d, uSun), 0.0), 48.0) * 2.4; // sun hotspot
+        col += vec3(0.9,0.8,0.62) * pow(max(dot(d, uSun), 0.0), 6.0) * 0.35;  // warm halo
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  });
+  envScene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 48, 24), envMat));
+  scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+  scene.environmentIntensity = 0.5;
+  pmrem.dispose();
+}
+
 const rig = new CameraRig(window.innerWidth, window.innerHeight);
 const world = createWorld(scene);
 const atmo = createAtmosphere(scene, SUN_DIR);
@@ -73,6 +100,9 @@ const game = {
   eventCursor: 0,
   simTime: 0,
   accumulator: 0,
+  countdown: null,            // seconds left in the 3-2-1 (null = no countdown)
+  countdownShown: 0,          // last number flashed
+  placeAnchor: null,          // builder: stackIndex the next part is added above
   debugPaused: false,
   frameMs: [],
   lastDrawCalls: 0,
@@ -146,16 +176,57 @@ function buildAndPlaceRocket(stackIds) {
 }
 
 const builder = createBuilder({
-  onStackChange: (ids) => { if (game.mode === 'builder') buildAndPlaceRocket(ids); },
+  onStackChange: (ids) => {
+    if (game.mode === 'builder') { buildAndPlaceRocket(ids); refreshAnchorMarker(); }
+  },
   onLaunch: () => startFlight(),
+  getInsertAnchor: () => game.placeAnchor,
+  onInserted: (at) => {
+    // keep building upward from the spot the player picked
+    if (game.placeAnchor !== null) { game.placeAnchor = at; refreshAnchorMarker(); }
+  },
 });
+
+// ---- builder placement anchor (right-click a stacked part to pick the spot)
+const anchorMarker = new THREE.Mesh(
+  new THREE.TorusGeometry(0.95, 0.055, 10, 36),
+  new THREE.MeshBasicMaterial({ color: '#19e3c2', transparent: true, opacity: 0.9 }),
+);
+anchorMarker.rotation.x = Math.PI / 2;
+anchorMarker.renderOrder = 20;
+
+const builderHintEl = document.getElementById('builder-hint');
+const BUILDER_HINT_DEFAULT = builderHintEl ? builderHintEl.textContent : '';
+
+function refreshAnchorMarker() {
+  anchorMarker.removeFromParent();
+  if (game.placeAnchor === null || game.mode !== 'builder' || !game.rocket) {
+    if (builderHintEl) builderHintEl.textContent = BUILDER_HINT_DEFAULT;
+    return;
+  }
+  const entry = game.rocket.partEntries.find((e) => e.stackIndex === game.placeAnchor);
+  if (!entry) { game.placeAnchor = null; refreshAnchorMarker(); return; }
+  anchorMarker.position.set(0, entry.yTop + 0.03, 0);
+  game.rocket.group.add(anchorMarker);
+  if (builderHintEl) {
+    builderHintEl.textContent =
+      `adding above: ${entry.part.name.toLowerCase()} · right-click empty space to clear`;
+  }
+}
+
+function setPlaceAnchor(idx) {
+  game.placeAnchor = idx;
+  refreshAnchorMarker();
+}
 
 function enterBuilder() {
   game.mode = 'builder';
   adoptSim(null);
   game.eventCursor = 0;
+  game.countdown = null;
   exhaust.reset();
   buildAndPlaceRocket(builder.stackIds);
+  refreshAnchorMarker();
   hud.showBuilder();
   rig.mode = 'orbit';
   rig.resetManual();
@@ -165,6 +236,8 @@ function enterBuilder() {
 function startFlight(stackIds = builder.stackIds) {
   game.mode = 'flight';
   game.eventCursor = 0;
+  game.countdown = null;
+  game.placeAnchor = null;
   game.flightRng = mulberry32(4242);
   exhaust.reset();
   buildAndPlaceRocket(stackIds);
@@ -224,8 +297,12 @@ function processEvents() {
       case 'flameout': hud.flash('MAIN ENGINE CUTOFF'); audio.flameout(); break;
       case 'space': {
         hud.banner('space');
-        hud.setHint('space reached — revert when ready');
+        hud.setHint('space reached — flip with arrows + fly the map, or revert');
         audio.spaceReached();
+        // celebration fireworks around the rocket
+        const c = rocketCenterPos(new THREE.Vector3());
+        localUp(game.renderPos, _v2);
+        exhaust.fireworks(c, _v2.clone());
         break;
       }
       case 'crash': {
@@ -302,6 +379,23 @@ function updateRocketTransforms() {
 function stepWorld(dt) {
   game.simTime += dt;
   const sim = game.sim;
+  // 3-2-1 launch countdown (Space again skips straight to ignition)
+  if (game.countdown !== null && game.mode === 'flight' && sim && !sim.ignited) {
+    game.countdown -= dt;
+    const n = Math.ceil(game.countdown);
+    if (n !== game.countdownShown && n > 0) {
+      game.countdownShown = n;
+      hud.flash(String(n));
+      audio.countBeep(n);
+    }
+    if (game.countdown <= 0) {
+      game.countdown = null;
+      audio.countBeep(0);
+      doIgnite();
+    }
+  } else if (game.countdown !== null) {
+    game.countdown = null; // mode changed / already ignited
+  }
   if (game.mode === 'flight' && sim && sim.phase !== 'crashed') {
     game.accumulator = Math.min(game.accumulator + dt, 0.3);
     while (game.accumulator >= CONST.DT) {
@@ -426,8 +520,20 @@ window.addEventListener('keydown', (e) => {
     case 'Space':
       e.preventDefault();
       if (game.mode === 'flight' && game.sim) {
-        if (!game.sim.ignited) doIgnite();
-        else doStage();
+        if (!game.sim.ignited) {
+          if (game.countdown === null) {
+            // 3-2-1 countdown; pressing Space again skips it
+            game.countdown = 3.0;
+            game.countdownShown = 3;
+            hud.flash('3');
+            audio.countBeep(3);
+          } else {
+            game.countdown = null;
+            doIgnite();
+          }
+        } else {
+          doStage();
+        }
       }
       break;
     case 'ArrowLeft': game.input.tiltZ = 1; e.preventDefault(); break;
@@ -444,12 +550,15 @@ window.addEventListener('keyup', (e) => {
   }
 });
 
-// click a stacked part to remove it (builder mode; left button only —
-// right button is camera orbit)
+// builder mouse picking:
+//   left-click a stacked part  -> remove it
+//   right-CLICK a stacked part -> set the insertion anchor ("add above this")
+//   right-click empty space    -> clear the anchor
+// (right-DRAG stays camera orbit — we only treat tiny-movement releases as clicks)
 const raycaster = new THREE.Raycaster();
-renderer.domElement.addEventListener('pointerdown', (e) => {
-  if (e.button !== 0) return;
-  if (game.mode !== 'builder' || !game.rocket) return;
+
+function pickPartEntry(e) {
+  if (game.mode !== 'builder' || !game.rocket) return null;
   const ndc = new THREE.Vector2(
     (e.clientX / window.innerWidth) * 2 - 1,
     -(e.clientY / window.innerHeight) * 2 + 1,
@@ -459,11 +568,43 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   for (const hit of hits) {
     let o = hit.object;
     while (o && !o.userData.partEntry) o = o.parent;
-    if (o && o.userData.partEntry) {
-      builder.removeAt(o.userData.partEntry.stackIndex);
-      audio.uiRemove();
-      return;
-    }
+    if (o && o.userData.partEntry) return o.userData.partEntry;
+  }
+  return null;
+}
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  const entry = pickPartEntry(e);
+  if (!entry) return;
+  const removedIdx = entry.stackIndex;
+  // keep the anchor pointing at the same physical part after the removal
+  if (game.placeAnchor !== null) {
+    if (removedIdx === game.placeAnchor) game.placeAnchor = null;
+    else if (removedIdx < game.placeAnchor) game.placeAnchor -= 1;
+  }
+  builder.removeAt(removedIdx);
+  audio.uiRemove();
+});
+
+// right-click pick: only fires when the pointer barely moved (else it's orbit)
+let rcStart = null;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.button === 2) rcStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+});
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (e.button !== 2 || !rcStart) return;
+  const moved = Math.hypot(e.clientX - rcStart.x, e.clientY - rcStart.y);
+  const held = performance.now() - rcStart.t;
+  rcStart = null;
+  if (moved > 6 || held > 600) return;            // was an orbit drag
+  if (game.mode !== 'builder') return;
+  const entry = pickPartEntry(e);
+  if (entry) {
+    setPlaceAnchor(entry.stackIndex);
+    audio.uiClick();
+  } else {
+    setPlaceAnchor(null);
   }
 });
 
@@ -711,7 +852,37 @@ const debugAPI = {
 
   getState() {
     if (!game.sim) return { mode: game.mode };
-    return { mode: game.mode, ...telemetrySample(game.sim) };
+    const sim = game.sim;
+    localUp(sim.pos, _v2);
+    const downrange = Math.acos(THREE.MathUtils.clamp(_v2.y, -1, 1)) * CONST.R;
+    return {
+      mode: game.mode,
+      ...telemetrySample(sim),
+      ignited: sim.ignited,
+      countdown: game.countdown === null ? null : +game.countdown.toFixed(2),
+      axisUpDot: +sim.axis.dot(_v2).toFixed(3),  // 1 = nose up, -1 = flipped
+      tiltX: +sim.tiltX.toFixed(3),
+      tiltZ: +sim.tiltZ.toFixed(3),
+      downrange: +downrange.toFixed(1),          // great-circle metres from pad
+    };
+  },
+
+  builderInfo() {
+    return { stackIds: builder.stackIds, anchor: game.placeAnchor };
+  },
+
+  rocketInfo() {
+    if (!game.rocket) return null;
+    return {
+      height: +game.rocket.height.toFixed(2),
+      nozzles: game.rocket.nozzles.length,
+      stages: game.rocket.stageGroups.map((sg, i) => ({
+        stage: i,
+        children: sg.children.length,
+        hasInterstage: !!sg.getObjectByName('interstage'),
+        detached: game.debrisVisuals.has(i),
+      })),
+    };
   },
 };
 window.debugAPI = debugAPI;

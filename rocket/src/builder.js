@@ -70,7 +70,7 @@ function renderThumbnails() {
   return out;
 }
 
-export function createBuilder({ onStackChange, onLaunch }) {
+export function createBuilder({ onStackChange, onLaunch, getInsertAnchor, onInserted }) {
   let stackIds = [...DEFAULT_STACK];
   const paletteEl = document.getElementById('palette');
   const launchBtn = document.getElementById('launch-btn');
@@ -89,7 +89,10 @@ export function createBuilder({ onStackChange, onLaunch }) {
     card.innerHTML = `
       <img src="${thumbs[id]}" alt="${part.name}" draggable="false"/>
       <div><div class="pc-name">${part.name}</div><div class="pc-stat">${part.blurb}</div></div>`;
-    card.addEventListener('click', () => api.addPart(id));
+    card.addEventListener('click', () => {
+      const at = api.addPart(id, getInsertAnchor?.() ?? null);
+      onInserted?.(at, id);
+    });
     paletteEl.appendChild(card);
   }
 
@@ -110,11 +113,17 @@ export function createBuilder({ onStackChange, onLaunch }) {
   const api = {
     get stackIds() { return [...stackIds]; },
 
-    addPart(id) {
-      const idx = insertionIndex(stackIds, id);
+    // anchorIndex (optional): insert right ABOVE that stack slot — set by
+    // right-clicking a stacked part. null = smart auto-placement.
+    // Returns the index the part landed at.
+    addPart(id, anchorIndex = null) {
+      const idx = anchorIndex !== null
+        ? Math.max(0, Math.min(stackIds.length, anchorIndex + 1))
+        : insertionIndex(stackIds, id);
       stackIds.splice(idx, 0, id);
       refreshStats();
       onStackChange?.(api.stackIds);
+      return idx;
     },
 
     removeAt(stackIndex) {

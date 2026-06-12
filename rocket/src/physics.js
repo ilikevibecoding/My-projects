@@ -13,8 +13,8 @@ export const CONST = {
   ATMO_TOP: 5200,     // visual atmosphere shell thickness above surface (m)
   DT: 1 / 120,        // fixed physics step (s)
   CRASH_SPEED: 14,    // impact speed beyond which we poof (m/s)
-  TILT_MAX: 0.22,     // max tilt from local up (rad), "a few degrees" of authority
-  TILT_RATE: 0.25,    // tilt rate (rad/s)
+  TILT_MAX: Math.PI,  // full authority: flip completely over and burn back down
+  TILT_RATE: 0.7,     // tilt rate (rad/s) — a flip takes ~4.5s of held arrow
 };
 
 export const PLANET_CENTER = new THREE.Vector3(0, -CONST.R, 0);
@@ -166,11 +166,14 @@ export function step(state, input, dt = CONST.DT) {
   const stage = activeStage(state);
   localUp(state.pos, _up);
 
-  // --- steering: a few degrees of tilt authority ---
-  state.tiltX = THREE.MathUtils.clamp(
-    state.tiltX + (input.tiltX || 0) * CONST.TILT_RATE * dt, -CONST.TILT_MAX, CONST.TILT_MAX);
-  state.tiltZ = THREE.MathUtils.clamp(
-    state.tiltZ + (input.tiltZ || 0) * CONST.TILT_RATE * dt, -CONST.TILT_MAX, CONST.TILT_MAX);
+  // --- steering: full attitude authority (flip over, fly anywhere) ---
+  // no authority while clamped to the pad: you tilt once you're airborne
+  if (!state.onGround) {
+    state.tiltX = THREE.MathUtils.clamp(
+      state.tiltX + (input.tiltX || 0) * CONST.TILT_RATE * dt, -CONST.TILT_MAX, CONST.TILT_MAX);
+    state.tiltZ = THREE.MathUtils.clamp(
+      state.tiltZ + (input.tiltZ || 0) * CONST.TILT_RATE * dt, -CONST.TILT_MAX, CONST.TILT_MAX);
+  }
   // axis = local up tilted by tiltX about world X and tiltZ about world Z
   state.axis.copy(_up)
     .applyAxisAngle(_tmp.set(1, 0, 0), state.tiltX)

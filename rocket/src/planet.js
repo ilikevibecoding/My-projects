@@ -474,6 +474,93 @@ export function createWorld(scene) {
     world.add(crate);
   }
 
+  // ---- far-field scenery: things to fly to now that the rocket can tip
+  // over and cruise around the map. Everything sits on the true sphere.
+  {
+    const sphereSpot = (angDist, heading, out = new THREE.Vector3()) => {
+      // walk angDist metres from the pad (north pole) along a heading
+      const a = angDist / CONST.R;
+      out.set(Math.sin(a) * Math.cos(heading), Math.cos(a), Math.sin(a) * Math.sin(heading));
+      return out; // unit direction from planet center
+    };
+    const up = new THREE.Vector3(0, 1, 0);
+    const place = (obj, angDist, heading, lift = 0) => {
+      const dir = sphereSpot(angDist, heading);
+      obj.position.copy(dir).multiplyScalar(CONST.R - 2.0 + lift).add(new THREE.Vector3(0, -CONST.R, 0));
+      obj.quaternion.setFromUnitVectors(up, dir);
+      world.add(obj);
+    };
+
+    // mountain ranges (instanced cones, stylized low-poly)
+    const mtnMat = new THREE.MeshStandardMaterial({ color: '#7a8a7e', roughness: 0.95, flatShading: true });
+    const snowMat = new THREE.MeshStandardMaterial({ color: '#eef4f6', roughness: 0.85, flatShading: true });
+    for (const [dist, heading, count, big] of [[1500, 0.6, 9, 1], [2300, 2.4, 12, 1.5], [1100, 4.0, 6, 0.7]]) {
+      const range = new THREE.Group();
+      let prevX = 0;
+      for (let i = 0; i < count; i++) {
+        const h = (55 + rng() * 130) * big;
+        const r = h * (0.55 + rng() * 0.3);
+        const mtn = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7, 1), mtnMat);
+        prevX += r * (0.9 + rng() * 0.8);
+        mtn.position.set(prevX - count * 28 * big, h * 0.48, (rng() - 0.5) * 220 * big);
+        mtn.rotation.y = rng() * 6.28;
+        range.add(mtn);
+        if (h > 120) { // snow cap
+          const cap = new THREE.Mesh(new THREE.ConeGeometry(r * 0.34, h * 0.3, 7, 1), snowMat);
+          cap.position.copy(mtn.position).y += h * 0.36;
+          cap.rotation.y = mtn.rotation.y;
+          range.add(cap);
+        }
+      }
+      place(range, dist, heading);
+    }
+
+    // forest belts (instanced cones on the sphere)
+    const treeGeo = new THREE.ConeGeometry(3.2, 9, 6);
+    const treeMat = new THREE.MeshStandardMaterial({ color: '#2e7a35', roughness: 1, flatShading: true });
+    const trees = new THREE.InstancedMesh(treeGeo, treeMat, 160);
+    const m4 = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const dirV = new THREE.Vector3();
+    for (let i = 0; i < 160; i++) {
+      const belt = i % 2;
+      const dist = belt ? 750 + rng() * 500 : 1700 + rng() * 700;
+      const heading = belt ? 1.1 + rng() * 1.5 : 4.6 + rng() * 1.3;
+      sphereSpot(dist, heading, dirV);
+      q.setFromUnitVectors(up, dirV);
+      const s = 0.8 + rng() * 1.6;
+      m4.compose(
+        dirV.clone().multiplyScalar(CONST.R - 2.0).add(new THREE.Vector3(0, -CONST.R, 0))
+          .addScaledVector(dirV, 4.5 * s * 0.5),
+        q, new THREE.Vector3(s, s, s));
+      trees.setMatrixAt(i, m4);
+    }
+    world.add(trees);
+
+    // a lake to buzz over
+    const lake = new THREE.Mesh(new THREE.CircleGeometry(220, 40),
+      new THREE.MeshStandardMaterial({ color: '#2f7fb8', roughness: 0.15, metalness: 0.1 }));
+    lake.geometry.rotateX(-Math.PI / 2);
+    place(lake, 1300, 2.1, 1.2);
+
+    // a tiny village (boxes + cone roofs)
+    const houseMat = new THREE.MeshStandardMaterial({ color: '#e0d6bd', roughness: 0.85 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: '#b5503c', roughness: 0.8 });
+    const village = new THREE.Group();
+    for (let i = 0; i < 9; i++) {
+      const s = 6 + rng() * 7;
+      const x = (rng() - 0.5) * 220, z = (rng() - 0.5) * 220;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.8, s * 1.2), houseMat);
+      body.position.set(x, s * 0.4, z);
+      body.rotation.y = rng() * 6.28;
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(s * 0.85, s * 0.6, 4), roofMat);
+      roof.position.set(x, s * 0.8 + s * 0.3, z);
+      roof.rotation.y = body.rotation.y + Math.PI / 4;
+      village.add(body, roof);
+    }
+    place(village, 950, 5.4);
+  }
+
   // grass tufts + rocks (instanced)
   {
     const tuftGeo = new THREE.ConeGeometry(0.32, 0.55, 5);

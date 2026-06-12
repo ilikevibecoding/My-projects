@@ -32,7 +32,8 @@ const thrust = async () => await page.evaluate(() => document.getElementById('st
 // ---------- A1. baseline flight: default stack, alt after 25 sim-seconds ----------
 await page.click('#launch-btn');
 await page.waitForTimeout(800);
-await page.keyboard.press('Space');
+await page.keyboard.press('Space');     // starts the 3-2-1 countdown
+await page.keyboard.press('Space');     // second press skips -> instant ignition
 await page.waitForTimeout(400);
 await page.evaluate(() => debugAPI.tick(25));
 const baseSt = await page.evaluate(() => debugAPI.getState());
@@ -65,7 +66,8 @@ await page.screenshot({ path: `${OUT}/2_two_stage_builder.png` });
 // ---------- A3. booster flies, stages, upper cluster takes over ----------
 await page.click('#launch-btn');
 await page.waitForTimeout(800);
-await page.keyboard.press('Space');
+await page.keyboard.press('Space');     // countdown
+await page.keyboard.press('Space');     // skip -> ignite
 await page.waitForTimeout(400);
 await page.evaluate(() => debugAPI.tick(25));
 const beefSt = await page.evaluate(() => debugAPI.getState());

@@ -68,7 +68,8 @@ check('audio ctx running after gesture', a0.ctxState === 'running', JSON.stringi
 // ---------- 3. real launch flow: click LAUNCH, press Space ----------
 await page.click('#launch-btn');
 await page.waitForTimeout(1200);
-await page.keyboard.press('Space');     // ignition (+ ignition one-shot sound)
+await page.keyboard.press('Space');     // starts the countdown
+await page.keyboard.press('Space');     // second press skips -> ignition sound
 await page.waitForTimeout(1500);
 const a1 = await page.evaluate(() => debugAPI.audioStats());
 check('engine loop audible after ignition', a1.rms > 0.0015 && a1.engineLevel > 0.05, JSON.stringify(a1));

@@ -191,6 +191,15 @@ export function createAudioEngine() {
     spaceReached() {
       tone({ freq: 660, dur: 0.5, gain: 0.10, type: 'sine' });
       tone({ freq: 990, dur: 0.8, gain: 0.08, type: 'sine', when: 0.16 });
+      // firework crackles trailing the chime
+      for (let i = 0; i < 5; i++) {
+        noiseBurst({ dur: 0.12, gain: 0.12, type: 'highpass', f0: 1800, attack: 0.004 });
+        tone({ freq: 1200 + i * 180, f1: 300, dur: 0.3, gain: 0.04, type: 'triangle', when: 0.3 + i * 0.22 });
+      }
+    },
+    countBeep(n) {
+      // 3..2..1 beeps; n === 0 is the higher "GO" blip right before ignition
+      tone({ freq: n === 0 ? 920 : 540, dur: n === 0 ? 0.3 : 0.14, gain: 0.12, type: 'square', attack: 0.004 });
     },
     crash() {
       noiseBurst({ dur: 2.2, gain: 0.8, type: 'lowpass', f0: 900, f1: 70, attack: 0.006 });

@@ -123,51 +123,56 @@ function roughnessCanvas(w, h, base = 150, opts = {}) {
   return t;
 }
 
-// Tank / body paint. hPx scaled by part height so panel density matches.
-function tankTexture(part, { stripeFrac = 0.18, decal = true } = {}) {
+// Tank / body skin: shiny brushed stainless steel ("Space X" restyle) with
+// weld bands, a thin flame-orange accent, and a big SPACE X wordmark.
+function tankTexture(part, { decal = true } = {}) {
   const w = 512;
   const h = Math.round(170 * part.height);
   const [c, ctx] = makeCanvas(w, h);
 
-  // base cream with subtle vertical shading
+  // brushed steel base with subtle vertical sheen
   const base = ctx.createLinearGradient(0, 0, w, 0);
-  base.addColorStop(0, PALETTE.cream);
-  base.addColorStop(0.5, '#fbf4e4');
-  base.addColorStop(1, PALETTE.cream);
+  base.addColorStop(0, '#c4c9cf');
+  base.addColorStop(0.28, '#e4e8ec');
+  base.addColorStop(0.55, '#cfd4da');
+  base.addColorStop(0.8, '#dde2e7');
+  base.addColorStop(1, '#c4c9cf');
   ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
+  // horizontal brush streaks
+  for (let i = 0; i < 240; i++) {
+    const l = trand() > 0.5;
+    ctx.fillStyle = `rgba(${l ? 255 : 40},${l ? 255 : 44},${l ? 255 : 50},${0.025 + trand() * 0.04})`;
+    ctx.fillRect(0, trand() * h, w, 1 + trand() * 2);
+  }
 
-  // big orange stripe band
-  const bandH = Math.round(h * stripeFrac);
-  const bandY = Math.round(h * 0.30);
+  // stainless weld band rings (the Starship look)
+  ctx.fillStyle = 'rgba(96,102,110,0.55)';
+  const rings = Math.max(2, Math.round(part.height));
+  for (let i = 0; i <= rings; i++) {
+    const y = Math.round((h / rings) * i);
+    ctx.fillRect(0, y - 4, w, 8);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillRect(0, y + 4, w, 2);
+    ctx.fillStyle = 'rgba(96,102,110,0.55)';
+  }
+
+  // thin flame-orange accent stripe
   ctx.fillStyle = PALETTE.orange;
-  ctx.fillRect(0, bandY, w, bandH);
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  ctx.fillRect(0, bandY, w, 6);
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.fillRect(0, bandY + bandH - 6, w, 6);
+  ctx.fillRect(0, Math.round(h * 0.3) - 7, w, 14);
 
-  // teal pinstripes (bold enough to read from gameplay distance)
-  ctx.fillStyle = PALETTE.teal;
-  ctx.fillRect(0, bandY - 22, w, 11);
-  ctx.fillRect(0, bandY + bandH + 11, w, 11);
-
-  // weld bands top/bottom
-  ctx.fillStyle = PALETTE.creamShade;
-  ctx.fillRect(0, 0, w, 18); ctx.fillRect(0, h - 18, w, 18);
-
-  panelLines(ctx, w, h, 4, Math.max(2, Math.round(part.height)));
+  panelLines(ctx, w, h, 4, rings);
 
   if (decal) {
-    // vertical "KARMAN-1" wordmark — big and bold, readable in flight shots
+    // vertical "SPACE X" wordmark — big and bold, readable in flight shots
     ctx.save();
     ctx.translate(w * 0.28, h * 0.52);
     ctx.rotate(Math.PI / 2);
     ctx.font = `900 ${Math.min(64, h * 0.4)}px "Trebuchet MS", sans-serif`;
-    ctx.fillStyle = PALETTE.navy;
+    ctx.fillStyle = '#2c3340';
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText('KARMAN-1', 0, 0);
-    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.strokeText('KARMAN-1', 0, 0);
+    ctx.fillText('SPACE X', 0, 0);
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.strokeText('SPACE X', 0, 0);
     ctx.restore();
     // flag patch
     const fx = w * 0.60, fy = h * 0.60, fw = 92, fh = 58;
@@ -178,8 +183,8 @@ function tankTexture(part, { stripeFrac = 0.18, decal = true } = {}) {
     ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 3; ctx.strokeRect(fx, fy, fw, fh);
   }
 
-  grime(ctx, w, h);
-  noiseBlotches(ctx, w, h, 60, 0.05, false);
+  grime(ctx, w, h, 16);
+  noiseBlotches(ctx, w, h, 40, 0.04, false);
   return canvasTexture(c);
 }
 
@@ -187,14 +192,19 @@ function podTexture() {
   const w = 512, h = 320;
   const [c, ctx] = makeCanvas(w, h);
   const base = ctx.createLinearGradient(0, 0, 0, h);
-  base.addColorStop(0, '#fbf4e4');
-  base.addColorStop(0.72, PALETTE.cream);
-  base.addColorStop(0.78, '#b46a35');   // heat shield rim
-  base.addColorStop(1, '#8a4a22');
+  base.addColorStop(0, '#e8ecf0');
+  base.addColorStop(0.72, '#c9ced4');   // brushed steel capsule
+  base.addColorStop(0.78, '#5a4a44');   // heat shield rim (dark ablative)
+  base.addColorStop(1, '#3c322e');
   ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 120; i++) {
+    const l = trand() > 0.5;
+    ctx.fillStyle = `rgba(${l ? 255 : 40},${l ? 255 : 44},${l ? 255 : 50},${0.03 + trand() * 0.035})`;
+    ctx.fillRect(0, trand() * h * 0.72, w, 1 + trand() * 2);
+  }
 
-  // navy crown band
-  ctx.fillStyle = PALETTE.navy; ctx.fillRect(0, 0, w, 34);
+  // gunmetal crown band + orange accent
+  ctx.fillStyle = '#3a414c'; ctx.fillRect(0, 0, w, 34);
   ctx.fillStyle = PALETTE.orange; ctx.fillRect(0, 34, w, 9);
 
   panelLines(ctx, w, h * 0.74, 6, 2);
@@ -216,11 +226,19 @@ function podTexture() {
 function noseTexture() {
   const w = 512, h = 256;
   const [c, ctx] = makeCanvas(w, h);
-  ctx.fillStyle = PALETTE.orange; ctx.fillRect(0, 0, w, h);
-  // cream chevrons
-  ctx.fillStyle = PALETTE.cream;
-  ctx.fillRect(0, h * 0.55, w, h * 0.45);
-  ctx.fillStyle = PALETTE.teal; ctx.fillRect(0, h * 0.55, w, 8);
+  // dark gunmetal tip fading into the stainless body
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#363d48');
+  g.addColorStop(0.45, '#4c545f');
+  g.addColorStop(0.55, '#c9ced4');
+  g.addColorStop(1, '#dde2e7');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 110; i++) {
+    const l = trand() > 0.5;
+    ctx.fillStyle = `rgba(${l ? 255 : 30},${l ? 255 : 34},${l ? 255 : 40},${0.03 + trand() * 0.035})`;
+    ctx.fillRect(0, trand() * h, w, 1 + trand() * 2);
+  }
+  ctx.fillStyle = PALETTE.orange; ctx.fillRect(0, h * 0.55, w, 8);
   panelLines(ctx, w, h, 4, 1);
   grime(ctx, w, h, 8);
   return canvasTexture(c);
@@ -237,6 +255,31 @@ function hazardTexture() {
     ctx.closePath(); ctx.fill();
   }
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, w, 6); ctx.fillRect(0, h - 6, w, 6);
+  return canvasTexture(c);
+}
+
+// interstage shell: brushed steel ring wall with vents + warning ring
+function interstageTexture() {
+  const w = 512, h = 128;
+  const [c, ctx] = makeCanvas(w, h);
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#aeb4bb'); g.addColorStop(0.5, '#969ca4'); g.addColorStop(1, '#7e858d');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 80; i++) {
+    const l = trand() > 0.5;
+    ctx.fillStyle = `rgba(${l ? 255 : 30},${l ? 255 : 34},${l ? 255 : 40},0.05)`;
+    ctx.fillRect(0, trand() * h, w, 1 + trand() * 2);
+  }
+  // vent slots
+  ctx.fillStyle = '#272c33';
+  for (let x = 18; x < w; x += 64) ctx.fillRect(x, h * 0.34, 30, h * 0.32);
+  // bolted seams + orange warning stripe at the separation plane
+  ctx.fillStyle = 'rgba(40,45,52,0.6)';
+  ctx.fillRect(0, 4, w, 4);
+  ctx.fillStyle = PALETTE.orange;
+  ctx.fillRect(0, h - 12, w, 8);
+  ctx.fillStyle = 'rgba(25,30,42,0.55)';
+  for (let x = 8; x < w; x += 26) { ctx.beginPath(); ctx.arc(x, 16, 3, 0, 7); ctx.fill(); }
   return canvasTexture(c);
 }
 
@@ -267,21 +310,27 @@ let MATS = null;
 export function getMaterials() {
   if (MATS) return MATS;
   MATS = {
+    // shiny stainless: high metalness + low-ish roughness (env map in main.js
+    // gives the metal something to reflect)
     tankSmall: new THREE.MeshStandardMaterial({
-      map: tankTexture(PARTS.tankSmall), roughnessMap: roughnessCanvas(256, 256, 145),
-      roughness: 1, metalness: 0.08,
+      map: tankTexture(PARTS.tankSmall), roughnessMap: roughnessCanvas(256, 256, 92),
+      roughness: 1, metalness: 0.82,
     }),
     tankLarge: new THREE.MeshStandardMaterial({
-      map: tankTexture(PARTS.tankLarge), roughnessMap: roughnessCanvas(256, 256, 145),
-      roughness: 1, metalness: 0.08,
+      map: tankTexture(PARTS.tankLarge), roughnessMap: roughnessCanvas(256, 256, 92),
+      roughness: 1, metalness: 0.82,
     }),
     pod: new THREE.MeshStandardMaterial({
-      map: podTexture(), roughnessMap: roughnessCanvas(256, 256, 135),
-      roughness: 1, metalness: 0.1,
+      map: podTexture(), roughnessMap: roughnessCanvas(256, 256, 100),
+      roughness: 1, metalness: 0.7,
     }),
     nose: new THREE.MeshStandardMaterial({
-      map: noseTexture(), roughnessMap: roughnessCanvas(256, 256, 120),
-      roughness: 1, metalness: 0.1,
+      map: noseTexture(), roughnessMap: roughnessCanvas(256, 256, 95),
+      roughness: 1, metalness: 0.75,
+    }),
+    interstage: new THREE.MeshStandardMaterial({
+      map: interstageTexture(), roughness: 0.42, metalness: 0.85,
+      side: THREE.DoubleSide,
     }),
     hazard: new THREE.MeshStandardMaterial({ map: hazardTexture(), roughness: 0.75, metalness: 0.15 }),
     metal: new THREE.MeshStandardMaterial({
@@ -290,7 +339,7 @@ export function getMaterials() {
     }),
     metalDark: new THREE.MeshStandardMaterial({ color: PALETTE.metalDark, roughness: 0.5, metalness: 0.85 }),
     machinery: new THREE.MeshStandardMaterial({ color: PALETTE.navyDark, roughness: 0.6, metalness: 0.45 }),
-    fin: new THREE.MeshStandardMaterial({ color: PALETTE.teal, roughness: 0.55, metalness: 0.12 }),
+    fin: new THREE.MeshStandardMaterial({ color: '#6d7681', roughness: 0.38, metalness: 0.8 }),
     finEdge: new THREE.MeshStandardMaterial({ color: PALETTE.orange, roughness: 0.5, metalness: 0.1 }),
     trim: new THREE.MeshStandardMaterial({ color: '#2e3a52', roughness: 0.6, metalness: 0.35 }),
     bellInner: new THREE.MeshStandardMaterial({
@@ -460,7 +509,7 @@ export function buildPartMesh(partId) {
 // scaled down and fanned out under a shared mount plate, and the physics sums
 // their thrust, so 2-3 engines really do launch faster.
 // --------------------------------------------------------------------------
-const CLUSTER_SCALE = { 1: 1, 2: 0.62, 3: 0.54, 4: 0.47 };
+const CLUSTER_SCALE = { 1: 1, 2: 0.62, 3: 0.54, 4: 0.47, 5: 0.44, 6: 0.42 };
 
 export function buildRocketGroup(stack) {
   const m = getMaterials();
@@ -483,7 +532,8 @@ export function buildRocketGroup(stack) {
       let j = i;
       while (j < stack.length && stack[j].type === 'engine') j++;
       const n = j - i;
-      const s = CLUSTER_SCALE[Math.min(n, 4)] ?? 0.42;
+      const s = CLUSTER_SCALE[Math.min(n, 6)] ?? 0.40;
+      const runBottom = y;
       let clusterTop = y;
       for (let k = 0; k < n; k++) {
         const p = stack[i + k];
@@ -492,9 +542,12 @@ export function buildRocketGroup(stack) {
         mesh.scale.setScalar(s);
         const exitR = mesh.userData.exitRadius * s;
         let ox = 0, oz = 0;
-        if (n > 1) {
+        if (n > 1 && !(n >= 5 && k === 0)) {
+          // 2-4: full ring; 5+: one center engine + the rest fanned in a ring
+          const ringN = n >= 5 ? n - 1 : n;
+          const ringK = n >= 5 ? k - 1 : k;
           const ro = Math.max(0.12, 0.62 - exitR - 0.04);
-          const a = (k / n) * Math.PI * 2 + Math.PI / 6;
+          const a = (ringK / ringN) * Math.PI * 2 + Math.PI / 6;
           ox = Math.cos(a) * ro; oz = Math.sin(a) * ro;
         }
         mesh.position.set(ox, y, oz);
@@ -515,6 +568,20 @@ export function buildRocketGroup(stack) {
         plate.position.y = clusterTop - 0.08;
         plate.castShadow = true;
         stageGroups[stageIndex].add(plate);
+      }
+      if (i > 0) {
+        // engines mid-stack (an upper stage above a connector): no naked
+        // engines dangling in the open — enclose them in an interstage shell.
+        // The shell is added to the stage BELOW, so when you decouple, shell
+        // and connector leave together and the next stage's engines appear.
+        const len = clusterTop - runBottom + 0.06;
+        const wall = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.655, 0.672, len, 32, 1, true), m.interstage);
+        wall.name = 'interstage';
+        wall.position.y = (runBottom + clusterTop) / 2;
+        wall.castShadow = true;
+        const shellStage = stageIndex > 0 ? stageIndex - 1 : stageIndex;
+        stageGroups[shellStage].add(wall);
       }
       y = clusterTop;
       i = j;
