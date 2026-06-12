@@ -8,19 +8,29 @@ import { PARTS, DEFAULT_STACK, buildPartMesh, stackStats } from './rocket.js';
 const PALETTE_ORDER = ['pod', 'nose', 'tankSmall', 'tankLarge', 'engineSmall', 'engineLarge', 'fins', 'decoupler'];
 
 // Insertion logic keeps stacks sane with zero fiddling:
-//   engines sink to the bottom of the current bottom stage,
+//   a decoupler "opens" a new stage — everything added after it builds that
+//   upper stage, so decoupler → engine → tank stacks more thrust + fuel;
+//   engines sink to the bottom of the CURRENT (topmost) stage and cluster,
 //   pods & nose cones float to the top,
 //   tanks/decouplers go just below the top pod/nose cap,
-//   fins ride with whatever is at the bottom.
+//   fins ride the booster, just above its engine cluster.
 function insertionIndex(stackIds, partId) {
   const type = PARTS[partId].type;
-  if (type === 'engine') return 0;
+  const types = stackIds.map((id) => PARTS[id].type);
+  if (type === 'engine') {
+    // bottom of the stage being built = right above the topmost decoupler
+    return types.lastIndexOf('decoupler') + 1;
+  }
   if (type === 'pod' || type === 'nose') return stackIds.length;
-  if (type === 'fins') return Math.min(1, stackIds.length);
+  if (type === 'fins') {
+    let k = 0;
+    while (k < types.length && types[k] === 'engine') k++;
+    return k;
+  }
   // tank / decoupler: below the topmost run of pods/noses
   let i = stackIds.length;
   while (i > 0) {
-    const t = PARTS[stackIds[i - 1]].type;
+    const t = types[i - 1];
     if (t === 'pod' || t === 'nose') i--;
     else break;
   }

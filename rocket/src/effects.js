@@ -258,9 +258,11 @@ const CONE_VERT = /* glsl */`
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vWorldPos;
+  varying vec3 vAxis;
   void main() {
     vUv = uv;
     vNormal = normalize(mat3(modelMatrix) * normal);
+    vAxis = normalize(mat3(modelMatrix) * vec3(0.0, 1.0, 0.0));
     vec4 wp = modelMatrix * vec4(position, 1.0);
     vWorldPos = wp.xyz;
     gl_Position = projectionMatrix * viewMatrix * wp;
@@ -275,6 +277,7 @@ const CONE_FRAG = /* glsl */`
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vWorldPos;
+  varying vec3 vAxis;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
@@ -296,6 +299,11 @@ const CONE_FRAG = /* glsl */`
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
     float facing = abs(dot(normalize(vNormal), viewDir));
     float radial = smoothstep(0.0, 0.62, facing);
+    // looking straight up/down the plume (e.g. orbiting underneath the
+    // rocket): silhouette normals go edge-on and the cone would vanish, so
+    // blend toward a solid glowing disc instead
+    float endOn = smoothstep(0.72, 0.94, abs(dot(normalize(vAxis), viewDir)));
+    radial = mix(radial, 0.8, endOn);
     // hot white throat -> orange body early -> reddish tail; vacuum shifts violet
     vec3 col = mix(uColorCore, uColorEdge, smoothstep(0.02, 0.4, along + 0.18 * (n2 - 0.5)));
     col = mix(col, vec3(0.5, 0.45, 1.0), uVac * smoothstep(0.1, 0.8, along) * 0.6);

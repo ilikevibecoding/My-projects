@@ -33,7 +33,7 @@ export const PARTS = {
   engineSmall: { id: 'engineSmall', name: 'Engine S “Sprig”', type: 'engine', massDry: 320, thrust: 42000, burn: 16, height: 1.1, radius: 0.5, cdA: 0.08, blurb: '42 kN' },
   engineLarge: { id: 'engineLarge', name: 'Engine L “Mastodon”', type: 'engine', massDry: 880, thrust: 66000, burn: 21, height: 1.45, radius: 0.62, cdA: 0.10, blurb: '66 kN' },
   fins: { id: 'fins', name: 'Fin Set ×4', type: 'fins', massDry: 120, height: 0, radius: 0, cdA: 0.14, blurb: 'stability' },
-  decoupler: { id: 'decoupler', name: 'Decoupler', type: 'decoupler', massDry: 90, height: 0.3, radius: 0.63, cdA: 0.05, blurb: 'stage split' },
+  decoupler: { id: 'decoupler', name: 'Decoupler', type: 'decoupler', massDry: 90, height: 0.3, radius: 0.63, cdA: 0.05, blurb: 'stage split · build a new stage above' },
 };
 
 export const DEFAULT_STACK = ['engineLarge', 'fins', 'tankLarge', 'pod'];
@@ -454,8 +454,14 @@ export function buildPartMesh(partId) {
 //   stageGroups  — [Group] bottom-first (split at decouplers) for staging
 //   partEntries  — [{ part, mesh, stackIndex, stageIndex, yBottom, yTop }]
 //   height       — total stack height
-//   nozzles      — [{ stageIndex, worldYLocal, exitRadius }] plume anchors
+//   nozzles      — [{ stageIndex, local:V3, yLocal, exitRadius }] plume anchors
+//
+// Consecutive engines cluster radially (KSP "moar boosters" style): they get
+// scaled down and fanned out under a shared mount plate, and the physics sums
+// their thrust, so 2-3 engines really do launch faster.
 // --------------------------------------------------------------------------
+const CLUSTER_SCALE = { 1: 1, 2: 0.62, 3: 0.54, 4: 0.47 };
+
 export function buildRocketGroup(stack) {
   const m = getMaterials();
   const group = new THREE.Group();
@@ -467,9 +473,54 @@ export function buildRocketGroup(stack) {
   const nozzles = [];
   let y = 0;
   let stageIndex = 0;
-  let lastRadius = 0.62;
 
-  stack.forEach((part, i) => {
+  let i = 0;
+  while (i < stack.length) {
+    const part = stack[i];
+
+    // ---- engine run: place the whole consecutive cluster at this height
+    if (part.type === 'engine') {
+      let j = i;
+      while (j < stack.length && stack[j].type === 'engine') j++;
+      const n = j - i;
+      const s = CLUSTER_SCALE[Math.min(n, 4)] ?? 0.42;
+      let clusterTop = y;
+      for (let k = 0; k < n; k++) {
+        const p = stack[i + k];
+        const mesh = buildPartMesh(p.id);
+        mesh.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+        mesh.scale.setScalar(s);
+        const exitR = mesh.userData.exitRadius * s;
+        let ox = 0, oz = 0;
+        if (n > 1) {
+          const ro = Math.max(0.12, 0.62 - exitR - 0.04);
+          const a = (k / n) * Math.PI * 2 + Math.PI / 6;
+          ox = Math.cos(a) * ro; oz = Math.sin(a) * ro;
+        }
+        mesh.position.set(ox, y, oz);
+        nozzles.push({
+          stageIndex,
+          local: new THREE.Vector3(ox, y + 0.02, oz),
+          yLocal: y + 0.02,
+          exitRadius: exitR,
+        });
+        mesh.userData.partEntry = { part: p, stackIndex: i + k, stageIndex };
+        stageGroups[stageIndex].add(mesh);
+        partEntries.push({ part: p, mesh, stackIndex: i + k, stageIndex, yBottom: y, yTop: y + p.height * s });
+        clusterTop = Math.max(clusterTop, y + p.height * s);
+      }
+      if (n > 1) {
+        // shared mount plate bridging the cluster to the tank above
+        const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.58, 0.16, 28), m.trim);
+        plate.position.y = clusterTop - 0.08;
+        plate.castShadow = true;
+        stageGroups[stageIndex].add(plate);
+      }
+      y = clusterTop;
+      i = j;
+      continue;
+    }
+
     const mesh = buildPartMesh(part.id);
     mesh.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
     let yBottom = y, yTop = y;
@@ -481,10 +532,6 @@ export function buildRocketGroup(stack) {
       mesh.position.y = y;
       yTop = y + part.height;
       y = yTop;
-      lastRadius = part.radius || lastRadius;
-    }
-    if (part.type === 'engine') {
-      nozzles.push({ stageIndex, yLocal: yBottom + 0.02, exitRadius: mesh.userData.exitRadius });
     }
     mesh.userData.partEntry = { part, stackIndex: i, stageIndex };
     stageGroups[stageIndex].add(mesh);
@@ -497,7 +544,8 @@ export function buildRocketGroup(stack) {
       stageGroups.push(sg);
       group.add(sg);
     }
-  });
+    i++;
+  }
 
   return { group, stageGroups, partEntries, height: y, nozzles };
 }

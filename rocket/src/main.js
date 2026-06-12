@@ -119,7 +119,7 @@ function buildAndPlaceRocket(stackIds) {
   game.rocket = rocket;
   for (const nz of rocket.nozzles) {
     const plume = createPlume(nz.exitRadius);
-    plume.position.y = nz.yLocal + 0.05;
+    plume.position.set(nz.local.x, nz.local.y + 0.03, nz.local.z);
     rocket.stageGroups[nz.stageIndex].add(plume);
     game.plumes.push({ group: plume, stageIndex: nz.stageIndex, nozzle: nz });
   }
@@ -139,6 +139,7 @@ function enterBuilder() {
   hud.showBuilder();
   rig.mode = 'orbit';
   rig.resetManual();
+  rig.snapOrbit(game.simTime, game.rocket ? game.rocket.height : 8);
 }
 
 function startFlight(stackIds = builder.stackIds) {
@@ -238,10 +239,11 @@ function buildExhaustCtx() {
   const base = rocketBasePos(new THREE.Vector3());
   const nozzles = [];
   const stageIdx = sim.stages.findIndex((s) => s.attached);
+  _q1.setFromUnitVectors(Y_AXIS, sim.axis); // same roll-free frame as the visuals
   for (const pl of game.plumes) {
     if (pl.stageIndex !== stageIdx) continue;
     nozzles.push({
-      pos: base.clone().addScaledVector(sim.axis, pl.nozzle.yLocal),
+      pos: base.clone().add(pl.nozzle.local.clone().applyQuaternion(_q1)),
       dir: sim.axis.clone().multiplyScalar(-1),
       exitRadius: pl.nozzle.exitRadius,
     });

@@ -51,7 +51,9 @@ export class CameraRig {
       const dx = e.clientX - lastX, dy = e.clientY - lastY;
       lastX = e.clientX; lastY = e.clientY;
       this.userYaw -= dx * 0.006;
-      this.userPitch = THREE.MathUtils.clamp(this.userPitch + dy * 0.005, -0.55, 1.25);
+      // near-full vertical range: you can dive below the rocket and look up
+      // at the engines from underneath (great once you're in space)
+      this.userPitch = THREE.MathUtils.clamp(this.userPitch + dy * 0.005, -1.45, 1.45);
     });
     dom.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -64,6 +66,12 @@ export class CameraRig {
   resize(w, h) {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+  }
+
+  // hard cut to the current orbit framing (used when entering the builder —
+  // gliding down from wherever the flight ended looks broken)
+  snapOrbit(time, stackHeight) {
+    this.updateOrbit(1e6, time, stackHeight); // k -> 1: converges instantly
   }
 
   // ---- builder: slow orbit around the stack (right-drag steers it)
@@ -86,14 +94,19 @@ export class CameraRig {
     // manual orbit: rotate the heading around local up, then pitch it
     if (this.userYaw !== 0) _horiz.applyAxisAngle(_up, this.userYaw);
     const speed = target.vel.length();
+    const manual = this.userYaw !== 0 || this.userPitch !== 0;
     const dist = THREE.MathUtils.clamp(15 + speed * 0.045, 15, 34) * this.userZoom;
-    const lift = (3.2 + speed * 0.012) + dist * Math.sin(this.userPitch);
+    const autoLift = manual ? 0 : 3.2 + speed * 0.012;
+    const lift = autoLift + dist * Math.sin(this.userPitch);
     const horizDist = dist * Math.cos(this.userPitch);
     _desired.copy(target.pos).addScaledVector(_horiz, horizDist).addScaledVector(_up, lift);
     // never clip into the terrain near the pad
     const alt = altitudeOf(_desired);
     if (alt < 2.6) _desired.addScaledVector(_up, 2.6 - alt);
-    _look.copy(target.pos).addScaledVector(target.vel, 0.22).addScaledVector(_up, 0.6);
+    // manual orbit: keep the rocket dead-center (velocity look-ahead would
+    // shove it off-frame when inspecting from below at high speed)
+    if (manual) _look.copy(target.pos);
+    else _look.copy(target.pos).addScaledVector(target.vel, 0.22).addScaledVector(_up, 0.6);
     this._smooth(dt, this.dragging ? 14 : 3.4);
   }
 
@@ -107,6 +120,13 @@ export class CameraRig {
     const k = 1 - Math.exp(-rate * dt);
     this.smoothPos.lerp(_desired, k);
     this.smoothLook.lerp(_look, k);
+    // exponential smoothing can be left kilometres behind after a long
+    // rAF stall (tab switch) or a debug time-warp — and would then pan
+    // across empty sky for many seconds. Clamp the trailing distance.
+    const posErr = this.smoothPos.distanceTo(_desired);
+    if (posErr > 40) this.smoothPos.lerp(_desired, 1 - 40 / posErr);
+    const lookErr = this.smoothLook.distanceTo(_look);
+    if (lookErr > 55) this.smoothLook.lerp(_look, 1 - 55 / lookErr);
     this.camera.position.copy(this.smoothPos);
     // keep "up" aligned with local up so the horizon stays level
     _tmp.copy(this.smoothPos).sub(PLANET_CENTER).normalize();
