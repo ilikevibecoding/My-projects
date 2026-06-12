@@ -251,3 +251,49 @@ red-black. Probed result: trunk RGB(31,19,7) ≈ legible dark bark vs (15,30,12)
 
 No code changes for iter 10: stopping rule requires a second consecutive all-pass run on the
 same build (also doubles as a determinism check of the seeded world).
+
+---
+
+## Iteration 10 — second consecutive all-pass, loop complete (shots/iter_10, full run)
+
+Re-ran the full harness on the identical build (zero code changes since iter 9):
+
+- All six beauty shots hold: vista (haze + mountains + light shafts), camp day/golden/night,
+  forest (brown trunks), pond (reflection + shore blend, grey rocks).
+- Determinism: iter9↔iter10 camp_day meanAbsDiff 3.2 / forest_day 4.3 — at the grain+wind-phase
+  noise floor; the seeded world is pixel-stable across full restarts.
+- Motion pairs animated: grass 7.0 / water 5.9 / fire 11.6. Sleep golden→night ok. Eye 1.7 m,
+  grounded, in bounds. 135–335 calls, ≤2.6M tris, 12–19 fps SwiftShader lower bound.
+- Scoring: 1 PASS · 2 PASS · 3 PASS · 4 PASS · 5 PASS · 6 PASS · 7 PASS · 8 PASS · 9 PASS ·
+  10 PASS · 11 PASS. **= 11/11 — second consecutive all-pass. STOP CONDITION MET.**
+
+---
+
+# Final summary
+
+**Loop result: 11/11 twice in a row (iterations 9 & 10), finished in 10 of 12 allowed
+iterations.** Score trajectory: 1 → 4 → 7 → 8 → 6 → 7 → 10 → 10 → 11 → 11.
+
+Everything is procedural (no downloaded assets): analytic-FBM radial terrain with a splat
+shader (grass/dirt/rock by slope/height/path/noise), canvas-painted detail textures, gradient
+sky dome (sun/moon/stars/FBM clouds), 60k instanced grass cards with forced-up normals and
+vertex wind, two jittered instanced tree species + rocks, planar-reflection pond with shoreline
+depth fade, GPU campfire (flame/ember/smoke/spark billboards + flicker light), three
+time-of-day presets, MSAA → GTAO → bloom → ACES → vignette/grain post stack, and four raycast
+interactions (light fire, add wood, sit, sleep) with a loop-driven screen fade.
+
+Hard-won lessons (full details in iteration notes above):
+- **Headless Chrome only renders when the compositor is pumped** — screenshots force
+  BeginFrames; idle `waitForFunction` stalls rAF, so all timed state is awaited with
+  `pumpUntil` (throwaway screenshots) + a `debugAPI.getState()` that exposes every async flag.
+- **renderer.info must be accumulated manually** (autoReset off, reset before composer.render)
+  or post passes hide the real draw-call/triangle budget.
+- **Drive timed visuals from the render loop, never wall-clock timers** — SwiftShader's low
+  fps dilates `setTimeout`-based fades into broken screenshots.
+- **Debug by measurement, not by guessing**: the "black trunks" bug survived three
+  texture/tint fixes; a runtime A/B probe (GTAO off / white albedo / hemi×2, sampling actual
+  pixels) proved canopy-shadowed trunks live off hemisphere light deep in the ACES toe, and
+  the fix (material-local `indirectDiffuse *= 6`) followed in minutes.
+- Stylized-realistic lighting wants per-preset *shape* control, not just colors — the golden
+  sky only stopped reading mauve once the gradient exponent (`uGradPower`) became a preset
+  knob.
