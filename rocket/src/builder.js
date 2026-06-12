@@ -113,12 +113,13 @@ export function createBuilder({ onStackChange, onLaunch, getInsertAnchor, onInse
   const api = {
     get stackIds() { return [...stackIds]; },
 
-    // anchorIndex (optional): insert right ABOVE that stack slot — set by
-    // right-clicking a stacked part. null = smart auto-placement.
-    // Returns the index the part landed at.
-    addPart(id, anchorIndex = null) {
-      const idx = anchorIndex !== null
-        ? Math.max(0, Math.min(stackIds.length, anchorIndex + 1))
+    // anchorGap (optional): a seam index 0..len — insert exactly THERE.
+    // 0 = very bottom (under everything), len = on top. Set by right-clicking
+    // a stacked part (lower half = below it, upper half = above it).
+    // null = smart auto-placement. Returns the index the part landed at.
+    addPart(id, anchorGap = null) {
+      const idx = anchorGap !== null
+        ? Math.max(0, Math.min(stackIds.length, anchorGap))
         : insertionIndex(stackIds, id);
       stackIds.splice(idx, 0, id);
       refreshStats();

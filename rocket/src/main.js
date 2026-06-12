@@ -102,7 +102,8 @@ const game = {
   accumulator: 0,
   countdown: null,            // seconds left in the 3-2-1 (null = no countdown)
   countdownShown: 0,          // last number flashed
-  placeAnchor: null,          // builder: stackIndex the next part is added above
+  placeAnchor: null,          // builder seam (gap) index: insert exactly there.
+                              // 0 = very bottom, stack.length = on top, null = auto
   debugPaused: false,
   frameMs: [],
   lastDrawCalls: 0,
@@ -182,8 +183,9 @@ const builder = createBuilder({
   onLaunch: () => startFlight(),
   getInsertAnchor: () => game.placeAnchor,
   onInserted: (at) => {
-    // keep building upward from the spot the player picked
-    if (game.placeAnchor !== null) { game.placeAnchor = at; refreshAnchorMarker(); }
+    // keep building upward from the spot the player picked: the seam moves
+    // to just above the part that was placed
+    if (game.placeAnchor !== null) { game.placeAnchor = at + 1; refreshAnchorMarker(); }
   },
 });
 
@@ -204,13 +206,25 @@ function refreshAnchorMarker() {
     if (builderHintEl) builderHintEl.textContent = BUILDER_HINT_DEFAULT;
     return;
   }
-  const entry = game.rocket.partEntries.find((e) => e.stackIndex === game.placeAnchor);
-  if (!entry) { game.placeAnchor = null; refreshAnchorMarker(); return; }
-  anchorMarker.position.set(0, entry.yTop + 0.03, 0);
+  const entries = game.rocket.partEntries;
+  const len = builder.stackIds.length;
+  const gap = THREE.MathUtils.clamp(game.placeAnchor, 0, len);
+  game.placeAnchor = gap;
+  // marker sits at the seam: bottom of the part currently at `gap`,
+  // or on top of the whole stack
+  let y;
+  if (gap >= len) y = game.rocket.height + 0.06;
+  else y = (entries.find((e) => e.stackIndex === gap)?.yBottom ?? 0) + 0.03;
+  anchorMarker.position.set(0, Math.max(0.05, y), 0);
   game.rocket.group.add(anchorMarker);
   if (builderHintEl) {
-    builderHintEl.textContent =
-      `adding above: ${entry.part.name.toLowerCase()} · right-click empty space to clear`;
+    const below = gap > 0 ? entries.find((e) => e.stackIndex === gap - 1)?.part.name : null;
+    const above = gap < len ? entries.find((e) => e.stackIndex === gap)?.part.name : null;
+    let where;
+    if (!below) where = 'adding at the very bottom (booster goes here)';
+    else if (!above) where = 'adding on top of the stack';
+    else where = `adding between ${below.toLowerCase()} and ${above.toLowerCase()}`;
+    builderHintEl.textContent = `${where} · right-click empty space to clear`;
   }
 }
 
@@ -557,7 +571,10 @@ window.addEventListener('keyup', (e) => {
 // (right-DRAG stays camera orbit — we only treat tiny-movement releases as clicks)
 const raycaster = new THREE.Raycaster();
 
-function pickPartEntry(e) {
+// skipFins: fin blades fan out and visually wrap the bottom engine, so for
+// seam PICKING we prefer the body/engine behind them (players aiming "at the
+// bottom" mean the engine, not the fin). Removal clicks keep fins targetable.
+function pickPartEntry(e, { skipFins = false } = {}) {
   if (game.mode !== 'builder' || !game.rocket) return null;
   const ndc = new THREE.Vector2(
     (e.clientX / window.innerWidth) * 2 - 1,
@@ -565,24 +582,35 @@ function pickPartEntry(e) {
   );
   raycaster.setFromCamera(ndc, rig.camera);
   const hits = raycaster.intersectObject(game.rocket.group, true);
+  let finsPick = null;
   for (const hit of hits) {
     let o = hit.object;
     while (o && !o.userData.partEntry) o = o.parent;
-    if (o && o.userData.partEntry) return o.userData.partEntry;
+    if (o && o.userData.partEntry) {
+      // resolve to the FULL entry (with yBottom/yTop) — the mesh userData
+      // only carries a slim {part, stackIndex} reference
+      const slim = o.userData.partEntry;
+      const entry = game.rocket.partEntries.find((p) => p.stackIndex === slim.stackIndex) ?? slim;
+      // height of the hit in rocket-local space (group sits upright in builder)
+      const localY = hit.point.y - game.rocket.group.position.y;
+      const pick = { entry, localY };
+      if (skipFins && entry.part.type === 'fins') {
+        finsPick = finsPick ?? pick;     // fall back to it if nothing better
+        continue;
+      }
+      return pick;
+    }
   }
-  return null;
+  return finsPick;
 }
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
-  const entry = pickPartEntry(e);
-  if (!entry) return;
-  const removedIdx = entry.stackIndex;
-  // keep the anchor pointing at the same physical part after the removal
-  if (game.placeAnchor !== null) {
-    if (removedIdx === game.placeAnchor) game.placeAnchor = null;
-    else if (removedIdx < game.placeAnchor) game.placeAnchor -= 1;
-  }
+  const pick = pickPartEntry(e);
+  if (!pick) return;
+  const removedIdx = pick.entry.stackIndex;
+  // keep the anchor seam at the same physical spot after the removal
+  if (game.placeAnchor !== null && removedIdx < game.placeAnchor) game.placeAnchor -= 1;
   builder.removeAt(removedIdx);
   audio.uiRemove();
 });
@@ -599,14 +627,31 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   rcStart = null;
   if (moved > 6 || held > 600) return;            // was an orbit drag
   if (game.mode !== 'builder') return;
-  const entry = pickPartEntry(e);
-  if (entry) {
-    setPlaceAnchor(entry.stackIndex);
+  const pick = pickPartEntry(e, { skipFins: true });
+  if (pick) {
+    // click the LOWER half of a part -> seam below it (booster goes there!);
+    // upper half -> seam above it. Judged in SCREEN space so it matches what
+    // the player sees regardless of the camera's viewing angle.
+    const { entry } = pick;
+    const sb = projectStackY(entry.yBottom);
+    const st = projectStackY(entry.yTop);
+    const midScreen = (sb + st) / 2;   // clientY grows downward
+    setPlaceAnchor(e.clientY > midScreen ? entry.stackIndex : entry.stackIndex + 1);
     audio.uiClick();
   } else {
     setPlaceAnchor(null);
   }
 });
+
+// screen-pixel Y of a height on the rocket's center axis (builder mode)
+function projectStackY(localY) {
+  game.rocket.group.updateMatrixWorld(true);
+  rig.camera.updateMatrixWorld(true);
+  const p = new THREE.Vector3(0, localY, 0)
+    .applyMatrix4(game.rocket.group.matrixWorld)
+    .project(rig.camera);
+  return ((1 - p.y) / 2) * window.innerHeight;
+}
 
 // UI blips (palette add-clicks, launch, revert) — DOM-level so builder.js
 // stays audio-agnostic
@@ -869,6 +914,23 @@ const debugAPI = {
 
   builderInfo() {
     return { stackIds: builder.stackIds, anchor: game.placeAnchor };
+  },
+
+  // screen pixel coords of a point `frac` of the way up a stacked part —
+  // lets tests right-click exactly where a player would
+  partScreenPoint(stackIndex, frac = 0.5) {
+    if (!game.rocket) return null;
+    const e = game.rocket.partEntries.find((p) => p.stackIndex === stackIndex);
+    if (!e) return null;
+    game.rocket.group.updateMatrixWorld(true);
+    rig.camera.updateMatrixWorld(true);
+    const p = new THREE.Vector3(0, e.yBottom + (e.yTop - e.yBottom) * frac, 0)
+      .applyMatrix4(game.rocket.group.matrixWorld)
+      .project(rig.camera);
+    return {
+      x: Math.round(((p.x + 1) / 2) * window.innerWidth),
+      y: Math.round(((1 - p.y) / 2) * window.innerHeight),
+    };
   },
 
   rocketInfo() {

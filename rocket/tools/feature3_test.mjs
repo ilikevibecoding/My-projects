@@ -38,23 +38,37 @@ check('title is Space X Simulator', (await page.title()) === 'Space X Simulator'
 const bannerTxt = await page.evaluate(() => document.querySelector('#builder-title .big').textContent);
 check('builder banner rebranded', /SPACE\s*X\s*SIMULATOR/i.test(bannerTxt.replace(/\u00a0/g, ' ')), bannerTxt);
 
-// ---------- 2. right-click pick (anchor) ----------
-// rocket fills mid-screen in the builder; right-click the body to set anchor
-await page.mouse.move(512, 300);
-await page.mouse.click(512, 300, { button: 'right' });
+// ---------- 2. right-click pick (seam anchor) ----------
+// default stack: [engineLarge, fins, tankLarge, pod]
+// 2a. upper half of the big tank -> seam ABOVE it (gap 3)
+let pt = await page.evaluate(() => debugAPI.partScreenPoint(2, 0.75));
+await page.mouse.click(pt.x, pt.y, { button: 'right' });
 await page.waitForTimeout(400);
 let bi = await page.evaluate(() => debugAPI.builderInfo());
-check('right-click sets insertion anchor', bi.anchor !== null, `anchor=${bi.anchor} stack=${bi.stackIds}`);
-const anchorIdx = bi.anchor;
-const lenBefore = bi.stackIds.length;
+check('right-click upper half -> seam above the part', bi.anchor === 3,
+  `anchor=${bi.anchor} stack=${bi.stackIds}`);
 await page.click('.part-card[data-part="tankSmall"]');
 await page.waitForTimeout(400);
 bi = await page.evaluate(() => debugAPI.builderInfo());
-check('part inserted right above the picked part',
-  bi.stackIds.length === lenBefore + 1 && bi.stackIds[anchorIdx + 1] === 'tankSmall' && bi.anchor === anchorIdx + 1,
+check('part inserted exactly at the picked seam',
+  bi.stackIds[3] === 'tankSmall' && bi.anchor === 4,
+  `stack=${bi.stackIds} anchor=${bi.anchor}`);
+// 2b. LOWER half of the bottom engine -> seam at the very bottom (gap 0):
+// this is "click the bottom to add the booster down there"
+pt = await page.evaluate(() => debugAPI.partScreenPoint(0, 0.18));
+await page.mouse.click(pt.x, pt.y, { button: 'right' });
+await page.waitForTimeout(400);
+bi = await page.evaluate(() => debugAPI.builderInfo());
+check('right-click bottom of bottom engine -> seam at the very bottom', bi.anchor === 0,
+  `anchor=${bi.anchor}`);
+await page.click('.part-card[data-part="engineLarge"]');
+await page.waitForTimeout(400);
+bi = await page.evaluate(() => debugAPI.builderInfo());
+check('booster engine lands UNDER everything',
+  bi.stackIds[0] === 'engineLarge' && bi.stackIds[1] === 'engineLarge' && bi.anchor === 1,
   `stack=${bi.stackIds} anchor=${bi.anchor}`);
 await page.screenshot({ path: `${OUT}/1_anchor_insert.png` });
-// clear anchor (right-click empty sky, top-left corner away from rocket/UI)
+// clear anchor (right-click empty sky, away from rocket/UI)
 await page.mouse.click(700, 80, { button: 'right' });
 await page.waitForTimeout(250);
 bi = await page.evaluate(() => debugAPI.builderInfo());
