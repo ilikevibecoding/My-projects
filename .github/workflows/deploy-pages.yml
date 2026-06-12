@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - cursor/virtual-phone-gift-6027
+      - cursor/bc-5fd2158d-847b-44d3-b77f-90ba063719c5-2695
   workflow_dispatch:
 
 permissions:
@@ -31,6 +32,8 @@ jobs:
           mkdir -p dist
           cp -R index.html browser-phone dist/
           cp CNAME dist/CNAME
+          # camping world (pre-built static bundle) served at /play/
+          if [ -d camping-world/play ]; then cp -R camping-world/play dist/play; fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
