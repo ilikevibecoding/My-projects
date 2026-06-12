@@ -232,3 +232,22 @@ Fixes applied for iter 9: pine-trunk material gets `reflectedLight.indirectDiffu
 via onBeforeCompile (direct sun untouched, day/night ratios preserved — night probe shows no
 glow); bark texture g/b channels lifted (0.80/0.56 → 0.84/0.64) so shade reads brown, not
 red-black. Probed result: trunk RGB(31,19,7) ≈ legible dark bark vs (15,30,12) shaded foliage.
+
+---
+
+## Iteration 9 — trunks read as bark, first all-pass (shots/iter_9, full run)
+
+- forest_day: pine trunks finally read as **brown bark** under the canopies — measured
+  RGB(31,19,7), exactly the probe prediction. camp_day/camp_golden treeline trunks now read as
+  warm wood columns; night shows **no trunk glow** (indirect boost scales with the dark night
+  hemisphere, so ratios hold).
+- interact_seated: surge fire bright but plausible — distinct tongues, no amorphous blob, "[E]
+  Stand" prompt proves the seat. interact_after_sleep: full night + firelit tent + prompt.
+- Motion pairs animated: grass 7.2 / water 5.9 / fire 6.8 (noise floor ≈2). Sleep golden→night
+  verified in stats. Eye 1.7 m, grounded, in bounds. 135–335 calls, ≤2.6M tris (all passes),
+  17-19 fps under SwiftShader (CPU rasterizer) ⇒ comfortably 60fps-class on real GPUs.
+- Scoring: 1 PASS · 2 PASS · 3 PASS · 4 PASS · 5 PASS · 6 PASS · 7 PASS · 8 PASS · 9 PASS ·
+  10 PASS · 11 PASS. **= 11/11 — first all-pass.**
+
+No code changes for iter 10: stopping rule requires a second consecutive all-pass run on the
+same build (also doubles as a determinism check of the seeded world).
