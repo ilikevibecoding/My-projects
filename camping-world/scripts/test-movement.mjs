@@ -7,6 +7,11 @@
  *  - Eye height tracks terrain (camera y ≈ terrain + 1.7 wherever we end up)
  *  - A registered collider can't be walked through
  *  - No console errors
+ *
+ * Simulation is stepped DETERMINISTICALLY via controls.update(1/60) — the
+ * full scene renders at <1 fps under SwiftShader, so wall-clock waits test
+ * the software rasterizer's patience, not the controller. Key events still
+ * travel the real input path (Playwright → DOM listener → controls.keys).
  */
 import { chromium } from 'playwright-core';
 import { existsSync } from 'node:fs';
@@ -48,13 +53,19 @@ async function main() {
         window.__camera.position.z
       ),
     }));
+  // step the simulation n frames at a fixed 60Hz dt (deterministic)
+  const step = (n) =>
+    page.evaluate((frames) => {
+      for (let i = 0; i < frames; i++) window.__controls.update(1 / 60);
+    }, n);
+  const SIM_FRAMES = 120; // = 2.0s of simulated time
 
-  // --- walk forward ---
+  // --- walk forward (real key event → DOM listener → fixed-step sim) ---
   const s0 = await getState();
   await page.keyboard.down('KeyW');
-  await page.waitForTimeout(2000);
+  await step(SIM_FRAMES);
   await page.keyboard.up('KeyW');
-  await page.waitForTimeout(300);
+  await step(30); // damping run-out
   const s1 = await getState();
   const walkDist = Math.hypot(s1.pos[0] - s0.pos[0], s1.pos[2] - s0.pos[2]);
   check('walk moves forward', walkDist > 1.5 && walkDist < 8, `moved ${walkDist.toFixed(2)}m in 2s`);
@@ -62,10 +73,10 @@ async function main() {
   // --- sprint is faster ---
   await page.keyboard.down('ShiftLeft');
   await page.keyboard.down('KeyW');
-  await page.waitForTimeout(2000);
+  await step(SIM_FRAMES);
   await page.keyboard.up('KeyW');
   await page.keyboard.up('ShiftLeft');
-  await page.waitForTimeout(300);
+  await step(30);
   const s2 = await getState();
   const sprintDist = Math.hypot(s2.pos[0] - s1.pos[0], s2.pos[2] - s1.pos[2]);
   check('sprint faster than walk', sprintDist > walkDist * 1.4, `sprint ${sprintDist.toFixed(2)}m vs walk ${walkDist.toFixed(2)}m`);
@@ -81,17 +92,13 @@ async function main() {
     const c = window.__controls;
     c.colliders.push({ x: 50.0, z: 0.0, radius: 0.8 });
     c.setPose(48.0, 0.0, -Math.PI / 2, 0); // facing +x toward the collider
-    return new Promise((resolve) => {
-      const ev = (type, code) =>
-        document.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true }));
-      ev('keydown', 'KeyW');
-      setTimeout(() => {
-        ev('keyup', 'KeyW');
-        resolve({ x: c.position.x, z: c.position.z });
-      }, 2000);
-    });
+    const ev = (type, code) =>
+      document.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true }));
+    ev('keydown', 'KeyW');
+    for (let i = 0; i < 150; i++) c.update(1 / 60); // 2.5s sim — plenty to cover 2m
+    ev('keyup', 'KeyW');
+    return { x: c.position.x, z: c.position.z };
   });
-  await page.waitForTimeout(300);
   // Without the collider we'd travel ~4m (to x≈52). Blocked face = 50 - 0.8 - 0.35 = 48.85.
   check(
     'tree collider blocks player',
