@@ -93,3 +93,32 @@ Evidence: `shots/iter_2/`. Node-side tuning sweep (`tools/tune.mjs`) picked 66 k
 5. Space camera less steep (up 14, look −4) so limb + wide plume share the frame.
 6. Limb shell tighter (R+360).
 
+## Iteration 3 — plume volumetrics v1, sky depth, staging visibility
+
+Evidence: `shots/iter_3/`. Telemetry unchanged-green (64 s, drag, lowtwr, coast, stage event).
+
+| # | Item | Verdict | Notes |
+|---|------|---------|-------|
+| 1 | Rocket stylized-real | **FAIL** | Faint KARMAN decal now visible in midair; still under-bold at distance; pod windows small |
+| 2 | Exhaust sells | **FAIL** | Radial falloff helped edges; but core remains white ribbon (orange transition too late along length); vacuum plume tail too long/uniform |
+| 3 | Climb gradient | **FAIL** | midair now blue + cumulus ✓, high_altitude excellent ✓, space black/stars ✓ — but staging-altitude band still lavender-washed when cameras look into the below-horizon haze zone |
+| 4 | Launch site finished | **PASS** | (same as iter 2, still holds) |
+| 5 | Builder clean | **PASS** | (stats assertion green every run) |
+| 6 | Physics honest | **PASS** | telemetry identical-green to iter 2 |
+| 7 | Staging works | **FAIL→close** | Tumbling spent stage now VISIBLE mid-frame ✓ (fins+tank+engine, rotated ~120°) — but a stale 'SPACE REACHED' banner ghost from the previous view contaminates the shot (CSS transition froze under SwiftShader load); plume still hides separation point |
+| 8 | Camera never fails | **FAIL** | space.png: REVERT button still overlaps the plume column; staging camera stares into the empty haze band (neither sky nor ground) |
+| 9 | Post balanced | **FAIL** | staging/space plume column still saturates to paper |
+| 10 | Tech clean | **PASS*** | 58 calls/16 k tris; *SwiftShader caveat |
+| 11 | Cold-look | **FAIL** | high_altitude nearly passes; plume look is the blocker |
+
+**Score: 4/11.**
+
+### Fix list for iteration 4 (worst first)
+1. Banner/buttons: inline opacity (no CSS opacity transition — they freeze mid-fade under
+   load); move REVERT under the readout panel, away from the plume column.
+2. Plume: orange onset at 40 % length (was 70 %), vacuum tail fades hard (body exponent
+   + uVac·1.6), inner cone shorter, edge colors hotter (#ff4d0e).
+3. Staging camera → high three-quarter (planet as backdrop instead of haze band).
+4. Rocket textures: 64 px outlined wordmark, 11 px pinstripes, bigger flag patch,
+   38 px portholes, 4 px panel lines.
+

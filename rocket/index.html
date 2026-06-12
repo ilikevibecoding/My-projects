@@ -125,9 +125,9 @@
     #banner {
       position: absolute; top: 22%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
       text-align: center; opacity: 0; pointer-events: none;
-      transition: opacity 0.45s, transform 0.45s cubic-bezier(0.18, 1.6, 0.4, 1);
+      transition: transform 0.45s cubic-bezier(0.18, 1.6, 0.4, 1);
     }
-    #banner.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    #banner.visible { transform: translate(-50%, -50%) scale(1); }
     #banner .headline {
       font-size: 52px; font-weight: 900; letter-spacing: 10px; color: var(--cream);
       text-shadow: 0 0 26px rgba(110, 190, 255, 0.85), 0 4px 0 rgba(0,0,0,0.55);
@@ -135,9 +135,10 @@
     #banner .subline { font-size: 14px; letter-spacing: 5px; color: var(--orange-hot); text-transform: uppercase; margin-top: 6px; }
     #banner.crash .headline { text-shadow: 0 0 26px rgba(255, 120, 60, 0.9), 0 4px 0 rgba(0,0,0,0.55); }
     #revert-wrap {
-      position: absolute; top: 76%; left: 50%; transform: translateX(-50%);
-      width: 250px; display: none; pointer-events: auto;
+      position: absolute; top: 196px; left: 16px;
+      width: 190px; display: none; pointer-events: auto;
     }
+    #revert-wrap .btn { font-size: 13px; padding: 10px 12px; }
     #revert-wrap.visible { display: block; }
     #stage-flash {
       position: absolute; top: 18px; left: 50%; transform: translateX(-50%);

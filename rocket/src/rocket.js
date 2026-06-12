@@ -75,7 +75,7 @@ function noiseBlotches(ctx, w, h, n, alpha, light) {
 
 function panelLines(ctx, w, h, nx, ny) {
   ctx.strokeStyle = PALETTE.line;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 4;
   for (let i = 0; i < nx; i++) {
     const x = (w / nx) * i + 0.5;
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
@@ -146,10 +146,10 @@ function tankTexture(part, { stripeFrac = 0.18, decal = true } = {}) {
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
   ctx.fillRect(0, bandY + bandH - 6, w, 6);
 
-  // teal pinstripes
+  // teal pinstripes (bold enough to read from gameplay distance)
   ctx.fillStyle = PALETTE.teal;
-  ctx.fillRect(0, bandY - 16, w, 7);
-  ctx.fillRect(0, bandY + bandH + 9, w, 7);
+  ctx.fillRect(0, bandY - 22, w, 11);
+  ctx.fillRect(0, bandY + bandH + 11, w, 11);
 
   // weld bands top/bottom
   ctx.fillStyle = PALETTE.creamShade;
@@ -158,22 +158,24 @@ function tankTexture(part, { stripeFrac = 0.18, decal = true } = {}) {
   panelLines(ctx, w, h, 4, Math.max(2, Math.round(part.height)));
 
   if (decal) {
-    // vertical "KARMAN-1" wordmark
+    // vertical "KARMAN-1" wordmark — big and bold, readable in flight shots
     ctx.save();
-    ctx.translate(w * 0.30, h * 0.56);
+    ctx.translate(w * 0.28, h * 0.52);
     ctx.rotate(Math.PI / 2);
-    ctx.font = `900 ${Math.min(46, h * 0.3)}px "Trebuchet MS", sans-serif`;
+    ctx.font = `900 ${Math.min(64, h * 0.4)}px "Trebuchet MS", sans-serif`;
     ctx.fillStyle = PALETTE.navy;
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillText('KARMAN-1', 0, 0);
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.strokeText('KARMAN-1', 0, 0);
     ctx.restore();
     // flag patch
-    const fx = w * 0.62, fy = h * 0.62, fw = 64, fh = 40;
+    const fx = w * 0.60, fy = h * 0.60, fw = 92, fh = 58;
     ctx.fillStyle = PALETTE.navy; ctx.fillRect(fx, fy, fw, fh);
     ctx.fillStyle = PALETTE.orange; ctx.fillRect(fx, fy + fh * 0.55, fw, fh * 0.2);
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(fx + fw * 0.28, fy + fh * 0.34, 7, 0, 7); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2.5; ctx.strokeRect(fx, fy, fw, fh);
+    ctx.beginPath(); ctx.arc(fx + fw * 0.28, fy + fh * 0.34, 10, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 3; ctx.strokeRect(fx, fy, fw, fh);
   }
 
   grime(ctx, w, h);
@@ -199,8 +201,8 @@ function podTexture() {
 
   // windows: 3 round portholes around
   for (const fx of [0.17, 0.5, 0.83]) {
-    const x = w * fx, y = h * 0.38, r = 30;
-    ctx.fillStyle = '#1d2531'; ctx.beginPath(); ctx.arc(x, y, r + 7, 0, 7); ctx.fill();
+    const x = w * fx, y = h * 0.38, r = 38;
+    ctx.fillStyle = '#1d2531'; ctx.beginPath(); ctx.arc(x, y, r + 9, 0, 7); ctx.fill();
     const g = ctx.createRadialGradient(x - 8, y - 10, 2, x, y, r);
     g.addColorStop(0, '#bfe8ff'); g.addColorStop(0.35, '#5e9fd6'); g.addColorStop(1, '#17304d');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();

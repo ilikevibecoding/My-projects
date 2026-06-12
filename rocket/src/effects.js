@@ -283,17 +283,18 @@ const CONE_FRAG = /* glsl */`
     float n = noise(vec2(vUv.x * 7.0, along * 4.5 - uTime * 7.0));
     float n2 = noise(vec2(vUv.x * 13.0 + 5.0, along * 9.0 - uTime * 11.0));
     float flicker = 0.74 + 0.26 * n;
-    float body = pow(1.0 - along, 1.3);
+    // vacuum: expansion cools the tail fast -> shorter bright body
+    float body = pow(1.0 - along, 1.3 + uVac * 1.6);
     float diamonds = 0.82 + 0.18 * sin(along * 26.0 - uTime * 3.0) * (1.0 - uVac * 0.7);
     // volumetric read: dense looking through the middle, soft at silhouette
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
     float facing = abs(dot(normalize(vNormal), viewDir));
     float radial = smoothstep(0.0, 0.62, facing);
-    // hot white throat -> orange body -> reddish tail; vacuum shifts violet-blue
-    vec3 col = mix(uColorCore, uColorEdge, smoothstep(0.04, 0.7, along + 0.22 * (n2 - 0.5)));
-    col = mix(col, vec3(0.55, 0.5, 1.0), uVac * smoothstep(0.15, 0.9, along) * 0.55);
+    // hot white throat -> orange body early -> reddish tail; vacuum shifts violet
+    vec3 col = mix(uColorCore, uColorEdge, smoothstep(0.02, 0.4, along + 0.18 * (n2 - 0.5)));
+    col = mix(col, vec3(0.5, 0.45, 1.0), uVac * smoothstep(0.1, 0.8, along) * 0.6);
     float a = body * flicker * diamonds * radial * uIntensity;
-    gl_FragColor = vec4(col * (1.25 - along * 0.45) * (1.0 + uVac * 0.5), a);
+    gl_FragColor = vec4(col * (1.25 - along * 0.45) * (1.0 + uVac * 0.4), a);
   }
 `;
 
@@ -327,8 +328,8 @@ export function createPlume(exitRadius) {
     group.add(mesh);
     return mesh;
   };
-  const outer = mkCone(0.95, 2.1, 7.5, '#ffd9a0', '#ff5a14', 0.5);
-  const inner = mkCone(0.62, 0.95, 3.6, '#ffffff', '#ffc24d', 0.85);
+  const outer = mkCone(0.95, 2.1, 7.5, '#ffc97e', '#ff4d0e', 0.5);
+  const inner = mkCone(0.62, 0.95, 2.7, '#ffffff', '#ff9a2e', 0.8);
   group.userData = { outer, inner, exitRadius };
   return group;
 }

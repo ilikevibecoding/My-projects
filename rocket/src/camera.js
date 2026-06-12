@@ -116,8 +116,9 @@ export class CameraRig {
         look = rocketCenter.clone().addScaledVector(up, -4);
         break;
       case 'staging':
-        pos = rocketCenter.clone().addScaledVector(_horiz, 24).addScaledVector(side, 11).addScaledVector(up, -2);
-        look = rocketCenter.clone().addScaledVector(up, -6);
+        // high three-quarter view: tumbling spent stage against the planet below
+        pos = rocketCenter.clone().addScaledVector(_horiz, 11).addScaledVector(side, 7).addScaledVector(up, 24);
+        look = rocketCenter.clone().addScaledVector(up, -2);
         break;
       default:
         return false;

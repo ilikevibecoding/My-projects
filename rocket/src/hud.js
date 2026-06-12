@@ -65,11 +65,15 @@ export function createHUD() {
         el.banner.classList.add('crash');
       }
       el.banner.classList.add('visible');
+      // force opacity inline: CSS transitions stall under heavy frame load
+      // (SwiftShader screenshots) and can freeze mid-fade
+      el.banner.style.opacity = '1';
       el.revertWrap.classList.add('visible');
     },
 
     hideBanner() {
       el.banner.classList.remove('visible');
+      el.banner.style.opacity = '0';
       el.revertWrap.classList.remove('visible');
     },
 
