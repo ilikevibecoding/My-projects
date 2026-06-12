@@ -624,7 +624,7 @@ function bareTree(c, x, baseY, h, lean, rnd, depth) {
       c.fillStyle = '#666666'; c.strokeStyle = '#666666';
       hillPath(c, 660, [85, 38, 16], [1.2, 2.8, 0.3], [2, 5, 11]);
       for (var i = 0; i < 4; i++) {
-        var gg = genTree(2020 + i * 17, 300 + rnd2() * 200, 34 + rnd2() * 30, rnd2() < 0.3);
+        var gg = genTree(2020 + i * 17, 300 + rnd2() * 200, 34 + rnd2() * 30, false);
         drawTreeGeom(c, gg, 280 + i * 560 + rnd2() * 140, 740 + rnd2() * 40, 0, 0);
       }
       c.filter = 'none';
@@ -776,13 +776,14 @@ function genTree(seed, h, baseW, foliage) {
       pts.push({ x: bx, y: by });
       widths.push(Math.max(1, bw0 * (1 - s / (BS + 0.25))));    // taper to a point
       /* thorn spikes along the branch — the jagged Limbo silhouette */
-      var nt = 1 + Math.floor(rnd() * 2);
+      var roll = rnd();
+      var nt = roll < 0.2 ? 0 : (roll < 0.75 ? 1 : 2);
       for (var q = 0; q < nt; q++) {
         var tf = rnd();
         var hx = pts[s - 1].x + (bx - pts[s - 1].x) * tf;
         var hy = pts[s - 1].y + (by - pts[s - 1].y) * tf;
         var ta = ang + (rnd() < 0.5 ? -1 : 1) * (0.85 + rnd() * 0.75);
-        var tl = 5 + rnd() * 15;
+        var tl = 3 + rnd() * 19;
         thorns.push({ x0: hx, y0: hy, x1: hx + Math.cos(ta) * tl * dir, y1: hy + Math.sin(ta) * tl, seg: s });
       }
     }
@@ -805,7 +806,7 @@ function genTree(seed, h, baseW, foliage) {
     }
     for (b = 0; b < g.branches.length; b++) {
       var br2 = g.branches[b], tip = br2.pts[br2.pts.length - 1], at = g.spine[br2.k];
-      g.blobs.push({ x: at.x + tip.x * 0.8, y: at.y + tip.y * 0.8, r: h * (0.10 + rnd() * 0.05) });
+      g.blobs.push({ x: at.x + tip.x * 0.55, y: at.y + tip.y * 0.55 - h * 0.04, r: h * (0.12 + rnd() * 0.05) });
     }
   }
   return g;
@@ -920,7 +921,7 @@ function drawCocoon(c, px, py, t, phase, scale) {
 var worldTrees = [
   { x: 690,  baseY: 902, h: 560, baseW: 34, seed: 11, cocoon: false, foliage: false },
   { x: 1850, baseY: 902, h: 480, baseW: 26, seed: 23, cocoon: false, foliage: false },
-  { x: 2720, baseY: 752, h: 600, baseW: 40, seed: 37, cocoon: false, foliage: false },
+  { x: 2720, baseY: 752, h: 600, baseW: 40, seed: 37, cocoon: false, foliage: false, tuftVine: true },
   { x: 4480, baseY: 752, h: 620, baseW: 46, seed: 41, cocoon: true,  foliage: false },
   { x: 5020, baseY: 907, h: 520, baseW: 30, seed: 53, cocoon: false, foliage: false },
   { x: 6080, baseY: 907, h: 360, baseW: 28, seed: 68, cocoon: false, foliage: true }
@@ -953,6 +954,25 @@ function drawWorldTrees(c) {
     if (tr.cocoon) {
       var tip = treeBranchTip(tr.geom, tr.x, tr.baseY, t, 5);
       drawCocoon(c, tip.x, tip.y, t, tr.seed, 1);
+    }
+    if (tr.tuftVine) {
+      /* ragged root dangling from a branch, swinging slowly (ref: Limbo forest) */
+      var bt = treeBranchTip(tr.geom, tr.x, tr.baseY, t, 5);
+      var hang = 110, vs = Math.sin(t * 0.45 + tr.seed) * 9;
+      c.lineWidth = 2.6;
+      c.beginPath();
+      c.moveTo(bt.x, bt.y);
+      c.quadraticCurveTo(bt.x + vs * 0.5, bt.y + hang * 0.55, bt.x + vs, bt.y + hang);
+      c.stroke();
+      c.lineWidth = 1.8;
+      c.beginPath();
+      for (var q2 = 0; q2 < 5; q2++) {
+        var ta2 = 0.95 + q2 * 0.32;
+        c.moveTo(bt.x + vs, bt.y + hang);
+        c.lineTo(bt.x + vs + Math.cos(ta2) * (16 - q2 * 2) * (q2 % 2 ? -1 : 1),
+                 bt.y + hang + Math.sin(ta2) * (15 - q2 * 1.5));
+      }
+      c.stroke();
     }
   }
   c.lineCap = 'round';
