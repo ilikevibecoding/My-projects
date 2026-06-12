@@ -37,8 +37,14 @@ var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body,
 /* ============================== constants ============================== */
 
 var VIEW_W = 1280, VIEW_H = 720;          // legacy design units (tile/layout space)
-var ZBOOST = 2.3;                         // cinematic zoom-in: boy ≈ 1/6 screen height
+var ZBOOST = 1.62;                        // cinematic zoom — between the close-up and the wide checkpoint
 var viewW = 1280, viewH = 720;            // world units actually visible (window-dependent)
+
+/* objective areas pull the camera back so the whole puzzle reads at once */
+var ZOOM_ZONES = [
+  { x0: 2030, x1: 2760, k: 0.86 },        // crate haul + ledge climb
+  { x0: 3090, x1: 3720, k: 0.76 }         // rope gap
+];
 var DT = 1000 / 60;                        // fixed physics step
 var WORLD_X0 = -300, WORLD_X1 = 6400;
 var GROUND_BOTTOM = 1600;
@@ -72,7 +78,7 @@ function mulberry32(a) {
 
 var canvas = document.getElementById('game');
 var ctx = canvas.getContext('2d');
-var cssW = 0, cssH = 0, dpr = 1, zoom = 1;
+var cssW = 0, cssH = 0, dpr = 1, zoom = 1, baseZoom = 1;
 var vignetteCanvas = null;
 /* half-resolution offscreen for the soft atmospheric stack (pockets, tree bands, rays) */
 var bg = { canvas: null, c: null, w: 0, h: 0, scl: 1 };
@@ -86,9 +92,8 @@ function resize() {
   canvas.style.height = cssH + 'px';
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
-  zoom = (cssH * ZBOOST) / VIEW_H;        // global scale: zoomed-in cinematic view
-  viewH = cssH / zoom;
-  viewW = cssW / zoom;
+  baseZoom = (cssH * ZBOOST) / VIEW_H;    // global scale: cinematic view
+  applyZoom();
   bg.canvas = document.createElement('canvas');
   bg.w = bg.canvas.width = Math.max(2, Math.round(canvas.width / 2));
   bg.h = bg.canvas.height = Math.max(2, Math.round(canvas.height / 2));
@@ -137,14 +142,16 @@ var grainTiles = [];
 
 /* ============================== input ============================== */
 
-var keys = { left: false, right: false, up: false, action: false };
-var upPressedEdge = false; // single-press latch for jump
+var keys = { left: false, right: false, up: false, down: false, action: false };
+var upPressedEdge = false;     // single-press latch for jump
+var actionPressedEdge = false; // single-press latch for rope release
 
 function keyFlag(code) {
   switch (code) {
     case 'ArrowLeft': case 'KeyA': return 'left';
     case 'ArrowRight': case 'KeyD': return 'right';
     case 'ArrowUp': case 'KeyW': return 'up';
+    case 'ArrowDown': case 'KeyS': return 'down';
     case 'KeyX': case 'KeyZ': case 'ControlLeft': case 'ControlRight': return 'action';
   }
   return null;
@@ -155,6 +162,7 @@ window.addEventListener('keydown', function (e) {
   var f = keyFlag(e.code);
   if (f) {
     if (f === 'up' && !keys.up) upPressedEdge = true;
+    if (f === 'action' && !keys.action) actionPressedEdge = true;
     keys[f] = true;
     e.preventDefault();
   }
@@ -254,38 +262,41 @@ var crate = Bodies.rectangle(2240, 850, 84, 84, {
 });
 Composite.add(world, crate);
 
-/* --- beat 3: rope of linked segments pinned to the overhang branch --- */
-var ropeSegments = [];
-var ropeConstraints = [];
-for (var i = 0; i < ROPE_SEGS; i++) {
-  var seg = Bodies.rectangle(ROPE_PIN.x, ROPE_PIN.y + 16 + i * (ROPE_SEG_LEN + 2), ROPE_SEG_W, ROPE_SEG_LEN, {
-    density: 0.002,
-    frictionAir: 0.02,
-    label: 'rope',
-    collisionFilter: { group: -7 }
-  });
-  ropeSegments.push(seg);
-}
-Composite.add(world, ropeSegments);
-
-ropeConstraints.push(Constraint.create({
-  pointA: { x: ROPE_PIN.x, y: ROPE_PIN.y },
-  bodyB: ropeSegments[0],
-  pointB: { x: 0, y: -ROPE_SEG_LEN / 2 },
-  length: 2,
-  stiffness: 1
-}));
-for (i = 1; i < ROPE_SEGS; i++) {
-  ropeConstraints.push(Constraint.create({
-    bodyA: ropeSegments[i - 1],
-    pointA: { x: 0, y: ROPE_SEG_LEN / 2 },
-    bodyB: ropeSegments[i],
+/* --- ropes: chains of linked segments pinned to overhang branches --- */
+function makeRope(pinX, pinY, segCount) {
+  var segs = [], cons = [];
+  for (var i = 0; i < segCount; i++) {
+    segs.push(Bodies.rectangle(pinX, pinY + 16 + i * (ROPE_SEG_LEN + 2), ROPE_SEG_W, ROPE_SEG_LEN, {
+      density: 0.002,
+      frictionAir: 0.02,
+      label: 'rope',
+      collisionFilter: { group: -7 }
+    }));
+  }
+  cons.push(Constraint.create({
+    pointA: { x: pinX, y: pinY },
+    bodyB: segs[0],
     pointB: { x: 0, y: -ROPE_SEG_LEN / 2 },
     length: 2,
-    stiffness: 0.95
+    stiffness: 1
   }));
+  for (i = 1; i < segCount; i++) {
+    cons.push(Constraint.create({
+      bodyA: segs[i - 1],
+      pointA: { x: 0, y: ROPE_SEG_LEN / 2 },
+      bodyB: segs[i],
+      pointB: { x: 0, y: -ROPE_SEG_LEN / 2 },
+      length: 2,
+      stiffness: 0.95
+    }));
+  }
+  Composite.add(world, segs);
+  Composite.add(world, cons);
+  return { pin: { x: pinX, y: pinY }, segments: segs };
 }
-Composite.add(world, ropeConstraints);
+
+var ROPES = [makeRope(ROPE_PIN.x, ROPE_PIN.y, ROPE_SEGS)];
+var ropeSegments = ROPES[0].segments;     // beat-3 rope (legacy alias for debug/eval)
 
 /* ============================== collision bookkeeping ============================== */
 
@@ -378,7 +389,13 @@ function applyBuoyancy() {
        drag — water resists his sinking but not his upward paddle-hops, so he can
        actually haul himself out over a bank lip */
     var k, dragX, dragY;
-    if (b === player) { k = 1.05; dragX = 0.0012; dragY = (b.velocity.y > 0 ? 0.0016 : 0.0001); }
+    if (b === player) {
+      k = 1.05; dragX = 0.0012; dragY = (b.velocity.y > 0 ? 0.0016 : 0.0001);
+      /* a drowning boy loses to the water: buoyancy fades, heavy drag, slow sink */
+      if (drown.phase === 'sinking' || drown.phase === 'out') {
+        k = 0.62; dragX = 0.004; dragY = 0.005;
+      }
+    }
     else { k = 1.6; dragX = 0.0020; dragY = 0.0026; }
     var fy = -engine.gravity.y * engine.gravity.scale * b.mass * k * frac;
     /* anti-gravity buoyancy + water drag */
@@ -443,10 +460,24 @@ function updateCrateGrab() {
 
 /* ============================== beat 3: rope grab / swing ============================== */
 
-var ropeGrab = { constraint: null, segment: null, cooldown: 0 };
+var ropeGrab = { constraint: null, segment: null, idx: -1, rope: null, cooldown: 0, climbCd: 0 };
+
+function ropeAttach(ropeArr, idx) {
+  if (ropeGrab.constraint) Composite.remove(world, ropeGrab.constraint);
+  ropeGrab.constraint = Constraint.create({
+    bodyA: player, pointA: { x: 0, y: -22 },
+    bodyB: ropeArr[idx], pointB: { x: 0, y: 0 },
+    length: 6, stiffness: 0.2, damping: 0.05
+  });
+  ropeGrab.segment = ropeArr[idx];
+  ropeGrab.idx = idx;
+  ropeGrab.rope = ropeArr;
+  Composite.add(world, ropeGrab.constraint);
+}
 
 function updateRopeGrab() {
   if (ropeGrab.cooldown > 0) ropeGrab.cooldown--;
+  if (ropeGrab.climbCd > 0) ropeGrab.climbCd--;
 
   if (ropeGrab.constraint) {
     /* pump the swing with left / right */
@@ -454,34 +485,44 @@ function updateRopeGrab() {
     if (dir !== 0) {
       Body.applyForce(player, player.position, { x: dir * player.mass * 0.0007, y: 0 });
     }
-    /* up releases with a small launch boost */
-    if (upPressedEdge) {
+    /* hand-over-hand climbing: up / down walk the grab along the rope */
+    if (ropeGrab.climbCd === 0) {
+      if (keys.up && ropeGrab.idx > 1) {
+        ropeAttach(ropeGrab.rope, ropeGrab.idx - 1);
+        ropeGrab.climbCd = 14;
+      } else if (keys.down && ropeGrab.idx < ropeGrab.rope.length - 1) {
+        ropeAttach(ropeGrab.rope, ropeGrab.idx + 1);
+        ropeGrab.climbCd = 14;
+      }
+    }
+    /* action lets go — launch boost only when actually swinging, otherwise
+       he just drops (long cooldown so the rope can't instantly re-catch him) */
+    if (actionPressedEdge) {
+      var swingV = Math.abs(player.velocity.x);
       Composite.remove(world, ropeGrab.constraint);
       ropeGrab.constraint = null;
       ropeGrab.segment = null;
-      ropeGrab.cooldown = 30;
+      ropeGrab.idx = -1;
+      ropeGrab.rope = null;
+      ropeGrab.cooldown = 50;
       Body.setVelocity(player, {
         x: player.velocity.x * 1.35,
-        y: player.velocity.y - 5.5
+        y: player.velocity.y - (swingV > 1.6 ? 5.5 : 0.4)
       });
-      upPressedEdge = false;
+      actionPressedEdge = false;
     }
     return;
   }
 
   if (ropeGrab.cooldown > 0 || isGrounded() || grabConstraint) return;
   var handX = player.position.x, handY = player.position.y - 22;
-  for (var i = 1; i < ropeSegments.length; i++) {
-    var seg = ropeSegments[i];
-    if (Math.hypot(seg.position.x - handX, seg.position.y - handY) < 50) {
-      ropeGrab.constraint = Constraint.create({
-        bodyA: player, pointA: { x: 0, y: -22 },
-        bodyB: seg, pointB: { x: 0, y: 0 },
-        length: 6, stiffness: 0.2, damping: 0.05
-      });
-      ropeGrab.segment = seg;
-      Composite.add(world, ropeGrab.constraint);
-      break;
+  for (var r = 0; r < ROPES.length; r++) {
+    var arr = ROPES[r].segments;
+    for (var i = 1; i < arr.length; i++) {
+      if (Math.hypot(arr[i].position.x - handX, arr[i].position.y - handY) < 50) {
+        ropeAttach(arr, i);
+        return;
+      }
     }
   }
 }
@@ -500,6 +541,12 @@ function controlUpdate() {
 
   var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
   if (dir !== 0) facing = dir;
+
+  /* once he's committed to drowning the water owns him */
+  if (drown.phase === 'sinking' || drown.phase === 'out') {
+    upPressedEdge = false;
+    return;
+  }
 
   if (!onRope) {
     var maxSpeed = grabConstraint ? GRAB_SPEED : (swim > 0.25 ? SWIM_SPEED : RUN_SPEED);
@@ -527,22 +574,47 @@ function controlUpdate() {
 
 /* ============================== drowning & level reset ============================== */
 
-var drown = { ticks: 0, phase: 'none', fade: 0 };   // phase: none | out | in
+/* phase: none | sinking | out | in. He panics (flails) as soon as his head dips
+   under; if it stays under he commits to a slow sink, then the screen fades. */
+var drown = { ticks: 0, phase: 'none', fade: 0, flail: 0, sink: 0 };
 
 function levelReset() {
   Body.setPosition(player, { x: 440, y: 830 });
   Body.setVelocity(player, { x: 0, y: 0 });
   cam.x = 440; cam.y = 760; cam.anchorX = 440; cam.leadVel = 0;
   groundPairs = {};
-  drown.ticks = 0;
+  drown.ticks = 0; drown.flail = 0; drown.sink = 0;
+}
+
+function playerHeadUnder() {
+  for (var i = 0; i < waterBodies.length; i++) {
+    if (waterBodies[i].body === player) {
+      var surf = surfaceAt(waterBodies[i].pool, player.position.x, tickCount / 60);
+      return (player.position.y - 21) > surf;        // head top below the waterline
+    }
+  }
+  return false;
 }
 
 function updateDrowning() {
   if (drown.phase === 'none') {
-    /* held fully under the surface for more than 1000ms → he drowns */
-    if (playerSubmergedFrac() >= 0.88) drown.ticks++;
-    else drown.ticks = 0;
-    if (drown.ticks > 60) drown.phase = 'out';
+    if (playerHeadUnder()) {
+      drown.ticks++;
+      drown.flail = Math.min(1, drown.ticks / 14);   // panic builds fast
+    } else {
+      drown.ticks = 0;
+      drown.flail = Math.max(0, drown.flail - 0.07);
+    }
+    if (drown.ticks > 55) { drown.phase = 'sinking'; drown.sink = 0; }
+  } else if (drown.phase === 'sinking') {
+    /* committed: he thrashes and slips under — buoyancy loses (applyBuoyancy
+       reads drown.sink), arms flail overhead, slow descent ~1.4s */
+    drown.sink++;
+    drown.flail = 1;
+    if (drown.sink > 85 || !playerHeadUnder()) {
+      /* surfacing can no longer save him once committed */
+    }
+    if (drown.sink > 85) drown.phase = 'out';
   } else if (drown.phase === 'out') {
     drown.fade += 0.045;                              // fade to black…
     if (drown.fade >= 1) { drown.fade = 1; levelReset(); drown.phase = 'in'; }
@@ -594,9 +666,26 @@ function startAudio() {
 
 /* ============================== camera ============================== */
 
-var cam = { x: 440, y: 760, anchorX: 440, leadVel: 0 };
+var cam = { x: 440, y: 760, anchorX: 440, leadVel: 0, zoomK: 1 };
+
+/* effective zoom = window scale × smoothed objective-zone multiplier */
+function applyZoom() {
+  zoom = baseZoom * cam.zoomK;
+  viewH = cssH / zoom;
+  viewW = cssW / zoom;
+  if (bg.canvas) bg.scl = (dpr * zoom) / 2;
+}
 
 function updateCamera() {
+  /* breathe out in objective areas (rope gap, crate ledge, puzzle arenas) */
+  var kTarget = 1;
+  for (var zi = 0; zi < ZOOM_ZONES.length; zi++) {
+    var zz = ZOOM_ZONES[zi];
+    if (player.position.x > zz.x0 && player.position.x < zz.x1) { kTarget = zz.k; break; }
+  }
+  cam.zoomK += (kTarget - cam.zoomK) * 0.035;
+  applyZoom();
+
   /* tight deadzone: the camera stays locked near his center of mass */
   cam.anchorX = Math.max(cam.anchorX, player.position.x - 22);
   cam.anchorX = Math.min(cam.anchorX, player.position.x + 22);
@@ -780,43 +869,95 @@ var terrainPaths = [];
       pts.push({ x: x, y: b.top - j });
     }
     pts.push({ x: b.x1, y: b.top });
+    /* dense, even meadow: a blade every couple of px, heights varied by a
+       smooth noise so growth looks natural — no bald gaps, no blobs */
     var blades = [];
     if (b.top <= 1000) {            // no grass on submerged / chasm floors
-      for (x = b.x0 + 3; x < b.x1 - 2; x += 4 + rnd() * 9) {
-        if (rnd() < 0.22) { x += 14 + rnd() * 26; continue; }      // bald patches
-        var clump = 1 + Math.floor(rnd() * 3);                     // clumpy growth
-        for (var ci = 0; ci < clump; ci++) {
-          var tall = rnd() < 0.07;
-          blades.push({ x: x + ci * (1.5 + rnd() * 2.5),
-                        h: tall ? 20 + rnd() * 12 : 4 + rnd() * 13,
-                        lean: (rnd() - 0.5) * (tall ? 16 : 10) });
-        }
+      for (x = b.x0 + 1.5; x < b.x1 - 1; x += 1.9 + rnd() * 1.6) {
+        var meadow = 0.72 + 0.28 * Math.sin(x * 0.021 + b.x0)     // gentle height waves
+                          + 0.18 * Math.sin(x * 0.0073 + 1.7);
+        var h = (8 + rnd() * 12) * meadow;
+        if (rnd() < 0.05) h += 11 + rnd() * 14;                    // occasional tall stalk
+        blades.push({ x: x, h: h,
+                      lean: (rnd() - 0.5) * 0.5,                   // resting lean (radians-ish)
+                      ph: rnd() * 6.283,                           // wind phase
+                      bend: 0, bv: 0 });                           // reactive spring state
       }
     }
     terrainPaths.push({ block: b, pts: pts, blades: blades });
   });
 })();
 
-/* grass fringe, drawn per frame with a soft wind shear */
+/* --- reactive grass: blades the boy wades through get pushed flat, then
+       spring slowly back upright with a soft overshoot --- */
+var disturbed = [];   // blades currently away from rest, integrated each tick
+
+function updateGrass() {
+  var feetY = player.position.y + 30;
+  var px = player.position.x;
+  var pvx = player.velocity.x;
+  for (var i = 0; i < terrainPaths.length; i++) {
+    var tp = terrainPaths[i];
+    if (px < tp.block.x0 - 30 || px > tp.block.x1 + 30) continue;
+    if (feetY < tp.block.top - 26 || feetY > tp.block.top + 14) continue;   // not on this ground
+    var bl = tp.blades, lo = 0, hi = bl.length - 1;
+    /* binary search to the local neighbourhood (blades are x-sorted) */
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (bl[mid].x < px - 16) lo = mid + 1; else hi = mid; }
+    for (var j = lo; j < bl.length && bl[j].x <= px + 16; j++) {
+      var g = bl[j];
+      var d = (px - g.x) / 16;                                    // -1..1 across his stance
+      var push = (Math.abs(pvx) > 0.25 ? (pvx > 0 ? 1 : -1) : (d > 0 ? -1 : 1))
+               * (1 - Math.abs(d) * 0.55) * 1.25;
+      if (Math.abs(push) > Math.abs(g.bend)) {
+        if (g.bend === 0 && g.bv === 0) disturbed.push(g);
+        g.bend = push;
+        g.bv *= 0.3;
+      }
+    }
+  }
+  /* under-damped spring → they sway back up slowly with a little overshoot */
+  for (var k = disturbed.length - 1; k >= 0; k--) {
+    var q = disturbed[k];
+    q.bv += -q.bend * 0.045 - q.bv * 0.10;
+    q.bend += q.bv;
+    if (Math.abs(q.bend) < 0.012 && Math.abs(q.bv) < 0.012) {
+      q.bend = 0; q.bv = 0;
+      disturbed.splice(k, 1);
+    }
+  }
+}
+
+/* sharp tapered blades, drawn per frame: wind sway + reactive bend */
 function drawGrass(c) {
   var t = tickCount / 60;
-  var x0 = cam.x - viewW / 2 - 40, x1 = cam.x + viewW / 2 + 40;
-  c.strokeStyle = '#000000';
-  c.lineWidth = 1.7;
-  c.lineCap = 'round';
+  var x0 = cam.x - viewW / 2 - 30, x1 = cam.x + viewW / 2 + 30;
+  c.fillStyle = '#000000';
   c.beginPath();
   for (var i = 0; i < terrainPaths.length; i++) {
     var tp = terrainPaths[i];
     if (tp.block.x1 < x0 || tp.block.x0 > x1) continue;
-    for (var j = 0; j < tp.blades.length; j++) {
-      var bl = tp.blades[j];
-      if (bl.x < x0 || bl.x > x1) continue;
-      var shear = Math.sin(t * 1.4 + bl.x * 0.06) * 1.8 * (bl.h / 14);
-      c.moveTo(bl.x, tp.block.top + 1);
-      c.lineTo(bl.x + bl.lean + shear, tp.block.top - bl.h);
+    var top = tp.block.top;
+    var bl = tp.blades, lo = 0, hi = bl.length - 1;
+    if (hi < 0) continue;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (bl[mid].x < x0) lo = mid + 1; else hi = mid; }
+    for (var j = lo; j < bl.length && bl[j].x <= x1; j++) {
+      var g = bl[j];
+      var wind = Math.sin(t * 1.5 + g.x * 0.045 + g.ph) * 0.10
+               + Math.sin(t * 0.43 + g.x * 0.011) * 0.07;
+      var a = g.lean * 0.35 + wind + g.bend;                       // total lean angle
+      var flat = Math.min(1, Math.abs(g.bend));
+      var tipX = g.x + Math.sin(a) * g.h;
+      var tipY = top - Math.cos(a * 0.82) * g.h * (1 - flat * 0.42);
+      var cpX = g.x + Math.sin(a * 0.45) * g.h * 0.5;
+      var cpY = top - g.h * 0.55;
+      /* sliver triangle: wide rooted base, needle tip */
+      c.moveTo(g.x - 1.1, top + 1.5);
+      c.quadraticCurveTo(cpX - 0.55, cpY, tipX, tipY);
+      c.quadraticCurveTo(cpX + 0.55, cpY, g.x + 1.1, top + 1.5);
+      c.closePath();
     }
   }
-  c.stroke();
+  c.fill();
 }
 
 /* dead tree + branch over the gap that the rope pins to (visual only, out of reach) */
@@ -1110,9 +1251,9 @@ var bandCache = {};
 
 var TREE_BANDS = [
   { id: 'mid',  factor: 0.68, color: '#1f1f1f', alpha: 0.92, spacing: 350, seedBase: 5000,
-    baseV: 185, hMin: 420, hVar: 300, wMin: 46, wVar: 44, swayAmp: 4, cocoonChance: 0.12, giantEvery: 0 },
+    hMin: 420, hVar: 300, wMin: 46, wVar: 44, swayAmp: 4, cocoonChance: 0.12, giantEvery: 0 },
   { id: 'near', factor: 0.85, color: '#0c0c0c', alpha: 0.95, spacing: 285, seedBase: 9000,
-    baseV: 200, hMin: 400, hVar: 300, wMin: 34, wVar: 40, swayAmp: 5, cocoonChance: 0.25, giantEvery: 5 }
+    hMin: 400, hVar: 300, wMin: 34, wVar: 40, swayAmp: 5, cocoonChance: 0.25, giantEvery: 5 }
 ];
 
 function drawTreeBand(band, probe) {
@@ -1124,7 +1265,9 @@ function drawTreeBand(band, probe) {
   c.strokeStyle = band.color;
   var px = cam.x * band.factor;
   var voff = Math.max(-60, Math.min(60, -(cam.y - 760) * band.factor * 0.35));
-  var k0 = Math.floor((px - 900) / band.spacing), k1 = Math.ceil((px + 900) / band.spacing);
+  var baseV = viewH / 2 + 26;             // trunk bases just below the frame bottom at any zoom
+  var reach = viewW / 2 + 320;
+  var k0 = Math.floor((px - reach) / band.spacing), k1 = Math.ceil((px + reach) / band.spacing);
   if (probe) darkSwayProbe = 0;
   for (var k = k0; k <= k1; k++) {
     var key = band.id + ':' + k;
@@ -1132,22 +1275,28 @@ function drawTreeBand(band, probe) {
     if (!slot) {
       var rnd = mulberry32(band.seedBase + k * 911);
       var giant = band.giantEvery > 0 && ((k % band.giantEvery) + band.giantEvery) % band.giantEvery === 0;
+      /* size classes sell depth inside one band: hulking near-trees vs slender far ones */
+      var roll = rnd();
+      var sizeK = giant ? 1.9 + rnd() * 0.5
+                : roll < 0.18 ? 1.45 + rnd() * 0.5
+                : roll < 0.52 ? 0.66 + rnd() * 0.22
+                : 0.95 + rnd() * 0.3;
       slot = bandCache[key] = {
         jit: (rnd() - 0.5) * band.spacing * 0.4,
         geom: genTree(band.seedBase + k * 13 + 7,
-                      giant ? 780 + rnd() * 180 : band.hMin + rnd() * band.hVar,
-                      giant ? 100 + rnd() * 44 : band.wMin + rnd() * band.wVar,
+                      (band.hMin + rnd() * band.hVar) * sizeK,
+                      (band.wMin + rnd() * band.wVar) * sizeK,
                       false),
         cocoon: rnd() < band.cocoonChance,
         seed: k
       };
     }
     var tx = k * band.spacing + slot.jit - px;
-    if (tx < -1000 || tx > 1000) continue;
-    var sway = drawTreeGeom(c, slot.geom, tx, band.baseV + voff, t, band.swayAmp, true);
+    if (tx < -reach - 120 || tx > reach + 120) continue;
+    var sway = drawTreeGeom(c, slot.geom, tx, baseV + voff, t, band.swayAmp, true);
     if (probe) darkSwayProbe += sway;
     if (slot.cocoon) {
-      var tip = treeBranchTip(slot.geom, tx, band.baseV + voff, t, band.swayAmp);
+      var tip = treeBranchTip(slot.geom, tx, baseV + voff, t, band.swayAmp);
       drawCocoon(c, tip.x, tip.y, t, slot.seed, 0.8);
     }
   }
@@ -1338,9 +1487,15 @@ function drawBoy(c) {
     c.beginPath(); c.moveTo(x0, y0); c.lineTo(kx, ky); c.lineTo(fx, fy); c.stroke();
   }
 
+  var flail = drown.flail;
+
   /* --- legs: thigh + shin with a knee joint --- */
   c.lineWidth = 3.0;
-  if (onRope) {
+  if (flail > 0.15 && swim > 0.05) {
+    /* frantic treading: fast desperate kicks */
+    limb(-1.2, hipY, Math.sin(t * 12.5) * 0.6 * flail + 0.12, THIGH, 0.65 * flail + 0.1, SHIN);
+    limb(1.6, hipY, Math.sin(t * 12.5 + Math.PI) * 0.6 * flail + 0.12, THIGH, 0.65 * flail + 0.1, SHIN);
+  } else if (onRope) {
     var sway = Math.sin(t * 2.4) * 0.16;
     limb(-1.2, hipY, 0.22 + sway, THIGH, 0.55, SHIN);
     limb(1.6, hipY, -0.12 + sway, THIGH, 0.4, SHIN);
@@ -1390,7 +1545,11 @@ function drawBoy(c) {
   /* --- arms: upper + forearm with an elbow joint --- */
   c.lineWidth = 2.3;
   var shX = 1.6 + leanL * 5, shY = -4.6 - bob * 0.4;
-  if (onRope && ropeGrab.segment) {
+  if (flail > 0.15 && swim > 0.05) {
+    /* arms thrown overhead, thrashing for the surface */
+    limb(shX - 2.2, shY, -2.5 + Math.sin(t * 14) * 0.55 * flail, UARM, -0.45 - Math.sin(t * 14) * 0.3, FARM);
+    limb(shX + 1.4, shY, 2.45 + Math.sin(t * 14 + 1.9) * 0.55 * flail, UARM, 0.5 + Math.sin(t * 14 + 1.9) * 0.3, FARM);
+  } else if (onRope && ropeGrab.segment) {
     /* both hands reach the rope; elbows kink slightly outward */
     var seg = ropeGrab.segment.position;
     var ax = (seg.x - p.x) * facing, ay = seg.y - p.y;
@@ -1540,18 +1699,21 @@ function drawRope(c) {
   c.strokeStyle = '#000000';
   c.lineCap = 'round';
   c.lineWidth = 6;
-  c.beginPath();
-  c.moveTo(ROPE_PIN.x, ROPE_PIN.y);
-  for (var i = 0; i < ropeSegments.length; i++) {
-    c.lineTo(ropeSegments[i].position.x, ropeSegments[i].position.y);
+  for (var r = 0; r < ROPES.length; r++) {
+    var rope = ROPES[r];
+    c.beginPath();
+    c.moveTo(rope.pin.x, rope.pin.y);
+    for (var i = 0; i < rope.segments.length; i++) {
+      c.lineTo(rope.segments[i].position.x, rope.segments[i].position.y);
+    }
+    c.stroke();
+    /* knot at the end */
+    var last = rope.segments[rope.segments.length - 1].position;
+    c.fillStyle = '#000000';
+    c.beginPath();
+    c.arc(last.x, last.y + 12, 7, 0, Math.PI * 2);
+    c.fill();
   }
-  c.stroke();
-  /* knot at the end */
-  var last = ropeSegments[ropeSegments.length - 1].position;
-  c.fillStyle = '#000000';
-  c.beginPath();
-  c.arc(last.x, last.y + 12, 7, 0, Math.PI * 2);
-  c.fill();
 }
 
 function drawEndGlow(c) {
@@ -1608,9 +1770,10 @@ function render() {
     bc.globalAlpha = L.alpha;
     var px = cam.x * L.factor;
     var voff = Math.max(-60, Math.min(60, -(cam.y - 760) * L.factor * 0.35));
+    var tileY = viewH / 2 - 828;          // keeps the tile ground band pinned to the frame bottom at any zoom
     var k0 = Math.floor((px - viewW / 2) / TILE_W);
     for (var k = k0; k * TILE_W - px < viewW / 2; k++) {
-      bc.drawImage(L.tile, k * TILE_W - px, -672 + voff);   // ground band raised into the zoomed view
+      bc.drawImage(L.tile, k * TILE_W - px, tileY + voff);
     }
     bc.globalAlpha = 1;
 
@@ -1700,7 +1863,9 @@ function frame(ts) {
     updateCrateGrab();
     updateRopeGrab();
     updateDrowning();
-    upPressedEdge = false;       // edge consumed once per physics tick
+    updateGrass();
+    upPressedEdge = false;       // edges consumed once per physics tick
+    actionPressedEdge = false;
     Engine.update(engine, DT);   // fixed 60Hz step → deterministic puzzles
     updateCamera();
     acc -= DT;
@@ -1732,7 +1897,7 @@ window.__LIMBO_DEBUG__ = {
   get waterBodies() { return waterBodies.map(function (e) { return e.body.label; }); },
   get submerged() { return playerSubmergedFrac(); },
   get darkSway() { return darkSwayProbe; },
-  get drown() { return { ticks: drown.ticks, phase: drown.phase, fade: drown.fade }; },
+  get drown() { return { ticks: drown.ticks, phase: drown.phase, fade: drown.fade, flail: drown.flail, sink: drown.sink }; },
   get audioState() { return audio.ctx ? audio.ctx.state : 'none'; },
   surfaceAt: surfaceAt,
   pools: WATERS.map(function (p) { return { x0: p.x0, x1: p.x1, surfaceY: p.surfaceY }; }),
