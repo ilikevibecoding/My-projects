@@ -208,3 +208,27 @@ high and dusk blue only lives overhead.
 
 Fixes applied for iter 8: pine bark texture base 0.20→0.34 (camp logs keep the dark variant);
 golden bloom 0.32→0.24 with threshold 1.0; flame fragment multiplier 1.3→1.2.
+
+---
+
+## Iteration 8 — seated fire tamed, trunks resist texture fixes (shots/iter_8, full run)
+
+- interact_seated: flame core no longer an amorphous white blob — reads as a hot center with
+  orange tongues (golden bloom 0.24/1.0 + flame mult 1.2). Seated contributor to 7 resolved.
+- forest_day: pine trunks **still pitch black** — iter7→8 trunk diff meanAbsDiff 2.998 (noise
+  floor ≈2), i.e. a 70% albedo lift produced no visible change. Texture is not the bottleneck.
+- Everything else held: motion grass 7.1 / water 5.9 / fire 13.2; sleep golden→night ok; eye
+  1.7m grounded in bounds; 135–335 calls, ≤2.6M tris.
+- Scoring: 1 PASS · 2 PASS · 3 PASS · 4 PASS · 5 PASS · 6 PASS · 7 PASS · 8 PASS · 9 PASS ·
+  10 PASS · 11 FAIL (trunks). **= 10/11** (same single failure as iter 7).
+
+**Iter 9 root-cause probe** (runtime A/B in headless page, sampling trunk pixels):
+baseline RGB(4,5,2) · GTAO off (4.5,5,2) — *rejected* · tint→white (9.5,8,3) — *2x cap* ·
+hemi×2 (21.6,19,9) — **confirmed: trunks are 100% canopy-shadowed and live off hemisphere
+light alone, which lands deep in the ACES toe**. Sunlit grass barely moves (+8%) in the same
+test, so the fix must be material-local, not a global ambient raise.
+
+Fixes applied for iter 9: pine-trunk material gets `reflectedLight.indirectDiffuse *= 6.0`
+via onBeforeCompile (direct sun untouched, day/night ratios preserved — night probe shows no
+glow); bark texture g/b channels lifted (0.80/0.56 → 0.84/0.64) so shade reads brown, not
+red-black. Probed result: trunk RGB(31,19,7) ≈ legible dark bark vs (15,30,12) shaded foliage.
