@@ -83,6 +83,13 @@ export class CameraRig {
     _desired.set(Math.cos(a) * r, 2.2 + h * liftK, Math.sin(a) * r);
     _look.set(0, 2.0 + h * 0.46, 0);
     this._smooth(dt, this.dragging ? 12 : 2.2);
+    this._easeFov(55, dt, 3);
+  }
+
+  _easeFov(target, dt, rate) {
+    if (Math.abs(this.camera.fov - target) < 0.01) return;
+    this.camera.fov += (target - this.camera.fov) * (1 - Math.exp(-rate * dt));
+    this.camera.updateProjectionMatrix();
   }
 
   // ---- flight: chase from the sun-lit side, look slightly ahead
@@ -99,21 +106,33 @@ export class CameraRig {
     const autoLift = manual ? 0 : 3.2 + speed * 0.012;
     const lift = autoLift + dist * Math.sin(this.userPitch);
     const horizDist = dist * Math.cos(this.userPitch);
-    _desired.copy(target.pos).addScaledVector(_horiz, horizDist).addScaledVector(_up, lift);
+    // exponential smoothing trails a moving target by v*tau — at 300 m/s
+    // that pushed the rocket clean off-frame ("it keeps pulling away").
+    // Fix: stiffen with speed AND feed the steady-state lag forward so the
+    // rocket sits dead-center no matter how fast it's going.
+    const rate = this.dragging ? 14 : 3.4 + speed * 0.02;
+    const tau = 1 / rate;
+    _desired.copy(target.pos)
+      .addScaledVector(_horiz, horizDist)
+      .addScaledVector(_up, lift)
+      .addScaledVector(target.vel, tau);
     // never clip into the terrain near the pad
     const alt = altitudeOf(_desired);
     if (alt < 2.6) _desired.addScaledVector(_up, 2.6 - alt);
-    // manual orbit: keep the rocket dead-center (velocity look-ahead would
-    // shove it off-frame when inspecting from below at high speed)
-    if (manual) _look.copy(target.pos);
-    else _look.copy(target.pos).addScaledVector(target.vel, 0.22).addScaledVector(_up, 0.6);
-    this._smooth(dt, this.dragging ? 14 : 3.4);
+    _look.copy(target.pos)
+      .addScaledVector(_up, manual ? 0 : 0.6)
+      .addScaledVector(target.vel, tau);
+    this._smooth(dt, rate);
+    // subtle speed feel: FOV eases 55 -> 61 toward max velocity
+    this._easeFov(55 + 6 * Math.min(1, speed / 320), dt, 1.6);
   }
 
   updateFixed(dt) {
     _desired.copy(this.fixedPos);
     _look.copy(this.fixedLook);
     this._smooth(dt, 50);
+    // debug/screenshot views are framed for the reference FOV
+    if (this.camera.fov !== 55) { this.camera.fov = 55; this.camera.updateProjectionMatrix(); }
   }
 
   _smooth(dt, rate) {

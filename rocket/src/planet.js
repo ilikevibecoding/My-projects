@@ -18,7 +18,7 @@ function tex(c, repeat = 1) {
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(repeat, repeat);
-  t.anisotropy = 4;
+  t.anisotropy = 8; // crisper pad markings at glancing angles
   return t;
 }
 

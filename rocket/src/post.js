@@ -13,8 +13,8 @@ const FinalShader = {
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
-    uVignette: { value: 0.34 },
-    uGrain: { value: 0.030 },
+    uVignette: { value: 0.28 },
+    uGrain: { value: 0.013 },
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -30,18 +30,20 @@ const FinalShader = {
     uniform float uGrain;
     varying vec2 vUv;
     float hash(vec2 p) {
-      return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime * 13.7) * 43758.5453);
+      return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime * 5.3) * 43758.5453);
     }
     void main() {
       vec4 col = texture2D(tDiffuse, vUv);
       // subtle saturation lift
       float lum = dot(col.rgb, vec3(0.299, 0.587, 0.114));
-      col.rgb = mix(vec3(lum), col.rgb, 1.07);
+      col.rgb = mix(vec3(lum), col.rgb, 1.12);
       // vignette
       float d = distance(vUv, vec2(0.5));
       col.rgb *= 1.0 - uVignette * smoothstep(0.38, 0.92, d);
-      // animated grain
-      col.rgb += (hash(vUv * vec2(917.0, 533.0)) - 0.5) * uGrain;
+      // animated grain — fine + slow + luminance-weighted so it reads as
+      // texture, not as the whole image shaking
+      float g = (hash(vUv * vec2(1737.0, 1051.0)) - 0.5) * uGrain;
+      col.rgb += g * (0.35 + 0.65 * lum);
       gl_FragColor = col;
     }
   `,
@@ -49,7 +51,7 @@ const FinalShader = {
 
 export function createPost(renderer, scene, camera, width, height) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 1.06;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const rt = new THREE.WebGLRenderTarget(width, height, {
@@ -84,9 +86,9 @@ export function createPost(renderer, scene, camera, width, height) {
 
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(Math.floor(width / 2), Math.floor(height / 2)),
-    0.42,   // strength
-    0.55,   // radius
-    0.9     // threshold (linear HDR space: only plume/sun/emissives bloom)
+    0.52,   // strength ("more of the blur": richer glow on plume/sun)
+    0.62,   // radius (wider, softer falloff)
+    0.85    // threshold (linear HDR space: plume/sun/emissives, not paint)
   );
   composer.addPass(bloomPass);
 

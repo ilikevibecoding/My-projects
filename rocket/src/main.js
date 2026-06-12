@@ -76,7 +76,27 @@ const game = {
   debugPaused: false,
   frameMs: [],
   lastDrawCalls: 0,
+  // fixed-step render interpolation: the sim advances in 1/120s chunks, but
+  // frames land between steps. Rendering the raw step state makes the rocket
+  // judder against the smoothed camera (2.5 m per step at 300 m/s!), so we
+  // blend prev -> current step state by the accumulator fraction.
+  prevPos: new THREE.Vector3(),
+  prevAxis: new THREE.Vector3(0, 1, 0),
+  renderPos: new THREE.Vector3(),
+  renderAxis: new THREE.Vector3(0, 1, 0),
 };
+
+// adopt a fresh sim state: sync interpolation buffers + drop stale time debt
+function adoptSim(sim) {
+  game.sim = sim;
+  game.accumulator = 0;
+  if (sim) {
+    game.prevPos.copy(sim.pos);
+    game.prevAxis.copy(sim.axis);
+    game.renderPos.copy(sim.pos);
+    game.renderAxis.copy(sim.axis);
+  }
+}
 
 const BASE_OFFSET = world.rocketBaseY; // rocket base rides this high above alt=0
 
@@ -88,14 +108,14 @@ const _q2 = new THREE.Quaternion();
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 function rocketBasePos(out = new THREE.Vector3()) {
-  const p = game.sim ? game.sim.pos : _v1.set(0, 0, 0);
+  const p = game.sim ? game.renderPos : _v1.set(0, 0, 0);
   localUp(p, _v2);
   return out.copy(p).addScaledVector(_v2, BASE_OFFSET);
 }
 
 function rocketCenterPos(out = new THREE.Vector3()) {
   rocketBasePos(out);
-  if (game.rocket && game.sim) out.addScaledVector(game.sim.axis, game.rocket.height / 2);
+  if (game.rocket && game.sim) out.addScaledVector(game.renderAxis, game.rocket.height / 2);
   else if (game.rocket) out.add(_v1.set(0, game.rocket.height / 2, 0));
   return out;
 }
@@ -132,7 +152,7 @@ const builder = createBuilder({
 
 function enterBuilder() {
   game.mode = 'builder';
-  game.sim = null;
+  adoptSim(null);
   game.eventCursor = 0;
   exhaust.reset();
   buildAndPlaceRocket(builder.stackIds);
@@ -148,7 +168,7 @@ function startFlight(stackIds = builder.stackIds) {
   game.flightRng = mulberry32(4242);
   exhaust.reset();
   buildAndPlaceRocket(stackIds);
-  game.sim = createSimState(stackFromIds(stackIds));
+  adoptSim(createSimState(stackFromIds(stackIds)));
   game.input.tiltX = 0; game.input.tiltZ = 0;
   hud.showFlight(); // also resets the key hint to the default
   rig.mode = 'chase';
@@ -239,12 +259,12 @@ function buildExhaustCtx() {
   const base = rocketBasePos(new THREE.Vector3());
   const nozzles = [];
   const stageIdx = sim.stages.findIndex((s) => s.attached);
-  _q1.setFromUnitVectors(Y_AXIS, sim.axis); // same roll-free frame as the visuals
+  _q1.setFromUnitVectors(Y_AXIS, game.renderAxis); // same frame as the visuals
   for (const pl of game.plumes) {
     if (pl.stageIndex !== stageIdx) continue;
     nozzles.push({
       pos: base.clone().add(pl.nozzle.local.clone().applyQuaternion(_q1)),
-      dir: sim.axis.clone().multiplyScalar(-1),
+      dir: game.renderAxis.clone().multiplyScalar(-1),
       exitRadius: pl.nozzle.exitRadius,
     });
   }
@@ -263,7 +283,7 @@ function updateRocketTransforms() {
   if (!game.rocket) return;
   if (game.sim) {
     rocketBasePos(game.rocket.group.position);
-    game.rocket.group.quaternion.setFromUnitVectors(Y_AXIS, game.sim.axis);
+    game.rocket.group.quaternion.setFromUnitVectors(Y_AXIS, game.renderAxis);
   }
   // debris
   if (game.sim) {
@@ -285,9 +305,18 @@ function stepWorld(dt) {
   if (game.mode === 'flight' && sim && sim.phase !== 'crashed') {
     game.accumulator = Math.min(game.accumulator + dt, 0.3);
     while (game.accumulator >= CONST.DT) {
+      game.prevPos.copy(sim.pos);
+      game.prevAxis.copy(sim.axis);
       step(sim, game.input, CONST.DT);
       game.accumulator -= CONST.DT;
     }
+    // interpolated state for everything visual (rocket, camera target, fx)
+    const alpha = THREE.MathUtils.clamp(game.accumulator / CONST.DT, 0, 1);
+    game.renderPos.copy(game.prevPos).lerp(sim.pos, alpha);
+    game.renderAxis.copy(game.prevAxis).lerp(sim.axis, alpha).normalize();
+  } else if (sim) {
+    game.renderPos.copy(sim.pos);
+    game.renderAxis.copy(sim.axis);
   }
   processEvents();
   updateRocketTransforms();
@@ -309,7 +338,7 @@ function updateVisualsAndRender(dt) {
     rig.updateOrbit(dt, game.simTime, game.rocket ? game.rocket.height : 8);
   } else if (sim) {
     const center = rocketCenterPos(new THREE.Vector3());
-    localUp(sim.pos, _v2);
+    localUp(game.renderPos, _v2);
     rig.updateChase(dt, { pos: center, vel: sim.vel, up: _v2.clone() });
   }
   rig.camera.updateMatrixWorld();
@@ -469,13 +498,14 @@ function warmFlight({ stackIds = DEFAULT_STACK, startAlt = 0, startSpeed = 0, ta
   game.flightRng = mulberry32(4242);
   exhaust.reset();
   buildAndPlaceRocket(stackIds);
-  game.sim = createSimState(stackFromIds(stackIds));
+  adoptSim(createSimState(stackFromIds(stackIds)));
   if (startAlt > 0) {
     game.sim.pos.set(0, startAlt, 0);
     game.sim.vel.set(0, startSpeed, 0);
     game.sim.onGround = false;
     game.sim.phase = 'flying';
     if (startAlt >= CONST.SPACE_ALT) { game.sim.spaceReached = true; game.sim.phase = 'space'; }
+    adoptSim(game.sim); // re-sync interpolation buffers to the teleport
   }
   hud.showFlight();
   if (throttleOn) doIgnite();
@@ -516,7 +546,7 @@ const debugAPI = {
         game.eventCursor = 0;
         exhaust.reset();
         buildAndPlaceRocket(DEFAULT_STACK);
-        game.sim = createSimState(stackFromIds(DEFAULT_STACK));
+        adoptSim(createSimState(stackFromIds(DEFAULT_STACK)));
         hud.showFlight();
         rig.applyDebugView('pad', debugViewContext());
         break;
@@ -638,6 +668,22 @@ const debugAPI = {
   launch() { startFlight(); },
   stage() { doStage(); },
   pause(v = true) { game.debugPaused = v; },
+
+  renderState() {
+    // interpolation sanity: renderPos must sit between prev and current step
+    const alpha = THREE.MathUtils.clamp(game.accumulator / CONST.DT, 0, 1);
+    const expect = game.prevPos.clone().lerp(game.sim ? game.sim.pos : game.prevPos, alpha);
+    // where the rocket center lands on screen (NDC; 0,0 = dead-center)
+    const ndc = rocketCenterPos(new THREE.Vector3()).project(rig.camera);
+    return {
+      alpha: +alpha.toFixed(4),
+      lerpError: +game.renderPos.distanceTo(expect).toFixed(6),
+      stepGap: game.sim ? +game.prevPos.distanceTo(game.sim.pos).toFixed(3) : 0,
+      fov: +rig.camera.fov.toFixed(2),
+      screenX: +ndc.x.toFixed(3),
+      screenY: +ndc.y.toFixed(3),
+    };
+  },
 
   cameraInfo() {
     return {

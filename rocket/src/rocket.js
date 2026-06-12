@@ -33,7 +33,7 @@ export const PARTS = {
   engineSmall: { id: 'engineSmall', name: 'Engine S “Sprig”', type: 'engine', massDry: 320, thrust: 42000, burn: 16, height: 1.1, radius: 0.5, cdA: 0.08, blurb: '42 kN' },
   engineLarge: { id: 'engineLarge', name: 'Engine L “Mastodon”', type: 'engine', massDry: 880, thrust: 66000, burn: 21, height: 1.45, radius: 0.62, cdA: 0.10, blurb: '66 kN' },
   fins: { id: 'fins', name: 'Fin Set ×4', type: 'fins', massDry: 120, height: 0, radius: 0, cdA: 0.14, blurb: 'stability' },
-  decoupler: { id: 'decoupler', name: 'Decoupler', type: 'decoupler', massDry: 90, height: 0.3, radius: 0.63, cdA: 0.05, blurb: 'stage split · build a new stage above' },
+  decoupler: { id: 'decoupler', name: 'Decoupler', type: 'decoupler', massDry: 90, height: 0.3, radius: 0.63, cdA: 0.05, blurb: 'connector · builds a booster stage below' },
 };
 
 export const DEFAULT_STACK = ['engineLarge', 'fins', 'tankLarge', 'pod'];
@@ -55,7 +55,7 @@ function makeCanvas(w, h) {
 function canvasTexture(c, { srgb = true } = {}) {
   const t = new THREE.CanvasTexture(c);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
+  t.anisotropy = 8; // crisper paint/decals at glancing angles
   t.wrapS = THREE.RepeatWrapping;
   return t;
 }

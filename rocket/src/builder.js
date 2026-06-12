@@ -7,27 +7,29 @@ import { PARTS, DEFAULT_STACK, buildPartMesh, stackStats } from './rocket.js';
 
 const PALETTE_ORDER = ['pod', 'nose', 'tankSmall', 'tankLarge', 'engineSmall', 'engineLarge', 'fins', 'decoupler'];
 
-// Insertion logic keeps stacks sane with zero fiddling:
-//   a decoupler "opens" a new stage — everything added after it builds that
-//   upper stage, so decoupler → engine → tank stacks more thrust + fuel;
-//   engines sink to the bottom of the CURRENT (topmost) stage and cluster,
-//   pods & nose cones float to the top,
-//   tanks/decouplers go just below the top pod/nose cap,
-//   fins ride the booster, just above its engine cluster.
+// Insertion logic keeps stacks sane with zero fiddling — KSP mental model:
+// boosters get built UNDER the rocket and fire first.
+//   decoupler ("connector") slides under everything: the old rocket rides on
+//     top, and whatever you add next becomes the new bottom booster stage;
+//   engines sink to the very bottom (and cluster radially for more thrust);
+//   tanks fuel the booster being built (just below the lowest connector) —
+//     or sit under the pod when there is no connector yet;
+//   pods & nose cones float to the top;
+//   fins ride the bottom booster, just above its engine cluster.
 function insertionIndex(stackIds, partId) {
   const type = PARTS[partId].type;
   const types = stackIds.map((id) => PARTS[id].type);
-  if (type === 'engine') {
-    // bottom of the stage being built = right above the topmost decoupler
-    return types.lastIndexOf('decoupler') + 1;
-  }
+  if (type === 'engine' || type === 'decoupler') return 0;
   if (type === 'pod' || type === 'nose') return stackIds.length;
   if (type === 'fins') {
     let k = 0;
     while (k < types.length && types[k] === 'engine') k++;
     return k;
   }
-  // tank / decoupler: below the topmost run of pods/noses
+  // tank: into the booster being built (below the lowest decoupler), else
+  // below the topmost run of pods/noses
+  const firstDec = types.indexOf('decoupler');
+  if (firstDec >= 0) return firstDec;
   let i = stackIds.length;
   while (i > 0) {
     const t = types[i - 1];
