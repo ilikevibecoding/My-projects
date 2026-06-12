@@ -98,8 +98,8 @@ export function makeRockTexture(size = 512) {
     const base = fbmTile(texNoise2, u + 0.8, v + 0.31, 5);
     const strata = Math.sin((v + fbmTile(texNoise, u, v, 7) * 0.15) * Math.PI * 14) * 0.04;
     const fine = fbmTile(texNoise, u + 0.05, v + 0.95, 30, 3);
-    const crack = Math.max(0, 0.18 - Math.abs(tileNoise(texNoise2, u, v, 12))) * -1.4;
-    let l = 0.46 + base * 0.13 + strata + fine * 0.06 + crack;
+    const crack = Math.max(0, 0.18 - Math.abs(tileNoise(texNoise2, u, v, 12))) * -1.0;
+    let l = 0.58 + base * 0.13 + strata + fine * 0.06 + crack;
     let r = l * 1.02, g = l * 0.99, b = l * 0.96;
     // mossy hint in crevices
     const moss = Math.max(0, -crack) * 0.5;

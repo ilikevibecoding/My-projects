@@ -71,6 +71,18 @@ async function settle(page, ms = 2000, frames = 5) {
   ]);
 }
 
+// Headless chrome only renders frames when the compositor is asked for them
+// (screenshots do that); an idle waitForFunction lets rAF crawl at <1fps and
+// sim-time-based state (fire boost decay, fades) stalls. This pumps frames
+// with throwaway screenshots until the in-page predicate passes.
+async function pumpUntil(page, predicate, maxPumps = 80) {
+  for (let i = 0; i < maxPumps; i++) {
+    if (await page.evaluate(predicate)) return i;
+    await page.screenshot({ path: '/tmp/_pump.png' });
+  }
+  throw new Error(`pumpUntil: predicate still false after ${maxPumps} pumps`);
+}
+
 async function main() {
   await ensureDevServer();
 
@@ -157,12 +169,17 @@ async function main() {
     await page.screenshot({ path: join(OUT, 'interact_log_prompt.png') });
     await page.evaluate(() => window.debugAPI.interact());
     // wait for the add-wood surge to die down so the seated shot shows a calm fire
-    await page.waitForFunction(() => window.debugAPI.getState().fireBoost < 0.12, null, { timeout: 60000, polling: 400 });
-    await settle(page, 3000, 8);
+    await pumpUntil(page, () => {
+      const s = window.debugAPI.getState();
+      return s.fireBoost < 0.12 && !s.busy && !s.fading;
+    });
+    await settle(page, 1500, 4);
     await page.screenshot({ path: join(OUT, 'interact_seated.png') });
     await page.evaluate(() => window.debugAPI.interact()); // stand
-    await settle(page, 2500, 8);
-    await page.waitForFunction(() => !window.debugAPI.getState().busy && !window.debugAPI.getState().seated, null, { timeout: 30000, polling: 300 });
+    await pumpUntil(page, () => {
+      const s = window.debugAPI.getState();
+      return !s.busy && !s.seated && !s.fading;
+    });
 
     console.log('interactions: sleep');
     const before = await page.evaluate(() => window.debugAPI.getState().timeOfDay);
@@ -170,7 +187,11 @@ async function main() {
     await settle(page, 800, 3);
     await page.screenshot({ path: join(OUT, 'interact_tent_prompt.png') });
     await page.evaluate(() => window.debugAPI.interact());
-    await settle(page, 6000, 12);
+    await pumpUntil(page, () => { // sleep fade + ToD transition fully done
+      const s = window.debugAPI.getState();
+      return !s.busy && !s.fading && !s.transitioning;
+    });
+    await settle(page, 1500, 6);
     await page.screenshot({ path: join(OUT, 'interact_after_sleep.png') });
     const after = await page.evaluate(() => window.debugAPI.getState().timeOfDay);
     stats.sleepChangedTime = { before, after, ok: before !== after };

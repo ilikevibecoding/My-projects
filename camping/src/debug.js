@@ -73,6 +73,8 @@ export function installDebugAPI({ player, timeOfDay, camp, interactions, rendere
     getState() {
       return {
         timeOfDay: timeOfDay.current,
+        transitioning: timeOfDay._t < 1, // time-of-day lerp still running
+        fading: !!interactions.hud._fade, // screen fade in progress
         fireLit: camp.fire.lit,
         fireBoost: camp.fire.boost,
         seated: interactions.seated,

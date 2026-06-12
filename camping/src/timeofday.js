@@ -19,6 +19,7 @@ export const PRESETS = {
     cloudColor: new THREE.Color(0xffffff),
     cloudShadow: new THREE.Color(0x9aaac2),
     cloudAmount: 0.52,
+    gradPower: 0.5,
     starIntensity: 0.0,
     exposure: 1.0,
     bloomStrength: 0.22,
@@ -40,6 +41,7 @@ export const PRESETS = {
     cloudColor: new THREE.Color(0xffd9a8),
     cloudShadow: new THREE.Color(0xa87f5e),
     cloudAmount: 0.44,
+    gradPower: 1.8, // warm band climbs high; dusk blue only overhead
     starIntensity: 0.0,
     exposure: 1.18,
     bloomStrength: 0.32,
@@ -61,6 +63,7 @@ export const PRESETS = {
     cloudColor: new THREE.Color(0x33415e),
     cloudShadow: new THREE.Color(0x141d30),
     cloudAmount: 0.28,
+    gradPower: 0.6,
     starIntensity: 1.0,
     exposure: 1.0,
     bloomStrength: 0.42,
@@ -144,6 +147,7 @@ export class TimeOfDay {
     u.uCloudAmount.value = lerp(a.cloudAmount, b.cloudAmount, t);
     u.uCloudColor.value.copy(col(a.cloudColor, b.cloudColor));
     u.uCloudShadow.value.copy(col(a.cloudShadow, b.cloudShadow));
+    u.uGradPower.value = lerp(a.gradPower, b.gradPower, t);
 
     if (this.post) {
       this.post.setExposure(lerp(a.exposure, b.exposure, t));

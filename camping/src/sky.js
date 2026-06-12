@@ -16,6 +16,7 @@ export function createSky() {
     uCloudAmount: { value: 0.4 },
     uCloudColor: { value: new THREE.Color(0xffffff) },
     uCloudShadow: { value: new THREE.Color(0x8898b0) },
+    uGradPower: { value: 0.5 }, // how fast horizon color gives way to top color
     uTime: { value: 0 },
   };
 
@@ -38,7 +39,7 @@ export function createSky() {
       uniform vec3 uTopColor, uHorizonColor, uBottomColor, uSunColor;
       uniform vec3 uSunDir, uMoonDir;
       uniform vec3 uCloudColor, uCloudShadow;
-      uniform float uSunIntensity, uMoonIntensity, uStarIntensity, uCloudAmount, uTime;
+      uniform float uSunIntensity, uMoonIntensity, uStarIntensity, uCloudAmount, uGradPower, uTime;
       ${GLSL_NOISE}
 
       float hash13(vec3 p3) {
@@ -52,7 +53,7 @@ export function createSky() {
         float h = dir.y;
 
         // base gradient
-        vec3 sky = mix(uHorizonColor, uTopColor, pow(clamp(h, 0.0, 1.0), 0.5));
+        vec3 sky = mix(uHorizonColor, uTopColor, pow(clamp(h, 0.0, 1.0), uGradPower));
         sky = mix(uBottomColor, sky, smoothstep(-0.12, 0.02, h));
 
         // sun disk + halo (HDR for bloom)
