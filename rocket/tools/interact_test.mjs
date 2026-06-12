@@ -2,9 +2,11 @@
 //   1. right-drag orbit (builder + flight) and wheel zoom
 //   2. procedural audio: unlock on gesture, engine loop RMS, mute toggle
 //   3. full real-input launch flow (click LAUNCH, press Space) stays clean
-// Run: node tools/interact_test.mjs   (needs dev server on 127.0.0.1:5173)
+// Run: node tools/interact_test.mjs [url]   (default: dev server on 127.0.0.1:5173)
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
+
+const URL = process.argv[2] || 'http://127.0.0.1:5173';
 
 const OUT = '/tmp/interact_test';
 mkdirSync(OUT, { recursive: true });
@@ -24,7 +26,7 @@ const consoleErrors = [];
 page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
 page.on('pageerror', (e) => consoleErrors.push(String(e)));
 
-await page.goto('http://127.0.0.1:5173', { waitUntil: 'networkidle' });
+await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForTimeout(2600);
 
 const cx = 512, cy = 288;

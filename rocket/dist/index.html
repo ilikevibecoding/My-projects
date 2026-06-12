@@ -148,8 +148,18 @@
       padding: 8px 20px; border-radius: 999px; opacity: 0; transition: opacity 0.3s;
     }
     #stage-flash.visible { opacity: 1; }
+    #sound-btn {
+      position: absolute; bottom: 12px; right: 14px; z-index: 30;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--panel); border: 3px solid var(--panel-edge);
+      font-size: 19px; line-height: 1; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      transition: border-color 0.12s, filter 0.12s;
+    }
+    #sound-btn:hover { border-color: var(--orange); filter: brightness(1.15); }
+    #sound-btn.muted { filter: grayscale(1) brightness(0.8); }
   </style>
-  <script type="module" crossorigin src="./assets/index-BtlNl77T.js"></script>
+  <script type="module" crossorigin src="./assets/index-CRyAWikK.js"></script>
 </head>
 <body>
   <div id="app"></div>
@@ -169,7 +179,7 @@
       <div class="stat-row"><span class="label">TWR</span><span class="value" id="st-twr">—</span></div>
       <button id="launch-btn" class="btn">▲ Launch</button>
     </div>
-    <div id="builder-hint">click a part to add · click stacked part to remove</div>
+    <div id="builder-hint">click a part to add · click stacked part to remove · right-drag — orbit</div>
   </div>
 
   <div id="hud">
@@ -181,8 +191,10 @@
     <div id="stage-flash"></div>
     <div id="banner"><div class="headline"></div><div class="subline"></div></div>
     <div id="revert-wrap"><button id="revert-btn" class="btn secondary">↩ Revert to Build</button></div>
-    <div id="key-hints">space — ignite / stage&nbsp;&nbsp;·&nbsp;&nbsp;arrows — tilt</div>
+    <div id="key-hints">space — ignite / stage&nbsp;&nbsp;·&nbsp;&nbsp;arrows — tilt&nbsp;&nbsp;·&nbsp;&nbsp;right-drag — orbit</div>
   </div>
+
+  <button id="sound-btn" title="toggle sound (M)">🔊</button>
 
 </body>
 </html>

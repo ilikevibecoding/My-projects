@@ -241,3 +241,33 @@ Known caveats (documented during the loop):
 - Scope freeze respected: no orbit mechanics, no re-entry heating, no other
   celestial bodies, no save system.
 
+
+---
+
+## Follow-up (post-loop user feedback)
+
+**Requests:** (1) screen "goes black" on first spacebar press (user's machine,
+real GPU — not reproducible under SwiftShader); (2) right-click-drag camera
+orbit; (3) sounds.
+
+**Shipped:**
+- `camera.js` — right-drag orbit (yaw/pitch) + wheel zoom on top of the auto
+  chase/builder framing; manual offsets reset per mode change. Left-click part
+  removal now explicitly button-0 only.
+- `audio.js` (new) — fully procedural WebAudio: noise-based engine roar/rumble
+  + detuned sub oscillators, wind rush, ignition swell, staging clunk, MECO,
+  space chime, crash boom, UI blips. Lazy AudioContext on first gesture;
+  M key + corner button mute.
+- Black-screen hardening (first ignition is the heaviest GPU moment:
+  130-particle dust ring + plume + bloom on fresh pipelines):
+  * near-camera fade in the billboard vertex shader — kills the worst-case
+    fill-rate spike (full-screen smoke quads) that can stall/TDR mid GPUs;
+  * NaN guard in the plume cone shader (pow of a possibly-negative base feeds
+    black through bloom on real GPUs);
+  * one hidden pre-warm frame at startup compiles every particle/plume
+    pipeline before the first ignition.
+- `tools/interact_test.mjs` — 14-check Playwright suite (drag orbit builder +
+  flight, zoom, context-menu suppression, audio unlock/RMS/mute, launch flow,
+  console cleanliness). 14/14 on the production dist build.
+- Regression: full `shots.mjs --iter 7` run — all views & telemetry match the
+  iter-6 green baseline.
