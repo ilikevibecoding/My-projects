@@ -106,7 +106,7 @@ export class Fire {
           float a = tex.a * vFade;
           // hotter core, redder tips by life
           vec3 col = tex.rgb * mix(vec3(1.5, 1.25, 0.9), vec3(1.6, 0.65, 0.25), vSeed * 0.5 + 0.25);
-          gl_FragColor = vec4(col * 1.3, a);
+          gl_FragColor = vec4(col * 1.2, a);
         }
       `,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,

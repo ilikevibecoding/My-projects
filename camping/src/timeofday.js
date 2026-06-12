@@ -44,8 +44,8 @@ export const PRESETS = {
     gradPower: 1.8, // warm band climbs high; dusk blue only overhead
     starIntensity: 0.0,
     exposure: 1.18,
-    bloomStrength: 0.32,
-    bloomThreshold: 0.95,
+    bloomStrength: 0.24,
+    bloomThreshold: 1.0,
   },
   night: {
     sunDir: new THREE.Vector3(0.35, 0.58, -0.55).normalize(), // moon as key

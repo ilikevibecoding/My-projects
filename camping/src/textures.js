@@ -112,13 +112,13 @@ export function makeRockTexture(size = 512) {
 // ---------------------------------------------------------------------------
 // Bark, wood rings, tent canvas
 // ---------------------------------------------------------------------------
-export function makeBarkTexture(size = 256) {
+export function makeBarkTexture(size = 256, base = 0.20) {
   const [c, ctx] = makeCanvas(size);
   paintTileableNoise(ctx, size, (u, v) => {
     // vertical ridges
     const ridge = Math.abs(Math.sin((u + fbmTile(texNoise, u, v, 6) * 0.08) * Math.PI * 18));
     const grain = fbmTile(texNoise2, u * 2, v, 24, 3);
-    let l = 0.20 + ridge * 0.18 + grain * 0.09;
+    let l = base + ridge * 0.18 + grain * 0.09;
     return [l * 255 * 1.10, l * 255 * 0.80, l * 255 * 0.56];
   });
   return canvasTexture(c, { repeat: 1 });

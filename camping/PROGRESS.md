@@ -176,3 +176,35 @@ Fixes applied for iter 7: golden sky warmed (horizon 0xffa552, top 0x3a5f95, clo
 0xa87f5e, fog 0xe8b481, clouds 0.44); flame sprite intensity capped at 1.12 (surge feeds light +
 embers instead); harness waits for fireBoost<0.12 before the seated shot; rock albedo ×1.55;
 pine trunk tint 0xc4a37c.
+
+---
+
+## Iteration 7 — frame-pumping harness, golden sky fixed (shots/iter_7, full run)
+
+**Infra discovery:** the first iter-7 run timed out waiting for fire-boost decay. Probing showed
+headless Chrome only renders frames when the compositor is asked for them — **screenshots pump
+BeginFrames**; an idle `waitForFunction` lets rAF crawl at <1fps, so sim-time-based state (boost
+decay, fades, ToD lerps) stalls. The harness now uses `pumpUntil(predicate)` (throwaway
+screenshots in a loop) and `debugAPI.getState()` exposes `fireBoost` / `fading` /
+`transitioning` so every timed interaction is awaited deterministically.
+
+**Visual fix that landed this iteration:** the first warmed-golden attempt still read
+mauve — root cause was the sky gradient `pow(h, 0.5)`: the blue top color reaches half-strength
+only 6% above the horizon, so most of the visible sky was an orange-blue mix (= purple). Added
+per-preset `uGradPower` (day 0.5, golden 1.8, night 0.6) — at golden the warm band now climbs
+high and dusk blue only lives overhead.
+
+- camp_golden: warm peach sky, sun-lit camp, glowing path — finally an actual golden hour. PASS.
+- interact_after_sleep: full night, transition complete (pump-awaited), tent firelit from the
+  still-burning campfire, prompt visible. Sleep loop proven end-to-end. PASS.
+- pond_day: rocks now read as grey stone (texture base 0.46→0.58, crack softened, albedo ×1.55).
+- Motion: grass 7.1 / water 5.9 / fire 9.0. Walk grounded, eye 1.7m. 135–335 calls, ≤2.6M tris.
+- Remaining nits: pine trunks under dense canopies still read near-black in forest_day (bark
+  texture base 0.20 is too dark for shade); seated/fire-lit golden shots have a hot white flame
+  core (bloom 0.32 + exposure 1.18 at golden).
+- Scoring: 1 PASS · 2 PASS · 3 PASS · 4 PASS · 5 PASS · 6 PASS · 7 PASS (bloom tasteful in all
+  six beauty shots; seated core borderline) · 8 PASS · 9 PASS · 10 PASS · 11 FAIL (trunk +
+  flame-core nits keep it short of "screenshot-worthy everywhere"). **= 10/11**
+
+Fixes applied for iter 8: pine bark texture base 0.20→0.34 (camp logs keep the dark variant);
+golden bloom 0.32→0.24 with threshold 1.0; flame fragment multiplier 1.3→1.2.

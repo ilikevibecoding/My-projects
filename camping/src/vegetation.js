@@ -331,7 +331,7 @@ export function createTrees() {
   group.name = 'trees';
   const rand = mulberry32(777111);
 
-  const barkTex = makeBarkTexture();
+  const barkTex = makeBarkTexture(256, 0.34); // brighter than camp logs: trunks live in canopy shade
   const birchTex = makeBirchBarkTexture();
 
   // --- pines ---
