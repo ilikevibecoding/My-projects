@@ -372,6 +372,11 @@ function applyBuoyancy() {
       x: -b.velocity.x * b.mass * dragX * frac,
       y: fy - b.velocity.y * b.mass * dragY * frac
     });
+    /* floating debris self-rights: torque toward the nearest horizontal pose */
+    if (b !== player) {
+      var dev = ((b.angle % Math.PI) + Math.PI * 1.5) % Math.PI - Math.PI / 2;
+      Body.setAngularVelocity(b, b.angularVelocity * 0.92 - dev * 0.012 * frac);
+    }
   }
 }
 
