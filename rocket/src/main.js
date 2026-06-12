@@ -16,6 +16,7 @@ import { CameraRig } from './camera.js';
 import { createHUD } from './hud.js';
 import { createPost } from './post.js';
 import { createBuilder } from './builder.js';
+import { createAudioEngine } from './audio.js';
 
 // ---------------------------------------------------------------------------
 // Renderer / scene scaffolding
@@ -55,6 +56,8 @@ const atmo = createAtmosphere(scene, SUN_DIR);
 const exhaust = new ExhaustSystem(scene, 1337);
 const post = createPost(renderer, scene, rig.camera, window.innerWidth, window.innerHeight);
 const hud = createHUD();
+const audio = createAudioEngine();
+rig.attachControls(renderer.domElement);
 
 // ---------------------------------------------------------------------------
 // Game state
@@ -135,6 +138,7 @@ function enterBuilder() {
   buildAndPlaceRocket(builder.stackIds);
   hud.showBuilder();
   rig.mode = 'orbit';
+  rig.resetManual();
 }
 
 function startFlight(stackIds = builder.stackIds) {
@@ -147,6 +151,7 @@ function startFlight(stackIds = builder.stackIds) {
   game.input.tiltX = 0; game.input.tiltZ = 0;
   hud.showFlight(); // also resets the key hint to the default
   rig.mode = 'chase';
+  rig.resetManual();
   const c = rocketCenterPos(new THREE.Vector3());
   localUp(c, _v2);
   const camPos = c.clone().addScaledVector(new THREE.Vector3(0.62, 0, 0.78), 22).addScaledVector(_v2, 4);
@@ -174,6 +179,7 @@ function doStage() {
   }
   setEngineGlow(sg, 0);
   hud.flash('STAGE SEPARATION');
+  audio.stage();
 }
 
 // ---------------------------------------------------------------------------
@@ -187,30 +193,34 @@ function processEvents() {
     switch (ev.type) {
       case 'ignition': {
         hud.flash('IGNITION');
+        audio.ignition();
         if (altitudeOf(sim.pos) < 8) {
           exhaust.igniteDust(rocketBasePos(_v1), world.padTopY + 0.1);
         }
         break;
       }
-      case 'liftoff': hud.flash('LIFTOFF'); break;
-      case 'flameout': hud.flash('MAIN ENGINE CUTOFF'); break;
+      case 'liftoff': hud.flash('LIFTOFF'); audio.liftoff(); break;
+      case 'flameout': hud.flash('MAIN ENGINE CUTOFF'); audio.flameout(); break;
       case 'space': {
         hud.banner('space');
         hud.setHint('space reached — revert when ready');
+        audio.spaceReached();
         break;
       }
       case 'crash': {
         exhaust.crashPoof(rocketCenterPos(_v1));
         if (game.rocket) game.rocket.group.visible = false;
         hud.banner('crash');
+        audio.crash();
         break;
       }
-      case 'landed': hud.flash('TOUCHDOWN'); break;
+      case 'landed': hud.flash('TOUCHDOWN'); audio.debrisThud(); break;
       case 'debrisDown': {
         const g = game.debrisVisuals.get(parseInt(ev.id.replace('stage', ''), 10));
         if (g) {
           exhaust.crashPoof(g.position.clone());
           scene.remove(g);
+          audio.debrisThud();
         }
         break;
       }
@@ -329,6 +339,14 @@ function updateVisualsAndRender(dt) {
     const st = activeStage(sim);
     const fuelFrac = st && st.fuelMax > 0 ? st.fuel / st.fuelMax : 0;
     hud.setReadouts(alt, sim.vel.length(), fuelFrac);
+    // engine roar + wind rush follow throttle / air density / speed
+    audio.setFlightLoop({
+      throttle: sim.phase !== 'crashed' && sim.ignited ? sim.throttle : 0,
+      atmo: Math.min(1, rho / CONST.rho0),
+      speed: sim.vel.length(),
+    });
+  } else {
+    audio.setFlightLoop({ throttle: 0, atmo: 1, speed: 0 });
   }
 
   exhaust.sync(rig.camera);
@@ -359,6 +377,18 @@ function loop() {
 // ---------------------------------------------------------------------------
 // Input
 // ---------------------------------------------------------------------------
+// browsers only allow audio after a user gesture; unlock on the first one
+window.addEventListener('pointerdown', () => audio.unlock(), { capture: true });
+window.addEventListener('keydown', () => audio.unlock(), { capture: true });
+
+const soundBtn = document.getElementById('sound-btn');
+function refreshSoundBtn() {
+  soundBtn.textContent = audio.muted ? '🔇' : '🔊';
+  soundBtn.classList.toggle('muted', audio.muted);
+}
+soundBtn.addEventListener('click', () => { audio.unlock(); audio.toggleMuted(); refreshSoundBtn(); });
+refreshSoundBtn();
+
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   switch (e.code) {
@@ -373,6 +403,7 @@ window.addEventListener('keydown', (e) => {
     case 'ArrowRight': game.input.tiltZ = -1; e.preventDefault(); break;
     case 'ArrowUp': game.input.tiltX = -1; e.preventDefault(); break;
     case 'ArrowDown': game.input.tiltX = 1; e.preventDefault(); break;
+    case 'KeyM': audio.toggleMuted(); refreshSoundBtn(); break;
   }
 });
 window.addEventListener('keyup', (e) => {
@@ -382,9 +413,11 @@ window.addEventListener('keyup', (e) => {
   }
 });
 
-// click a stacked part to remove it (builder mode)
+// click a stacked part to remove it (builder mode; left button only —
+// right button is camera orbit)
 const raycaster = new THREE.Raycaster();
 renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
   if (game.mode !== 'builder' || !game.rocket) return;
   const ndc = new THREE.Vector2(
     (e.clientX / window.innerWidth) * 2 - 1,
@@ -397,10 +430,19 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
     while (o && !o.userData.partEntry) o = o.parent;
     if (o && o.userData.partEntry) {
       builder.removeAt(o.userData.partEntry.stackIndex);
+      audio.uiRemove();
       return;
     }
   }
 });
+
+// UI blips (palette add-clicks, launch, revert) — DOM-level so builder.js
+// stays audio-agnostic
+document.getElementById('palette').addEventListener('click', (e) => {
+  if (e.target.closest('.part-card')) audio.uiClick();
+});
+document.getElementById('launch-btn').addEventListener('click', () => audio.launchWhoosh());
+document.getElementById('revert-btn').addEventListener('click', () => audio.uiClick());
 
 hud.onRevert(() => enterBuilder());
 
@@ -595,6 +637,18 @@ const debugAPI = {
   stage() { doStage(); },
   pause(v = true) { game.debugPaused = v; },
 
+  cameraInfo() {
+    return {
+      pos: rig.camera.position.toArray().map((v) => +v.toFixed(2)),
+      userYaw: +rig.userYaw.toFixed(4),
+      userPitch: +rig.userPitch.toFixed(4),
+      userZoom: +rig.userZoom.toFixed(4),
+      mode: rig.mode,
+    };
+  },
+
+  audioStats() { return audio.stats(); },
+
   frameStats() {
     const ms = game.frameMs;
     const avg = ms.length ? ms.reduce((a, b) => a + b, 0) / ms.length : 0;
@@ -618,4 +672,26 @@ window.debugAPI = debugAPI;
 // Go
 // ---------------------------------------------------------------------------
 enterBuilder();
+
+// Pre-warm every particle/plume pipeline with one hidden frame so the first
+// ignition doesn't trigger driver-side pipeline builds (a hitch — or worse —
+// on some real GPUs when space is first pressed).
+(function prewarmPipelines() {
+  const p = new THREE.Vector3(0, BASE_OFFSET + 2, 0);
+  const spec = { pos: p, life: 1, opacity0: 0.012, size0: 0.5, size1: 0.5 };
+  exhaust.flames.spawn(spec);
+  exhaust.smoke.spawn(spec);
+  exhaust.dust.spawn(spec);
+  exhaust.poofs.spawn(spec);
+  exhaust.stars.spawn(spec);
+  for (const pl of game.plumes) {
+    updatePlume(pl.group, { time: 0, throttle: 0.04, rho: CONST.rho0, rho0: CONST.rho0 });
+  }
+  updateVisualsAndRender(0);
+  for (const pl of game.plumes) {
+    updatePlume(pl.group, { time: 0, throttle: 0, rho: CONST.rho0, rho0: CONST.rho0 });
+  }
+  exhaust.reset();
+})();
+
 loop();

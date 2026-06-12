@@ -21,21 +21,60 @@ export class CameraRig {
     this.mode = 'orbit';          // orbit | chase | fixed
     this.fixedPos = new THREE.Vector3();
     this.fixedLook = new THREE.Vector3();
+    // manual control (right-drag orbit + wheel zoom), applied on top of
+    // the auto orbit/chase framing
+    this.userYaw = 0;             // radians around local up
+    this.userPitch = 0;           // radians toward/away from local up
+    this.userZoom = 1;            // distance multiplier
+    this.dragging = false;
   }
+
+  // right-button drag orbits around the rocket; wheel zooms in/out
+  attachControls(dom) {
+    let lastX = 0, lastY = 0;
+    dom.addEventListener('contextmenu', (e) => e.preventDefault());
+    dom.addEventListener('pointerdown', (e) => {
+      if (e.button !== 2) return;
+      this.dragging = true;
+      lastX = e.clientX; lastY = e.clientY;
+      dom.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+    });
+    const endDrag = (e) => {
+      if (e.type !== 'pointercancel' && e.button !== 2) return;
+      this.dragging = false;
+    };
+    dom.addEventListener('pointerup', endDrag);
+    dom.addEventListener('pointercancel', endDrag);
+    dom.addEventListener('pointermove', (e) => {
+      if (!this.dragging) return;
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      this.userYaw -= dx * 0.006;
+      this.userPitch = THREE.MathUtils.clamp(this.userPitch + dy * 0.005, -0.55, 1.25);
+    });
+    dom.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      this.userZoom = THREE.MathUtils.clamp(this.userZoom * Math.exp(e.deltaY * 0.0011), 0.45, 2.6);
+    }, { passive: false });
+  }
+
+  resetManual() { this.userYaw = 0; this.userPitch = 0; this.userZoom = 1; }
 
   resize(w, h) {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
 
-  // ---- builder: slow orbit around the stack
+  // ---- builder: slow orbit around the stack (right-drag steers it)
   updateOrbit(dt, time, stackHeight) {
     const h = Math.max(6, stackHeight);
-    const r = Math.max(11, h * 1.75);
-    const a = time * 0.12 + 0.7;
-    _desired.set(Math.cos(a) * r, 2.2 + h * 0.62, Math.sin(a) * r);
+    const r = Math.max(11, h * 1.75) * this.userZoom;
+    const a = time * 0.12 + 0.7 + this.userYaw;
+    const liftK = THREE.MathUtils.clamp(0.62 + this.userPitch * 0.85, -0.1, 2.0);
+    _desired.set(Math.cos(a) * r, 2.2 + h * liftK, Math.sin(a) * r);
     _look.set(0, 2.0 + h * 0.46, 0);
-    this._smooth(dt, 2.2);
+    this._smooth(dt, this.dragging ? 12 : 2.2);
   }
 
   // ---- flight: chase from the sun-lit side, look slightly ahead
@@ -44,15 +83,18 @@ export class CameraRig {
     _up.copy(target.up);
     // heading projected onto the local horizontal plane
     _horiz.copy(HEADING).addScaledVector(_up, -HEADING.dot(_up)).normalize();
+    // manual orbit: rotate the heading around local up, then pitch it
+    if (this.userYaw !== 0) _horiz.applyAxisAngle(_up, this.userYaw);
     const speed = target.vel.length();
-    const dist = THREE.MathUtils.clamp(15 + speed * 0.045, 15, 34);
-    const lift = 3.2 + speed * 0.012;
-    _desired.copy(target.pos).addScaledVector(_horiz, dist).addScaledVector(_up, lift);
+    const dist = THREE.MathUtils.clamp(15 + speed * 0.045, 15, 34) * this.userZoom;
+    const lift = (3.2 + speed * 0.012) + dist * Math.sin(this.userPitch);
+    const horizDist = dist * Math.cos(this.userPitch);
+    _desired.copy(target.pos).addScaledVector(_horiz, horizDist).addScaledVector(_up, lift);
     // never clip into the terrain near the pad
     const alt = altitudeOf(_desired);
     if (alt < 2.6) _desired.addScaledVector(_up, 2.6 - alt);
     _look.copy(target.pos).addScaledVector(target.vel, 0.22).addScaledVector(_up, 0.6);
-    this._smooth(dt, 3.4);
+    this._smooth(dt, this.dragging ? 14 : 3.4);
   }
 
   updateFixed(dt) {

@@ -124,7 +124,11 @@ const BB_VERT = /* glsl */`
   void main() {
     vUv = uv;
     vColor = iColor;
-    vOpacity = iOpacity;
+    // fade puffs that get close to the camera: avoids full-screen billboards
+    // (a fill-rate spike that can stall mid GPUs at ignition) and the ugly
+    // pop when a puff crosses the near plane
+    float camDist = distance(iPos, cameraPosition);
+    vOpacity = iOpacity * smoothstep(1.2, 7.0, camDist);
     float c = cos(iRot), s = sin(iRot);
     vec2 p = position.xy;
     vec2 rp = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
@@ -279,7 +283,9 @@ const CONE_FRAG = /* glsl */`
                mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
   }
   void main() {
-    float along = 1.0 - vUv.y;          // 0 at nozzle -> 1 at tip
+    // clamp: interpolation can nudge uv epsilon out of [0,1]; pow(negative, x)
+    // is NaN on real GPUs and NaN feeds black through the bloom chain
+    float along = clamp(1.0 - vUv.y, 0.0, 1.0); // 0 at nozzle -> 1 at tip
     float n = noise(vec2(vUv.x * 7.0, along * 4.5 - uTime * 7.0));
     float n2 = noise(vec2(vUv.x * 13.0 + 5.0, along * 9.0 - uTime * 11.0));
     float flicker = 0.74 + 0.26 * n;

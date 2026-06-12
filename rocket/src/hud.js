@@ -1,7 +1,7 @@
 // hud.js — flight readouts, banners, revert button. DOM is in index.html;
 // this module just drives it.
 
-const DEFAULT_FLIGHT_HINT = 'space — ignite / stage&nbsp;&nbsp;·&nbsp;&nbsp;arrows — tilt';
+const DEFAULT_FLIGHT_HINT = 'space — ignite / stage&nbsp;&nbsp;·&nbsp;&nbsp;arrows — tilt&nbsp;&nbsp;·&nbsp;&nbsp;right-drag — orbit';
 
 export function createHUD() {
   const el = {
