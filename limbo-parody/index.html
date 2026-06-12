@@ -43,10 +43,15 @@ var viewW = 1280, viewH = 720;            // world units actually visible (windo
 /* objective areas pull the camera back so the whole puzzle reads at once */
 var ZOOM_ZONES = [
   { x0: 2030, x1: 2760, k: 0.86 },        // crate haul + ledge climb
-  { x0: 3090, x1: 3720, k: 0.76 }         // rope gap
+  { x0: 3090, x1: 3720, k: 0.76 },        // rope gap
+  { x0: 6520, x1: 7330, k: 0.82 },        // S1: stone wheel pit
+  { x0: 7960, x1: 8780, k: 0.78 },        // S2: seesaw pool
+  { x0: 9330, x1: 9760, k: 0.88 },        // S3: wheel step shelf
+  { x0: 10330, x1: 11000, k: 0.74 },      // S4: rope-climb chasm
+  { x0: 11860, x1: 12380, k: 0.84 }       // S5: cart wall
 ];
 var DT = 1000 / 60;                        // fixed physics step
-var WORLD_X0 = -300, WORLD_X1 = 6400;
+var WORLD_X0 = -300, WORLD_X1 = 13400;
 var GROUND_BOTTOM = 1600;
 
 var GRAVITY_Y = 1.4;
@@ -58,7 +63,8 @@ var COYOTE_TICKS = 6;
 
 var WATERS = [
   { x0: 900,  x1: 1500, surfaceY: 920, floorY: 1160 },   // beat 1 pit
-  { x0: 5180, x1: 5800, surfaceY: 925, floorY: 1175 }    // second pool (extension)
+  { x0: 5180, x1: 5800, surfaceY: 925, floorY: 1175 },   // second pool (extension)
+  { x0: 8060, x1: 8660, surfaceY: 925, floorY: 1175 }    // S2: seesaw pool
 ];
 
 var ROPE_PIN = { x: 3350, y: 412 };
@@ -195,7 +201,31 @@ var blocks = [
   { x0: 4750, x1: 4820, top: 830  },        // step down into the hollow
   { x0: 4820, x1: 5180, top: 905  },        // hollow floor, pool-2 left bank
   { x0: 5180, x1: 5800, top: 1175 },        // water pit 2 floor
-  { x0: 5800, x1: WORLD_X1, top: 905 }      // final clearing / end
+  { x0: 5800, x1: 6900, top: 905  },        // clearing before the wheel pit
+
+  /* --- S1: stone wheel pit --- */
+  { x0: 6900, x1: 7200, top: 1065 },        // pit: too deep to jump out bare
+  { x0: 6900, x1: 6936, top: 985  },        // left recovery step (back out only)
+  { x0: 7200, x1: 8060, top: 905  },        // S1 → S2 flats
+
+  /* --- S2: seesaw pool (8060-8660 is water) --- */
+  { x0: 8060, x1: 8660, top: 1175 },        // pool 3 floor
+  { x0: 8660, x1: 9560, top: 905  },        // right bank → S3 approach
+
+  /* --- S3: wheel-step shelf --- */
+  { x0: 9560, x1: 10460, top: 750 },        // high shelf (needs the wheel as a step)
+
+  /* --- S4: rope-climb chasm --- */
+  { x0: 10460, x1: 10860, top: 1330 },      // deep chasm under rope 2
+  { x0: 10460, x1: 10560, top: 1210 },      // nested recovery staircase (left wall)
+  { x0: 10460, x1: 10530, top: 1090 },
+  { x0: 10460, x1: 10500, top: 970  },
+  { x0: 10460, x1: 10472, top: 850  },
+  { x0: 10860, x1: 11160, top: 760 },       // swing landing platform
+  { x0: 11160, x1: 12150, top: 905 },       // S5 cart flats
+
+  /* --- S5: cart wall + finale --- */
+  { x0: 12150, x1: WORLD_X1, top: 715 }     // final high clearing
 ];
 
 var terrainBodies = [];
@@ -262,13 +292,68 @@ var crate = Bodies.rectangle(2240, 850, 84, 84, {
 });
 Composite.add(world, crate);
 
+/* --- S1 + S3: rollable stone wheels ("the circle things") --- */
+function makeWheel(x, y, r) {
+  var w = Bodies.circle(x, y, r, {
+    density: 0.00032,
+    friction: 0.85,
+    frictionStatic: 0.9,
+    frictionAir: 0.0035,
+    restitution: 0,
+    label: 'wheel'
+  });
+  Composite.add(world, w);
+  return w;
+}
+var wheel1 = makeWheel(6650, 815, 85);    // S1: roll it into the pit to bridge it
+var wheel2 = makeWheel(9230, 843, 60);    // S3: roll it to the shelf as a step
+
+/* --- S2: tilting bridge — a plank on an off-center pivot over pool 3.
+       Left-heavy at rest (tip on the left bank); the boy's weight past the
+       pin tips it until the right tip lands on the far bank --- */
+var plank = Bodies.rectangle(8360, 900, 560, 16, {
+  density: 0.0009,
+  friction: 0.6,
+  frictionAir: 0.015,
+  chamfer: { radius: 5 },
+  label: 'plank'
+});
+var plankPin = Constraint.create({
+  pointA: { x: 8400, y: 900 },
+  bodyB: plank, pointB: { x: 40, y: 0 },
+  length: 0, stiffness: 0.95
+});
+Composite.add(world, [plank, plankPin]);
+
+/* --- S5: wooden cart — deck on two free-spinning wheels --- */
+var cartDeck = Bodies.rectangle(11500, 820, 240, 26, {
+  density: 0.0008,
+  friction: 0.5,
+  frictionStatic: 0.8,
+  frictionAir: 0.006,
+  chamfer: { radius: 6 },
+  label: 'cart'
+});
+var cartWheels = [
+  Bodies.circle(11420, 859, 46, { density: 0.0007, friction: 0.9, frictionAir: 0.018, label: 'cartwheel' }),
+  Bodies.circle(11580, 859, 46, { density: 0.0007, friction: 0.9, frictionAir: 0.018, label: 'cartwheel' })
+];
+var cartAxles = [
+  Constraint.create({ bodyA: cartDeck, pointA: { x: -80, y: 39 }, bodyB: cartWheels[0], pointB: { x: 0, y: 0 }, length: 0, stiffness: 0.9 }),
+  Constraint.create({ bodyA: cartDeck, pointA: { x: 80, y: 39 }, bodyB: cartWheels[1], pointB: { x: 0, y: 0 }, length: 0, stiffness: 0.9 })
+];
+Composite.add(world, [cartDeck, cartWheels[0], cartWheels[1], cartAxles[0], cartAxles[1]]);
+
+/* bodies the boy can grab and haul with the action key */
+var GRABBABLES = [crate, cartDeck];
+
 /* --- ropes: chains of linked segments pinned to overhang branches --- */
 function makeRope(pinX, pinY, segCount) {
   var segs = [], cons = [];
   for (var i = 0; i < segCount; i++) {
     segs.push(Bodies.rectangle(pinX, pinY + 16 + i * (ROPE_SEG_LEN + 2), ROPE_SEG_W, ROPE_SEG_LEN, {
       density: 0.002,
-      frictionAir: 0.02,
+      frictionAir: 0.012,
       label: 'rope',
       collisionFilter: { group: -7 }
     }));
@@ -295,7 +380,10 @@ function makeRope(pinX, pinY, segCount) {
   return { pin: { x: pinX, y: pinY }, segments: segs };
 }
 
-var ROPES = [makeRope(ROPE_PIN.x, ROPE_PIN.y, ROPE_SEGS)];
+var ROPES = [
+  makeRope(ROPE_PIN.x, ROPE_PIN.y, ROPE_SEGS),
+  makeRope(10660, 400, 12)                // S4: long rope into the chasm — climb it
+];
 var ropeSegments = ROPES[0].segments;     // beat-3 rope (legacy alias for debug/eval)
 
 /* ============================== collision bookkeeping ============================== */
@@ -432,26 +520,54 @@ function crateInReach() {
   return Math.abs(dx) < 100 && Math.abs(dy) < 75;
 }
 
+var grabBody = null;     // which grabbable he is currently hauling
+
+function bodyInReach(b) {
+  var hw = (b.bounds.max.x - b.bounds.min.x) / 2;
+  var dx = b.position.x - player.position.x;
+  var dy = b.position.y - player.position.y;
+  return Math.abs(dx) < hw + 62 && Math.abs(dy) < 85;
+}
+
+function crateInReach() {            // legacy name, kept for the eval harness
+  return bodyInReach(crate);
+}
+
 function updateCrateGrab() {
   if (grabConstraint) {
-    var dx = crate.position.x - player.position.x;
-    var dy = crate.position.y - player.position.y;
-    if (!keys.action || Math.abs(dx) > 170 || Math.abs(dy) > 130) {
+    var dx = grabBody.position.x - player.position.x;
+    var dy = grabBody.position.y - player.position.y;
+    var hw = (grabBody.bounds.max.x - grabBody.bounds.min.x) / 2;
+    if (!keys.action || Math.abs(dx) > hw + 110 || Math.abs(dy) > 140) {
       Composite.remove(world, grabConstraint);
       grabConstraint = null;
+      grabBody = null;
     }
     return;
   }
-  if (keys.action && crateInReach() && !ropeGrab.constraint) {
-    var side = player.position.x < crate.position.x ? -1 : 1;  // crate face toward player
+  if (keys.action && !ropeGrab.constraint) {
+    /* nearest grabbable in reach */
+    var best = null, bd = 1e9;
+    for (var i = 0; i < GRABBABLES.length; i++) {
+      var b = GRABBABLES[i];
+      if (!bodyInReach(b)) continue;
+      var d = Math.abs(b.position.x - player.position.x);
+      if (d < bd) { bd = d; best = b; }
+    }
+    if (!best) return;
+    var hw2 = (best.bounds.max.x - best.bounds.min.x) / 2;
+    var hh2 = (best.bounds.max.y - best.bounds.min.y) / 2;
+    var side = player.position.x < best.position.x ? -1 : 1;  // face toward player
     var pA = { x: side === -1 ? 14 : -14, y: 0 };
-    var pB = { x: side * 42, y: Math.max(-30, Math.min(30, player.position.y - crate.position.y)) };
+    var pB = { x: side * (hw2 - 2),
+               y: Math.max(-hh2 + 3, Math.min(hh2 - 3, player.position.y - best.position.y)) };
     var wA = { x: player.position.x + pA.x, y: player.position.y + pA.y };
-    var wB = { x: crate.position.x + pB.x, y: crate.position.y + pB.y };
+    var wB = { x: best.position.x + pB.x, y: best.position.y + pB.y };
     var len = Math.max(8, Math.hypot(wA.x - wB.x, wA.y - wB.y));
+    grabBody = best;
     grabConstraint = Constraint.create({
       bodyA: player, pointA: pA,
-      bodyB: crate, pointB: pB,
+      bodyB: best, pointB: pB,
       length: len, stiffness: 0.2, damping: 0.05
     });
     Composite.add(world, grabConstraint);
@@ -483,7 +599,7 @@ function updateRopeGrab() {
     /* pump the swing with left / right */
     var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
     if (dir !== 0) {
-      Body.applyForce(player, player.position, { x: dir * player.mass * 0.0007, y: 0 });
+      Body.applyForce(player, player.position, { x: dir * player.mass * 0.001, y: 0 });
     }
     /* hand-over-hand climbing: up / down walk the grab along the rope */
     if (ropeGrab.climbCd === 0) {
@@ -504,7 +620,7 @@ function updateRopeGrab() {
       ropeGrab.segment = null;
       ropeGrab.idx = -1;
       ropeGrab.rope = null;
-      ropeGrab.cooldown = 50;
+      ropeGrab.cooldown = 90;     // long enough that a launch can't re-catch the rope
       Body.setVelocity(player, {
         x: player.velocity.x * 1.35,
         y: player.velocity.y - (swingV > 1.6 ? 5.5 : 0.4)
@@ -569,7 +685,10 @@ function controlUpdate() {
     }
   }
 
-  if (grounded) walkPhase += Math.abs(player.velocity.x) * 0.105;
+  if (grounded) {
+    walkPhase += Math.abs(player.velocity.x) * 0.105;
+    progressX = Math.max(progressX, player.position.x);   // checkpoint progress
+  }
 }
 
 /* ============================== drowning & level reset ============================== */
@@ -578,10 +697,22 @@ function controlUpdate() {
    under; if it stays under he commits to a slow sink, then the screen fades. */
 var drown = { ticks: 0, phase: 'none', fade: 0, flail: 0, sink: 0 };
 
+/* silent checkpoints: drowning respawns him at the last stretch of safe ground */
+var CHECKPOINTS = [
+  { x: 440,   y: 830 }, { x: 1640,  y: 850 }, { x: 3700,  y: 700 },
+  { x: 5960,  y: 850 }, { x: 7320,  y: 850 }, { x: 8810,  y: 850 },
+  { x: 10180, y: 700 }, { x: 11300, y: 850 }
+];
+var progressX = 440;
+
 function levelReset() {
-  Body.setPosition(player, { x: 440, y: 830 });
+  var cp = CHECKPOINTS[0];
+  for (var i = 0; i < CHECKPOINTS.length; i++) {
+    if (CHECKPOINTS[i].x <= progressX) cp = CHECKPOINTS[i];
+  }
+  Body.setPosition(player, { x: cp.x, y: cp.y });
   Body.setVelocity(player, { x: 0, y: 0 });
-  cam.x = 440; cam.y = 760; cam.anchorX = 440; cam.leadVel = 0;
+  cam.x = cp.x; cam.y = cp.y - 70; cam.anchorX = cp.x; cam.leadVel = 0;
   groundPairs = {};
   drown.ticks = 0; drown.flail = 0; drown.sink = 0;
 }
@@ -988,6 +1119,26 @@ function drawGallowsTree(c) {
   c.beginPath(); c.moveTo(3290, 402); c.quadraticCurveTo(3310, 372, 3338, 356); c.stroke();
   c.lineWidth = 3;
   c.beginPath(); c.moveTo(3220, 408); c.quadraticCurveTo(3230, 380, 3252, 366); c.stroke();
+
+  /* S4 gallows: dead trunk on the chasm's right platform, arm holding rope 2 */
+  c.beginPath();
+  c.moveTo(10905, 762);
+  c.quadraticCurveTo(10882, 540, 10912, 250);
+  c.lineTo(10906, -60);
+  c.lineTo(10968, -60);
+  c.quadraticCurveTo(10968, 320, 10958, 560);
+  c.quadraticCurveTo(10952, 680, 10968, 762);
+  c.closePath();
+  c.fill();
+  c.beginPath();
+  c.moveTo(10918, 410);
+  c.quadraticCurveTo(10790, 375, 10660 - 30, 392);
+  c.lineTo(10660 - 26, 406);
+  c.quadraticCurveTo(10800, 402, 10922, 442);
+  c.closePath();
+  c.fill();
+  c.lineWidth = 4;
+  c.beginPath(); c.moveTo(10718, 390); c.quadraticCurveTo(10700, 362, 10676, 348); c.stroke();
 }
 
 /* ============================== organic tree generator & eerie set dressing ==============================
@@ -1174,7 +1325,15 @@ var worldTrees = [
   { x: 2720, baseY: 752, h: 600, baseW: 40, seed: 37, cocoon: false, foliage: false, tuftVine: true },
   { x: 4480, baseY: 752, h: 620, baseW: 46, seed: 41, cocoon: true,  foliage: false },
   { x: 5020, baseY: 907, h: 520, baseW: 30, seed: 53, cocoon: false, foliage: false },
-  { x: 6080, baseY: 907, h: 300, baseW: 24, seed: 68, cocoon: false, foliage: true }
+  { x: 6080, baseY: 907, h: 300, baseW: 24, seed: 68, cocoon: false, foliage: true },
+  /* extended stages */
+  { x: 6680, baseY: 907, h: 540, baseW: 32, seed: 83, cocoon: false, foliage: false },
+  { x: 7560, baseY: 907, h: 600, baseW: 42, seed: 91, cocoon: true,  foliage: false },
+  { x: 8930, baseY: 907, h: 520, baseW: 30, seed: 99, cocoon: false, foliage: false, tuftVine: true },
+  { x: 9890, baseY: 752, h: 560, baseW: 36, seed: 107, cocoon: false, foliage: false },
+  { x: 11700, baseY: 907, h: 620, baseW: 44, seed: 113, cocoon: true, foliage: false },
+  { x: 12700, baseY: 717, h: 520, baseW: 34, seed: 127, cocoon: false, foliage: false },
+  { x: 13130, baseY: 717, h: 310, baseW: 26, seed: 131, cocoon: false, foliage: true }
 ];
 worldTrees.forEach(function (tr) { tr.geom = genTree(tr.seed, tr.h, tr.baseW, tr.foliage); });
 
@@ -1182,7 +1341,11 @@ worldTrees.forEach(function (tr) { tr.geom = genTree(tr.seed, tr.h, tr.baseW, tr
 var worldVines = [
   { x: 2080, tipY: 560, phase: 0.9 },
   { x: 4640, tipY: 500, phase: 2.2 },
-  { x: 5950, tipY: 600, phase: 4.1 }
+  { x: 5950, tipY: 600, phase: 4.1 },
+  { x: 7340, tipY: 540, phase: 1.3 },
+  { x: 9260, tipY: 580, phase: 3.6 },
+  { x: 11060, tipY: 520, phase: 5.0 },
+  { x: 12480, tipY: 470, phase: 2.8 }
 ];
 worldVines.forEach(function (v, i) {
   var rnd = mulberry32(77 + i * 131);
@@ -1558,8 +1721,8 @@ function drawBoy(c) {
     c.beginPath(); c.moveTo(shX - 2.2, shY); c.lineTo(ex1, ey1); c.lineTo(ax - 1.6, ay + 2); c.stroke();
     c.beginPath(); c.moveTo(shX + 1.4, shY); c.lineTo(ex2, ey2); c.lineTo(ax + 1.6, ay + 2); c.stroke();
   } else if (grabConstraint) {
-    /* hauling at the crate: arms thrust toward it, elbows low */
-    var cdir = (crate.position.x > p.x ? 1 : -1) * facing;
+    /* hauling at the grabbed body: arms thrust toward it, elbows low */
+    var cdir = ((grabBody ? grabBody.position.x : p.x + facing) > p.x ? 1 : -1) * facing;
     c.beginPath(); c.moveTo(shX - 2, shY + 1); c.lineTo(cdir * 5.5, shY + 5.5); c.lineTo(cdir * 11.5, shY + 7); c.stroke();
     c.beginPath(); c.moveTo(shX + 1, shY + 2); c.lineTo(cdir * 6.5, shY + 7.5); c.lineTo(cdir * 11.5, shY + 9.5); c.stroke();
   } else if (!grounded && swim < 0.2) {
@@ -1679,20 +1842,24 @@ function drawLogs(c) {
   });
 }
 
-function drawCrate(c) {
-  c.save();
-  c.translate(crate.position.x, crate.position.y);
-  c.rotate(crate.angle);
-  c.fillStyle = '#000000';
-  c.beginPath();
-  c.rect(-42, -42, 84, 84);
-  c.fill();
-  /* shape-only notches keep it pure black yet readable as a crate */
-  c.beginPath();
-  c.rect(-46, -34, 4, 10);
-  c.rect(42, 18, 4, 10);
-  c.fill();
-  c.restore();
+function drawCrates(c) {
+  var list = [{ b: crate, s: 42 }];
+  for (var i = 0; i < list.length; i++) {
+    var e = list[i];
+    c.save();
+    c.translate(e.b.position.x, e.b.position.y);
+    c.rotate(e.b.angle);
+    c.fillStyle = '#000000';
+    c.beginPath();
+    c.rect(-e.s, -e.s, e.s * 2, e.s * 2);
+    c.fill();
+    /* shape-only notches keep it pure black yet readable as a crate */
+    c.beginPath();
+    c.rect(-e.s - 4, -e.s + 8, 4, 10);
+    c.rect(e.s, e.s - 24, 4, 10);
+    c.fill();
+    c.restore();
+  }
 }
 
 function drawRope(c) {
@@ -1716,11 +1883,218 @@ function drawRope(c) {
   }
 }
 
+/* ============================== props: wheels, cart, seesaw, light poles ============================== */
+
+/* spoked wheel sprite (transparent gaps read against the fog) — cached per radius */
+var wheelSprites = {};
+function wheelSprite(r) {
+  var s = wheelSprites[r];
+  if (s) return s;
+  var size = Math.ceil(r * 2 + 4);
+  s = document.createElement('canvas');
+  s.width = size; s.height = size;
+  var c = s.getContext('2d');
+  c.translate(size / 2, size / 2);
+  c.fillStyle = '#000000';
+  c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+  /* punch 4 windows between the spokes */
+  c.globalCompositeOperation = 'destination-out';
+  for (var i = 0; i < 4; i++) {
+    var a0 = i * Math.PI / 2 + 0.26, a1 = (i + 1) * Math.PI / 2 - 0.26;
+    c.beginPath();
+    c.arc(0, 0, r * 0.74, a0, a1);
+    c.arc(0, 0, r * 0.3, a1, a0, true);
+    c.closePath();
+    c.fill();
+  }
+  c.globalCompositeOperation = 'source-over';
+  wheelSprites[r] = s;
+  return s;
+}
+
+function drawWheelBody(c, body, r) {
+  var s = wheelSprite(r);
+  c.save();
+  c.translate(body.position.x, body.position.y);
+  c.rotate(body.angle);
+  c.drawImage(s, -s.width / 2, -s.height / 2);
+  c.restore();
+}
+
+function drawWheels(c) {
+  drawWheelBody(c, wheel1, 85);
+  drawWheelBody(c, wheel2, 60);
+}
+
+function drawCart(c) {
+  c.save();
+  c.translate(cartDeck.position.x, cartDeck.position.y);
+  c.rotate(cartDeck.angle);
+  c.fillStyle = '#000000';
+  c.beginPath();
+  c.roundRect(-120, -13, 240, 26, 5);
+  c.fill();
+  /* side rails + a worn handle, silhouette detail */
+  c.beginPath();
+  c.rect(-120, -24, 7, 13);
+  c.rect(113, -24, 7, 13);
+  c.fill();
+  c.restore();
+  drawWheelBody(c, cartWheels[0], 46);
+  drawWheelBody(c, cartWheels[1], 46);
+}
+
+function drawSeesaw(c) {
+  /* stone pivot rising from the pool */
+  c.fillStyle = '#000000';
+  c.beginPath();
+  c.moveTo(8400, 906);
+  c.lineTo(8366, 1010);
+  c.lineTo(8434, 1010);
+  c.closePath();
+  c.fill();
+  /* plank */
+  c.save();
+  c.translate(plank.position.x, plank.position.y);
+  c.rotate(plank.angle);
+  c.beginPath();
+  c.roundRect(-280, -8, 560, 16, 3);
+  c.fill();
+  c.restore();
+}
+
+/* --- Limbo street lamps: leaning black poles, hanging lamp, hot glow, drips --- */
+var LIGHT_POLES = [
+  { x: 1564,  baseY: 903, h: 250, arm: -74, drip: true,  ph: 0.7 },
+  { x: 5862,  baseY: 903, h: 235, arm: -60, drip: true,  ph: 2.3 },
+  { x: 8032,  baseY: 903, h: 262, arm: 84,  drip: true,  ph: 4.1 },
+  { x: 9520,  baseY: 903, h: 245, arm: 56,  drip: false, ph: 1.5 },
+  { x: 12330, baseY: 713, h: 285, arm: 92,  drip: false, ph: 5.2 }
+];
+
+function lampPos(pole, t) {
+  var sway = Math.sin(t * 0.7 + pole.ph) * 0.05;
+  var ax = pole.x + pole.arm;
+  var ay = pole.baseY - pole.h + 8;
+  return { x: ax + Math.sin(sway) * 16, y: ay + 14 + Math.cos(sway) * 4, sway: sway };
+}
+
+var drips = [];      // { x, y, vy, pool } falling droplets
+var splashes = [];   // { x, y, r, life } expanding rings on the water
+
+function poolAt(x) {
+  for (var i = 0; i < WATERS.length; i++) {
+    if (x >= WATERS[i].x0 && x <= WATERS[i].x1) return WATERS[i];
+  }
+  return null;
+}
+
+function updateDrips() {
+  var t = tickCount / 60;
+  for (var i = 0; i < LIGHT_POLES.length; i++) {
+    var pole = LIGHT_POLES[i];
+    if (!pole.drip) continue;
+    var every = 80 + ((i * 47) % 60);
+    if ((tickCount + i * 31) % every === 0) {
+      var lp = lampPos(pole, t);
+      drips.push({ x: lp.x + (Math.random() - 0.5) * 6, y: lp.y + 8, vy: 0.6 });
+    }
+  }
+  for (var d = drips.length - 1; d >= 0; d--) {
+    var dr = drips[d];
+    dr.vy += 0.5;
+    dr.y += dr.vy;
+    var pool = poolAt(dr.x);
+    var hitY = pool ? surfaceAt(pool, dr.x, t) : 902;
+    if (dr.y >= hitY) {
+      if (pool) splashes.push({ x: dr.x, y: hitY, r: 2, life: 1 });
+      drips.splice(d, 1);
+    }
+  }
+  for (var s2 = splashes.length - 1; s2 >= 0; s2--) {
+    var sp = splashes[s2];
+    sp.r += 0.85;
+    sp.life -= 0.03;
+    if (sp.life <= 0) splashes.splice(s2, 1);
+  }
+}
+
+function drawLightPoles(c) {
+  var t = tickCount / 60;
+  for (var i = 0; i < LIGHT_POLES.length; i++) {
+    var pole = LIGHT_POLES[i];
+    var topY = pole.baseY - pole.h;
+    var lp = lampPos(pole, t);
+    /* glow behind the silhouette: irregular flicker, never fully steady */
+    var flick = 0.78 + 0.13 * Math.sin(t * 8.3 + pole.ph) * Math.sin(t * 2.6 + pole.ph * 2) + 0.09 * Math.sin(t * 0.9 + pole.ph);
+    c.globalAlpha = 0.5 * flick;
+    c.drawImage(glowSprite, lp.x - 95, lp.y - 95, 190, 190);
+    c.globalAlpha = 0.62 * flick;
+    c.drawImage(glowSprite, lp.x - 34, lp.y - 34, 68, 68);
+    c.globalAlpha = 1;
+    /* pole: tapered, slightly leaning post with a foot mound */
+    c.fillStyle = '#000000';
+    var leanT = pole.arm * 0.06;
+    c.beginPath();
+    c.moveTo(pole.x - 6, pole.baseY + 4);
+    c.quadraticCurveTo(pole.x - 4, pole.baseY - pole.h * 0.55, pole.x - 3 + leanT, topY);
+    c.lineTo(pole.x + 3.4 + leanT, topY);
+    c.quadraticCurveTo(pole.x + 5, pole.baseY - pole.h * 0.5, pole.x + 6.5, pole.baseY + 4);
+    c.closePath();
+    c.fill();
+    /* arm + brace */
+    c.strokeStyle = '#000000';
+    c.lineCap = 'round';
+    c.lineWidth = 5;
+    c.beginPath();
+    c.moveTo(pole.x + leanT, topY + 6);
+    c.quadraticCurveTo(pole.x + pole.arm * 0.55 + leanT, topY + 2, pole.x + pole.arm, topY + 8);
+    c.stroke();
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(pole.x + leanT * 0.8, topY + 40);
+    c.lineTo(pole.x + pole.arm * 0.62, topY + 9);
+    c.stroke();
+    /* hanging lamp box */
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(pole.x + pole.arm, topY + 8);
+    c.lineTo(lp.x, lp.y - 7);
+    c.stroke();
+    c.save();
+    c.translate(lp.x, lp.y);
+    c.rotate(lp.sway);
+    c.fillRect(-9, -8, 18, 15);
+    /* hot core */
+    c.fillStyle = '#ffffff';
+    c.globalAlpha = 0.92 * flick;
+    c.fillRect(-5, -3, 10, 7);
+    c.globalAlpha = 1;
+    c.restore();
+  }
+  /* droplets + rings */
+  c.strokeStyle = 'rgba(210,210,210,0.55)';
+  c.lineWidth = 1.4;
+  c.beginPath();
+  for (var d = 0; d < drips.length; d++) {
+    c.moveTo(drips[d].x, drips[d].y - 7);
+    c.lineTo(drips[d].x, drips[d].y);
+  }
+  c.stroke();
+  for (var s2 = 0; s2 < splashes.length; s2++) {
+    var sp = splashes[s2];
+    c.strokeStyle = 'rgba(190,190,190,' + (0.4 * sp.life).toFixed(3) + ')';
+    c.beginPath();
+    c.ellipse(sp.x, sp.y, sp.r, sp.r * 0.32, 0, 0, Math.PI * 2);
+    c.stroke();
+  }
+}
+
 function drawEndGlow(c) {
   var t = tickCount / 60;
   for (var i = 0; i < 3; i++) {
-    var gx = 6240 + i * 36 + Math.sin(t * 0.9 + i * 2.1) * 14;
-    var gy = 800 + Math.sin(t * 1.3 + i * 1.4) * 18 - i * 26;
+    var gx = 13040 + i * 36 + Math.sin(t * 0.9 + i * 2.1) * 14;
+    var gy = 610 + Math.sin(t * 1.3 + i * 1.4) * 18 - i * 26;
     var r = 26 + Math.sin(t * 2 + i) * 5;
     var g = c.createRadialGradient(gx, gy, 0, gx, gy, r);
     g.addColorStop(0, 'rgba(255,255,255,0.5)');
@@ -1803,11 +2177,15 @@ function render() {
   drawGallowsTree(ctx);
   drawWorldTrees(ctx);
   drawEndGlow(ctx);
-  drawCrate(ctx);
+  drawCrates(ctx);
+  drawSeesaw(ctx);
+  drawWheels(ctx);
+  drawCart(ctx);
   drawRope(ctx);
   drawWater(ctx);
   drawLogs(ctx);
   drawWaterSurface(ctx);
+  drawLightPoles(ctx);
   drawBoy(ctx);
 
   /* --- colossal black foreground trunks pass in front of everything --- */
@@ -1864,6 +2242,7 @@ function frame(ts) {
     updateRopeGrab();
     updateDrowning();
     updateGrass();
+    updateDrips();
     upPressedEdge = false;       // edges consumed once per physics tick
     actionPressedEdge = false;
     Engine.update(engine, DT);   // fixed 60Hz step → deterministic puzzles
@@ -1886,9 +2265,18 @@ window.__LIMBO_DEBUG__ = {
   engine: engine,
   player: player,
   crate: crate,
+  wheel1: wheel1,
+  wheel2: wheel2,
+  plank: plank,
+  cartDeck: cartDeck,
   logs: logs,
   ropeSegments: ropeSegments,
+  ropes: ROPES,
   cam: cam,
+  get ropeIdx() { return ropeGrab.idx; },
+  get progressX() { return progressX; },
+  get grassDisturbed() { return disturbed.length; },
+  get dripCount() { return drips.length; },
   get fps() { return fpsAvg; },
   get tick() { return tickCount; },
   get grounded() { return isGrounded(); },
