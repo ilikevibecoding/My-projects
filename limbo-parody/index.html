@@ -191,7 +191,7 @@ Composite.add(world, [
 ]);
 
 /* --- the boy: locked-rotation capsule --- */
-var player = Bodies.rectangle(220, 830, 28, 60, {
+var player = Bodies.rectangle(440, 830, 28, 60, {
   chamfer: { radius: 13 },
   inertia: Infinity,
   friction: 0.001,
@@ -226,9 +226,9 @@ Composite.add(world, logs);
 
 /* --- beat 2: heavy crate --- */
 var crate = Bodies.rectangle(2240, 850, 84, 84, {
-  density: 0.0025,
-  friction: 0.35,
-  frictionStatic: 0.6,
+  density: 0.0012,
+  friction: 0.18,
+  frictionStatic: 0.7,
   frictionAir: 0.005,
   label: 'crate'
 });
@@ -384,7 +384,7 @@ function updateCrateGrab() {
     grabConstraint = Constraint.create({
       bodyA: player, pointA: pA,
       bodyB: crate, pointB: pB,
-      length: len, stiffness: 0.08, damping: 0.06
+      length: len, stiffness: 0.2, damping: 0.05
     });
     Composite.add(world, grabConstraint);
   }
@@ -475,14 +475,16 @@ function controlUpdate() {
 
 /* ============================== camera ============================== */
 
-var cam = { x: 220, y: 760, anchorX: 220 };
+var cam = { x: 440, y: 760, anchorX: 440, leadVel: 0 };
 
 function updateCamera() {
   /* horizontal deadzone: anchor follows only when the boy escapes ±90px */
   cam.anchorX = Math.max(cam.anchorX, player.position.x - 90);
   cam.anchorX = Math.min(cam.anchorX, player.position.x + 90);
-  /* push ahead of the velocity vector when running */
-  var lead = Math.max(-140, Math.min(140, player.velocity.x * 28));
+  /* push ahead of the velocity vector when running — low-passed so the camera
+     first trails his acceleration, then drifts out in front */
+  cam.leadVel += (player.velocity.x - cam.leadVel) * 0.018;
+  var lead = Math.max(-220, Math.min(220, cam.leadVel * 42));
   var tx = cam.anchorX + lead;
   /* lower-third framing: the boy sits at 66% of view height */
   var ty = player.position.y - 0.16 * VIEW_H;
