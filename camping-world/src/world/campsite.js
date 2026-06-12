@@ -64,6 +64,14 @@ export function buildCampsite(scene, models, getHeight) {
     // bed the rim into the soil (scan floor sits below terrain — the ash
     // disc below covers the interior)
     pit.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) - box.min.y * s - 0.13, CAMP.y);
+    // damp the cool sky reflection on the shadow side of the stones —
+    // they read blue-grey/deflated from the south camera otherwise
+    pit.traverse((n) => {
+      if (n.isMesh && n.material) {
+        n.material.roughness = Math.max(n.material.roughness ?? 1, 0.9);
+        n.material.envMapIntensity = 1.15;
+      }
+    });
     group.add(pit);
   }
 
@@ -92,7 +100,9 @@ export function buildCampsite(scene, models, getHeight) {
         envMapIntensity: 0.25,
       })
     );
-    ash.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) + 0.03, CAMP.y);
+    // +0.07: must sit ABOVE the scan's own (dark muddy) interior floor —
+    // at +0.03 it was buried and the pit read as a puddle of dark water
+    ash.position.set(CAMP.x, groundAt(CAMP.x, CAMP.y) + 0.07, CAMP.y);
     ash.receiveShadow = true;
     group.add(ash);
   }

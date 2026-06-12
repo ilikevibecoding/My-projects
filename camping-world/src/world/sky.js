@@ -43,8 +43,8 @@ const HDRI_PRESETS = {
     sunIntensity: 16,
     envIntensity: 1.5, // strong sky fill — backlit rock/wood shadow sides must read (R1)
     backgroundIntensity: 1.0,
-    fogColor: 0xd8c8a8,
-    fogDensity: 0.0042,
+    fogColor: 0xc6b294, // dusty tan — bright cream fog was washing far ground to white
+    fogDensity: 0.0044,
   },
 };
 

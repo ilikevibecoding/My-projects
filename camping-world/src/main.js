@@ -65,6 +65,15 @@ if (params.has('nogeo')) {
     if (n.isMesh) n.visible = false;
   });
 }
+// debug: ?nograss=1 / ?noveg=1 hide single layers (who owns a visual artifact?)
+if (params.has('nograss')) {
+  const g = scene.getObjectByName('grass');
+  if (g) g.visible = false;
+}
+if (params.has('noveg')) {
+  const v = scene.getObjectByName('vegetation');
+  if (v) v.visible = false;
+}
 // debug: ?pole=1 adds a tall white pole at camp — its cast shadow is the
 // ground truth for "is the shadow pipeline working at all"
 if (params.has('pole')) {

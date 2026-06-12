@@ -160,9 +160,12 @@ export function buildVegetation(scene, models, getHeight) {
   // two staggered rows so the horizon is a continuous wall of canopy
   const ringTypes = ['island_tree_02_far', 'tree_small_02_far'];
   const ringSpots = [];
-  for (let i = 0; i < 150; i++) {
-    const a = (i / 150) * Math.PI * 2 + rng() * 0.05;
-    const r = i % 2 === 0 ? 64 + rng() * 14 : 82 + rng() * 34;
+  for (let i = 0; i < 210; i++) {
+    const a = (i / 210) * Math.PI * 2 + rng() * 0.05;
+    // three staggered rows: 64–78, 80–98, and a tall outer row riding the
+    // raised ridge (100–130) — together they wall off the horizon haze band
+    const row = i % 3;
+    const r = row === 0 ? 64 + rng() * 14 : row === 1 ? 80 + rng() * 18 : 100 + rng() * 30;
     // corridor stays open only in the near ring — distant hazy treeline still
     // closes the horizon behind the sun gap (no bald-sand horizon)
     if (r < 80 && inSunCorridor(Math.cos(a) * r, Math.sin(a) * r, 0.2) && rng() < 0.55) continue;
@@ -170,7 +173,7 @@ export function buildVegetation(scene, models, getHeight) {
       a,
       r,
       type: ringTypes[Math.floor(rng() * ringTypes.length)],
-      s: 2.4 + rng() * 1.5,
+      s: row === 2 ? 3.0 + rng() * 1.8 : 2.4 + rng() * 1.5,
       rot: rng() * Math.PI * 2,
     });
   }

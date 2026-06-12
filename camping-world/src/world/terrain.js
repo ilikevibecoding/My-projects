@@ -29,6 +29,9 @@ export function terrainHeight(x, z) {
   h += fbmMicro(x * 0.16, z * 0.16) * 0.18;
   // bowl: cup the clearing so the rim + treeline close the horizon line
   h += Math.min(1, (r / 140) ** 2) * 7.0;
+  // outer ridge: the HDRI's bright horizon-haze band read as "pale dunes"
+  // through treeline gaps — lift the rim so ridge + canopy own the horizon
+  h += THREE.MathUtils.smoothstep(r, 90, 175) * 11.0;
   // flat campsite pad
   const campH = 0.35; // fixed pad height
   const t = THREE.MathUtils.smoothstep(r, CAMP_FLAT_RADIUS, CAMP_BLEND_RADIUS);
@@ -147,14 +150,15 @@ export function buildTerrain(scene) {
           vec3 lushTint = vec3(0.7, 0.86, 0.58);
           blended.rgb *= mix(dryTint, lushTint, smoothstep(0.32, 0.62, macro)) * (0.86 + 0.28 * tnoise(vWorldPos.xz * 0.09));
 
-          // far field: REPLACE the texture with a matte dry-grassland tone
-          // (multiplicative tint alone still read as bald bright sand — the
-          // leaf-litter albedo is just too hot). Noise keeps it from going flat.
-          float farField = smoothstep(30.0, 62.0, r);
-          vec3 dryGrass = vec3(0.30, 0.28, 0.155)
+          // far field: REPLACE the texture with a matte dry-grassland tone.
+          // Isolation test (iter-13 dbg): albedo 0.30 still tone-maps to pale
+          // cream under full sun — target must sit MUCH darker so far hills
+          // read as matted grass, matching the olive of the meadow cards.
+          float farField = smoothstep(26.0, 55.0, r);
+          vec3 dryGrass = vec3(0.185, 0.175, 0.10)
                         * (0.82 + 0.36 * tnoise(vWorldPos.xz * 0.06))
                         * (0.88 + 0.24 * tfbm(vWorldPos.xz * 0.013 + 9.4));
-          blended.rgb = mix(blended.rgb, dryGrass, farField * 0.88);
+          blended.rgb = mix(blended.rgb, dryGrass, farField * 0.92);
 
           diffuseColor *= blended;
           // stash masks for normal/arm stages

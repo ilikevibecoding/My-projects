@@ -189,8 +189,11 @@ export function buildGrass(scene, getHeight, campCenter) {
     mesh.setMatrixAt(i, m);
 
     // hue variation as a multiplier centered near 1.0: dry gold ↔ lush green
-    // (cap < ~1.05 — over-bright multipliers made tall wisps read ghostly)
-    const v = 0.68 + rng() * 0.36; // overall value
+    // (cap < ~1.05 — over-bright multipliers made tall wisps read ghostly).
+    // Far cards darken toward the far-terrain olive so the band at the
+    // treeline doesn't glow pale straw against the darker ground.
+    const farDim = 1 - 0.5 * THREE.MathUtils.smoothstep(r, 42, GRASS_RADIUS);
+    const v = (0.68 + rng() * 0.36) * farDim; // overall value
     const warm = rng(); // 0 = green, 1 = golden
     color.setRGB(
       v * (0.78 + warm * 0.34),
