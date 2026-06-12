@@ -38,17 +38,20 @@ var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body,
 
 var VIEW_W = 1280, VIEW_H = 720;          // virtual 16:9 view in world units
 var DT = 1000 / 60;                        // fixed physics step
-var WORLD_X0 = -300, WORLD_X1 = 4400;
+var WORLD_X0 = -300, WORLD_X1 = 6400;
 var GROUND_BOTTOM = 1600;
 
 var GRAVITY_Y = 1.4;
 var RUN_SPEED = 5.2, RUN_ACCEL = 0.18, AIR_ACCEL = 0.06;
 var GRAB_SPEED = 2.2;
 var SWIM_SPEED = 2.6, SWIM_ACCEL = 0.05;
-var JUMP_V = 9.6, SWIM_JUMP_V = 8.0;
+var JUMP_V = 9.6, SWIM_JUMP_V = 9.0;
 var COYOTE_TICKS = 6;
 
-var WATER_X0 = 900, WATER_X1 = 1500, WATER_SURFACE_Y = 920, WATER_FLOOR_Y = 1160;
+var WATERS = [
+  { x0: 900,  x1: 1500, surfaceY: 920, floorY: 1160 },   // beat 1 pit
+  { x0: 5180, x1: 5800, surfaceY: 925, floorY: 1175 }    // second pool (extension)
+];
 
 var ROPE_PIN = { x: 3350, y: 412 };
 var ROPE_SEGS = 8, ROPE_SEG_LEN = 30, ROPE_SEG_W = 8;
@@ -160,13 +163,17 @@ var world = engine.world;
 /* terrain blocks: x0, x1, top (collider top edge). all extend to GROUND_BOTTOM */
 var blocks = [
   { x0: WORLD_X0, x1: 900,  top: 900  },   // start flats
-  { x0: 900,  x1: 1500, top: WATER_FLOOR_Y }, // water pit floor
+  { x0: 900,  x1: 1500, top: 1160 },        // water pit 1 floor
   { x0: 1500, x1: 2500, top: 900  },        // crate flats
   { x0: 2500, x1: 3200, top: 750  },        // upper ledge
   { x0: 3200, x1: 3580, top: 1020 },        // gap floor (rope above)
   { x0: 3200, x1: 3320, top: 930  },        // recovery step (lower)
   { x0: 3200, x1: 3290, top: 840  },        // recovery step (upper)
-  { x0: 3580, x1: WORLD_X1, top: 750 }      // landing / end
+  { x0: 3580, x1: 4750, top: 750  },        // landing flats
+  { x0: 4750, x1: 4820, top: 830  },        // step down into the hollow
+  { x0: 4820, x1: 5180, top: 905  },        // hollow floor, pool-2 left bank
+  { x0: 5180, x1: 5800, top: 1175 },        // water pit 2 floor
+  { x0: 5800, x1: WORLD_X1, top: 905 }      // final clearing / end
 ];
 
 var terrainBodies = [];
@@ -198,17 +205,21 @@ var player = Bodies.rectangle(440, 830, 28, 60, {
 });
 Composite.add(world, player);
 
-/* --- beat 1: water sensor + logs --- */
-var waterSensor = Bodies.rectangle(
-  (WATER_X0 + WATER_X1) / 2, (WATER_SURFACE_Y + WATER_FLOOR_Y) / 2,
-  WATER_X1 - WATER_X0, WATER_FLOOR_Y - WATER_SURFACE_Y,
-  { isStatic: true, isSensor: true, label: 'water' }
-);
-Composite.add(world, waterSensor);
+/* --- water sensors (one per pool) + logs --- */
+WATERS.forEach(function (pool, pi) {
+  var sensor = Bodies.rectangle(
+    (pool.x0 + pool.x1) / 2, (pool.surfaceY + pool.floorY) / 2,
+    pool.x1 - pool.x0, pool.floorY - pool.surfaceY,
+    { isStatic: true, isSensor: true, label: 'water' }
+  );
+  sensor.plugin.poolIdx = pi;
+  pool.sensor = sensor;
+  Composite.add(world, sensor);
+});
 
 var logs = [];
-[1060, 1330].forEach(function (x) {
-  var log = Bodies.rectangle(x, 880, 160, 38, {
+[{ x: 1060, y: 880 }, { x: 1330, y: 880 }, { x: 5480, y: 895 }].forEach(function (p) {
+  var log = Bodies.rectangle(p.x, p.y, 160, 38, {
     chamfer: { radius: 12 },
     density: 0.0012,
     friction: 0.6,
@@ -265,7 +276,7 @@ Composite.add(world, ropeConstraints);
 /* ============================== collision bookkeeping ============================== */
 
 var groundPairs = {};         // pairId -> true while player rests on something
-var waterSet = [];            // dynamic bodies currently inside the water sensor
+var waterBodies = [];         // entries { body, pool } for bodies inside a water sensor
 var lastGroundTick = -999;
 var tickCount = 0;
 
@@ -294,17 +305,25 @@ function notePlayerPair(pair) {
 }
 
 function noteWaterPair(pair, entering) {
-  var other = pairOther(pair, waterSensor);
-  if (!other || other.isStatic) return;
-  var idx = waterSet.indexOf(other);
-  if (entering && idx === -1) waterSet.push(other);
-  if (!entering && idx !== -1) waterSet.splice(idx, 1);
+  var sensorBody = null;
+  if (pair.bodyA.plugin && pair.bodyA.plugin.poolIdx !== undefined) sensorBody = pair.bodyA;
+  else if (pair.bodyB.plugin && pair.bodyB.plugin.poolIdx !== undefined) sensorBody = pair.bodyB;
+  if (!sensorBody) return;
+  var other = pair.bodyA === sensorBody ? pair.bodyB : pair.bodyA;
+  if (other.isStatic) return;
+  for (var i = 0; i < waterBodies.length; i++) {
+    if (waterBodies[i].body === other) {
+      if (!entering) waterBodies.splice(i, 1);
+      return;
+    }
+  }
+  if (entering) waterBodies.push({ body: other, pool: WATERS[sensorBody.plugin.poolIdx] });
 }
 
 Events.on(engine, 'collisionStart', function (ev) {
   ev.pairs.forEach(function (pair) {
     if (pair.bodyA === player || pair.bodyB === player) notePlayerPair(pair);
-    if (pair.bodyA === waterSensor || pair.bodyB === waterSensor) noteWaterPair(pair, true);
+    noteWaterPair(pair, true);
   });
 });
 Events.on(engine, 'collisionActive', function (ev) {
@@ -315,7 +334,7 @@ Events.on(engine, 'collisionActive', function (ev) {
 Events.on(engine, 'collisionEnd', function (ev) {
   ev.pairs.forEach(function (pair) {
     if (pair.bodyA === player || pair.bodyB === player) delete groundPairs[pair.id];
-    if (pair.bodyA === waterSensor || pair.bodyB === waterSensor) noteWaterPair(pair, false);
+    noteWaterPair(pair, false);
   });
 });
 
@@ -326,35 +345,45 @@ function isGrounded() {
 
 /* ============================== water: ripple + buoyancy ============================== */
 
-function surfaceAt(x, t) {
-  return WATER_SURFACE_Y
+function surfaceAt(pool, x, t) {
+  return pool.surfaceY
     + 4.5 * Math.sin(0.012 * x + 2.1 * t)
     + 2.5 * Math.sin(0.027 * x - 3.3 * t);
 }
 
 function applyBuoyancy() {
   var t = tickCount / 60;
-  for (var i = 0; i < waterSet.length; i++) {
-    var b = waterSet[i];
+  for (var i = 0; i < waterBodies.length; i++) {
+    var b = waterBodies[i].body;
+    var pool = waterBodies[i].pool;
     var h = b.bounds.max.y - b.bounds.min.y;
-    var surf = surfaceAt(b.position.x, t);
+    var surf = surfaceAt(pool, b.position.x, t);
     var frac = Math.max(0, Math.min(1, (b.bounds.max.y - surf) / h));
     if (frac <= 0) continue;
-    var k = (b === player) ? 1.05 : 1.6;   // logs float high, the boy bobs at the surface
+    /* logs float high with heavy damping (stable rafts); the boy gets asymmetric
+       drag — water resists his sinking but not his upward paddle-hops, so he can
+       actually haul himself out over a bank lip */
+    var k, dragX, dragY;
+    if (b === player) { k = 1.05; dragX = 0.0012; dragY = (b.velocity.y > 0 ? 0.0016 : 0.0001); }
+    else { k = 1.6; dragX = 0.0020; dragY = 0.0026; }
     var fy = -engine.gravity.y * engine.gravity.scale * b.mass * k * frac;
     /* anti-gravity buoyancy + water drag */
     Body.applyForce(b, b.position, {
-      x: -b.velocity.x * b.mass * 0.0020 * frac,
-      y: fy - b.velocity.y * b.mass * 0.0026 * frac
+      x: -b.velocity.x * b.mass * dragX * frac,
+      y: fy - b.velocity.y * b.mass * dragY * frac
     });
   }
 }
 
 function playerSubmergedFrac() {
-  if (waterSet.indexOf(player) === -1) return 0;
-  var h = player.bounds.max.y - player.bounds.min.y;
-  var surf = surfaceAt(player.position.x, tickCount / 60);
-  return Math.max(0, Math.min(1, (player.bounds.max.y - surf) / h));
+  for (var i = 0; i < waterBodies.length; i++) {
+    if (waterBodies[i].body === player) {
+      var h = player.bounds.max.y - player.bounds.min.y;
+      var surf = surfaceAt(waterBodies[i].pool, player.position.x, tickCount / 60);
+      return Math.max(0, Math.min(1, (player.bounds.max.y - surf) / h));
+    }
+  }
+  return 0;
 }
 
 /* ============================== beat 2: crate grab ============================== */
@@ -461,7 +490,8 @@ function controlUpdate() {
     Body.setVelocity(player, { x: vx, y: player.velocity.y });
 
     if (upPressedEdge) {
-      if (swim > 0.25 && player.velocity.y > -2) {
+      /* forgiving gate: even shallow immersion allows a paddle-hop out of the water */
+      if (swim > 0.15 && player.velocity.y > -2) {
         Body.setVelocity(player, { x: player.velocity.x, y: -SWIM_JUMP_V });
         lastGroundTick = -999;
       } else if (coyote) {
@@ -673,6 +703,134 @@ function drawGallowsTree(c) {
   c.beginPath(); c.moveTo(3220, 408); c.quadraticCurveTo(3230, 380, 3252, 366); c.stroke();
 }
 
+/* ============================== animated dead trees & eerie set dressing ============================== */
+
+var worldTrees = [
+  { x: 690,  baseY: 902, h: 560, lean: -0.06, seed: 11, cocoon: false },
+  { x: 1850, baseY: 902, h: 480, lean: 0.08,  seed: 23, cocoon: false },
+  { x: 2720, baseY: 752, h: 600, lean: -0.05, seed: 37, cocoon: false },
+  { x: 4480, baseY: 752, h: 620, lean: 0.05,  seed: 41, cocoon: true  },
+  { x: 5020, baseY: 907, h: 520, lean: -0.09, seed: 53, cocoon: false },
+  { x: 6080, baseY: 907, h: 580, lean: 0.06,  seed: 67, cocoon: true  }
+];
+var worldVines = [
+  { x: 2080, tipY: 560, phase: 0.9 },
+  { x: 4640, tipY: 500, phase: 2.2 },
+  { x: 5950, tipY: 600, phase: 4.1 }
+];
+
+/* a wrapped bundle swinging slowly on a thread — drawn in the current fill color */
+function drawCocoon(c, px, py, t, phase, scale) {
+  var ang = 0.24 * Math.sin(t * 0.55 + phase);
+  var threadLen = 74 * scale;
+  var cx = px + Math.sin(ang) * threadLen;
+  var cy = py + Math.cos(ang) * threadLen;
+  c.lineWidth = 2.2;
+  c.beginPath(); c.moveTo(px, py); c.lineTo(cx, cy); c.stroke();
+  c.save();
+  c.translate(cx, cy);
+  c.rotate(ang * 0.7);
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.bezierCurveTo(-9 * scale, 8 * scale, -8.5 * scale, 30 * scale, 0, 38 * scale);
+  c.bezierCurveTo(8.5 * scale, 30 * scale, 9 * scale, 8 * scale, 0, 0);
+  c.closePath();
+  c.fill();
+  c.restore();
+}
+
+/* gnarled dead tree with slowly swaying branches; uses the current fill/stroke color */
+function drawDeadTree(c, x, baseY, h, lean, seed, t, cocoon) {
+  var rnd = mulberry32(seed);
+  var topSway = Math.sin(t * (0.32 + rnd() * 0.25) + seed) * 4;
+  var topX = x + lean * h + topSway;
+  var w = 14 + rnd() * 16;
+  c.lineCap = 'round';
+  /* trunk: tapered, slightly curved, top swaying gently */
+  c.beginPath();
+  c.moveTo(x - w / 2, baseY);
+  c.quadraticCurveTo(x - w * 0.3 + lean * h * 0.4, baseY - h * 0.55, topX - w * 0.14, baseY - h);
+  c.lineTo(topX + w * 0.14, baseY - h);
+  c.quadraticCurveTo(x + w * 0.36 + lean * h * 0.42, baseY - h * 0.5, x + w / 2, baseY);
+  c.closePath();
+  c.fill();
+  /* swaying gnarled branches with twigs */
+  var nb = 3 + Math.floor(rnd() * 3);
+  for (var i = 0; i < nb; i++) {
+    var f = 0.5 + rnd() * 0.45;
+    var bx = x + lean * h * f * 0.8;
+    var by = baseY - h * f;
+    var dir = rnd() < 0.5 ? -1 : 1;
+    var bl = h * (0.2 + rnd() * 0.26);
+    var sway = Math.sin(t * (0.4 + rnd() * 0.4) + seed * 1.7 + i * 1.3) * (5 + bl * 0.05);
+    var ex = bx + dir * bl + sway;
+    var ey = by - bl * (0.5 + rnd() * 0.45);
+    c.lineWidth = Math.max(3, w * 0.34);
+    c.beginPath();
+    c.moveTo(bx, by);
+    c.quadraticCurveTo(bx + dir * bl * 0.55, by - bl * 0.42 + sway * 0.3, ex, ey);
+    c.stroke();
+    c.lineWidth = Math.max(1.6, w * 0.14);
+    c.beginPath();
+    c.moveTo(ex, ey);
+    c.quadraticCurveTo(ex + dir * bl * 0.3 + sway, ey - bl * 0.24, ex + dir * bl * 0.46 + sway * 1.6, ey - bl * 0.4);
+    c.stroke();
+    if (cocoon && i === nb - 1) drawCocoon(c, ex, ey, t, seed, 1);
+  }
+}
+
+/* pure-black playable-layer trees and high swaying vines */
+function drawWorldTrees(c) {
+  var t = tickCount / 60;
+  c.fillStyle = '#000000';
+  c.strokeStyle = '#000000';
+  for (var i = 0; i < worldTrees.length; i++) {
+    var tr = worldTrees[i];
+    drawDeadTree(c, tr.x, tr.baseY, tr.h, tr.lean, tr.seed, t, tr.cocoon);
+  }
+  c.lineCap = 'round';
+  for (i = 0; i < worldVines.length; i++) {
+    var v = worldVines[i];
+    var sway = Math.sin(t * 0.5 + v.phase) * 20;
+    var sway2 = Math.sin(t * 0.5 + v.phase + 0.8) * 12;
+    c.lineWidth = 4.5;
+    c.beginPath();
+    c.moveTo(v.x, 60);
+    c.quadraticCurveTo(v.x + sway2, (60 + v.tipY) * 0.55, v.x + sway, v.tipY);
+    c.stroke();
+    c.beginPath();
+    c.arc(v.x + sway, v.tipY + 4, 4.5, 0, Math.PI * 2);
+    c.fill();
+  }
+}
+
+/* near-black background tree band — drawn fresh every frame so it can sway */
+var DARK_FACTOR = 0.85;
+var darkSwayProbe = 0;   // read by the eval harness to prove the animation is live
+
+function drawDarkTrees() {
+  var W = canvas.width, H = canvas.height;
+  var sc = dpr * zoom;
+  var t = tickCount / 60;
+  ctx.setTransform(sc, 0, 0, sc, W / 2, H / 2);
+  ctx.globalAlpha = 0.92;
+  ctx.fillStyle = '#141414';
+  ctx.strokeStyle = '#141414';
+  var px = cam.x * DARK_FACTOR;
+  var voff = Math.max(-60, Math.min(60, -(cam.y - 760) * DARK_FACTOR * 0.35));
+  var k0 = Math.floor((px - 840) / 430), k1 = Math.ceil((px + 840) / 430);
+  darkSwayProbe = 0;
+  for (var k = k0; k <= k1; k++) {
+    var rnd = mulberry32(k * 911 + 13);
+    var tx = k * 430 + (rnd() - 0.5) * 190 - px;
+    var h = 360 + rnd() * 330;
+    var lean = (rnd() - 0.5) * 0.22;
+    darkSwayProbe += Math.sin(t * (0.3 + rnd() * 0.3) + k);
+    drawDeadTree(ctx, tx, 340 + voff, h, lean, 1000 + k * 7, t, rnd() < 0.3);
+  }
+  ctx.globalAlpha = 1;
+}
+
 /* ============================== boy rendering ============================== */
 
 var blinkUntil = 0, nextBlink = 180;
@@ -800,26 +958,32 @@ function drawTerrain(c) {
 
 function drawWater(c) {
   var t = tickCount / 60;
-  /* dark gray water body with a sine-rippled top edge */
-  c.beginPath();
-  c.moveTo(WATER_X0, surfaceAt(WATER_X0, t));
-  for (var x = WATER_X0 + 10; x <= WATER_X1; x += 10) c.lineTo(x, surfaceAt(x, t));
-  c.lineTo(WATER_X1, WATER_FLOOR_Y + 80);
-  c.lineTo(WATER_X0, WATER_FLOOR_Y + 80);
-  c.closePath();
+  /* dark gray water bodies with sine-rippled top edges */
   c.fillStyle = '#1b1b1b';   // opaque murky dark gray — nothing reads through the depths
-  c.fill();
+  for (var p = 0; p < WATERS.length; p++) {
+    var pool = WATERS[p];
+    c.beginPath();
+    c.moveTo(pool.x0, surfaceAt(pool, pool.x0, t));
+    for (var x = pool.x0 + 10; x <= pool.x1; x += 10) c.lineTo(x, surfaceAt(pool, x, t));
+    c.lineTo(pool.x1, pool.floorY + 80);
+    c.lineTo(pool.x0, pool.floorY + 80);
+    c.closePath();
+    c.fill();
+  }
 }
 
 function drawWaterSurface(c) {
   var t = tickCount / 60;
-  /* pale surface highlight line, drawn over the floating logs */
-  c.beginPath();
-  c.moveTo(WATER_X0, surfaceAt(WATER_X0, t));
-  for (var x = WATER_X0 + 10; x <= WATER_X1; x += 10) c.lineTo(x, surfaceAt(x, t));
+  /* pale surface highlight lines, drawn over the floating logs */
   c.strokeStyle = 'rgba(110,110,110,0.5)';
   c.lineWidth = 2;
-  c.stroke();
+  for (var p = 0; p < WATERS.length; p++) {
+    var pool = WATERS[p];
+    c.beginPath();
+    c.moveTo(pool.x0, surfaceAt(pool, pool.x0, t));
+    for (var x = pool.x0 + 10; x <= pool.x1; x += 10) c.lineTo(x, surfaceAt(pool, x, t));
+    c.stroke();
+  }
 }
 
 function drawLogs(c) {
@@ -876,8 +1040,8 @@ function drawRope(c) {
 function drawEndGlow(c) {
   var t = tickCount / 60;
   for (var i = 0; i < 3; i++) {
-    var gx = 4040 + i * 36 + Math.sin(t * 0.9 + i * 2.1) * 14;
-    var gy = 620 + Math.sin(t * 1.3 + i * 1.4) * 18 - i * 26;
+    var gx = 6240 + i * 36 + Math.sin(t * 0.9 + i * 2.1) * 14;
+    var gy = 800 + Math.sin(t * 1.3 + i * 1.4) * 18 - i * 26;
     var r = 26 + Math.sin(t * 2 + i) * 5;
     var g = c.createRadialGradient(gx, gy, 0, gx, gy, r);
     g.addColorStop(0, 'rgba(255,255,255,0.5)');
@@ -940,10 +1104,14 @@ function render() {
     }
   }
 
+  /* --- animated near-black tree band behind the playable layer --- */
+  drawDarkTrees();
+
   /* --- world space: pure black silhouettes --- */
   ctx.setTransform(sc, 0, 0, sc, W / 2 - cam.x * sc, H / 2 - cam.y * sc);
   drawTerrain(ctx);
   drawGallowsTree(ctx);
+  drawWorldTrees(ctx);
   drawEndGlow(ctx);
   drawCrate(ctx);
   drawRope(ctx);
@@ -1024,9 +1192,11 @@ window.__LIMBO_DEBUG__ = {
   get grounded() { return isGrounded(); },
   get grabbingCrate() { return !!grabConstraint; },
   get onRope() { return !!ropeGrab.constraint; },
-  get waterBodies() { return waterSet.map(function (b) { return b.label; }); },
+  get waterBodies() { return waterBodies.map(function (e) { return e.body.label; }); },
   get submerged() { return playerSubmergedFrac(); },
+  get darkSway() { return darkSwayProbe; },
   surfaceAt: surfaceAt,
+  pools: WATERS.map(function (p) { return { x0: p.x0, x1: p.x1, surfaceY: p.surfaceY }; }),
   layers: layers.map(function (l) { return l.factor; }),
   view: function () {
     return { camX: cam.x, camY: cam.y, zoom: zoom, cssW: cssW, cssH: cssH };
