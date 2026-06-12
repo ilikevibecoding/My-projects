@@ -96,13 +96,27 @@ const hud = (() => {
       clearTimeout(statusTimer);
       statusTimer = setTimeout(() => { statusEl.style.opacity = '0'; }, 5000);
     },
+    // fade driven from the main loop (headless-safe: no throttled timers)
+    _fade: null,
     fade(dur, atBlack) {
-      fadeEl.style.transition = `opacity ${dur}s ease`;
-      fadeEl.style.opacity = '1';
-      setTimeout(() => {
-        atBlack?.();
-        fadeEl.style.opacity = '0';
-      }, dur * 1000 + 60);
+      fadeEl.style.transition = 'none';
+      this._fade = { dur, atBlack, t: 0, phase: 'in' };
+    },
+    update(dt) {
+      const f = this._fade;
+      if (!f) return;
+      f.t += dt;
+      if (f.phase === 'in') {
+        fadeEl.style.opacity = String(Math.min(1, f.t / f.dur));
+        if (f.t >= f.dur) {
+          f.atBlack?.();
+          f.phase = 'out';
+          f.t = 0;
+        }
+      } else {
+        fadeEl.style.opacity = String(Math.max(0, 1 - f.t / f.dur));
+        if (f.t >= f.dur) this._fade = null;
+      }
     },
     setVisible(v) { hudEl.style.display = v ? '' : 'none'; },
   };
@@ -135,13 +149,14 @@ const clock = new THREE.Clock();
 let time = 0;
 
 function animate() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const dt = Math.min(clock.getDelta(), 0.12); // generous clamp: keeps fades/transitions realtime even at low fps
   time += dt;
 
   player.update(dt);
   timeOfDay.update(dt);
   interactions.update(dt, time);
   camp.update(dt, time);
+  hud.update(dt);
 
   updateVegetation([grass, ...trees.children], time, camera.position);
   sky.uniforms.uTime.value = time;

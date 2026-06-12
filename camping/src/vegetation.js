@@ -312,6 +312,9 @@ function scatterTrees({ count, rand, minR, maxR, clusterCount, clusterRadius, av
     if (r < minR * 0.8 || r > maxR * 1.15) continue;
     const dPond = Math.hypot(x - POND.x, z - POND.z);
     if (dPond < POND.r + 4) continue;
+    // sun corridor: golden-hour light reaches the camp from the ESE
+    const az = Math.atan2(z, x);
+    if (r < 45 && az > 0.12 && az < 1.05) continue;
     if (avoid && avoid(x, z)) continue;
     const info = placementInfo(x, z);
     if (info.water || info.slopeY < 0.62) continue;

@@ -25,7 +25,7 @@ export const PRESETS = {
     bloomThreshold: 1.0,
   },
   golden: {
-    sunDir: new THREE.Vector3(-0.82, 0.22, 0.36).normalize(),
+    sunDir: new THREE.Vector3(0.72, 0.34, 0.50).normalize(), // over the pond gap: camp stays lit
     sunColor: new THREE.Color(0xffae52),
     sunIntensity: 2.9,
     moonIntensity: 0.0,
@@ -81,7 +81,7 @@ export class TimeOfDay {
     this._from = null;
     this._to = null;
     this._t = 1;
-    this._dur = 1.6;
+    this._dur = 1.2;
     this.apply(PRESETS.day, PRESETS.day, 1);
   }
 

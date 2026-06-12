@@ -43,7 +43,7 @@ export class Interactions {
   }
 
   update(dt, time) {
-    this._pulse = (Math.sin(time * 5) * 0.5 + 0.5) * 0.22;
+    this._pulse = (Math.sin(time * 5) * 0.5 + 0.5) * 0.09;
 
     // raycast from screen center
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
@@ -79,7 +79,7 @@ export class Interactions {
   setEmissive(target, amount) {
     for (const m of target.materials) {
       m.emissive ??= new THREE.Color();
-      m.emissive.setRGB(amount, amount * 0.85, amount * 0.45);
+      m.emissive.setRGB(amount, amount * 0.8, amount * 0.4);
     }
   }
 
@@ -115,7 +115,7 @@ export class Interactions {
     this._standPose = { pos: p.position.clone(), yaw: p.yaw, pitch: p.pitch };
     const seatPos = this.camp.positions.seat.clone();
     const firePos = this.camp.positions.fire;
-    seatPos.y += 0.62; // seated eye height above log top
+    seatPos.y += 0.72; // seated eye height above log top
     const yaw = Math.atan2(-(firePos.x - seatPos.x), -(firePos.z - seatPos.z));
     this.hud.fade(0.4, () => {
       p.enabled = false;

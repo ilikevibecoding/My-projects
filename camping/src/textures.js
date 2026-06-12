@@ -118,8 +118,8 @@ export function makeBarkTexture(size = 256) {
     // vertical ridges
     const ridge = Math.abs(Math.sin((u + fbmTile(texNoise, u, v, 6) * 0.08) * Math.PI * 18));
     const grain = fbmTile(texNoise2, u * 2, v, 24, 3);
-    let l = 0.26 + ridge * 0.13 + grain * 0.07;
-    return [l * 255 * 1.10, l * 255 * 0.82, l * 255 * 0.60];
+    let l = 0.20 + ridge * 0.18 + grain * 0.09;
+    return [l * 255 * 1.10, l * 255 * 0.80, l * 255 * 0.56];
   });
   return canvasTexture(c, { repeat: 1 });
 }
@@ -156,9 +156,9 @@ export function makeTentCanvasTexture(size = 256) {
     const weave = (Math.sin(u * Math.PI * 120) + Math.sin(v * Math.PI * 120)) * 0.03;
     const blotch = fbmTile(texNoise, u, v, 5) * 0.07;
     // base: warm burnt orange canvas (Firewatch-y)
-    let r = 0.78 + weave + blotch;
-    let g = 0.42 + weave + blotch * 0.7;
-    let b = 0.26 + weave * 0.5 + blotch * 0.4;
+    let r = 0.70 + weave + blotch * 1.4;
+    let g = 0.36 + weave + blotch;
+    let b = 0.20 + weave * 0.5 + blotch * 0.5;
     return [r * 255, g * 255, b * 255];
   });
   return canvasTexture(c);

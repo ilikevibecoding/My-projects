@@ -156,10 +156,11 @@ async function main() {
     await settle(page, 800, 3);
     await page.screenshot({ path: join(OUT, 'interact_log_prompt.png') });
     await page.evaluate(() => window.debugAPI.interact());
-    await settle(page, 1500, 4);
+    await settle(page, 3000, 8);
     await page.screenshot({ path: join(OUT, 'interact_seated.png') });
     await page.evaluate(() => window.debugAPI.interact()); // stand
-    await settle(page, 1200, 4);
+    await settle(page, 2500, 8);
+    await page.waitForFunction(() => !window.debugAPI.getState().busy && !window.debugAPI.getState().seated, null, { timeout: 30000, polling: 300 });
 
     console.log('interactions: sleep');
     const before = await page.evaluate(() => window.debugAPI.getState().timeOfDay);
@@ -167,7 +168,7 @@ async function main() {
     await settle(page, 800, 3);
     await page.screenshot({ path: join(OUT, 'interact_tent_prompt.png') });
     await page.evaluate(() => window.debugAPI.interact());
-    await settle(page, 3500, 6);
+    await settle(page, 6000, 12);
     await page.screenshot({ path: join(OUT, 'interact_after_sleep.png') });
     const after = await page.evaluate(() => window.debugAPI.getState().timeOfDay);
     stats.sleepChangedTime = { before, after, ok: before !== after };

@@ -33,7 +33,7 @@ export function createWater(renderer, scene) {
     uNormalMap: { value: normalTex },
     uTime: { value: 0 },
     uShallowColor: { value: new THREE.Color(0x4d7f70) },
-    uDeepColor: { value: new THREE.Color(0x1d3f52) },
+    uDeepColor: { value: new THREE.Color(0x265165) },
     uSunDir: { value: new THREE.Vector3(0, 1, 0) },
     uSunColor: { value: new THREE.Color(0xffffff) },
     fogColor: { value: new THREE.Color(0xffffff) },

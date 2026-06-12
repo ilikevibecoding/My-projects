@@ -107,3 +107,45 @@ All six shots + motion pairs captured. Findings:
 Fix list → iter 4 (worst first): distant-forest mottling on far slopes; grass density floor up;
 camp wear disc 4.6m/0.72; pond bank +0.32; flame sprites taller 0.78×1.55, smoke 0.30 alpha;
 rim pines 300/85–142m; day fog 0.0023; puffier clouds.
+
+---
+
+## Iteration 4 — distant forest, density, flames (shots/iter_4, full run incl. interactions)
+
+- **vista_day is now genuinely strong** — distant-forest mottling sells the far slopes, sun-side
+  haze reads like light shafts, meadow varied. Best shot so far.
+- camp_day: denser treeline, path good, camp readable.
+- pond_day: bank lip fixed, trees reflect, shoreline soft.
+- night fire: tongue-shaped flames + embers + smoke + warm pool — sells it.
+- **NEW failures found in interaction shots:**
+  - camp_golden: the entire camp sits in full shadow of the *western treeline* (sun azimuth choice)
+    — camp reads near-black while the far meadow glows. FAIL 3/8 contributor.
+  - interact_seated (golden, fire lit + wood boost): flames blow out into a white column. FAIL 4/7.
+  - interact_after_sleep: tent canvas washed grey-pink — emissive hover pulse (0.22) flattens
+    materials; tent "interior" plane shows pale, not a dark entrance. FAIL 6.
+  - Sleep state changed golden→night in stats, but the *visible* scene lagged (fade was
+    setTimeout-driven + dt clamp 0.05 dilates sim time at SwiftShader fps). Visual proof weak.
+- Scoring (harsh): 1 PASS · 2 PASS · 3 FAIL (golden camp black) · 4 FAIL (blowout at golden) ·
+  5 PASS · 6 FAIL (emissive wash, bark grey) · 7 FAIL (blowout) · 8 PASS · 9 PASS · 10 PASS ·
+  11 FAIL. **= 6/11** (down on stricter evidence — interaction shots count.)
+
+Fixes applied for iter 5: golden sun moved east over the pond gap; loop-driven fade; ToD lerp
+1.2s; flame mult 1.3 + faster boost decay; emissive pulse 0.09; tent interior = deep dark
+entrance; bark/tent textures more contrast; water deep color lighter; seat eye +0.72.
+
+## Iteration 5 — timing regressions surfaced (shots/iter_5, full run)
+
+- camp_golden: **still dark at the camp** — meadow trees SE of camp cast 40m+ shadows at 12.6°
+  elevation; the whole bowl self-shadows at golden hour. FAIL 3/8.
+- interact_seated: screenshot caught **mid-fade** (dark overlay) — dt clamp 0.05 makes 1 sim
+  second ≈ 2.9 wall seconds at 7fps SwiftShader; harness settle too short. Evidence unusable.
+- interact sleep: **didn't fire at all** (golden→golden) — `busy` flag from the stand-up fade was
+  still set when the harness triggered the tent. FAIL 10 this round.
+- Everything else held (vista/forest/pond/day/night as iter 4; motion pairs animated).
+- Scoring: 1 PASS · 2 PASS · 3 FAIL · 4 PASS (night fire clean, no blowout at night) · 5 PASS ·
+  6 PASS (bark/tent fixed, verified in prompt shots) · 7 FAIL (mid-fade shot + golden dark) ·
+  8 FAIL (golden) · 9 PASS · 10 FAIL (sleep didn't fire) · 11 FAIL. **= 6/11**
+
+Fixes applied for iter 6: golden sun elevation 0.20→0.34 (shadows still long but reach the camp);
+tree-free ESE "sun corridor" wedge (r<45, az 0.12–1.05); dt clamp 0.05→0.12 so sim time tracks
+wall time at low fps; harness waits for `!busy && !seated` before the sleep test + longer settles.

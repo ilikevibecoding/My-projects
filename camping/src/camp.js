@@ -23,7 +23,7 @@ function logMesh(barkTex, ringsTex, len, radius) {
   const group = new THREE.Group();
   const side = new THREE.Mesh(
     new THREE.CylinderGeometry(radius, radius, len, 9, 1, true),
-    new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95, color: 0xb09578 }),
+    new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95, color: 0x9a7e60 }),
   );
   const capMat = new THREE.MeshStandardMaterial({ map: ringsTex, roughness: 0.9, color: 0xb89d7d });
   const capGeo = new THREE.CircleGeometry(radius, 9);
@@ -166,10 +166,9 @@ export function createCamp(scene) {
   // front: dark interior with flaps partially open
   const interior = new THREE.Mesh(
     new THREE.ShapeGeometry(backShape),
-    new THREE.MeshStandardMaterial({ color: 0x140e08, roughness: 1, side: THREE.DoubleSide }),
+    new THREE.MeshBasicMaterial({ color: 0x070503, side: THREE.DoubleSide }),
   );
-  interior.position.z = D / 2 - 0.06;
-  interior.scale.setScalar(0.92);
+  interior.position.z = 0; // deep inside: reads as a dark entrance
   tent.add(interior);
   const flapShape = new THREE.Shape();
   flapShape.moveTo(-W / 2, 0);

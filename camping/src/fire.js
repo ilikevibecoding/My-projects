@@ -106,7 +106,7 @@ export class Fire {
           float a = tex.a * vFade;
           // hotter core, redder tips by life
           vec3 col = tex.rgb * mix(vec3(1.5, 1.25, 0.9), vec3(1.6, 0.65, 0.25), vSeed * 0.5 + 0.25);
-          gl_FragColor = vec4(col * 1.55, a);
+          gl_FragColor = vec4(col * 1.3, a);
         }
       `,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -224,10 +224,10 @@ export class Fire {
 
   update(dt, time) {
     this._time = time;
-    const target = this.lit ? 1 + this.boost * 0.55 : 0;
+    const target = this.lit ? 1 + this.boost * 0.4 : 0;
     const cur = this.flameUniforms.uIntensity.value;
     const next = cur + (target - cur) * Math.min(1, dt * 3.5);
-    this.boost = Math.max(0, this.boost - dt / 9);
+    this.boost = Math.max(0, this.boost - dt / 6);
 
     for (const u of [this.flameUniforms, this.emberUniforms, this.smokeUniforms]) {
       u.uTime.value = time;
