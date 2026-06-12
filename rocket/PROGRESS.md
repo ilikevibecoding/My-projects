@@ -156,3 +156,31 @@ GPU budgets (bloom's blur chain alone is ~25 fullscreen quads).
    explicitly, silence the warning.
 4. NO visual retuning of passing items (regression risk) — double-green is the goal.
 
+## Iteration 5 — UI state hygiene, clean console (first all-green)
+
+Evidence: `shots/iter_5/`. Changes were deliberately surgical: `hud.showFlight()`
+now resets the key-hint to its default (single source of truth, so no view/flight
+can inherit stale text), inline SVG favicon (404 gone), explicit `PCFShadowMap`
+(deprecation warning gone). Console section of report.txt is now warning- and
+error-free. All renders pixel-comparable to iter 4 thanks to seeded determinism.
+
+| # | Item | Verdict | Notes |
+|---|------|---------|-------|
+| 1 | Rocket stylized-real | **PASS** | unchanged from iter 4 (wordmark/stripes/fins read at all distances) |
+| 2 | Exhaust sells | **PASS** | unchanged (pad billow, orange fringe, vacuum widening, a/b frames differ) |
+| 3 | Climb gradient | **PASS** | unchanged (blue → cumulus → indigo+limb+stars → black) |
+| 4 | Launch site finished | **PASS** | unchanged; PCFShadowMap swap shows no visible shadow difference, no acne |
+| 5 | Builder clean | **PASS** | stats assertion green (6.95 t/1.06 → 12.10 t/0.61 red) |
+| 6 | Physics honest | **PASS** | all five verdicts green: space @64 s, accel 0.79→9.48, drag 0.319/0.099, lowtwr 0 m, coast apogee 3 388 m crash, stage event @40.5 s |
+| 7 | Staging works | **PASS** | tumbling spent stage mid-frame ✓ mass drop ✓ NO stale banner ✓ NO stale hint ✓ — staging.png finally clean |
+| 8 | Camera never fails | **PASS** | unchanged; no UI/3D collisions in any shot |
+| 9 | Post balanced | **PASS** | unchanged; no blown or crushed regions |
+| 10 | Tech clean | **PASS*** | 304 calls/117 k tris full-pipeline; console 100 % clean; *SwiftShader caveat |
+| 11 | Cold-look | **PASS** | liftoff + high_altitude still pass the squint test |
+
+**Score: 11/11 — first all-green. Need one more consecutive all-green to stop.**
+
+### Plan for iteration 6 (confirmation run)
+Zero code changes. Re-run the full pipeline and re-judge every item against the
+fresh evidence. Stop only if 11/11 holds.
+

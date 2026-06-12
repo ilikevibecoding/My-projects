@@ -25,7 +25,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'h
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoft is deprecated in r184
 renderer.info.autoReset = false; // we reset once per frame to count ALL passes
 appEl.appendChild(renderer.domElement);
 
@@ -145,8 +145,7 @@ function startFlight(stackIds = builder.stackIds) {
   buildAndPlaceRocket(stackIds);
   game.sim = createSimState(stackFromIds(stackIds));
   game.input.tiltX = 0; game.input.tiltZ = 0;
-  hud.showFlight();
-  hud.setHint('space — ignite&nbsp;&nbsp;·&nbsp;&nbsp;arrows — tilt');
+  hud.showFlight(); // also resets the key hint to the default
   rig.mode = 'chase';
   const c = rocketCenterPos(new THREE.Vector3());
   localUp(c, _v2);

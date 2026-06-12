@@ -1,6 +1,8 @@
 // hud.js — flight readouts, banners, revert button. DOM is in index.html;
 // this module just drives it.
 
+const DEFAULT_FLIGHT_HINT = 'space — ignite / stage&nbsp;&nbsp;·&nbsp;&nbsp;arrows — tilt';
+
 export function createHUD() {
   const el = {
     hud: document.getElementById('hud'),
@@ -40,6 +42,9 @@ export function createHUD() {
       el.hud.classList.add('visible');
       this.hideBanner();
       el.revertWrap.classList.remove('visible');
+      // reset hint so state never leaks between flights/debug views
+      // (e.g. "space reached" lingering into a fresh staging warm-up)
+      this.setHint(DEFAULT_FLIGHT_HINT);
     },
 
     setReadouts(alt, speed, fuelFrac) {
