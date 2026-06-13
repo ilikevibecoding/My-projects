@@ -215,12 +215,8 @@ var blocks = [
   /* --- S3: wheel-step shelf --- */
   { x0: 9560, x1: 10460, top: 750 },        // high shelf (needs the wheel as a step)
 
-  /* --- S4: rope-climb chasm --- */
+  /* --- S4: rope-climb chasm — sheer walls; falling in is fatal (abyss reset) --- */
   { x0: 10460, x1: 10860, top: 1330 },      // deep chasm under rope 2
-  { x0: 10460, x1: 10560, top: 1210 },      // nested recovery staircase (left wall)
-  { x0: 10460, x1: 10530, top: 1090 },
-  { x0: 10460, x1: 10500, top: 970  },
-  { x0: 10460, x1: 10472, top: 850  },
   { x0: 10860, x1: 11160, top: 760 },       // swing landing platform
   { x0: 11160, x1: 12150, top: 905 },       // S5 cart flats
 
@@ -253,7 +249,9 @@ var player = Bodies.rectangle(440, 830, 28, 60, {
   frictionAir: 0.012,
   density: 0.0016,
   label: 'player',
-  collisionFilter: { group: -7 }   // never collides with rope segments (same negative group)
+  /* group -7: never collides with rope segments; mask bit 0x0004 cleared:
+     walks straight through cart-stop curbs */
+  collisionFilter: { group: -7, category: 0x0001, mask: 0xFFFB }
 });
 Composite.add(world, player);
 
@@ -342,7 +340,17 @@ var cartAxles = [
   Constraint.create({ bodyA: cartDeck, pointA: { x: -80, y: 39 }, bodyB: cartWheels[0], pointB: { x: 0, y: 0 }, length: 0, stiffness: 0.9 }),
   Constraint.create({ bodyA: cartDeck, pointA: { x: 80, y: 39 }, bodyB: cartWheels[1], pointB: { x: 0, y: 0 }, length: 0, stiffness: 0.9 })
 ];
+cartDeck.plugin.haulForce = 0.055;   // dragging a whole cart takes real muscle
 Composite.add(world, [cartDeck, cartWheels[0], cartWheels[1], cartAxles[0], cartAxles[1]]);
+
+/* invisible curb left of the cart run: stops the cart from parking flush
+   against the S4 platform wall (where nobody can get behind it to push) —
+   the boy passes straight through it */
+Composite.add(world, Bodies.rectangle(11245, 880, 14, 50, {
+  isStatic: true,
+  label: 'cartstop',
+  collisionFilter: { category: 0x0004, mask: 0xFFFF }
+}));
 
 /* bodies the boy can grab and haul with the action key */
 var GRABBABLES = [crate, cartDeck];
@@ -542,6 +550,14 @@ function updateCrateGrab() {
       Composite.remove(world, grabConstraint);
       grabConstraint = null;
       grabBody = null;
+      return;
+    }
+    /* hauling assist: the constraint alone can't drag the damped cart wheels —
+       lend his pull/push some real muscle while he walks */
+    var dirH = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    if (dirH !== 0 && Math.abs(grabBody.velocity.x) < 2.3 && isGrounded()) {
+      var hf = (grabBody.plugin && grabBody.plugin.haulForce) || 0.005;
+      Body.applyForce(grabBody, grabBody.position, { x: dirH * hf, y: 0 });
     }
     return;
   }
@@ -727,8 +743,15 @@ function playerHeadUnder() {
   return false;
 }
 
+var ABYSS_Y = 1250;   // below this he is lost to the dark — fade and respawn
+
 function updateDrowning() {
   if (drown.phase === 'none') {
+    /* fell into the abyss (chasm) → immediate fade-to-black reset */
+    if (player.position.y > ABYSS_Y) {
+      drown.phase = 'out';
+      return;
+    }
     if (playerHeadUnder()) {
       drown.ticks++;
       drown.flail = Math.min(1, drown.ticks / 14);   // panic builds fast
