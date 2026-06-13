@@ -713,22 +713,47 @@ function controlUpdate() {
    under; if it stays under he commits to a slow sink, then the screen fades. */
 var drown = { ticks: 0, phase: 'none', fade: 0, flail: 0, sink: 0 };
 
-/* silent checkpoints: drowning respawns him at the last stretch of safe ground */
+/* silent checkpoints: drowning/abyss respawns him at the last stretch of safe
+   ground; lo..hi is the solid span a spawn may slide along to dodge obstacles */
 var CHECKPOINTS = [
-  { x: 440,   y: 830 }, { x: 1640,  y: 850 }, { x: 3700,  y: 700 },
-  { x: 5960,  y: 850 }, { x: 7320,  y: 850 }, { x: 8810,  y: 850 },
-  { x: 10180, y: 700 }, { x: 11300, y: 850 }
+  { x: 440,   y: 830, lo: 80,    hi: 840   },
+  { x: 1640,  y: 850, lo: 1560,  hi: 2140  },
+  { x: 3700,  y: 700, lo: 3640,  hi: 4680  },
+  { x: 5960,  y: 850, lo: 5870,  hi: 6830  },
+  { x: 7320,  y: 850, lo: 7230,  hi: 8000  },
+  { x: 8810,  y: 850, lo: 8730,  hi: 9490  },
+  { x: 10180, y: 700, lo: 9630,  hi: 10390 },
+  { x: 11300, y: 850, lo: 11230, hi: 12070 }
 ];
 var progressX = 440;
+
+/* a respawn spot must not sit inside a crate, wheel or the wagon the player
+   may have parked on the checkpoint — scan sideways for clear air */
+function spawnBlockedAt(x, y) {
+  var obstacles = [crate, wheel1, wheel2, cartDeck, cartWheels[0], cartWheels[1], plank];
+  for (var i = 0; i < obstacles.length; i++) {
+    var b = obstacles[i].bounds;
+    if (x + 20 > b.min.x && x - 20 < b.max.x &&
+        y + 34 > b.min.y && y - 34 < b.max.y) return true;
+  }
+  return false;
+}
 
 function levelReset() {
   var cp = CHECKPOINTS[0];
   for (var i = 0; i < CHECKPOINTS.length; i++) {
     if (CHECKPOINTS[i].x <= progressX) cp = CHECKPOINTS[i];
   }
-  Body.setPosition(player, { x: cp.x, y: cp.y });
+  var sx = cp.x;
+  var offsets = [0, -70, 70, -140, 140, -210, 210, -300, 300, -400, 400];
+  for (var o = 0; o < offsets.length; o++) {
+    var cand = cp.x + offsets[o];
+    if (cand < cp.lo || cand > cp.hi) continue;     // stay on this checkpoint's solid span
+    if (!spawnBlockedAt(cand, cp.y)) { sx = cand; break; }
+  }
+  Body.setPosition(player, { x: sx, y: cp.y });
   Body.setVelocity(player, { x: 0, y: 0 });
-  cam.x = cp.x; cam.y = cp.y - 70; cam.anchorX = cp.x; cam.leadVel = 0;
+  cam.x = sx; cam.y = cp.y - 70; cam.anchorX = sx; cam.leadVel = 0;
   groundPairs = {};
   drown.ticks = 0; drown.flail = 0; drown.sink = 0;
 }
@@ -2362,6 +2387,7 @@ window.__LIMBO_DEBUG__ = {
   cam: cam,
   get ropeIdx() { return ropeGrab.idx; },
   get progressX() { return progressX; },
+  setProgress: function (x) { progressX = x; },   // test hook: choose the respawn checkpoint
   get grassDisturbed() { return disturbed.length; },
   get dripCount() { return drips.length; },
   get fps() { return fpsAvg; },
