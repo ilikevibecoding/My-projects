@@ -126,6 +126,10 @@ export function fireStage(state, rng = Math.random) {
   const spent = state.stages[idx];
   spent.attached = false;
   state.activeStage = idx + 1;
+  // the next stage stays COLD after separation — the pilot ignites it
+  // deliberately (Space) once the booster is clear
+  state.ignited = false;
+  state.throttle = 0;
   const up = localUp(state.pos);
   const side = new THREE.Vector3(rng() - 0.5, 0, rng() - 0.5).normalize().multiplyScalar(5.5);
   const debris = {
@@ -271,7 +275,7 @@ export function step(state, input, dt = CONST.DT) {
   state.diag.drag = dragAcc;
   state.diag.gravity = g;
   state.diag.rho = rho;
-  state.diag.twr = stage && stage.fuel > 0 ? stage.thrust / (mass * g) : 0;
+  state.diag.twr = state.ignited && stage && stage.fuel > 0 ? stage.thrust / (mass * g) : 0;
   state.diag.vSpeed = vUp;
   return state;
 }

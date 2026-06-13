@@ -79,13 +79,18 @@ await page.screenshot({ path: `${OUT}/3_cluster_plumes.png` });
 const plumes = await page.evaluate(() => debugAPI.frameStats());
 check('frame healthy with booster stack', plumes.drawCalls < 420, `drawCalls ${plumes.drawCalls}`);
 
-// ---------- A4. pop the connector: booster drops, twin-cluster takes over ----------
+// ---------- A4. pop the connector: booster drops, upper stage stays COLD ----------
 await page.keyboard.press('Space');                        // stage!
 await page.waitForTimeout(800);
 const ev = await page.evaluate(() => debugAPI.getState());
 check('staged + still climbing', ev.alt > beefSt.alt && ev.phase !== 'crashed',
   `alt ${ev.alt}m phase ${ev.phase} twr ${ev.twr}`);
-check('upper cluster TWR jumps after drop', ev.twr > 1.5, `post-stage TWR ${ev.twr}`);
+check('upper stage cold until relight', ev.ignited === false, `ignited=${ev.ignited}`);
+await page.keyboard.press('Space');                        // relight!
+await page.waitForTimeout(500);
+const ev2 = await page.evaluate(() => debugAPI.getState());
+check('upper cluster relights with big TWR', ev2.ignited === true && ev2.twr > 1.5,
+  `ignited=${ev2.ignited} post-stage TWR ${ev2.twr}`);
 
 // ---------- A5. render interpolation invariant (the anti-shake fix) ----------
 let interpOk = true, interpDetail = '';

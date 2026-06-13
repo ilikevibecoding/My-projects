@@ -287,6 +287,8 @@ function doStage() {
   }
   setEngineGlow(sg, 0);
   hud.flash('STAGE SEPARATION');
+  // the fresh stage is cold — tell the pilot how to light it
+  if (!game.sim.ignited) hud.setHint('stage separated — space to ignite the next rocket');
   audio.stage();
 }
 
@@ -304,11 +306,18 @@ function processEvents() {
         audio.ignition();
         if (altitudeOf(sim.pos) < 8) {
           exhaust.igniteDust(rocketBasePos(_v1), world.padTopY + 0.1);
+        } else if (!sim.spaceReached) {
+          hud.resetHint(); // upper stage lit: back to the standard hints
         }
         break;
       }
       case 'liftoff': hud.flash('LIFTOFF'); audio.liftoff(); break;
-      case 'flameout': hud.flash('MAIN ENGINE CUTOFF'); audio.flameout(); break;
+      case 'flameout': {
+        hud.flash('MAIN ENGINE CUTOFF');
+        audio.flameout();
+        if (canStage(sim)) hud.setHint('booster empty — space to decouple');
+        break;
+      }
       case 'space': {
         hud.banner('space');
         hud.setHint('space reached — flip with arrows + fly the map, or revert');
@@ -535,13 +544,14 @@ window.addEventListener('keydown', (e) => {
       e.preventDefault();
       if (game.mode === 'flight' && game.sim) {
         if (!game.sim.ignited) {
-          if (game.countdown === null) {
-            // 3-2-1 countdown; pressing Space again skips it
+          if (game.sim.onGround && game.countdown === null) {
+            // pad launch: 3-2-1 countdown; pressing Space again skips it
             game.countdown = 3.0;
             game.countdownShown = 3;
             hud.flash('3');
             audio.countBeep(3);
           } else {
+            // skip the countdown, or relight the next stage mid-flight
             game.countdown = null;
             doIgnite();
           }
@@ -762,6 +772,7 @@ const debugAPI = {
         warmFlight({ stackIds: TWO_STAGE_STACK, startAlt: 2250, startSpeed: 145, targetAlt: 2420, maxSim: 25 });
         hud.setSuppressFlash(true);
         doStage();
+        doIgnite(); // scripted view: relight immediately so the shot shows both
         for (let i = 0; i < 60; i++) stepWorld(1 / 60);
         hud.setSuppressFlash(false);
         rig.applyDebugView('staging', debugViewContext());
@@ -837,6 +848,7 @@ const debugAPI = {
       step(st, { throttle: 1 }, CONST.DT);
       if (cfg.stageAtAlt && !staged && altitudeOf(st.pos) >= cfg.stageAtAlt && canStage(st)) {
         fireStage(st, rng);
+        ignite(st); // scripted pilot relights the upper stage right away
         staged = true;
       }
       if (st.t >= nextSample) {

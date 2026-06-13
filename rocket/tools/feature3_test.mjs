@@ -102,15 +102,24 @@ await page.evaluate(() => debugAPI.tick(3.4));       // run the count down
 st = await page.evaluate(() => debugAPI.getState());
 check('countdown reaches zero -> ignition', st.ignited === true, `ignited=${st.ignited}`);
 
-// climb on the booster, then drop it — the shell must leave with it
+// climb on the booster, then drop it — the shell must leave with it and the
+// second rocket must stay COLD until deliberately ignited
 await page.evaluate(() => debugAPI.tick(20));
 await page.keyboard.press('Space');                  // stage!
 await page.waitForTimeout(700);
+await page.evaluate(() => debugAPI.tick(0.5));       // coast: refresh diagnostics
 ri = await page.evaluate(() => debugAPI.rocketInfo());
 st = await page.evaluate(() => debugAPI.getState());
-check('staging drops booster + shell together, upper engines take over',
-  ri.stages[0].detached && ri.stages[0].hasInterstage && st.phase !== 'crashed',
-  `stages=${JSON.stringify(ri.stages)} phase=${st.phase}`);
+check('staging drops booster + shell together (second rocket still cold)',
+  ri.stages[0].detached && ri.stages[0].hasInterstage
+  && st.ignited === false && st.twr === 0 && st.phase !== 'crashed',
+  `stages=${JSON.stringify(ri.stages)} ignited=${st.ignited} twr=${st.twr} phase=${st.phase}`);
+await page.keyboard.press('Space');                  // ignite the second rocket
+await page.waitForTimeout(500);
+await page.evaluate(() => debugAPI.tick(0.5));       // burn: refresh diagnostics
+st = await page.evaluate(() => debugAPI.getState());
+check('second rocket ignites on demand', st.ignited === true && st.twr > 1,
+  `ignited=${st.ignited} twr=${st.twr}`);
 await page.evaluate(() => debugAPI.pause(false));
 await page.waitForTimeout(1800);
 await page.screenshot({ path: `${OUT}/3_after_separation.png` });

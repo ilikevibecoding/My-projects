@@ -58,6 +58,7 @@ export function createHUD() {
     },
 
     setHint(text) { el.keyHints.innerHTML = text; },
+    resetHint() { this.setHint(DEFAULT_FLIGHT_HINT); },
 
     banner(kind) {
       el.banner.classList.remove('crash');
