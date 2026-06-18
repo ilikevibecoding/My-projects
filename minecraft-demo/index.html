@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hyper-Realistic Minecraft Demo</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #0b1020; }
+      body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: #fff; }
+      #app { position: fixed; inset: 0; }
+      #app canvas { display: block; }
+
+      #crosshair {
+        position: fixed; left: 50%; top: 50%; width: 22px; height: 22px;
+        transform: translate(-50%, -50%); pointer-events: none; z-index: 5; opacity: 0.85;
+      }
+      #crosshair::before, #crosshair::after {
+        content: ""; position: absolute; background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+      }
+      #crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+      #crosshair::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+
+      #hud {
+        position: fixed; top: 10px; left: 12px; z-index: 5; pointer-events: none;
+        font-size: 13px; font-variant-numeric: tabular-nums; letter-spacing: 0.2px;
+        background: rgba(0, 0, 0, 0.35); padding: 6px 10px; border-radius: 8px;
+        backdrop-filter: blur(4px); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+      }
+
+      #hotbar {
+        position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+        display: flex; gap: 6px; z-index: 5; padding: 6px;
+        background: rgba(0, 0, 0, 0.32); border-radius: 12px; backdrop-filter: blur(6px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .slot {
+        position: relative; width: 52px; height: 52px; border-radius: 8px; overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.18); cursor: pointer; background: #222;
+        transition: transform 0.08s ease, border-color 0.08s ease;
+      }
+      .slot:hover { transform: translateY(-2px); }
+      .slot.active { border-color: #fff; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4), 0 6px 16px rgba(0, 0, 0, 0.5); transform: translateY(-3px); }
+      .slot-icon { width: 100%; height: 100%; display: block; image-rendering: auto; }
+      .slot-num {
+        position: absolute; bottom: 1px; right: 3px; font-size: 11px; font-weight: 700;
+        text-shadow: 0 1px 2px #000, 0 0 3px #000;
+      }
+
+      #blocker {
+        position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(circle at 50% 35%, rgba(40, 70, 120, 0.55), rgba(8, 12, 28, 0.92));
+        cursor: pointer; transition: opacity 0.4s ease;
+      }
+      #blocker.hidden { opacity: 0; pointer-events: none; }
+      .panel {
+        text-align: center; max-width: 560px; padding: 34px 40px;
+        background: rgba(12, 18, 36, 0.6); border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px; backdrop-filter: blur(8px); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      }
+      .panel h1 { font-size: 30px; margin-bottom: 6px; letter-spacing: 0.5px; }
+      .panel .sub { color: #b9c7e6; margin-bottom: 20px; font-size: 14px; }
+      .play { font-size: 16px; font-weight: 700; padding: 12px 26px; border-radius: 10px; display: inline-block;
+        background: linear-gradient(180deg, #6fd36f, #3fa84a); box-shadow: 0 8px 22px rgba(40, 140, 60, 0.5); }
+      .controls { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; text-align: left; font-size: 13px; color: #cdd8f0; }
+      .controls b { color: #fff; }
+      .loading { margin-top: 16px; font-size: 13px; color: #9fb0d4; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="crosshair"></div>
+    <div id="hud"></div>
+    <div id="hotbar"></div>
+
+    <div id="blocker">
+      <div class="panel">
+        <h1>Hyper-Realistic Minecraft</h1>
+        <p class="sub">A procedurally-textured voxel world rendered with WebGL + PBR lighting.</p>
+        <span class="play">Click to play</span>
+        <div class="controls">
+          <div><b>WASD</b> — move</div>
+          <div><b>Mouse</b> — look</div>
+          <div><b>Space</b> — jump / fly up</div>
+          <div><b>Shift</b> — sprint / fly down</div>
+          <div><b>Left click</b> — break block</div>
+          <div><b>Right click</b> — place block</div>
+          <div><b>1–9 / Scroll</b> — pick block</div>
+          <div><b>F</b> — toggle fly</div>
+        </div>
+        <p class="loading">Esc to release the mouse.</p>
+      </div>
+    </div>
+
+    <script src="./textures.js"></script>
+    <script type="importmap">
+      { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+    <script type="module" src="./engine.js"></script>
+  </body>
+</html>
