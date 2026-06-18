@@ -8,6 +8,7 @@ import { Input } from './input.js';
 import { Hud } from './hud.js';
 import { Snow } from './snow.js';
 import { raycastVoxel } from './raycast.js';
+import { getCastle } from './castle.js';
 
 const HALF_W = PLAYER_WIDTH / 2;
 
@@ -183,6 +184,26 @@ const api = {
   },
   rendererInfo() {
     return renderer.info.render;
+  },
+  // Find the nearest castle anchor by scanning cells outward from origin.
+  findNearestCastle(maxCells = 6) {
+    let best = null;
+    for (let r = 0; r <= maxCells; r++) {
+      for (let cz = -r; cz <= r; cz++) {
+        for (let cx = -r; cx <= r; cx++) {
+          if (Math.max(Math.abs(cx), Math.abs(cz)) !== r) continue;
+          const c = getCastle(cx, cz);
+          if (c) {
+            if (!best) best = c;
+          }
+        }
+      }
+      if (best) return best;
+    }
+    return best;
+  },
+  setOverlay(v) {
+    hud.setOverlay(v);
   },
 };
 window.iceCraft = api;
