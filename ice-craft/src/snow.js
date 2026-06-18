@@ -1,7 +1,7 @@
 // Falling snow particle field that follows the player.
 import * as THREE from 'three';
 
-const COUNT = 1800;
+const COUNT = 1200;
 const RANGE = 40; // cube half-extent around player
 const FALL_SPEED = 6.0;
 

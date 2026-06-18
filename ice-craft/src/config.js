@@ -11,9 +11,9 @@ export const SEA_LEVEL = 30; // frozen-lake water line
 export const BASE_HEIGHT = 32; // average ground height
 
 // View / performance.
-export const RENDER_DISTANCE = 6; // chunks radius around player
+export const RENDER_DISTANCE = 5; // chunks radius around player
 export const MESH_BUDGET_PER_FRAME = 2; // chunk (re)builds per frame
-export const MAX_PIXEL_RATIO = 1.5;
+export const MAX_PIXEL_RATIO = 1.0; // cap render resolution (big win on HiDPI)
 
 // Player physics.
 export const GRAVITY = 28.0; // blocks / s^2

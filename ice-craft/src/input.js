@@ -42,11 +42,14 @@ export class Input {
       this.keys.delete(e.code);
     });
 
-    this.canvas.addEventListener('click', () => {
-      if (!this.locked) {
-        this.canvas.requestPointerLock();
-      }
-    });
+    // Request pointer lock on click. The #overlay sits above the canvas and
+    // intercepts clicks, so listen on the document (covers overlay + canvas).
+    const requestLock = () => {
+      if (this.locked) return;
+      const p = this.canvas.requestPointerLock();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    };
+    document.addEventListener('click', requestLock);
 
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === this.canvas;
