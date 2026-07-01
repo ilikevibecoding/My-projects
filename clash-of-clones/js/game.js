@@ -33,14 +33,19 @@ const TW2 = 32, TH2 = 16;      // half tile width/height in world px
 const SAVE_KEY = 'clash_of_clones_parody_v1';
 const BATTLE_TIME = 180;
 
+/* Per-sprite fit tweaks applied after transparent-padding trim.
+   k scales sprite width relative to footprint width, dy nudges the anchor. */
 const DRAW_TWEAKS = {
-  town_hall: { k: 1.04, dy: 0.10 },
-  clan_castle: { k: 0.98, dy: 0.06 },
-  army_camp: { k: 0.9, dy: 0.0 },
-  wall: { k: 1.06, dy: 0.02 },
-  builder_hut: { k: 0.95, dy: 0.04 },
-  mortar: { k: 0.8, dy: 0.0 },
-  tree_small: { k: 0.9, dy: 0.1 },
+  town_hall: { k: 0.98, dy: 0.06 },
+  clan_castle: { k: 0.92, dy: 0.04 },
+  army_camp: { k: 0.96, dy: 0.02 },
+  wall: { k: 1.12, dy: 0.1 },
+  builder_hut: { k: 0.8, dy: 0.02 },
+  mortar: { k: 0.78, dy: 0.0 },
+  cannon: { k: 0.82, dy: 0.0 },
+  archer_tower: { k: 0.8, dy: 0.02 },
+  wizard_tower: { k: 0.82, dy: 0.02 },
+  tree_small: { k: 0.85, dy: 0.06 },
   stone_rare: { k: 0.8, dy: 0.02 },
 };
 
@@ -60,6 +65,41 @@ function loadAssets(onProgress) {
       IMG[name] = img;
     });
   });
+}
+
+/* Trim transparent padding so sprites fill their footprints consistently.
+   Falls back to the raw image if canvas readback is unavailable. */
+function trimLoadedImages() {
+  const off = document.createElement('canvas');
+  const octx = off.getContext('2d', { willReadFrequently: true });
+  for (const name of ASSETS) {
+    const img = IMG[name];
+    if (!img || !img.naturalWidth) continue;
+    try {
+      off.width = img.naturalWidth; off.height = img.naturalHeight;
+      octx.clearRect(0, 0, off.width, off.height);
+      octx.drawImage(img, 0, 0);
+      const data = octx.getImageData(0, 0, off.width, off.height).data;
+      let minX = off.width, minY = off.height, maxX = -1, maxY = -1;
+      for (let y = 0; y < off.height; y++) {
+        for (let x = 0; x < off.width; x++) {
+          if (data[(y * off.width + x) * 4 + 3] > 8) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      if (maxX <= minX || maxY <= minY) continue;
+      const w = maxX - minX + 1, h = maxY - minY + 1;
+      const cut = document.createElement('canvas');
+      cut.width = w; cut.height = h;
+      cut.getContext('2d').drawImage(img, minX, minY, w, h, 0, 0, w, h);
+      cut.naturalWidth = w; cut.naturalHeight = h;
+      IMG[name] = cut;
+    } catch (e) { /* keep raw image */ }
+  }
 }
 
 /* ============================ canvas & camera ============================ */
@@ -101,7 +141,9 @@ function clampCam() {
 function fitCamera() {
   cam.x = 0;
   cam.y = N * TH2;
-  cam.zoom = clamp(Math.min(vw / (N * TW2 * 1.35), vh / (N * TH2 * 2.35)), cam.min, cam.max);
+  const fit = Math.min(vw / (N * TW2 * 1.35), vh / (N * TH2 * 2.35));
+  // On tall/narrow screens fitting the whole diamond leaves it tiny; bias closer.
+  cam.zoom = clamp(Math.max(fit, vw < 700 ? 0.62 : fit), cam.min, cam.max);
 }
 
 /* ============================ ground prerender ============================ */
@@ -192,12 +234,12 @@ function newBuilding(type, gx, gy, level = 1) {
 function starterVillage() {
   const s = defaultState();
   const c = N / 2;
-  const th = newBuilding('town_hall', c - 2, c - 2); s.buildings.push(th);
-  s.buildings.push(newBuilding('gold_mine', c - 6, c - 1));
-  s.buildings.push(newBuilding('elixir_collector', c + 3, c - 5));
-  s.buildings.push(newBuilding('cannon', c + 2, c + 2));
-  s.buildings.push(newBuilding('barracks', c - 6, c + 3));
-  s.buildings.push(newBuilding('army_camp', c + 5, c + 1));
+  s.buildings.push(newBuilding('town_hall', c - 2, c - 2));
+  s.buildings.push(newBuilding('gold_mine', c - 9, c - 3));
+  s.buildings.push(newBuilding('elixir_collector', c + 4, c - 8));
+  s.buildings.push(newBuilding('cannon', c + 4, c + 3));
+  s.buildings.push(newBuilding('barracks', c - 8, c + 4));
+  s.buildings.push(newBuilding('army_camp', c + 8, c - 2));
   return s;
 }
 
@@ -668,7 +710,8 @@ function renderShop() {
     const maxEver = d.maxCount(5);
     const locked = max === 0;
     const full = !locked && count >= max;
-    const res = d.cost.gold ? 'gold' : d.cost.elixir ? 'elixir' : 'gems';
+    const res = d.cost.gold ? 'gold' : d.cost.elixir ? 'elixir' : 'gem';
+    const costAmount = d.cost.gold || d.cost.elixir || d.cost.gems;
     const afford = canAfford(d.cost);
 
     const el = document.createElement('div');
@@ -677,7 +720,7 @@ function renderShop() {
       <img src="assets/${d.img}.png" alt="${d.name}"/>
       <div class="si-name">${d.name}</div>
       <div class="si-desc">${d.desc}</div>
-      <div class="si-cost"><img src="assets/res_${res}.png"/>${fmt(d.cost[res])}</div>
+      <div class="si-cost"><img src="assets/res_${res}.png"/>${fmt(costAmount)}</div>
       <div class="si-count">${locked ? `needs TH${[1, 2, 3, 4, 5].find((L) => d.maxCount(L) > 0) || '?'}` : full ? `max built (${count}/${max})` : `${count}/${max} built${maxEver > max ? ` · more at higher TH` : ''}`}</div>
     `;
     el.addEventListener('click', () => {
@@ -845,12 +888,12 @@ function drawBuildingSprite(b, alpha = 1, isEnemy = false) {
   const img = IMG[d.img];
   if (!img || !img.naturalWidth) return;
   const tw = DRAW_TWEAKS[b.type] || {};
-  const k = tw.k || 0.94;
+  const k = tw.k || 0.9;
   const size = d.size;
   const c = gridToWorld(b.gx + size / 2, b.gy + size / 2);
-  const w = size * TW2 * 2 * 0.72 * k;
+  const w = size * TW2 * 2 * k;
   const h = w * (img.naturalHeight / img.naturalWidth);
-  const bottom = c.y + size * TH2 * (0.88 + (tw.dy || 0));
+  const bottom = c.y + size * TH2 * (0.92 + (tw.dy || 0));
   ctx.globalAlpha = alpha;
   // damage tint in battle
   if (b.hpNow !== undefined && b.hpNow < b.hpMax * 0.5 && !b.dead) {
@@ -1006,7 +1049,7 @@ function generateEnemyVillage() {
       const size = BUILDINGS[type].size;
       const gx = randi(1, N - size - 1), gy = randi(1, N - size - 1);
       const distC = Math.max(Math.abs(gx + size / 2 - c), Math.abs(gy + size / 2 - c));
-      if (distC < r + 2 || distC > r + 8) continue;
+      if (distC < r + 2 || distC > r + 5) continue;
       const grid = occupied();
       let free = true;
       for (let x = gx - 1; x < gx + size + 1 && free; x++)
@@ -1080,6 +1123,7 @@ function beginBattle() {
   scene = 'battle';
   $('hud').classList.add('hidden');
   $('infoPanel').classList.add('hidden');
+  $('aboutBtn').classList.add('hidden');
   $('battleHud').classList.remove('hidden');
   renderDeployBar();
   updateBattleHud();
@@ -1132,7 +1176,9 @@ function battleTap(w) {
   if (state.army[t] <= 0) delete state.army[t];
   const def = TROOPS[t];
   battle.troops.push({
-    type: t, x: g.gx, y: g.gy,
+    type: t,
+    x: clamp(g.gx + rand(-0.35, 0.35), 0, N - 0.01),
+    y: clamp(g.gy + rand(-0.35, 0.35), 0, N - 0.01),
     hpMax: def.hp, hpNow: def.hp,
     target: null, wallTarget: null,
     cooldown: 0, dead: false,
@@ -1203,13 +1249,13 @@ function damageBuilding(b, dmg, tr) {
     if (b.lootElixir) { battle.lootElixir += b.lootElixir; battleFloat(b, `+${fmt(b.lootElixir)}`, '#e08cf0'); }
     if (b.type !== 'wall' && !bDef(b).deco) {
       battle.destroyedWeight++;
-      updateStars(b.type === 'town_hall');
+      updateStars();
     }
     updateBattleHud();
   }
 }
 
-function updateStars(thDied) {
+function updateStars() {
   const pct = battle.destroyedWeight / battle.totalWeight;
   let stars = 0;
   if (pct >= 0.5) stars++;
@@ -1431,6 +1477,7 @@ function goHome() {
   scene = 'home';
   $('battleHud').classList.add('hidden');
   $('hud').classList.remove('hidden');
+  $('aboutBtn').classList.remove('hidden');
   fitCamera();
   refreshHUD();
   save();
@@ -1457,6 +1504,22 @@ function renderBattle() {
       }
     }
     ctx.globalAlpha = 1;
+  }
+
+  // rubble where buildings fell
+  for (const b of battle.enemy.buildings) {
+    if (!b.dead || b.type === 'wall') continue;
+    const size = bDef(b).size;
+    drawDiamond(b.gx + 0.2, b.gy + 0.2, size - 0.4, size - 0.4, 'rgba(45,38,30,0.5)');
+    const c = gridToWorld(b.gx + size / 2, b.gy + size / 2);
+    ctx.fillStyle = 'rgba(78,66,54,0.9)';
+    for (let i = 0; i < size * 2; i++) {
+      const px = c.x + Math.sin(b.id * 37 + i * 5.13) * size * TW2 * 0.3;
+      const py = c.y + Math.cos(b.id * 91 + i * 3.7) * size * TH2 * 0.3;
+      ctx.beginPath();
+      ctx.ellipse(px, py, 7 - i % 3 * 2, 4 - i % 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   // entities sorted by depth
@@ -1585,6 +1648,7 @@ function loop(t) {
   }, 900);
 
   await loadAssets((f) => { $('loaderFill').style.width = Math.round(f * 100) + '%'; });
+  trimLoadedImages();
   clearInterval(hintTimer);
 
   state = load();

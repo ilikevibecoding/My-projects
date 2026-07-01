@@ -302,4 +302,6 @@ h1, h2, h3, .loader-title, .big-btn, .end-title, .chief-name {
   .gem-offers { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
   .deploy-slot { width: 56px; height: 56px; }
   .deploy-slot img { width: 44px; height: 44px; }
+  .toasts { top: calc(150px + env(safe-area-inset-top)); }
+  .about-btn { left: auto; right: 12px; top: auto; bottom: calc(84px + env(safe-area-inset-bottom)); transform: none; }
 }
