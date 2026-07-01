@@ -103,7 +103,7 @@ const BUILDINGS = {
     name: 'Wall', img: 'wall', size: 1,
     desc: 'A very confident pile of rocks. Giants disagree with it on principle.',
     category: 'wall', maxLevel: 5, cost: { gold: 40 }, costMul: 2.4,
-    buildTime: 0, hp: 450, hpMul: 1.5,
+    buildTime: 0, hp: 280, hpMul: 1.3,
     maxCount: (th) => [0, 40, 60, 85, 110, 140][th] || 140,
   },
   barracks: {

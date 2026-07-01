@@ -806,6 +806,15 @@ document.querySelectorAll('.gem-offer').forEach((btn) =>
     refreshHUD(); save();
   }));
 
+/* ---------- chief rename ---------- */
+$('chiefCard').addEventListener('click', () => {
+  const name = prompt('Name your chief:', state.name);
+  if (name && name.trim()) state.name = name.trim().slice(0, 18);
+  const village = prompt('Name your village:', state.village);
+  if (village && village.trim()) state.village = village.trim().slice(0, 22);
+  refreshHUD(); save();
+});
+
 /* ---------- about / reset ---------- */
 $('aboutBtn').addEventListener('click', () => openModal('aboutModal'));
 $('resetBtn').addEventListener('click', () => {
@@ -1291,17 +1300,19 @@ function stepBattle(dt) {
       tr.cooldown -= dt;
       if (tr.cooldown <= 0) {
         tr.cooldown = 1;
+        // troops smash walls much faster than buildings, or raids stall forever
+        const dmg = goal.type === 'wall' ? def.dps * 4 : def.dps;
         if (def.range >= 2) {
           // ranged troop: projectile
           const tc = buildingCenter(goal);
           battle.projectiles.push({
             x: tr.x, y: tr.y, tx: tc.x, ty: tc.y, speed: 9,
-            dmg: def.dps, splash: def.splash || 0, side: 'player', targetB: goal,
+            dmg, splash: def.splash || 0, side: 'player', targetB: goal,
             color: tr.type === 'wizard' ? '#63b3ff' : '#d8c9a0',
           });
           Sound.shoot();
         } else {
-          damageBuilding(goal, def.dps, tr);
+          damageBuilding(goal, dmg, tr);
         }
       }
     } else {
