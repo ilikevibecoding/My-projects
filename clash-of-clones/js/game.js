@@ -28,23 +28,33 @@ function fmtTime(s) {
 }
 
 /* ============================ constants ============================ */
-const N = 36;                  // village grid size
+const N = 40;                  // village grid size
 const TW2 = 32, TH2 = 16;      // half tile width/height in world px
 const SAVE_KEY = 'clash_of_clones_parody_v1';
 const BATTLE_TIME = 180;
+const OBSTACLE_SPAWN_EVERY = 200;   // seconds
+const OBSTACLE_MAX = 34;
+const GEM_BOX_EVERY = 900;          // seconds
 
-/* Per-sprite fit tweaks applied after transparent-padding trim.
-   k scales sprite width relative to footprint width, dy nudges the anchor. */
+/* Per-sprite fit tweaks applied after transparent-padding trim. */
 const DRAW_TWEAKS = {
   town_hall: { k: 0.98, dy: 0.06 },
   clan_castle: { k: 0.92, dy: 0.04 },
   army_camp: { k: 0.96, dy: 0.02 },
-  wall: { k: 1.12, dy: 0.1 },
   builder_hut: { k: 0.8, dy: 0.02 },
   mortar: { k: 0.78, dy: 0.0 },
   cannon: { k: 0.82, dy: 0.0 },
   archer_tower: { k: 0.8, dy: 0.02 },
   wizard_tower: { k: 0.82, dy: 0.02 },
+  air_defense: { k: 0.78, dy: 0.02 },
+  hidden_tesla: { k: 0.82, dy: 0.04 },
+  bomb_tower: { k: 0.8, dy: 0.02 },
+  xbow: { k: 0.9, dy: 0.0 },
+  inferno_tower: { k: 0.72, dy: 0.02 },
+  spell_factory: { k: 0.92, dy: 0.02 },
+  laboratory: { k: 0.9, dy: 0.02 },
+  deco_torch: { k: 0.62, dy: 0.05 },
+  deco_flag: { k: 0.6, dy: 0.06 },
   tree_small: { k: 0.85, dy: 0.06 },
   stone_rare: { k: 0.8, dy: 0.02 },
 };
@@ -67,8 +77,7 @@ function loadAssets(onProgress) {
   });
 }
 
-/* Trim transparent padding so sprites fill their footprints consistently.
-   Falls back to the raw image if canvas readback is unavailable. */
+/* Trim transparent padding so sprites fill their footprints consistently. */
 function trimLoadedImages() {
   const off = document.createElement('canvas');
   const octx = off.getContext('2d', { willReadFrequently: true });
@@ -132,7 +141,7 @@ function applyCamera() {
 }
 
 function clampCam() {
-  const margin = 260;
+  const margin = 300;
   cam.x = clamp(cam.x, -N * TW2 - margin, N * TW2 + margin);
   cam.y = clamp(cam.y, -margin, N * TH2 * 2 + margin);
   cam.zoom = clamp(cam.zoom, cam.min, cam.max);
@@ -141,67 +150,103 @@ function clampCam() {
 function fitCamera() {
   cam.x = 0;
   cam.y = N * TH2;
-  const fit = Math.min(vw / (N * TW2 * 1.35), vh / (N * TH2 * 2.35));
-  // On tall/narrow screens fitting the whole diamond leaves it tiny; bias closer.
+  const fit = Math.min(vw / (N * TW2 * 1.3), vh / (N * TH2 * 2.3));
   cam.zoom = clamp(Math.max(fit, vw < 700 ? 0.62 : fit), cam.min, cam.max);
 }
 
 /* ============================ ground prerender ============================ */
 let groundCanvas = null, groundOrigin = { x: 0, y: 0 };
 function prerenderGround() {
-  const B = 7; // decorative border tiles
+  const B = 9; // decorative border tiles
   const w = (N + B * 2) * TW2 * 2, h = (N + B * 2) * TH2 * 2;
   groundCanvas = document.createElement('canvas');
   groundCanvas.width = w; groundCanvas.height = h;
   const g = groundCanvas.getContext('2d');
   groundOrigin = { x: -(N + B * 2) * TW2, y: -B * TH2 * 2 };
 
-  const diamond = (cx, cy, fill, inset = 0) => {
+  const diamond = (cx, cy, fill, grow = 0) => {
     g.beginPath();
-    g.moveTo(cx, cy - TH2 + inset);
-    g.lineTo(cx + TW2 - inset * 2, cy);
-    g.lineTo(cx, cy + TH2 - inset);
-    g.lineTo(cx - TW2 + inset * 2, cy);
+    g.moveTo(cx, cy - TH2 - grow);
+    g.lineTo(cx + TW2 + grow * 2, cy);
+    g.lineTo(cx, cy + TH2 + grow);
+    g.lineTo(cx - TW2 - grow * 2, cy);
     g.closePath();
     g.fillStyle = fill;
     g.fill();
   };
 
+  // CoC-like palette: saturated light plot, darker meadow, dark forest floor
   for (let gx = -B; gx < N + B; gx++) {
     for (let gy = -B; gy < N + B; gy++) {
       const wpos = gridToWorld(gx + 0.5, gy + 0.5);
       const cx = wpos.x - groundOrigin.x, cy = wpos.y - groundOrigin.y;
       const inside = gx >= 0 && gx < N && gy >= 0 && gy < N;
+      const check = (gx + gy) % 2;
       if (inside) {
-        diamond(cx, cy, (gx + gy) % 2 ? '#69b452' : '#63ac4d');
+        diamond(cx, cy, check ? '#8ec44f' : '#88be49', 0.5);
       } else {
         const d = Math.max(-gx, -gy, gx - N + 1, gy - N + 1);
-        diamond(cx, cy, d > 2 ? ((gx + gy) % 2 ? '#3d7c36' : '#3a7533') : ((gx + gy) % 2 ? '#4f9440' : '#4a8c3c'));
+        if (d <= 2) diamond(cx, cy, check ? '#77ad3f' : '#72a73b', 0.5);
+        else diamond(cx, cy, check ? '#5d9432' : '#598f2f', 0.5);
       }
     }
   }
-  // subtle grass tufts
-  g.fillStyle = 'rgba(255,255,255,0.05)';
-  for (let i = 0; i < 420; i++) {
-    const gx = rand(0, N), gy = rand(0, N);
-    const wpos = gridToWorld(gx, gy);
-    g.fillRect(wpos.x - groundOrigin.x, wpos.y - groundOrigin.y, 2.5, 1.5);
+
+  // plot boundary: light worn edge just outside the buildable square
+  g.strokeStyle = 'rgba(255,255,240,0.35)';
+  g.lineWidth = 3;
+  const corners = [[0, 0], [N, 0], [N, N], [0, N]];
+  g.beginPath();
+  corners.forEach(([gx, gy], i) => {
+    const p = gridToWorld(gx, gy);
+    if (i === 0) g.moveTo(p.x - groundOrigin.x, p.y - groundOrigin.y);
+    else g.lineTo(p.x - groundOrigin.x, p.y - groundOrigin.y);
+  });
+  g.closePath();
+  g.stroke();
+  g.strokeStyle = 'rgba(40,80,20,0.25)';
+  g.lineWidth = 6;
+  g.stroke();
+
+  // grass mottling inside the plot
+  for (let i = 0; i < 300; i++) {
+    const gx = rand(0.5, N - 0.5), gy = rand(0.5, N - 0.5);
+    const p = gridToWorld(gx, gy);
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.045)' : 'rgba(30,70,10,0.05)';
+    g.beginPath();
+    g.ellipse(p.x - groundOrigin.x, p.y - groundOrigin.y, rand(8, 26), rand(4, 12), 0, 0, Math.PI * 2);
+    g.fill();
   }
-  // border flora from fan kit obstacles
-  const flora = ['tree_medium', 'tree_small', 'stone_1', 'tree_medium', 'tree_small'];
-  for (let i = 0; i < 46; i++) {
+  // tiny grass tufts
+  g.fillStyle = 'rgba(255,255,255,0.10)';
+  for (let i = 0; i < 500; i++) {
+    const p = gridToWorld(rand(0, N), rand(0, N));
+    g.fillRect(p.x - groundOrigin.x, p.y - groundOrigin.y, 2.5, 1.5);
+  }
+
+  // forest ring: dense trees + rocks in the outer band, sparser near plot
+  const flora = [];
+  for (let i = 0; i < 340; i++) {
     const side = i % 4;
     let gx, gy;
-    if (side === 0) { gx = rand(-B + 1.2, -1); gy = rand(-B + 1.2, N + B - 2); }
-    else if (side === 1) { gx = rand(N + 0.5, N + B - 2); gy = rand(-B + 1.2, N + B - 2); }
-    else if (side === 2) { gy = rand(-B + 1.2, -1); gx = rand(-1, N + 1); }
-    else { gy = rand(N + 0.5, N + B - 2); gx = rand(-1, N + 1); }
-    const img = IMG[pick(flora)];
+    const depth = rand(0, 1) ** 1.6 * (B - 1.6) + 1.4; // biased deep
+    if (side === 0) { gx = -depth; gy = rand(-depth, N + depth); }
+    else if (side === 1) { gx = N + depth; gy = rand(-depth, N + depth); }
+    else if (side === 2) { gy = -depth; gx = rand(-depth, N + depth); }
+    else { gy = N + depth; gx = rand(-depth, N + depth); }
+    const deep = depth > 3.4;
+    const name = deep
+      ? pick(['tree_medium', 'tree_medium', 'tree_small', 'tree_medium'])
+      : pick(['tree_small', 'bush', 'stone_1', 'mushroom', 'tree_medium', 'stone_rare']);
+    flora.push({ name, gx, gy, s: deep ? rand(50, 74) : rand(30, 48) });
+  }
+  flora.sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
+  for (const f of flora) {
+    const img = IMG[f.name];
     if (!img || !img.naturalWidth) continue;
-    const wpos = gridToWorld(gx, gy);
-    const w2 = rand(40, 62);
-    const h2 = w2 * (img.naturalHeight / img.naturalWidth);
-    g.drawImage(img, wpos.x - groundOrigin.x - w2 / 2, wpos.y - groundOrigin.y - h2 + 6, w2, h2);
+    const p = gridToWorld(f.gx, f.gy);
+    const h2 = f.s * (img.naturalHeight / img.naturalWidth);
+    g.drawImage(img, p.x - groundOrigin.x - f.s / 2, p.y - groundOrigin.y - h2 + 6, f.s, h2);
   }
 }
 
@@ -215,20 +260,25 @@ function defaultState() {
     gold: 900, elixir: 900, gems: 120, trophies: 0,
     name: 'Chief Knockoff', village: 'Parody Village',
     buildings: [],
+    obstacles: [],
     army: {}, queue: [],
     lastSeen: nowS(),
-    muted: false,
-    wins: 0, losses: 0,
-    tutorialDone: false,
+    lastObSpawn: nowS(),
+    lastGemBox: nowS() - GEM_BOX_EVERY + 240,
+    muted: false, cheat: false,
+    wins: 0, losses: 0, obstaclesCleared: 0,
   };
 }
 
 function newBuilding(type, gx, gy, level = 1) {
   return {
     id: uid++, type, gx, gy, level,
-    workEndsAt: 0, workTotal: 0,      // construction / upgrade timer
-    stored: 0, lastCollect: nowS(),   // producers
+    workEndsAt: 0, workTotal: 0,
+    stored: 0, lastCollect: nowS(),
   };
+}
+function newObstacle(type, gx, gy) {
+  return { id: uid++, type, gx, gy, removeEndsAt: 0, removeTotal: 0 };
 }
 
 function starterVillage() {
@@ -246,7 +296,7 @@ function starterVillage() {
 function save() {
   if (!state) return;
   state.lastSeen = nowS();
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* storage full/blocked */ }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* blocked */ }
 }
 
 function load() {
@@ -255,16 +305,30 @@ function load() {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (!s || s.v !== 1 || !Array.isArray(s.buildings)) return null;
+    // migrate older saves
+    if (!Array.isArray(s.obstacles)) s.obstacles = [];
+    if (s.lastObSpawn === undefined) s.lastObSpawn = nowS();
+    if (s.lastGemBox === undefined) s.lastGemBox = nowS() - GEM_BOX_EVERY + 240;
+    if (s.cheat === undefined) s.cheat = false;
+    if (s.obstaclesCleared === undefined) s.obstaclesCleared = 0;
     return s;
   } catch (e) { return null; }
 }
 
 /* ---------- derived stats ---------- */
 const bDef = (b) => BUILDINGS[b.type];
+const oDef = (o) => OBSTACLES[o.type];
 const levelMul = (base, mul, level) => base * Math.pow(mul || 1, level - 1);
 const isConstructing = (b) => b.workEndsAt > nowS();
+const isRemoving = (o) => o.removeEndsAt > nowS();
+const cheatOn = () => !!(state && state.cheat);
 
 function thLevel() {
+  if (cheatOn()) return 5;
+  const th = state.buildings.find((b) => b.type === 'town_hall');
+  return th ? th.level : 1;
+}
+function realThLevel() {
   const th = state.buildings.find((b) => b.type === 'town_hall');
   return th ? th.level : 1;
 }
@@ -280,6 +344,10 @@ function upgradeTime(b) { const d = bDef(b); return Math.round(d.buildTime * Mat
 function prodPerHour(b) { const p = bDef(b).production; return Math.round(levelMul(p.perHour, p.perHourMul, b.level)); }
 function prodCap(b) { const p = bDef(b).production; return Math.round(levelMul(p.cap, p.capMul, b.level)); }
 function campHousing(b) { const d = bDef(b); return Math.round(levelMul(d.housing, d.housingMul, b.level)); }
+function maxCountFor(type) {
+  const d = BUILDINGS[type];
+  return cheatOn() ? (d.cheatMax ?? 99) : d.maxCount(thLevel());
+}
 
 function storageCap(res) {
   let cap = 0;
@@ -292,9 +360,10 @@ function storageCap(res) {
   return Math.max(cap, 500);
 }
 function armyCap() {
-  return state.buildings
+  const cap = state.buildings
     .filter((b) => b.type === 'army_camp' && !isConstructing(b))
     .reduce((s, b) => s + campHousing(b), 0);
+  return cheatOn() ? Math.max(cap, 500) : cap;
 }
 function armySize(includeQueue = false) {
   let n = 0;
@@ -302,30 +371,42 @@ function armySize(includeQueue = false) {
   if (includeQueue) for (const q of state.queue) n += TROOPS[q.troop].housing;
   return n;
 }
-function builderTotal() { return 2 + state.buildings.filter((b) => b.type === 'builder_hut').length; }
-function buildersBusy() { return state.buildings.filter((b) => isConstructing(b)).length; }
+function builderTotal() { return cheatOn() ? 99 : 2 + state.buildings.filter((b) => b.type === 'builder_hut').length; }
+function buildersBusy() {
+  return state.buildings.filter((b) => isConstructing(b)).length
+    + state.obstacles.filter((o) => isRemoving(o)).length;
+}
 
 function countType(type) { return state.buildings.filter((b) => b.type === type).length; }
 
 function canAfford(cost) {
+  if (cheatOn()) return true;
   return (!cost.gold || state.gold >= cost.gold)
     && (!cost.elixir || state.elixir >= cost.elixir)
     && (!cost.gems || state.gems >= cost.gems);
 }
 function payCost(cost) {
+  if (cheatOn()) return;
   if (cost.gold) state.gold -= cost.gold;
   if (cost.elixir) state.elixir -= cost.elixir;
   if (cost.gems) state.gems -= cost.gems;
 }
 function addRes(res, amount) {
-  const cap = storageCap(res);
+  const cap = cheatOn() ? Infinity : storageCap(res);
   const before = state[res];
   state[res] = clamp(state[res] + amount, 0, cap);
   return state[res] - before;
 }
 
-/* ---------- occupancy ---------- */
-function occupancyGrid(exceptId = -1, buildings = state.buildings) {
+function xpLevel() {
+  let total = 0;
+  for (const b of state.buildings) total += b.level;
+  total += state.wins * 3 + state.obstaclesCleared;
+  return Math.max(1, Math.floor(Math.sqrt(total) * 1.15));
+}
+
+/* ---------- occupancy (buildings + obstacles) ---------- */
+function occupancyGrid(exceptId = -1, buildings = state.buildings, obstacles = state.obstacles) {
   const grid = new Array(N * N).fill(null);
   for (const b of buildings) {
     if (b.id === exceptId || b.dead) continue;
@@ -333,6 +414,14 @@ function occupancyGrid(exceptId = -1, buildings = state.buildings) {
     for (let x = b.gx; x < b.gx + size; x++)
       for (let y = b.gy; y < b.gy + size; y++)
         if (x >= 0 && y >= 0 && x < N && y < N) grid[y * N + x] = b;
+  }
+  if (obstacles) {
+    for (const o of obstacles) {
+      const size = oDef(o).size;
+      for (let x = o.gx; x < o.gx + size; x++)
+        for (let y = o.gy; y < o.gy + size; y++)
+          if (x >= 0 && y >= 0 && x < N && y < N) grid[y * N + x] = o;
+    }
   }
   return grid;
 }
@@ -359,12 +448,84 @@ function findFreeSpot(type) {
   return null;
 }
 
+/* ---------- obstacles ---------- */
+function spawnObstacle(type = null, silent = false) {
+  if (state.obstacles.length >= OBSTACLE_MAX) return null;
+  type = type || pick(OBSTACLE_SPAWN_POOL);
+  const size = OBSTACLES[type].size;
+  const grid = occupancyGrid();
+  for (let tries = 0; tries < 250; tries++) {
+    const gx = randi(0, N - size), gy = randi(0, N - size);
+    let free = true;
+    for (let x = gx; x < gx + size && free; x++)
+      for (let y = gy; y < gy + size && free; y++)
+        if (grid[y * N + x]) free = false;
+    if (!free) continue;
+    const o = newObstacle(type, gx, gy);
+    state.obstacles.push(o);
+    if (!silent) spawnHomeParticles({ gx, gy, type: null, sizeOverride: size }, '#b6e388');
+    return o;
+  }
+  return null;
+}
+function seedObstacles(count = 14) {
+  for (let i = 0; i < count; i++) spawnObstacle(null, true);
+  spawnObstacle('gem_box', true);
+}
+function obstacleTick() {
+  const t = nowS();
+  // regular regrowth (also accumulates offline, up to 4 at once)
+  let spawns = 0;
+  while (t - state.lastObSpawn >= OBSTACLE_SPAWN_EVERY && spawns < 4) {
+    state.lastObSpawn += OBSTACLE_SPAWN_EVERY;
+    if (spawnObstacle()) spawns++;
+    else break;
+  }
+  if (spawns > 0) state.lastObSpawn = Math.max(state.lastObSpawn, t - OBSTACLE_SPAWN_EVERY * 0.99);
+  // gem box
+  if (t - state.lastGemBox >= GEM_BOX_EVERY && !state.obstacles.some((o) => o.type === 'gem_box')) {
+    if (spawnObstacle('gem_box')) {
+      state.lastGemBox = t;
+      toast('A Gem Box appeared somewhere in your village!', 'gem_box');
+    }
+  }
+  // finish removals
+  for (let i = state.obstacles.length - 1; i >= 0; i--) {
+    const o = state.obstacles[i];
+    if (o.removeEndsAt && o.removeEndsAt <= t) {
+      const d = oDef(o);
+      state.obstacles.splice(i, 1);
+      state.obstaclesCleared++;
+      // rewards
+      let gems = 0;
+      if (d.gems) gems = d.gems;
+      else if (Math.random() < d.gemChance) gems = randi(1, 6);
+      for (const res in d.reward) {
+        const [a, b2] = d.reward[res];
+        const got = addRes(res, randi(a, b2));
+        if (got > 0) spawnFloatText(o, `+${fmt(got)}`, res === 'gold' ? '#ffd23e' : '#e08cf0', oDef(o).size);
+      }
+      if (gems > 0) {
+        state.gems += gems;
+        setTimeout(() => Sound.gem(), 220);
+        spawnFloatText(o, `+${gems} 💎`, '#8df57f', d.size, -18);
+        toast(o.type === 'gem_box' ? `The Gem Box held ${gems} gems!` : `Found ${gems} gems under the ${d.name.toLowerCase()}!`, 'res_gem');
+      } else if (Math.random() < 0.4) {
+        toast(pick(CHOP_QUIPS), d.img);
+      }
+      Sound.poof();
+      spawnHomeParticles({ gx: o.gx, gy: o.gy, sizeOverride: d.size }, '#cfe8a8');
+      if (selected && selected.id === o.id) deselect();
+      refreshHUD(); save();
+    }
+  }
+}
+
 /* ============================ economy tick ============================ */
 function economyTick() {
   const t = nowS();
   for (const b of state.buildings) {
     const d = bDef(b);
-    // finish construction
     if (b.workEndsAt && b.workEndsAt <= t) {
       b.workEndsAt = 0; b.workTotal = 0;
       spawnHomeParticles(b, '#ffe27a');
@@ -373,7 +534,6 @@ function economyTick() {
       refreshHUD();
       if (selected && selected.id === b.id) showInfo(b);
     }
-    // production
     if (d.production && !isConstructing(b)) {
       const dt = t - b.lastCollect;
       b.stored = clamp(b.stored + (prodPerHour(b) / 3600) * dt, 0, prodCap(b));
@@ -382,28 +542,36 @@ function economyTick() {
       b.lastCollect = t;
     }
   }
+  obstacleTick();
   // training queue
   while (state.queue.length) {
     const q = state.queue[0];
-    if (q.endsAt > t) break;
-    if (armySize() + TROOPS[q.troop].housing > armyCap()) break; // camps full, wait
+    if (q.endsAt > t && !cheatOn()) break;
+    if (armySize() + TROOPS[q.troop].housing > armyCap()) break;
     state.army[q.troop] = (state.army[q.troop] || 0) + 1;
     state.queue.shift();
     if (armyModalOpen()) renderArmyModal();
   }
+  // cheat: bottomless wallet
+  if (cheatOn()) {
+    state.gold = CHEAT_RESOURCES;
+    state.elixir = CHEAT_RESOURCES;
+    if (state.gems < CHEAT_RESOURCES) state.gems = CHEAT_RESOURCES;
+  }
 }
-
-/* offline gains happen implicitly through timestamps */
 
 /* ============================ scenes ============================ */
 let scene = 'home'; // 'home' | 'battle'
-let selected = null;
-let placing = null;  // {type, gx, gy, isNew, building}
+let selected = null;        // building OR obstacle (obstacle has .removeEndsAt)
+let placing = null;         // {type, gx, gy, isNew, building}
+let wallMode = null;        // {cells: Set('x,y'), anchor, preview: []}
 let battle = null;
+
+const isObstacle = (ent) => ent && OBSTACLES[ent.type] !== undefined;
 
 /* ============================ input ============================ */
 const pointers = new Map();
-let dragState = null; // {mode:'pan'|'place', startX, startY, camX, camY, moved}
+let dragState = null;
 let pinchStart = null;
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -413,11 +581,27 @@ canvas.addEventListener('pointerdown', (e) => {
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 2) {
     const [p1, p2] = [...pointers.values()];
-    pinchStart = { dist: Math.hypot(p1.x - p2.x, p1.y - p2.y), zoom: cam.zoom };
+    pinchStart = {
+      dist: Math.hypot(p1.x - p2.x, p1.y - p2.y), zoom: cam.zoom,
+      mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2, camX: cam.x, camY: cam.y,
+    };
     dragState = null;
+    if (wallMode) wallMode.anchor = null;
     return;
   }
   const w = screenToWorld(e.clientX, e.clientY);
+  if (wallMode && scene === 'home') {
+    const g = worldToGrid(w.x, w.y);
+    const gx = Math.floor(g.gx), gy = Math.floor(g.gy);
+    if (gx >= 0 && gy >= 0 && gx < N && gy < N) {
+      wallMode.anchor = { gx, gy };
+      wallMode.preview = wallLineCells(wallMode.anchor, { gx, gy });
+      dragState = { mode: 'wall', moved: false };
+      return;
+    }
+    dragState = { mode: 'pan', startX: e.clientX, startY: e.clientY, camX: cam.x, camY: cam.y, moved: false };
+    return;
+  }
   if (placing) {
     const g = worldToGrid(w.x, w.y);
     const size = BUILDINGS[placing.type].size;
@@ -437,12 +621,23 @@ canvas.addEventListener('pointermove', (e) => {
   if (pointers.size === 2 && pinchStart) {
     const [p1, p2] = [...pointers.values()];
     const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
     cam.zoom = clamp(pinchStart.zoom * (dist / pinchStart.dist), cam.min, cam.max);
+    cam.x = pinchStart.camX - (mx - pinchStart.mx) / cam.zoom;
+    cam.y = pinchStart.camY - (my - pinchStart.my) / cam.zoom;
     clampCam();
     return;
   }
   if (!dragState) return;
 
+  if (dragState.mode === 'wall' && wallMode && wallMode.anchor) {
+    const w = screenToWorld(e.clientX, e.clientY);
+    const g = worldToGrid(w.x, w.y);
+    const gx = clamp(Math.floor(g.gx), 0, N - 1), gy = clamp(Math.floor(g.gy), 0, N - 1);
+    wallMode.preview = wallLineCells(wallMode.anchor, { gx, gy });
+    dragState.moved = true;
+    return;
+  }
   if (dragState.mode === 'place' && placing) {
     const w = screenToWorld(e.clientX, e.clientY);
     const g = worldToGrid(w.x, w.y);
@@ -468,6 +663,22 @@ function pointerEnd(e) {
   const tap = !dragState.moved;
   const mode = dragState.mode;
   dragState = null;
+
+  if (mode === 'wall' && wallMode) {
+    // commit preview into pending cells (tap toggles a single cell)
+    if (tap && wallMode.preview.length === 1) {
+      const key = wallMode.preview[0];
+      if (wallMode.cells.has(key)) wallMode.cells.delete(key);
+      else if (wallCellFree(key)) wallMode.cells.add(key);
+    } else {
+      for (const key of wallMode.preview) if (wallCellFree(key)) wallMode.cells.add(key);
+    }
+    wallMode.preview = [];
+    wallMode.anchor = null;
+    Sound.tap();
+    updateWallBar();
+    return;
+  }
   if (!tap || mode === 'place') return;
   const w = screenToWorld(e.clientX, e.clientY);
   if (scene === 'home') homeTap(w);
@@ -486,8 +697,14 @@ canvas.addEventListener('wheel', (e) => {
   clampCam();
 }, { passive: false });
 
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && wallMode && document.activeElement !== $('cheatInput')) { buildPendingWalls(); }
+  if (e.key === 'Escape' && wallMode) { exitWallMode(); }
+  if (e.key === 'Escape' && placing) { cancelPlacing(); }
+});
+
 function homeTap(w) {
-  if (placing) return;
+  if (placing || wallMode) return;
   const g = worldToGrid(w.x, w.y);
   const gx = Math.floor(g.gx), gy = Math.floor(g.gy);
   let hit = null;
@@ -497,27 +714,61 @@ function homeTap(w) {
   }
   if (hit) {
     Sound.tap();
-    selectBuilding(hit);
+    hit.popT = 0.22;
+    selectEntity(hit);
   } else {
     deselect();
   }
 }
 
 /* ============================ selection & info panel ============================ */
-function selectBuilding(b) {
-  selected = b;
-  const d = bDef(b);
-  if (d.production && b.stored >= 1 && !isConstructing(b)) collectFrom(b);
-  showInfo(b);
+function selectEntity(ent) {
+  selected = ent;
+  if (!isObstacle(ent)) {
+    const d = bDef(ent);
+    if (d.production && ent.stored >= 1 && !isConstructing(ent)) collectFrom(ent);
+  }
+  showInfo(ent);
 }
 function deselect() {
   selected = null;
   $('infoPanel').classList.add('hidden');
 }
 
-function showInfo(b) {
-  const d = bDef(b);
+function showInfo(ent) {
   $('infoPanel').classList.remove('hidden');
+  const chip = (icon, label) => `<span class="stat-chip">${icon ? `<img src="assets/${icon}.png"/>` : ''}${label}</span>`;
+
+  if (isObstacle(ent)) {
+    const d = oDef(ent);
+    $('infoImg').src = `assets/${d.img}.png`;
+    $('infoName').textContent = d.name;
+    $('infoLevel').textContent = isRemoving(ent) ? `Clearing — ${fmtTime(ent.removeEndsAt - nowS())}` : 'Obstacle';
+    $('infoDesc').textContent = d.desc;
+    const stats = [chip(null, `⏱️ ${d.time}s to clear`)];
+    if (d.gems) stats.push(chip('res_gem', `always ${d.gems} gems`));
+    else stats.push(chip('res_gem', `${Math.round(d.gemChance * 100)}% gem chance`));
+    $('infoStats').innerHTML = stats.join('');
+    $('infoMove').classList.add('hidden');
+    $('infoCollect').classList.add('hidden');
+    $('infoUpgrade').classList.add('hidden');
+    const rm = $('infoRemove');
+    const fin = $('infoFinish');
+    if (isRemoving(ent)) {
+      rm.classList.add('hidden');
+      fin.classList.remove('hidden');
+      fin.textContent = `Finish now (${gemFinishCostObstacle(ent)} 💎)`;
+    } else {
+      rm.classList.remove('hidden');
+      fin.classList.add('hidden');
+      const res = d.cost.gold ? 'gold' : 'elixir';
+      rm.innerHTML = `Remove — ${fmt(d.cost[res])} ${res === 'gold' ? '🟡' : '🟣'}`;
+    }
+    return;
+  }
+
+  const b = ent;
+  const d = bDef(b);
   $('infoImg').src = `assets/${d.img}.png`;
   $('infoName').textContent = d.name;
   $('infoLevel').textContent = isConstructing(b)
@@ -526,11 +777,12 @@ function showInfo(b) {
   $('infoDesc').textContent = d.desc;
 
   const stats = [];
-  const chip = (icon, label) => `<span class="stat-chip">${icon ? `<img src="assets/${icon}.png"/>` : ''}${label}</span>`;
   stats.push(chip(null, `❤️ ${fmt(buildingHp(b))} HP`));
   if (d.defense) {
     const dps = Math.round(levelMul(d.defense.dps, d.defense.dpsMul, b.level));
-    stats.push(chip(null, `⚔️ ${dps} DPS`), chip(null, `🎯 range ${d.defense.range}`), chip(null, d.defense.targets === 'both' ? '☁️ hits air+ground' : '🥾 ground only'));
+    const targetLabel = d.defense.targets === 'both' ? '☁️ air + ground'
+      : d.defense.targets === 'air' ? '☁️ air only' : '🥾 ground only';
+    stats.push(chip(null, `⚔️ ${dps} DPS`), chip(null, `🎯 range ${d.defense.range}`), chip(null, targetLabel));
   }
   if (d.production) {
     stats.push(chip(`res_${d.production.res}`, `${fmt(prodPerHour(b))}/h`), chip(`res_${d.production.res}`, `${fmt(b.stored)} / ${fmt(prodCap(b))} stored`));
@@ -542,6 +794,9 @@ function showInfo(b) {
   if (d.housing) stats.push(chip(null, `🏕️ houses ${campHousing(b)}`));
   if (b.type === 'barracks') stats.push(chip(null, `⚒️ trains troops`));
   $('infoStats').innerHTML = stats.join('');
+
+  $('infoRemove').classList.add('hidden');
+  $('infoMove').classList.remove('hidden');
 
   const collectBtn = $('infoCollect');
   if (d.production && b.stored >= 1 && !isConstructing(b)) {
@@ -566,14 +821,15 @@ function showInfo(b) {
     const cost = upgradeCost(b);
     const res = cost.gold ? 'gold' : cost.elixir ? 'elixir' : 'gems';
     up.disabled = false;
-    up.innerHTML = `Upgrade — ${fmt(cost[res])} ${res === 'gold' ? '🟡' : res === 'elixir' ? '🟣' : '💎'}`;
+    up.innerHTML = cheatOn()
+      ? `Upgrade — free (cheat)`
+      : `Upgrade — ${fmt(cost[res])} ${res === 'gold' ? '🟡' : res === 'elixir' ? '🟣' : '💎'}`;
   }
   $('infoMove').disabled = false;
 }
 
-function gemFinishCost(b) {
-  return Math.max(1, Math.ceil((b.workEndsAt - nowS()) / 20));
-}
+function gemFinishCost(b) { return Math.max(1, Math.ceil((b.workEndsAt - nowS()) / 20)); }
+function gemFinishCostObstacle(o) { return Math.max(1, Math.ceil((o.removeEndsAt - nowS()) / 20)); }
 
 function collectFrom(b) {
   const d = bDef(b);
@@ -590,13 +846,13 @@ function collectFrom(b) {
 }
 
 $('infoClose').addEventListener('click', deselect);
-$('infoCollect').addEventListener('click', () => { if (selected) { collectFrom(selected); showInfo(selected); } });
+$('infoCollect').addEventListener('click', () => { if (selected && !isObstacle(selected)) { collectFrom(selected); showInfo(selected); } });
 $('infoUpgrade').addEventListener('click', () => {
   const b = selected;
-  if (!b || isConstructing(b)) return;
+  if (!b || isObstacle(b) || isConstructing(b)) return;
   const d = bDef(b);
   if (b.level >= d.maxLevel) return;
-  if (b.type !== 'town_hall' && b.level >= thLevel() + 1) {
+  if (!cheatOn() && b.type !== 'town_hall' && b.level >= realThLevel() + 1) {
     toast('Upgrade your Town Hall first!', 'town_hall'); Sound.error(); return;
   }
   if (buildersBusy() >= builderTotal()) { toast('All builders are busy!', 'builder'); Sound.error(); return; }
@@ -604,24 +860,53 @@ $('infoUpgrade').addEventListener('click', () => {
   if (!canAfford(cost)) { toast('Not enough resources!', cost.gold ? 'res_gold' : 'res_elixir'); Sound.error(); return; }
   payCost(cost);
   b.level++;
-  const t = upgradeTime(b);
-  b.workEndsAt = nowS() + t;
-  b.workTotal = t;
-  Sound.build();
+  if (cheatOn()) {
+    b.workEndsAt = 0; b.workTotal = 0;
+    spawnHomeParticles(b, '#ffe27a');
+    Sound.upgrade();
+  } else {
+    const t = upgradeTime(b);
+    b.workEndsAt = nowS() + t;
+    b.workTotal = t;
+    Sound.build();
+  }
   refreshHUD(); showInfo(b); save();
 });
 $('infoFinish').addEventListener('click', () => {
-  const b = selected;
-  if (!b || !isConstructing(b)) return;
-  const cost = gemFinishCost(b);
-  if (state.gems < cost) { toast('Not enough gems! (tap the gem pill, they\'re free)', 'res_gem'); Sound.error(); return; }
+  const ent = selected;
+  if (!ent) return;
+  if (isObstacle(ent)) {
+    if (!isRemoving(ent)) return;
+    const cost = gemFinishCostObstacle(ent);
+    if (state.gems < cost) { toast('Not enough gems! (tap the gem bar, they\'re free)', 'res_gem'); Sound.error(); return; }
+    state.gems -= cost;
+    ent.removeEndsAt = nowS() - 0.01;
+    refreshHUD(); save();
+    return;
+  }
+  if (!isConstructing(ent)) return;
+  const cost = gemFinishCost(ent);
+  if (state.gems < cost) { toast('Not enough gems! (tap the gem bar, they\'re free)', 'res_gem'); Sound.error(); return; }
   state.gems -= cost;
-  b.workEndsAt = nowS() - 0.01;
+  ent.workEndsAt = nowS() - 0.01;
   refreshHUD(); save();
 });
 $('infoMove').addEventListener('click', () => {
-  if (!selected) return;
+  if (!selected || isObstacle(selected)) return;
   startPlacing(selected.type, false, selected);
+});
+$('infoRemove').addEventListener('click', () => {
+  const o = selected;
+  if (!o || !isObstacle(o) || isRemoving(o)) return;
+  const d = oDef(o);
+  if (buildersBusy() >= builderTotal()) { toast('All builders are busy!', 'builder'); Sound.error(); return; }
+  if (!canAfford(d.cost)) { toast('Not enough resources!', d.cost.gold ? 'res_gold' : 'res_elixir'); Sound.error(); return; }
+  payCost(d.cost);
+  const time = cheatOn() ? 1.2 : d.time;
+  o.removeEndsAt = nowS() + time;
+  o.removeTotal = time;
+  Sound.chop();
+  refreshHUD(); showInfo(o); save();
 });
 
 /* ============================ placement mode ============================ */
@@ -653,7 +938,7 @@ placeBar.querySelector('.place-ok').addEventListener('click', () => {
     if (!canAfford(d.cost)) { Sound.error(); toast('Not enough resources!'); cancelPlacing(); return; }
     payCost(d.cost);
     const b = newBuilding(placing.type, placing.gx, placing.gy);
-    if (d.buildTime > 0) {
+    if (d.buildTime > 0 && !cheatOn()) {
       b.workEndsAt = nowS() + d.buildTime;
       b.workTotal = d.buildTime;
     }
@@ -672,17 +957,88 @@ placeBar.querySelector('.place-ok').addEventListener('click', () => {
 placeBar.querySelector('.place-no').addEventListener('click', cancelPlacing);
 function cancelPlacing() { placing = null; placeBar.classList.add('hidden'); }
 
+/* ============================ WALL DRAG MODE ============================ */
+function startWallMode() {
+  deselect(); cancelPlacing();
+  closeModal('shopModal');
+  wallMode = { cells: new Set(), preview: [], anchor: null };
+  $('wallBar').classList.remove('hidden');
+  updateWallBar();
+  toast('Drag on the grass to draw wall lines!', 'wall');
+}
+function exitWallMode() {
+  wallMode = null;
+  $('wallBar').classList.add('hidden');
+}
+function wallCellFree(key) {
+  const [x, y] = key.split(',').map(Number);
+  if (x < 0 || y < 0 || x >= N || y >= N) return false;
+  const grid = occupancyGrid();
+  return !grid[y * N + x];
+}
+function wallLineCells(a, b) {
+  // straight line along the dominant axis, from anchor to cursor
+  const cells = [];
+  const dx = b.gx - a.gx, dy = b.gy - a.gy;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    const step = dx >= 0 ? 1 : -1;
+    for (let x = a.gx; x !== b.gx + step; x += step) cells.push(`${x},${a.gy}`);
+  } else {
+    const step = dy >= 0 ? 1 : -1;
+    for (let y = a.gy; y !== b.gy + step; y += step) cells.push(`${a.gx},${y}`);
+  }
+  return cells;
+}
+function wallUnitCost() { return BUILDINGS.wall.cost.gold; }
+function updateWallBar() {
+  if (!wallMode) return;
+  const n = wallMode.cells.size;
+  const existing = countType('wall');
+  const maxW = maxCountFor('wall');
+  $('wallCount').textContent = `${n} wall${n === 1 ? '' : 's'} (${existing}/${maxW} built)`;
+  $('wallCost').innerHTML = cheatOn()
+    ? `<img src="assets/res_gold.png"/>free`
+    : `<img src="assets/res_gold.png"/>${fmt(n * wallUnitCost())}`;
+}
+function buildPendingWalls() {
+  if (!wallMode || wallMode.cells.size === 0) { exitWallMode(); return; }
+  const maxW = maxCountFor('wall');
+  let built = 0, blocked = 0, broke = 0;
+  for (const key of wallMode.cells) {
+    if (countType('wall') >= maxW) { broke++; continue; }
+    if (!wallCellFree(key)) { blocked++; continue; }
+    if (!canAfford(BUILDINGS.wall.cost)) { broke++; continue; }
+    payCost(BUILDINGS.wall.cost);
+    const [x, y] = key.split(',').map(Number);
+    state.buildings.push(newBuilding('wall', x, y));
+    built++;
+  }
+  if (built > 0) {
+    Sound.place();
+    toast(`Built ${built} wall${built === 1 ? '' : 's'}!`, 'wall');
+  }
+  if (broke > 0) toast(countType('wall') >= maxW ? 'Wall limit reached!' : 'Ran out of gold for some walls!', 'res_gold');
+  if (built === 0 && broke === 0 && blocked > 0) toast('Those spots are taken!');
+  refreshHUD(); save();
+  exitWallMode();
+}
+$('wallOk').addEventListener('click', buildPendingWalls);
+$('wallNo').addEventListener('click', exitWallMode);
+
 /* ============================ HUD & modals ============================ */
 function refreshHUD() {
-  $('goldCount').textContent = fmt(state.gold);
-  $('elixirCount').textContent = fmt(state.elixir);
-  $('gemCount').textContent = fmt(state.gems);
+  $('goldCount').textContent = cheatOn() ? '∞' : fmt(state.gold);
+  $('elixirCount').textContent = cheatOn() ? '∞' : fmt(state.elixir);
+  $('gemCount').textContent = cheatOn() ? '∞' : fmt(state.gems);
   $('trophyCount').textContent = fmt(state.trophies);
-  $('goldBar').style.width = clamp(state.gold / storageCap('gold') * 100, 0, 100) + '%';
-  $('elixirBar').style.width = clamp(state.elixir / storageCap('elixir') * 100, 0, 100) + '%';
+  $('goldMax').textContent = cheatOn() ? '∞' : fmt(storageCap('gold'));
+  $('elixirMax').textContent = cheatOn() ? '∞' : fmt(storageCap('elixir'));
+  $('goldBar').style.width = cheatOn() ? '100%' : clamp(state.gold / storageCap('gold') * 100, 0, 100) + '%';
+  $('elixirBar').style.width = cheatOn() ? '100%' : clamp(state.elixir / storageCap('elixir') * 100, 0, 100) + '%';
   $('chiefName').textContent = state.name;
-  $('chiefSub').textContent = `${state.village} · TH${thLevel()}`;
-  $('builderCount').textContent = `${builderTotal() - buildersBusy()}/${builderTotal()}`;
+  $('chiefSub').textContent = `${state.village} · TH${realThLevel()}${cheatOn() ? ' · CHEAT' : ''}`;
+  $('xpLevel').textContent = xpLevel();
+  $('builderCount').textContent = cheatOn() ? '∞' : `${builderTotal() - buildersBusy()}/${builderTotal()}`;
 }
 
 function toast(msg, icon = null) {
@@ -698,16 +1054,29 @@ function closeModal(id) { $(id).classList.add('hidden'); }
 document.querySelectorAll('[data-close]').forEach((btn) =>
   btn.addEventListener('click', () => closeModal(btn.dataset.close)));
 
-/* ---------- shop ---------- */
+/* ---------- shop (tabbed) ---------- */
+let shopTab = 'defenses';
+function renderShopTabs() {
+  const tabs = $('shopTabs');
+  tabs.innerHTML = '';
+  for (const t of SHOP_TABS) {
+    const btn = document.createElement('button');
+    btn.className = 'shop-tab' + (shopTab === t.id ? ' active' : '');
+    btn.textContent = t.label;
+    btn.addEventListener('click', () => { shopTab = t.id; Sound.tap(); renderShop(); });
+    tabs.appendChild(btn);
+  }
+}
 function renderShop() {
+  renderShopTabs();
   const grid = $('shopGrid');
   const th = thLevel();
   grid.innerHTML = '';
   for (const type of SHOP_ORDER) {
     const d = BUILDINGS[type];
+    if (d.shopTab !== shopTab) continue;
     const count = countType(type);
-    const max = d.maxCount(th);
-    const maxEver = d.maxCount(5);
+    const max = maxCountFor(type);
     const locked = max === 0;
     const full = !locked && count >= max;
     const res = d.cost.gold ? 'gold' : d.cost.elixir ? 'elixir' : 'gem';
@@ -720,13 +1089,14 @@ function renderShop() {
       <img src="assets/${d.img}.png" alt="${d.name}"/>
       <div class="si-name">${d.name}</div>
       <div class="si-desc">${d.desc}</div>
-      <div class="si-cost"><img src="assets/res_${res}.png"/>${fmt(costAmount)}</div>
-      <div class="si-count">${locked ? `needs TH${[1, 2, 3, 4, 5].find((L) => d.maxCount(L) > 0) || '?'}` : full ? `max built (${count}/${max})` : `${count}/${max} built${maxEver > max ? ` · more at higher TH` : ''}`}</div>
+      <div class="si-cost"><img src="assets/res_${res}.png"/>${cheatOn() ? 'free' : fmt(costAmount)}</div>
+      <div class="si-count">${locked ? `needs TH${[1, 2, 3, 4, 5].find((L) => d.maxCount(L) > 0) || '?'}` : full ? `max built (${count}/${max})` : `${count}/${max} built`}</div>
     `;
     el.addEventListener('click', () => {
       if (locked) { toast(`Unlocks at a higher Town Hall level`, 'town_hall'); Sound.error(); return; }
-      if (full) { toast(`You've built the maximum for your Town Hall`, d.img); Sound.error(); return; }
+      if (full) { toast(`You've built the maximum${cheatOn() ? '' : ' for your Town Hall'}`, d.img); Sound.error(); return; }
       if (!afford) { toast('Not enough resources!', `res_${res}`); Sound.error(); return; }
+      if (type === 'wall') { Sound.tap(); startWallMode(); return; }
       if (d.buildTime > 0 && buildersBusy() >= builderTotal()) { toast('All builders are busy!', 'builder'); Sound.error(); return; }
       Sound.tap();
       startPlacing(type, true);
@@ -771,24 +1141,24 @@ function renderArmyModal() {
   const hasBarracks = state.buildings.some((b) => b.type === 'barracks' && !isConstructing(b));
   for (const t of TROOP_ORDER) {
     const tr = TROOPS[t];
-    const locked = th < tr.thRequired || !hasBarracks;
+    const locked = (!cheatOn() && th < tr.thRequired) || !hasBarracks;
     const el = document.createElement('div');
-    el.className = 'train-item' + (locked ? ' locked' : '');
+    el.className = 'train-item' + (locked ? ' locked' : '') + (tr.hero ? ' hero-item' : '');
     el.innerHTML = `
       <img src="assets/${tr.icon}.png"/>
       <div class="ti-name">${tr.name}</div>
-      <div class="ti-cost"><img src="assets/res_elixir.png"/>${fmt(tr.cost.elixir)}</div>
-      <div class="ti-house">🏕️ ${tr.housing} · ⏱️ ${tr.trainTime}s</div>
+      <div class="ti-cost"><img src="assets/res_elixir.png"/>${cheatOn() ? 'free' : fmt(tr.cost.elixir)}</div>
+      <div class="ti-house">🏕️ ${tr.housing} · ⏱️ ${cheatOn() ? '0s' : tr.trainTime + 's'}</div>
     `;
     el.title = tr.desc;
     el.addEventListener('click', () => {
       if (!hasBarracks) { toast('Build a Barracks first!', 'barracks'); Sound.error(); return; }
-      if (th < tr.thRequired) { toast(`${tr.name} unlocks at TH${tr.thRequired}`, 'town_hall'); Sound.error(); return; }
+      if (!cheatOn() && th < tr.thRequired) { toast(`${tr.name} unlocks at TH${tr.thRequired}`, 'town_hall'); Sound.error(); return; }
       if (armySize(true) + tr.housing > armyCap()) { toast('Army camps are full!', 'army_camp'); Sound.error(); return; }
-      if (state.elixir < tr.cost.elixir) { toast('Not enough elixir!', 'res_elixir'); Sound.error(); return; }
-      state.elixir -= tr.cost.elixir;
+      if (!cheatOn() && state.elixir < tr.cost.elixir) { toast('Not enough elixir!', 'res_elixir'); Sound.error(); return; }
+      if (!cheatOn()) state.elixir -= tr.cost.elixir;
       const lastEnd = state.queue.length ? state.queue[state.queue.length - 1].endsAt : nowS();
-      state.queue.push({ troop: t, endsAt: Math.max(nowS(), lastEnd) + tr.trainTime });
+      state.queue.push({ troop: t, endsAt: cheatOn() ? nowS() : Math.max(nowS(), lastEnd) + tr.trainTime });
       Sound.tap(); refreshHUD(); renderArmyModal(); save();
     });
     grid.appendChild(el);
@@ -805,6 +1175,64 @@ document.querySelectorAll('.gem-offer').forEach((btn) =>
     toast(`+${btn.dataset.gems} gems. Total spent: $0.00`, 'res_gem');
     refreshHUD(); save();
   }));
+
+/* ---------- cheat console ---------- */
+$('cheatBtn').addEventListener('click', () => {
+  Sound.tap();
+  $('cheatStatus').textContent = cheatOn() ? 'Cheat mode is ON. Type "nerf" to turn it off.' : '';
+  $('cheatStatus').classList.remove('bad');
+  $('cheatInput').value = '';
+  openModal('cheatModal');
+  setTimeout(() => $('cheatInput').focus(), 60);
+});
+function tryCheat() {
+  const code = $('cheatInput').value.trim().toLowerCase();
+  const status = $('cheatStatus');
+  if (!code) return;
+  if (code.includes('clash')) {
+    state.cheat = true;
+    state.gold = CHEAT_RESOURCES; state.elixir = CHEAT_RESOURCES; state.gems = CHEAT_RESOURCES;
+    // finish anything in progress
+    for (const b of state.buildings) { b.workEndsAt = 0; b.workTotal = 0; }
+    Sound.cheatCode();
+    status.classList.remove('bad');
+    status.textContent = 'CHEAT ACTIVATED! Unlimited everything. Go build your dream base.';
+    toast('Cheat mode ON — everything is unlocked and free!', 'res_gem');
+    confettiBurst();
+    refreshHUD(); save();
+    if (!$('shopModal').classList.contains('hidden')) renderShop();
+    setTimeout(() => closeModal('cheatModal'), 900);
+  } else if (code === 'nerf' || code === 'off' || code === 'disable') {
+    state.cheat = false;
+    state.gold = Math.min(state.gold, storageCap('gold'));
+    state.elixir = Math.min(state.elixir, storageCap('elixir'));
+    if (state.gems > 1e6) state.gems = 500;
+    status.classList.remove('bad');
+    status.textContent = 'Cheat mode off. Back to honest villaging.';
+    toast('Cheat mode OFF');
+    refreshHUD(); save();
+  } else {
+    status.classList.add('bad');
+    status.textContent = 'Nothing happened. The goblins snicker at your spelling.';
+    Sound.error();
+  }
+  $('cheatInput').value = '';
+}
+$('cheatGo').addEventListener('click', tryCheat);
+$('cheatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryCheat(); });
+
+function confettiBurst() {
+  const c = gridToWorld(N / 2, N / 2);
+  for (let i = 0; i < 90; i++) {
+    particles.push({
+      x: c.x + rand(-40, 40), y: c.y + rand(-30, 10),
+      vx: rand(-260, 260), vy: rand(-420, -80),
+      life: rand(0.8, 1.7), t: 0,
+      color: pick(['#ffd23e', '#8df57f', '#7ec4ff', '#f79ce8', '#ff8a5c']),
+      size: rand(4, 8),
+    });
+  }
+}
 
 /* ---------- chief rename ---------- */
 $('chiefCard').addEventListener('click', () => {
@@ -834,7 +1262,7 @@ let particles = [];
 let floaties = [];
 
 function spawnHomeParticles(b, color) {
-  const size = bDef(b).size;
+  const size = b.sizeOverride || (b.type && BUILDINGS[b.type] ? BUILDINGS[b.type].size : (b.type && OBSTACLES[b.type] ? OBSTACLES[b.type].size : 2));
   const c = gridToWorld(b.gx + size / 2, b.gy + size / 2);
   for (let i = 0; i < 16; i++) {
     particles.push({
@@ -845,10 +1273,10 @@ function spawnHomeParticles(b, color) {
     });
   }
 }
-function spawnFloatText(b, txt, color) {
-  const size = bDef(b).size;
+function spawnFloatText(b, txt, color, sizeOverride = null, yOff = 0) {
+  const size = sizeOverride || (BUILDINGS[b.type] ? BUILDINGS[b.type].size : 2);
   const c = gridToWorld(b.gx + size / 2, b.gy + size / 2);
-  floaties.push({ x: c.x, y: c.y - size * TH2 - 20, txt, color, t: 0, life: 1.2 });
+  floaties.push({ x: c.x, y: c.y - size * TH2 - 20 + yOff, txt, color, t: 0, life: 1.2 });
 }
 function stepParticles(dt) {
   particles = particles.filter((p) => (p.t += dt) < p.life);
@@ -876,14 +1304,14 @@ function drawParticlesAndFloaties() {
   ctx.globalAlpha = 1;
 }
 
-/* ============================ village render ============================ */
+/* ============================ drawing ============================ */
 function drawDiamond(gx, gy, w, h, fill, stroke = null) {
   const p = gridToWorld(gx, gy);
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y - 0);
   const a = gridToWorld(gx + w, gy);
   const b2 = gridToWorld(gx + w, gy + h);
   const c = gridToWorld(gx, gy + h);
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
   ctx.lineTo(a.x, a.y);
   ctx.lineTo(b2.x, b2.y);
   ctx.lineTo(c.x, c.y);
@@ -892,19 +1320,108 @@ function drawDiamond(gx, gy, w, h, fill, stroke = null) {
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
 }
 
-function drawBuildingSprite(b, alpha = 1, isEnemy = false) {
+/* ---------- procedural connected walls ---------- */
+const WALL_PALETTES = {
+  1: { top: '#c9995c', left: '#8a6034', right: '#a4763f', cap: '#e0b276' },   // wood
+  2: { top: '#cfcfd6', left: '#8e8e99', right: '#ababb5', cap: '#e8e8ee' },   // stone
+  3: { top: '#d8d8e2', left: '#93939f', right: '#b2b2bf', cap: '#f7e29a' },   // stone + gold cap
+  4: { top: '#eadfa8', left: '#a08a4a', right: '#c4ad64', cap: '#ffe27a' },   // gold
+  5: { top: '#cfe6f7', left: '#6f93b8', right: '#9dc0dd', cap: '#eaf7ff' },   // crystal
+};
+function isoBox(cx, cy, halfW, halfH, height, pal, alpha = 1) {
+  ctx.globalAlpha = alpha;
+  // left face
+  ctx.beginPath();
+  ctx.moveTo(cx - halfW, cy - height);
+  ctx.lineTo(cx, cy + halfH - height);
+  ctx.lineTo(cx, cy + halfH);
+  ctx.lineTo(cx - halfW, cy);
+  ctx.closePath();
+  ctx.fillStyle = pal.left;
+  ctx.fill();
+  // right face
+  ctx.beginPath();
+  ctx.moveTo(cx + halfW, cy - height);
+  ctx.lineTo(cx, cy + halfH - height);
+  ctx.lineTo(cx, cy + halfH);
+  ctx.lineTo(cx + halfW, cy);
+  ctx.closePath();
+  ctx.fillStyle = pal.right;
+  ctx.fill();
+  // top face
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - halfH - height);
+  ctx.lineTo(cx + halfW, cy - height);
+  ctx.lineTo(cx, cy + halfH - height);
+  ctx.lineTo(cx - halfW, cy - height);
+  ctx.closePath();
+  ctx.fillStyle = pal.top;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+function drawWallCell(gx, gy, level, alpha, hasE, hasS, damaged = 0) {
+  const pal = WALL_PALETTES[clamp(level, 1, 5)];
+  const c = gridToWorld(gx + 0.5, gy + 0.5);
+  const H = 17 + level * 1.5;
+  // connectors first (behind post): toward +x (screen right-down) and +y (screen left-down)
+  if (hasE) {
+    const m = gridToWorld(gx + 1, gy + 0.5);
+    isoBox(m.x, m.y, TW2 * 0.42, TH2 * 0.42, H * 0.62, pal, alpha);
+  }
+  if (hasS) {
+    const m = gridToWorld(gx + 0.5, gy + 1);
+    isoBox(m.x, m.y, TW2 * 0.42, TH2 * 0.42, H * 0.62, pal, alpha);
+  }
+  // post
+  isoBox(c.x, c.y, TW2 * 0.52, TH2 * 0.52, H, pal, alpha);
+  // cap
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  const capY = c.y - H - TH2 * 0.52;
+  ctx.moveTo(c.x, capY - 3);
+  ctx.lineTo(c.x + TW2 * 0.3, capY + TH2 * 0.22);
+  ctx.lineTo(c.x, capY + TH2 * 0.52);
+  ctx.lineTo(c.x - TW2 * 0.3, capY + TH2 * 0.22);
+  ctx.closePath();
+  ctx.fillStyle = pal.cap;
+  ctx.fill();
+  // cracks when damaged
+  if (damaged > 0.4) {
+    ctx.strokeStyle = 'rgba(30,20,10,0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(c.x - 6, c.y - H * 0.4);
+    ctx.lineTo(c.x - 1, c.y - H * 0.1);
+    ctx.lineTo(c.x - 7, c.y + 4);
+    ctx.moveTo(c.x + 5, c.y - H * 0.55);
+    ctx.lineTo(c.x + 2, c.y - H * 0.2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+function wallNeighborSet(buildings, extraKeys = null) {
+  const set = new Set();
+  for (const b of buildings) if (b.type === 'wall' && !b.dead) set.add(`${b.gx},${b.gy}`);
+  if (extraKeys) for (const k of extraKeys) set.add(k);
+  return set;
+}
+
+function drawBuildingSprite(b, alpha = 1) {
   const d = bDef(b);
   const img = IMG[d.img];
   if (!img || !img.naturalWidth) return;
   const tw = DRAW_TWEAKS[b.type] || {};
-  const k = tw.k || 0.9;
+  let k = tw.k || 0.9;
   const size = d.size;
   const c = gridToWorld(b.gx + size / 2, b.gy + size / 2);
+  // selection pop
+  if (b.popT && b.popT > 0) {
+    k *= 1 + 0.07 * Math.sin((1 - b.popT / 0.22) * Math.PI);
+  }
   const w = size * TW2 * 2 * k;
   const h = w * (img.naturalHeight / img.naturalWidth);
   const bottom = c.y + size * TH2 * (0.92 + (tw.dy || 0));
   ctx.globalAlpha = alpha;
-  // damage tint in battle
   if (b.hpNow !== undefined && b.hpNow < b.hpMax * 0.5 && !b.dead) {
     ctx.filter = 'brightness(0.75) saturate(0.8)';
   }
@@ -912,20 +1429,9 @@ function drawBuildingSprite(b, alpha = 1, isEnemy = false) {
   ctx.filter = 'none';
   ctx.globalAlpha = 1;
 
-  // construction indicator
   if (scene === 'home' && isConstructing(b)) {
-    const frac = clamp(1 - (b.workEndsAt - nowS()) / b.workTotal, 0, 1);
-    const bw = size * TW2 * 1.1, bh2 = 9;
-    const bx = c.x - bw / 2, by = c.y - size * TH2 - h * 0.35 - 18;
-    ctx.fillStyle = 'rgba(8,14,26,0.8)';
-    ctx.beginPath(); ctx.roundRect(bx - 2, by - 2, bw + 4, bh2 + 4, 5); ctx.fill();
-    ctx.fillStyle = '#7ede63';
-    ctx.beginPath(); ctx.roundRect(bx, by, bw * frac, bh2, 4); ctx.fill();
-    ctx.font = '22px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('🔨', c.x, by - 8);
+    drawWorkOverlay(c.x, c.y, size, h, clamp(1 - (b.workEndsAt - nowS()) / b.workTotal, 0, 1), b.id);
   }
-  // collect bubble
   if (scene === 'home' && d.production && !isConstructing(b) && b.stored >= prodCap(b) * 0.12) {
     const icon = IMG[`res_${d.production.res}`];
     const bob = Math.sin(perfNow * 3 + b.id) * 4;
@@ -936,8 +1442,7 @@ function drawBuildingSprite(b, alpha = 1, isEnemy = false) {
     ctx.fill();
     ctx.drawImage(icon, c.x - 12, iy - 12, 24, 24);
   }
-  // level badge
-  if (scene === 'home' && b.level > 1 && !d.deco) {
+  if (scene === 'home' && b.level > 1 && !d.deco && b.type !== 'wall') {
     const bx = c.x + size * TW2 * 0.52, by = c.y + size * TH2 * 0.1;
     ctx.beginPath(); ctx.arc(bx, by, 11, 0, Math.PI * 2);
     ctx.fillStyle = '#17233c'; ctx.fill();
@@ -950,6 +1455,71 @@ function drawBuildingSprite(b, alpha = 1, isEnemy = false) {
   }
 }
 
+function drawObstacleSprite(o, alpha = 1) {
+  const d = oDef(o);
+  const img = IMG[d.img];
+  if (!img || !img.naturalWidth) return;
+  const size = d.size;
+  const c = gridToWorld(o.gx + size / 2, o.gy + size / 2);
+  let k = 0.85;
+  if (o.popT && o.popT > 0) k *= 1 + 0.07 * Math.sin((1 - o.popT / 0.22) * Math.PI);
+  const w = size * TW2 * 2 * k;
+  const h = w * (img.naturalHeight / img.naturalWidth);
+  const bottom = c.y + size * TH2 * 0.9;
+  // shake while being removed
+  let ox = 0;
+  if (isRemoving(o)) ox = Math.sin(perfNow * 26 + o.id) * 1.6;
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(img, c.x - w / 2 + ox, bottom - h, w, h);
+  ctx.globalAlpha = 1;
+  if (o.type === 'gem_box') {
+    // sparkle
+    const tw = (Math.sin(perfNow * 4 + o.id * 2) + 1) / 2;
+    ctx.globalAlpha = 0.35 + tw * 0.55;
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('✨', c.x + Math.sin(perfNow * 1.7) * 8, c.y - h * 0.7 - 8);
+    ctx.globalAlpha = 1;
+  }
+  if (scene === 'home' && isRemoving(o)) {
+    drawWorkOverlay(c.x, c.y, size, h, clamp(1 - (o.removeEndsAt - nowS()) / o.removeTotal, 0, 1), o.id, true);
+  }
+}
+
+/* builder sprite + progress bar over construction/removal sites */
+function drawWorkOverlay(cx, cy, size, spriteH, frac, seed, chopping = false) {
+  const bw = size * TW2 * 1.1, bh2 = 9;
+  const bx = cx - bw / 2, by = cy - size * TH2 - spriteH * 0.35 - 20;
+  ctx.fillStyle = 'rgba(8,14,26,0.8)';
+  ctx.beginPath(); ctx.roundRect(bx - 2, by - 2, bw + 4, bh2 + 4, 5); ctx.fill();
+  ctx.fillStyle = '#7ede63';
+  ctx.beginPath(); ctx.roundRect(bx, by, bw * frac, bh2, 4); ctx.fill();
+  // builder hops beside the site
+  const bimg = IMG.builder;
+  if (bimg && bimg.naturalWidth) {
+    const hop = Math.abs(Math.sin(perfNow * 5 + seed)) * 7;
+    const bw2 = 30;
+    const bh3 = bw2 * (bimg.naturalHeight / bimg.naturalWidth);
+    const sideX = cx + size * TW2 * 0.55;
+    const sideY = cy + size * TH2 * 0.35;
+    ctx.beginPath();
+    ctx.ellipse(sideX, sideY + 2, 9, 4, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fill();
+    ctx.drawImage(bimg, sideX - bw2 / 2, sideY - bh3 - hop, bw2, bh3);
+    // impact puffs
+    if (Math.sin(perfNow * 5 + seed) > 0.92) {
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = chopping ? '#c8996a' : '#e8e0c8';
+      ctx.beginPath(); ctx.arc(sideX - 10 + rand(-2, 2), sideY - 4, rand(2, 4), 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.font = '18px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(chopping ? '⛏️' : '🔨', cx, by - 6);
+}
+
 function drawHpBar(x, y, w, frac, color = '#7ede63') {
   ctx.fillStyle = 'rgba(8,14,26,0.75)';
   ctx.beginPath(); ctx.roundRect(x - w / 2 - 1, y - 1, w + 2, 7, 3); ctx.fill();
@@ -957,37 +1527,78 @@ function drawHpBar(x, y, w, frac, color = '#7ede63') {
   ctx.beginPath(); ctx.roundRect(x - w / 2, y, w * clamp(frac, 0, 1), 5, 2.5); ctx.fill();
 }
 
+/* ============================ village render ============================ */
 function renderHome() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = '#2b5c33';
+  ctx.fillStyle = '#3f7326';
   ctx.fillRect(0, 0, vw, vh);
   applyCamera();
 
   if (groundCanvas) ctx.drawImage(groundCanvas, groundOrigin.x, groundOrigin.y);
 
   // selection footprint
-  if (selected && !placing) {
-    const size = bDef(selected).size;
+  if (selected && !placing && !wallMode) {
+    const size = isObstacle(selected) ? oDef(selected).size : bDef(selected).size;
     drawDiamond(selected.gx, selected.gy, size, size, 'rgba(255,255,255,0.22)', 'rgba(255,255,255,0.85)');
   }
   // placement ghost footprint
   if (placing) {
     const size = BUILDINGS[placing.type].size;
     const ok = placementValid(placing.type, placing.gx, placing.gy, placing.building ? placing.building.id : -1);
-    drawDiamond(placing.gx, placing.gy, size, size, ok ? 'rgba(120,255,120,0.35)' : 'rgba(255,90,90,0.4)', ok ? '#9dff9d' : '#ff8a8a');
+    drawDiamond(placing.gx, placing.gy, size, size, ok ? 'rgba(140,255,120,0.4)' : 'rgba(255,90,90,0.45)', ok ? '#9dff9d' : '#ff8a8a');
+  }
+  // wall mode overlays
+  if (wallMode) {
+    // subtle grid tint
+    drawDiamond(0, 0, N, N, 'rgba(255,255,255,0.05)');
   }
 
-  // painter's order
-  const list = state.buildings
-    .filter((b) => !(placing && placing.building && placing.building.id === b.id))
-    .slice()
-    .sort((a, b) => (a.gx + a.gy + bDef(a).size) - (b.gx + b.gy + bDef(b).size));
-  for (const b of list) drawBuildingSprite(b);
+  // painter's order: walls + buildings + obstacles sorted by depth
+  const wallKeys = wallNeighborSet(state.buildings, wallMode ? [...wallMode.cells, ...(wallMode.preview.filter(wallCellFree))] : null);
+  const ents = [];
+  for (const b of state.buildings) {
+    if (placing && placing.building && placing.building.id === b.id) continue;
+    ents.push({ depth: b.gx + b.gy + bDef(b).size, b });
+  }
+  for (const o of state.obstacles) ents.push({ depth: o.gx + o.gy + oDef(o).size, o });
+  if (wallMode) {
+    for (const key of wallMode.cells) {
+      const [x, y] = key.split(',').map(Number);
+      ents.push({ depth: x + y + 1, ghostWall: { gx: x, gy: y, pending: true } });
+    }
+    for (const key of wallMode.preview) {
+      if (wallMode.cells.has(key) || !wallCellFree(key)) continue;
+      const [x, y] = key.split(',').map(Number);
+      ents.push({ depth: x + y + 1, ghostWall: { gx: x, gy: y, preview: true } });
+    }
+  }
+  ents.sort((a, b) => a.depth - b.depth);
+
+  for (const e of ents) {
+    if (e.b) {
+      if (e.b.popT > 0) e.b.popT -= 0.016;
+      if (e.b.type === 'wall') {
+        drawWallCell(e.b.gx, e.b.gy, e.b.level, 1,
+          wallKeys.has(`${e.b.gx + 1},${e.b.gy}`), wallKeys.has(`${e.b.gx},${e.b.gy + 1}`));
+      } else {
+        drawBuildingSprite(e.b);
+      }
+    } else if (e.o) {
+      if (e.o.popT > 0) e.o.popT -= 0.016;
+      drawObstacleSprite(e.o);
+    } else if (e.ghostWall) {
+      const g = e.ghostWall;
+      drawDiamond(g.gx, g.gy, 1, 1, g.preview ? 'rgba(255,255,255,0.18)' : 'rgba(140,255,120,0.2)');
+      drawWallCell(g.gx, g.gy, 1, g.preview ? 0.38 : 0.55,
+        wallKeys.has(`${g.gx + 1},${g.gy}`), wallKeys.has(`${g.gx},${g.gy + 1}`));
+    }
+  }
 
   if (placing) {
     const ghost = placing.building || { ...newBuilding(placing.type, placing.gx, placing.gy), id: -99 };
     const tmp = { ...ghost, gx: placing.gx, gy: placing.gy, type: placing.type };
-    drawBuildingSprite(tmp, 0.75);
+    if (placing.type === 'wall') drawWallCell(placing.gx, placing.gy, ghost.level || 1, 0.75, false, false);
+    else drawBuildingSprite(tmp, 0.75);
   }
 
   drawParticlesAndFloaties();
@@ -1007,7 +1618,7 @@ function positionPlaceBar() {
 /* ============================ BATTLE ============================ */
 
 function generateEnemyVillage() {
-  const th = thLevel();
+  const th = realThLevel();
   const buildings = [];
   let eid = 1;
   const mk = (type, gx, gy, level) => {
@@ -1016,7 +1627,7 @@ function generateEnemyVillage() {
     const b = {
       id: eid++, type, gx, gy, level,
       hpMax: hp, hpNow: hp, dead: false,
-      stored: 0, lootGold: 0, lootElixir: 0,
+      lootGold: 0, lootElixir: 0,
       cooldown: rand(0, 0.5),
     };
     buildings.push(b);
@@ -1026,7 +1637,6 @@ function generateEnemyVillage() {
   const c = N / 2;
   const lvl = clamp(th + randi(-1, 1), 1, 6);
 
-  // Town hall + wall ring
   mk('town_hall', c - 2, c - 2, clamp(lvl, 1, 5));
   const r = 7;
   for (let x = c - r; x <= c + r; x++) {
@@ -1036,7 +1646,6 @@ function generateEnemyVillage() {
     }
   }
 
-  // defenses inside ring
   const innerSpots = [
     [c - 5, c - 5], [c + 2, c - 5], [c - 5, c + 2], [c + 2, c + 2],
     [c - 5, c - 1], [c + 2, c - 1], [c - 1, c - 5], [c - 1, c + 2],
@@ -1044,15 +1653,15 @@ function generateEnemyVillage() {
   const defensePlan = [];
   defensePlan.push('cannon', 'cannon', 'archer_tower');
   if (lvl >= 2) defensePlan.push('mortar', 'archer_tower');
-  if (lvl >= 3) defensePlan.push('wizard_tower', 'cannon');
-  if (lvl >= 4) defensePlan.push('wizard_tower', 'archer_tower');
+  if (lvl >= 3) defensePlan.push('wizard_tower', 'air_defense');
+  if (lvl >= 4) defensePlan.push('hidden_tesla', 'xbow');
+  if (lvl >= 5) defensePlan.push('inferno_tower');
   defensePlan.slice(0, innerSpots.length).forEach((t, i) => {
     const [gx, gy] = innerSpots[i];
-    mk(t, gx, gy, clamp(lvl + (t === 'cannon' ? 1 : 0), 1, 6));
+    mk(t, gx, gy, clamp(lvl + (t === 'cannon' ? 1 : 0), 1, BUILDINGS[t].maxLevel));
   });
 
-  // outer buildings
-  const occupied = () => occupancyGrid(-1, buildings);
+  const occupied = () => occupancyGrid(-1, buildings, null);
   const placeOuter = (type, level) => {
     for (let tries = 0; tries < 220; tries++) {
       const size = BUILDINGS[type].size;
@@ -1075,10 +1684,24 @@ function generateEnemyVillage() {
   placeOuter('gold_storage', lvl);
   placeOuter('elixir_storage', lvl);
   if (lvl >= 2) { placeOuter('cannon', lvl); placeOuter('archer_tower', lvl); }
+  if (lvl >= 3) placeOuter('bomb_tower', clamp(lvl, 1, 6));
   placeOuter('barracks', lvl);
   placeOuter('army_camp', lvl);
 
-  // distribute loot
+  // scatter decorative obstacles far from the action
+  const obstacles = [];
+  for (let i = 0; i < 10; i++) {
+    const type = pick(OBSTACLE_SPAWN_POOL);
+    const size = OBSTACLES[type].size;
+    for (let tries = 0; tries < 40; tries++) {
+      const gx = randi(0, N - size), gy = randi(0, N - size);
+      const distC = Math.max(Math.abs(gx - c), Math.abs(gy - c));
+      if (distC < r + 7) continue;
+      obstacles.push({ id: 9000 + i, type, gx, gy, removeEndsAt: 0 });
+      break;
+    }
+  }
+
   const totalGold = Math.round(600 * lvl * rand(1.0, 1.7));
   const totalElixir = Math.round(600 * lvl * rand(1.0, 1.7));
   const goldHolders = buildings.filter((b) => ['gold_storage', 'gold_mine', 'town_hall'].includes(b.type));
@@ -1086,7 +1709,7 @@ function generateEnemyVillage() {
   goldHolders.forEach((b) => b.lootGold = Math.round(totalGold / goldHolders.length));
   elixirHolders.forEach((b) => b.lootElixir = Math.round(totalElixir / elixirHolders.length));
 
-  return { buildings, level: lvl, name: pick(ENEMY_VILLAGE_NAMES) };
+  return { buildings, obstacles, level: lvl, name: pick(ENEMY_VILLAGE_NAMES) };
 }
 
 function startMatchmaking() {
@@ -1095,7 +1718,7 @@ function startMatchmaking() {
     Sound.error();
     return;
   }
-  deselect(); cancelPlacing();
+  deselect(); cancelPlacing(); exitWallMode();
   $('matchScreen').classList.remove('hidden');
   $('matchText').textContent = 'Scouting for villages…';
   $('matchSub').textContent = pick([
@@ -1115,17 +1738,18 @@ function beginBattle() {
   const enemy = generateEnemyVillage();
   battle = {
     enemy,
-    grid: occupancyGrid(-1, enemy.buildings),
+    grid: occupancyGrid(-1, enemy.buildings, null),
     troops: [],
     projectiles: [],
+    zaps: [],
     time: BATTLE_TIME,
-    started: false,           // becomes true on first deploy
+    started: false,
     ended: false,
     stars: 0,
     destroyedWeight: 0,
     totalWeight: enemy.buildings.filter((b) => b.type !== 'wall' && !bDef(b).deco).length,
     lootGold: 0, lootElixir: 0,
-    army: { ...state.army },  // local copy to deploy from
+    army: { ...state.army },
     selectedTroop: TROOP_ORDER.find((t) => (state.army[t] || 0) > 0),
     endTimer: 0,
   };
@@ -1215,15 +1839,18 @@ function distToBuilding(tr, b) {
 function pickTroopTarget(tr) {
   const def = TROOPS[tr.type];
   const alive = battle.enemy.buildings.filter((b) => !b.dead && b.type !== 'wall');
-  if (!alive.length) return null;
   let pool = alive;
-  if (def.targets === 'defense') {
+  if (def.targets === 'wall') {
+    const walls = battle.enemy.buildings.filter((b) => !b.dead && b.type === 'wall');
+    pool = walls.length ? walls : alive;
+  } else if (def.targets === 'defense') {
     const defs = alive.filter((b) => bDef(b).defense);
     if (defs.length) pool = defs;
   } else if (def.targets === 'resource') {
     const res = alive.filter((b) => bDef(b).production || bDef(b).storage);
     if (res.length) pool = res;
   }
+  if (!pool.length) return null;
   let best = null, bestD = Infinity;
   for (const b of pool) {
     const d = distToBuilding(tr, b);
@@ -1240,7 +1867,7 @@ function wallInPath(tr, nx, ny) {
   return null;
 }
 
-function damageBuilding(b, dmg, tr) {
+function damageBuilding(b, dmg) {
   if (b.dead) return;
   b.hpNow -= dmg;
   if (b.hpNow <= 0) {
@@ -1248,12 +1875,10 @@ function damageBuilding(b, dmg, tr) {
     b.dead = true;
     Sound.crumble();
     battleExplosion(buildingCenter(b), bDef(b).size);
-    // clear from grid
     const size = bDef(b).size;
     for (let x = b.gx; x < b.gx + size; x++)
       for (let y = b.gy; y < b.gy + size; y++)
         if (x >= 0 && y >= 0 && x < N && y < N && battle.grid[y * N + x] === b) battle.grid[y * N + x] = null;
-    // loot
     if (b.lootGold) { battle.lootGold += b.lootGold; battleFloat(b, `+${fmt(b.lootGold)}`, '#ffd23e'); }
     if (b.lootElixir) { battle.lootElixir += b.lootElixir; battleFloat(b, `+${fmt(b.lootElixir)}`, '#e08cf0'); }
     if (b.type !== 'wall' && !bDef(b).deco) {
@@ -1273,6 +1898,50 @@ function updateStars() {
   if (stars > battle.stars) { battle.stars = stars; Sound.star(); }
 }
 
+function troopAttack(tr, goal, def) {
+  const isWall = goal.type === 'wall';
+  const dmg = (isWall ? def.dps * 4 : def.dps);
+  if (def.suicide) {
+    // wall breaker: boom!
+    damageBuilding(goal, def.dps * (isWall ? 8 : 1));
+    // splash nearby walls
+    const gc = buildingCenter(goal);
+    for (const b of battle.enemy.buildings) {
+      if (b.dead || b === goal || b.type !== 'wall') continue;
+      const bc = buildingCenter(b);
+      if (Math.hypot(bc.x - gc.x, bc.y - gc.y) <= (def.splash || 1.2)) damageBuilding(b, def.dps * 4);
+    }
+    tr.dead = true;
+    Sound.boom();
+    battleExplosion({ x: tr.x, y: tr.y }, 1.2, '#ffb35c');
+    return;
+  }
+  if (def.zap) {
+    damageBuilding(goal, dmg);
+    const gc = buildingCenter(goal);
+    battle.zaps.push({ x1: tr.x, y1: tr.y, x2: gc.x, y2: gc.y, t: 0.16, color: '#9fdcff', hover: TROOPS[tr.type].flying ? 46 : 10 });
+    if (def.splash) {
+      for (const b of battle.enemy.buildings) {
+        if (b.dead || b === goal) continue;
+        if (distToBuilding({ x: gc.x, y: gc.y }, b) <= def.splash) damageBuilding(b, dmg * 0.4);
+      }
+    }
+    Sound.zap();
+    return;
+  }
+  if (def.range >= 2) {
+    const tc = buildingCenter(goal);
+    battle.projectiles.push({
+      x: tr.x, y: tr.y, tx: tc.x, ty: tc.y, speed: 9,
+      dmg, splash: def.splash || 0, side: 'player', targetB: goal,
+      color: tr.type === 'wizard' ? '#63b3ff' : tr.type === 'witch' ? '#c98cf5' : '#d8c9a0',
+    });
+    Sound.shoot();
+  } else {
+    damageBuilding(goal, dmg);
+  }
+}
+
 function stepBattle(dt) {
   if (battle.ended) return;
   if (battle.started) battle.time -= dt;
@@ -1285,7 +1954,40 @@ function stepBattle(dt) {
     if (tr.dead) continue;
     const def = TROOPS[tr.type];
 
-    // choose target
+    /* healer: follow + heal friends */
+    if (def.targets === 'heal') {
+      let patient = null, bestScore = -1;
+      for (const other of troops) {
+        if (other.dead || other === tr || TROOPS[other.type].targets === 'heal') continue;
+        const hurt = 1 - other.hpNow / other.hpMax;
+        const d = Math.hypot(other.x - tr.x, other.y - tr.y);
+        const score = hurt * 10 - d * 0.15;
+        if (score > bestScore) { bestScore = score; patient = other; }
+      }
+      if (patient) {
+        const d = Math.hypot(patient.x - tr.x, patient.y - tr.y);
+        if (d > def.range) {
+          tr.x += ((patient.x - tr.x) / d) * def.speed * dt;
+          tr.y += ((patient.y - tr.y) / d) * def.speed * dt;
+        }
+        if (d <= def.range + 0.5) {
+          for (const other of troops) {
+            if (other.dead || other === tr || TROOPS[other.type].targets === 'heal') continue;
+            if (Math.hypot(other.x - tr.x, other.y - tr.y) <= def.range + 0.5 && other.hpNow < other.hpMax) {
+              other.hpNow = Math.min(other.hpMax, other.hpNow + def.healPerSec * dt);
+            }
+          }
+          if (Math.random() < dt * 6) {
+            battleParticles.push({
+              x: gridToWorld(tr.x, tr.y).x + rand(-14, 14), y: gridToWorld(tr.x, tr.y).y + rand(-4, 10),
+              vx: rand(-6, 6), vy: rand(-34, -16), life: rand(0.4, 0.8), t: 0, color: '#a5f77f', size: rand(2, 4),
+            });
+          }
+        }
+      }
+      continue;
+    }
+
     if (tr.wallTarget && tr.wallTarget.dead) tr.wallTarget = null;
     if (!tr.wallTarget && (!tr.target || tr.target.dead)) {
       tr.target = pickTroopTarget(tr);
@@ -1300,23 +2002,9 @@ function stepBattle(dt) {
       tr.cooldown -= dt;
       if (tr.cooldown <= 0) {
         tr.cooldown = 1;
-        // troops smash walls much faster than buildings, or raids stall forever
-        const dmg = goal.type === 'wall' ? def.dps * 4 : def.dps;
-        if (def.range >= 2) {
-          // ranged troop: projectile
-          const tc = buildingCenter(goal);
-          battle.projectiles.push({
-            x: tr.x, y: tr.y, tx: tc.x, ty: tc.y, speed: 9,
-            dmg, splash: def.splash || 0, side: 'player', targetB: goal,
-            color: tr.type === 'wizard' ? '#63b3ff' : '#d8c9a0',
-          });
-          Sound.shoot();
-        } else {
-          damageBuilding(goal, dmg, tr);
-        }
+        troopAttack(tr, goal, def);
       }
     } else {
-      // move toward goal
       const size = bDef(goal).size;
       const cx = clamp(tr.x, goal.gx, goal.gx + size);
       const cy = clamp(tr.y, goal.gy, goal.gy + size);
@@ -1326,7 +2014,7 @@ function stepBattle(dt) {
       const ny = tr.y + (dy / len) * def.speed * dt;
       if (!def.flying && !def.jumpsWalls) {
         const wall = wallInPath(tr, tr.x + (dx / len) * 0.55, tr.y + (dy / len) * 0.55);
-        if (wall && !tr.wallTarget) { tr.wallTarget = wall; continue; }
+        if (wall && !tr.wallTarget && goal.type !== 'wall') { tr.wallTarget = wall; continue; }
       }
       tr.x = nx; tr.y = ny;
     }
@@ -1346,6 +2034,7 @@ function stepBattle(dt) {
       if (tr.dead) continue;
       const flying = TROOPS[tr.type].flying;
       if (def.targets === 'ground' && flying) continue;
+      if (def.targets === 'air' && !flying) continue;
       const dist = Math.hypot(tr.x - bc.x, tr.y - bc.y);
       if (dist > def.range + 0.3) continue;
       if (def.minRange && dist < def.minRange) continue;
@@ -1354,13 +2043,25 @@ function stepBattle(dt) {
     if (!best) continue;
     b.cooldown = def.cooldown;
     const dps = Math.round(levelMul(def.dps, def.dpsMul, b.level)) * def.cooldown;
-    battle.projectiles.push({
-      x: bc.x, y: bc.y, targetT: best, speed: b.type === 'mortar' ? 4.5 : 10,
-      dmg: dps, splash: def.splash || 0, side: 'enemy',
-      arc: b.type === 'mortar', t: 0,
-      color: b.type === 'wizard_tower' ? '#c76cff' : b.type === 'archer_tower' ? '#ffe9b0' : '#4a4a4a',
-    });
-    Sound.shoot();
+    if (def.zap || def.beam) {
+      best.hpNow -= dps;
+      battle.zaps.push({
+        x1: bc.x, y1: bc.y, x2: best.x, y2: best.y, t: def.beam ? 0.3 : 0.15,
+        color: def.beam ? '#ff9a3d' : '#8fd8ff',
+        hover: TROOPS[best.type].flying ? 46 : 8, srcH: 34,
+      });
+      if (def.beam) Sound.beam(); else Sound.zap();
+      if (best.hpNow <= 0) { best.dead = true; battleExplosion({ x: best.x, y: best.y }, 0.8, '#9c9c9c'); }
+    } else {
+      battle.projectiles.push({
+        x: bc.x, y: bc.y, targetT: best,
+        speed: b.type === 'mortar' ? 4.5 : def.missile ? 7 : def.bolt ? 13 : 10,
+        dmg: dps, splash: def.splash || 0, side: 'enemy',
+        arc: b.type === 'mortar', t: 0, missile: def.missile,
+        color: b.type === 'wizard_tower' ? '#c76cff' : b.type === 'archer_tower' ? '#ffe9b0' : b.type === 'air_defense' ? '#ff6b6b' : b.type === 'xbow' ? '#ffe9b0' : '#4a4a4a',
+      });
+      Sound.shoot();
+    }
   }
 
   /* projectiles */
@@ -1373,13 +2074,12 @@ function stepBattle(dt) {
     const dist = Math.hypot(dx, dy);
     const step = p.speed * dt;
     if (dist <= step + 0.05) {
-      // impact
       if (p.side === 'player') {
-        if (p.targetB && !p.targetB.dead) damageBuilding(p.targetB, p.dmg, null);
+        if (p.targetB && !p.targetB.dead) damageBuilding(p.targetB, p.dmg);
         if (p.splash) {
           for (const b of battle.enemy.buildings) {
             if (b.dead || b === p.targetB) continue;
-            if (distToBuilding({ x: target.x, y: target.y }, b) <= p.splash) damageBuilding(b, p.dmg * 0.5, null);
+            if (distToBuilding({ x: target.x, y: target.y }, b) <= p.splash) damageBuilding(b, p.dmg * 0.5);
           }
         }
       } else {
@@ -1400,6 +2100,8 @@ function stepBattle(dt) {
     if (p.arc) p.t += dt;
     return true;
   });
+
+  battle.zaps = battle.zaps.filter((z) => (z.t -= dt) > 0);
 
   /* end conditions */
   const anyTroopsLeft = battle.troops.some((t) => !t.dead) || Object.values(battle.army).some((n) => n > 0);
@@ -1499,12 +2201,11 @@ $('attackBtn').addEventListener('click', startMatchmaking);
 /* ---------- battle render ---------- */
 function renderBattle() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = '#274f2e';
+  ctx.fillStyle = '#3f7326';
   ctx.fillRect(0, 0, vw, vh);
   applyCamera();
   if (groundCanvas) ctx.drawImage(groundCanvas, groundOrigin.x, groundOrigin.y);
 
-  // deploy zone hint (subtle red overlay on blocked cells near buildings) — only pre-battle
   if (!battle.started) {
     ctx.globalAlpha = 0.14;
     for (let gx = 0; gx < N; gx++) {
@@ -1533,20 +2234,34 @@ function renderBattle() {
     }
   }
 
-  // entities sorted by depth
+  const wallKeys = wallNeighborSet(battle.enemy.buildings);
   const ents = [];
   for (const b of battle.enemy.buildings) if (!b.dead) ents.push({ depth: b.gx + b.gy + bDef(b).size, b });
+  for (const o of battle.enemy.obstacles) ents.push({ depth: o.gx + o.gy + oDef(o).size, o });
   for (const tr of battle.troops) if (!tr.dead) ents.push({ depth: tr.x + tr.y + (TROOPS[tr.type].flying ? 100 : 0), tr });
   ents.sort((a, b) => a.depth - b.depth);
 
   for (const e of ents) {
     if (e.b) {
-      drawBuildingSprite(e.b, 1, true);
-      if (e.b.hpNow < e.b.hpMax) {
-        const c = buildingCenter(e.b);
-        const w = gridToWorld(c.x, c.y);
-        drawHpBar(w.x, w.y - bDef(e.b).size * TH2 * 2.2, bDef(e.b).size * TW2, e.b.hpNow / e.b.hpMax);
+      if (e.b.type === 'wall') {
+        drawWallCell(e.b.gx, e.b.gy, e.b.level, 1,
+          wallKeys.has(`${e.b.gx + 1},${e.b.gy}`), wallKeys.has(`${e.b.gx},${e.b.gy + 1}`),
+          1 - e.b.hpNow / e.b.hpMax);
+        if (e.b.hpNow < e.b.hpMax) {
+          const c = buildingCenter(e.b);
+          const w = gridToWorld(c.x, c.y);
+          drawHpBar(w.x, w.y - 40, TW2 * 0.9, e.b.hpNow / e.b.hpMax);
+        }
+      } else {
+        drawBuildingSprite(e.b, 1);
+        if (e.b.hpNow < e.b.hpMax) {
+          const c = buildingCenter(e.b);
+          const w = gridToWorld(c.x, c.y);
+          drawHpBar(w.x, w.y - bDef(e.b).size * TH2 * 2.2, bDef(e.b).size * TW2, e.b.hpNow / e.b.hpMax);
+        }
       }
+    } else if (e.o) {
+      drawObstacleSprite(e.o);
     } else {
       drawTroop(e.tr);
     }
@@ -1558,9 +2273,37 @@ function renderBattle() {
     let yOff = 0;
     if (p.arc) yOff = -Math.sin(Math.min(1, p.t / 0.9) * Math.PI) * 46;
     ctx.beginPath();
-    ctx.arc(w.x, w.y + yOff - 14, p.arc ? 5.5 : 3.5, 0, Math.PI * 2);
+    ctx.arc(w.x, w.y + yOff - 14, p.arc ? 5.5 : p.missile ? 4.5 : 3.5, 0, Math.PI * 2);
     ctx.fillStyle = p.color;
     ctx.fill();
+    if (p.missile) {
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath();
+      ctx.arc(w.x - (p.lastX !== undefined ? 0 : 0) - rand(2, 6), w.y + yOff - 12 + rand(-2, 2), 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ccc';
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // zaps / beams
+  for (const z of battle.zaps) {
+    const a = gridToWorld(z.x1, z.y1);
+    const b2 = gridToWorld(z.x2, z.y2);
+    const y1 = a.y - (z.srcH || 10), y2 = b2.y - (z.hover || 8);
+    ctx.strokeStyle = z.color;
+    ctx.lineWidth = 2.5;
+    ctx.globalAlpha = clamp(z.t * 6, 0, 1);
+    ctx.beginPath();
+    ctx.moveTo(a.x, y1);
+    const segs = 5;
+    for (let i = 1; i < segs; i++) {
+      const f = i / segs;
+      ctx.lineTo(lerp(a.x, b2.x, f) + rand(-5, 5), lerp(y1, y2, f) + rand(-5, 5));
+    }
+    ctx.lineTo(b2.x, y2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 
   // fx
@@ -1585,7 +2328,6 @@ function renderBattle() {
   }
   ctx.globalAlpha = 1;
 
-  // bad deploy marker
   if (battle.badDeploy) {
     battle.badDeploy.t -= battleDt;
     if (battle.badDeploy.t <= 0) battle.badDeploy = null;
@@ -1609,7 +2351,6 @@ function drawTroop(tr) {
   const wob = Math.sin(perfNow * 6 + tr.wob) * (flying ? 5 : 1.5);
   const spriteW = def.scale * TW2 * 2;
   const spriteH = spriteW * (img.naturalHeight / img.naturalWidth);
-  // shadow
   ctx.beginPath();
   ctx.ellipse(w.x, w.y + 3, spriteW * 0.28, spriteW * 0.12, 0, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
@@ -1637,8 +2378,9 @@ function loop(t) {
     stepParticles(dt);
     if (scene === 'home') {
       renderHome();
-      // live-refresh info panel timer
-      if (selected && isConstructing(selected) && Math.floor(t / 500) !== Math.floor((t - dt * 1000) / 500)) showInfo(selected);
+      if (selected && Math.floor(t / 500) !== Math.floor((t - dt * 1000) / 500)) {
+        if (isObstacle(selected) ? isRemoving(selected) : isConstructing(selected)) showInfo(selected);
+      }
     } else if (scene === 'battle' && battle) {
       battleDt = dt;
       stepBattle(dt);
@@ -1665,10 +2407,13 @@ function loop(t) {
   state = load();
   const isNew = !state;
   if (isNew) state = starterVillage();
-  uid = state.buildings.reduce((m, b) => Math.max(m, b.id), 0) + 1;
+  uid = Math.max(
+    state.buildings.reduce((m, b) => Math.max(m, b.id), 0),
+    state.obstacles.reduce((m, o) => Math.max(m, o.id), 0),
+  ) + 1;
+  if (isNew || state.obstacles.length === 0) seedObstacles(14);
   if (state.muted) { Sound.toggleMute(); $('muteBtn').textContent = '🔇'; }
 
-  // offline welcome
   const away = nowS() - state.lastSeen;
   prerenderGround();
   fitCamera();
@@ -1680,8 +2425,8 @@ function loop(t) {
 
   if (isNew) {
     setTimeout(() => toast('Welcome, Chief! This is a parody — everything is free.', 'res_gem'), 600);
-    setTimeout(() => toast('Tap the 🔨 shop to build. Collectors make loot over time.', 'gold_mine'), 3400);
-    setTimeout(() => toast('Train troops, then hit ATTACK to raid goblins!', 'icon_barbarian'), 6200);
+    setTimeout(() => toast('Tap the Shop to build. Chop trees for loot and gems!', 'tree_medium'), 3400);
+    setTimeout(() => toast('Train troops, then hit Attack to raid goblins!', 'icon_barbarian'), 6200);
   } else if (away > 120) {
     setTimeout(() => toast(`Welcome back! Your village kept working while you were gone ${fmtTime(away)}.`, 'builder'), 700);
   }

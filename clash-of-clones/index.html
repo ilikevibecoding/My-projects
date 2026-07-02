@@ -8,7 +8,7 @@
   <link rel="icon" href="assets/icon_barbarian.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -25,41 +25,69 @@
 
   <!-- ======= GAME CANVAS ======= -->
   <canvas id="game"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
 
   <!-- ======= HUD ======= -->
   <div id="hud" class="hud hidden">
     <div class="hud-top">
       <div class="hud-left">
-        <div class="chief-card" id="chiefCard">
-          <img src="assets/builder.png" alt="chief" />
-          <div>
+        <div class="chief-card" id="chiefCard" title="Tap to rename">
+          <div class="xp-badge"><span id="xpLevel">1</span></div>
+          <div class="chief-plate">
             <div class="chief-name" id="chiefName">Chief</div>
             <div class="chief-sub" id="chiefSub">Parody Village</div>
           </div>
         </div>
-        <div class="pill trophy-pill"><img src="assets/trophy.png" alt="" /><span id="trophyCount">0</span></div>
+        <div class="chip trophy-chip"><img src="assets/trophy.png" alt="" /><span id="trophyCount">0</span></div>
       </div>
+
+      <div class="hud-center">
+        <div class="chip mini-chip" title="Builders"><img src="assets/builder.png" alt="" /><b>Builders:</b><span id="builderCount">2/2</span></div>
+        <div class="chip mini-chip" title="Shields are for people who get attacked."><span class="shield-ico">🛡️</span><b>Shield:</b><span>None</span></div>
+      </div>
+
       <div class="hud-right">
-        <div class="pill res-pill gold"><img src="assets/res_gold.png" alt="gold" /><div class="res-body"><span id="goldCount">0</span><div class="res-bar"><i id="goldBar"></i></div></div></div>
-        <div class="pill res-pill elixir"><img src="assets/res_elixir.png" alt="elixir" /><div class="res-body"><span id="elixirCount">0</span><div class="res-bar"><i id="elixirBar"></i></div></div></div>
-        <div class="pill res-pill gem" id="gemPill" title="Free gems. It's a parody."><img src="assets/res_gem.png" alt="gems" /><div class="res-body"><span id="gemCount">0</span><div class="res-sub">tap = free</div></div></div>
+        <div class="res-row gold">
+          <div class="res-bar-wrap">
+            <div class="res-max">Max: <span id="goldMax">0</span></div>
+            <div class="res-num" id="goldCount">0</div>
+            <div class="res-bar"><i id="goldBar"></i></div>
+          </div>
+          <img src="assets/res_gold.png" alt="gold" />
+        </div>
+        <div class="res-row elixir">
+          <div class="res-bar-wrap">
+            <div class="res-max">Max: <span id="elixirMax">0</span></div>
+            <div class="res-num" id="elixirCount">0</div>
+            <div class="res-bar"><i id="elixirBar"></i></div>
+          </div>
+          <img src="assets/res_elixir.png" alt="elixir" />
+        </div>
+        <div class="res-row gem" id="gemPill" title="Free gems. It's a parody.">
+          <div class="res-bar-wrap">
+            <div class="res-num" id="gemCount">0</div>
+            <div class="res-sub">tap = free gems</div>
+          </div>
+          <img src="assets/res_gem.png" alt="gems" />
+          <button class="plus-btn" aria-label="Get gems">+</button>
+        </div>
       </div>
     </div>
 
     <div class="hud-bottom">
       <div class="hud-bottom-left">
-        <button class="big-btn attack-btn" id="attackBtn"><img src="assets/icon_barbarian.png" alt="" /><span>ATTACK!</span></button>
+        <button class="attack-btn" id="attackBtn"><span class="swords">⚔️</span><span>Attack!</span></button>
       </div>
       <div class="hud-bottom-right">
-        <div class="builder-chip" id="builderChip"><img src="assets/builder.png" alt="" /><span id="builderCount">2/2</span></div>
-        <button class="round-btn" id="armyBtn" title="Army"><img src="assets/icon_archer.png" alt="army" /></button>
-        <button class="round-btn" id="shopBtn" title="Shop"><span class="hammer">🔨</span></button>
+        <button class="round-btn" id="cheatBtn" title="Cheat codes">🗝️</button>
         <button class="round-btn" id="muteBtn" title="Sound">🔊</button>
+        <button class="round-btn" id="armyBtn" title="Army"><img src="assets/icon_archer.png" alt="army" /></button>
+        <button class="shop-btn" id="shopBtn"><span>🛒</span><b>Shop</b></button>
       </div>
     </div>
   </div>
 
-  <!-- ======= BUILDING INFO PANEL ======= -->
+  <!-- ======= BUILDING / OBSTACLE INFO PANEL ======= -->
   <div id="infoPanel" class="info-panel hidden">
     <div class="info-head">
       <img id="infoImg" src="assets/town_hall.png" alt="" />
@@ -75,7 +103,22 @@
       <button class="action-btn move" id="infoMove">Move</button>
       <button class="action-btn collect hidden" id="infoCollect">Collect</button>
       <button class="action-btn upgrade" id="infoUpgrade">Upgrade</button>
+      <button class="action-btn remove hidden" id="infoRemove">Remove</button>
       <button class="action-btn finish hidden" id="infoFinish">Finish now</button>
+    </div>
+  </div>
+
+  <!-- ======= WALL BUILD BAR ======= -->
+  <div id="wallBar" class="wall-bar hidden">
+    <div class="wall-info">
+      <b>Wall mode</b>
+      <span id="wallCount">0 walls</span>
+      <span id="wallCost" class="wall-cost"><img src="assets/res_gold.png" alt=""/>0</span>
+    </div>
+    <div class="wall-hint">Drag on the grass to draw wall lines · Enter to build · Esc to cancel</div>
+    <div class="wall-actions">
+      <button class="wall-ok" id="wallOk">✓ Build</button>
+      <button class="wall-no" id="wallNo">✕</button>
     </div>
   </div>
 
@@ -83,6 +126,7 @@
   <div id="shopModal" class="modal hidden">
     <div class="modal-card">
       <div class="modal-head"><h2>Shop</h2><span class="modal-sub">Everything a warlord needs. No credit card required — ever.</span><button class="close-x" data-close="shopModal">✕</button></div>
+      <div id="shopTabs" class="shop-tabs"></div>
       <div id="shopGrid" class="shop-grid"></div>
     </div>
   </div>
@@ -108,6 +152,20 @@
         <button class="gem-offer" data-gems="2500"><img src="assets/res_gem.png" alt=""/><b>Wheelbarrow of Gems</b><span>2500 gems</span><i>$0.00</i></button>
       </div>
       <p class="gem-fine">Your wallet remains unclashed. 0 real dollars were harmed.</p>
+    </div>
+  </div>
+
+  <!-- ======= CHEAT CONSOLE ======= -->
+  <div id="cheatModal" class="modal hidden">
+    <div class="modal-card cheat-card">
+      <div class="modal-head"><h2>Cheat Console</h2><button class="close-x" data-close="cheatModal">✕</button></div>
+      <p class="cheat-copy">Whisper the secret word, Chief.</p>
+      <div class="cheat-row">
+        <input id="cheatInput" class="cheat-input" type="text" placeholder="enter code…" autocomplete="off" spellcheck="false" maxlength="24" />
+        <button class="cheat-go" id="cheatGo">Enter</button>
+      </div>
+      <p class="cheat-hint">Hint: it rhymes with "flash" and starts a certain famous game's name…</p>
+      <p class="cheat-status" id="cheatStatus"></p>
     </div>
   </div>
 
