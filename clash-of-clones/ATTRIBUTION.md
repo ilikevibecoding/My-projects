@@ -19,3 +19,5 @@ sponsored, or approved by Supercell. It sells nothing, contains no ads or purcha
 and exists purely as a parody/homage.
 
 All game code, sounds (synthesized at runtime via WebAudio), and writing are original.
+Wall pieces are drawn procedurally in canvas; every other sprite in `assets/` is an
+unmodified (only resized) fan kit render fetched from Supercell's public fan kit CDN.
