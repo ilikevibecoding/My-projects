@@ -1408,7 +1408,12 @@ function wallNeighborSet(buildings, extraKeys = null) {
 
 function drawBuildingSprite(b, alpha = 1) {
   const d = bDef(b);
-  const img = IMG[d.img];
+  let img = IMG[d.img];
+  // town hall changes appearance as it levels up
+  if (b.type === 'town_hall') {
+    const lvlImg = IMG[`town_hall_${clamp(b.level, 1, 5)}`];
+    if (lvlImg && lvlImg.naturalWidth) img = lvlImg;
+  }
   if (!img || !img.naturalWidth) return;
   const tw = DRAW_TWEAKS[b.type] || {};
   let k = tw.k || 0.9;

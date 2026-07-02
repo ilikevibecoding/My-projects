@@ -3,7 +3,8 @@
 
 const ASSETS = [
   // buildings
-  'town_hall', 'cannon', 'archer_tower', 'mortar', 'wizard_tower',
+  'town_hall', 'town_hall_1', 'town_hall_2', 'town_hall_3', 'town_hall_4', 'town_hall_5',
+  'cannon', 'archer_tower', 'mortar', 'wizard_tower',
   'air_defense', 'hidden_tesla', 'bomb_tower', 'xbow', 'inferno_tower',
   'gold_mine', 'elixir_collector', 'gold_storage', 'elixir_storage',
   'barracks', 'army_camp', 'builder_hut', 'laboratory', 'clan_castle',
