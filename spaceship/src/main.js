@@ -146,6 +146,10 @@ window.debugAPI = {
   hoverTarget() {
     return interact.hovered ? interact.hovered.userData.interactable.id : null;
   },
+  setClock(hours) { interact.shipHours = hours; },
+  cycleState() {
+    return { hours: interact.shipHours, restCycle: interact.restCycle, cycleT: interact.cycleT };
+  },
   pick() {
     const rc = new THREE.Raycaster();
     rc.setFromCamera(new THREE.Vector2(0, 0), camera);

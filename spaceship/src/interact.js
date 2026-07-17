@@ -85,13 +85,11 @@ export class Interactions {
     if (this.busy || !this.hovered) return;
     const id = this.hovered.userData.interactable.id;
     if (id === 'bed') {
-      const toNight = !this.restCycle;
+      // sleeping always wakes you at ship morning, in day lighting
       this.fadeBlack(() => {
-        this.restCycle = toNight;
-        this.cycleTarget = toNight ? 0 : 1;
-        this.shipHours = (this.shipHours + 8) % 24;
-        this.note(toNight ? 'REST CYCLE ENGAGED' : 'DAY CYCLE RESTORED', 6);
-      }, '8 HOURS PASS');
+        this.shipHours = 7;
+        this.note('YOU WAKE AT 07:00 · DAY CYCLE', 6);
+      }, 'YOU SLEEP UNTIL MORNING');
     } else if (id === 'galley') {
       this.busy = true;
       this.note('YOU EAT. ENERGY RESTORED.', 6);
@@ -120,6 +118,10 @@ export class Interactions {
   update(dt, t) {
     this.time = t;
     this.shipHours = (this.shipHours + dt / 240) % 24; // 1 game-hour per 4 min
+
+    // night lighting follows the ship clock (21:30–06:30) instead of a toggle
+    this.restCycle = this.shipHours >= 21.5 || this.shipHours < 6.5;
+    this.cycleTarget = this.restCycle ? 0 : 1;
 
     // lighting cycle lerp
     this.cycleT += (this.cycleTarget - this.cycleT) * Math.min(1, dt * 1.8);
