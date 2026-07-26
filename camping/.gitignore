@@ -2,3 +2,6 @@ node_modules/
 
 # capture output from the visual remaster harness (large PNG sets)
 shots/remaster/smoke*/
+shots/remaster/conifer_v*/
+shots/remaster/lod/
+shots/remaster/perfbase/

@@ -1,0 +1,261 @@
+{
+  "pass": "conifer_final",
+  "startedAt": "2026-07-26T09:09:36.932Z",
+  "viewports": [
+    "1280x720"
+  ],
+  "states": [
+    {
+      "item": {
+        "name": "pine_trunk",
+        "view": "pine_trunk",
+        "tod": "day",
+        "fire": false,
+        "group": "conifer"
+      },
+      "state": "pine_trunk",
+      "viewport": "1280x720",
+      "file": "/workspace/camping/shots/remaster/conifer_final/pine_trunk@1280x720.png",
+      "group": "conifer",
+      "drawCalls": 161,
+      "triangles": 2559667,
+      "verifiedState": true,
+      "actual": {
+        "timeOfDay": "day",
+        "transitioning": false,
+        "fading": false,
+        "fireLit": false,
+        "fireBoost": 0,
+        "seated": false,
+        "busy": false
+      },
+      "errors": [],
+      "hudCheck": null
+    },
+    {
+      "item": {
+        "name": "pine_canopy",
+        "view": "pine_canopy",
+        "tod": "day",
+        "fire": false,
+        "group": "conifer"
+      },
+      "state": "pine_canopy",
+      "viewport": "1280x720",
+      "file": "/workspace/camping/shots/remaster/conifer_final/pine_canopy@1280x720.png",
+      "group": "conifer",
+      "drawCalls": 161,
+      "triangles": 2521595,
+      "verifiedState": true,
+      "actual": {
+        "timeOfDay": "day",
+        "transitioning": false,
+        "fading": false,
+        "fireLit": false,
+        "fireBoost": 0,
+        "seated": false,
+        "busy": false
+      },
+      "errors": [],
+      "hudCheck": null
+    },
+    {
+      "item": {
+        "name": "pine_midshot",
+        "view": "pine_midshot",
+        "tod": "day",
+        "fire": false,
+        "group": "conifer"
+      },
+      "state": "pine_midshot",
+      "viewport": "1280x720",
+      "file": "/workspace/camping/shots/remaster/conifer_final/pine_midshot@1280x720.png",
+      "group": "conifer",
+      "drawCalls": 161,
+      "triangles": 2497179,
+      "verifiedState": true,
+      "actual": {
+        "timeOfDay": "day",
+        "transitioning": false,
+        "fading": false,
+        "fireLit": false,
+        "fireBoost": 0,
+        "seated": false,
+        "busy": false
+      },
+      "errors": [],
+      "hudCheck": null
+    },
+    {
+      "item": {
+        "name": "forest_dense",
+        "view": "forest_dense",
+        "tod": "day",
+        "fire": false,
+        "group": "conifer"
+      },
+      "state": "forest_dense",
+      "viewport": "1280x720",
+      "file": "/workspace/camping/shots/remaster/conifer_final/forest_dense@1280x720.png",
+      "group": "conifer",
+      "drawCalls": 379,
+      "triangles": 3106355,
+      "verifiedState": true,
+      "actual": {
+        "timeOfDay": "day",
+        "transitioning": false,
+        "fading": false,
+        "fireLit": false,
+        "fireBoost": 0,
+        "seated": false,
+        "busy": false
+      },
+      "errors": [],
+      "hudCheck": null
+    },
+    {
+      "item": {
+        "name": "pine_canopy_golden",
+        "view": "pine_canopy",
+        "tod": "golden",
+        "fire": false,
+        "group": "conifer"
+      },
+      "state": "pine_canopy_golden",
+      "viewport": "1280x720",
+      "file": "/workspace/camping/shots/remaster/conifer_final/pine_canopy_golden@1280x720.png",
+      "group": "conifer",
+      "drawCalls": 161,
+      "triangles": 2454691,
+      "verifiedState": true,
+      "actual": {
+        "timeOfDay": "golden",
+        "transitioning": false,
+        "fading": false,
+        "fireLit": false,
+        "fireBoost": 0,
+        "seated": false,
+        "busy": false
+      },
+      "errors": [],
+      "hudCheck": null
+    },
+    {
+      "item": {
+        "name": "treeline_silhouette",
+        "view": "treeline_silhouette",
+        "tod": "day",
+        "fire": false,
+        "group": "conifer"
+      },
+      "state": "treeline_silhouette",
+      "viewport": "1280x720",
+      "file": "/workspace/camping/shots/remaster/conifer_final/treeline_silhouette@1280x720.png",
+      "group": "conifer",
+      "drawCalls": 153,
+      "triangles": 1905835,
+      "verifiedState": true,
+      "actual": {
+        "timeOfDay": "day",
+        "transitioning": false,
+        "fading": false,
+        "fireLit": false,
+        "fireBoost": 0,
+        "seated": false,
+        "busy": false
+      },
+      "errors": [],
+      "hudCheck": null
+    }
+  ],
+  "motion": [],
+  "perf": null,
+  "playthrough": {
+    "log": [
+      {
+        "step": "walk forward (KeyW)",
+        "ok": true,
+        "detail": "moved 3.32 m"
+      },
+      {
+        "step": "eye height follows terrain",
+        "ok": true,
+        "detail": "eye 1.70 m"
+      },
+      {
+        "step": "strafe left (KeyA)",
+        "ok": true,
+        "detail": "moved 1.74 m"
+      },
+      {
+        "step": "walk back (KeyS)",
+        "ok": true,
+        "detail": "position changed"
+      },
+      {
+        "step": "mouse look changes yaw",
+        "ok": true,
+        "detail": "yaw 2.45 → 1.85"
+      },
+      {
+        "step": "hover firepit",
+        "ok": true,
+        "detail": "hovered=firepit"
+      },
+      {
+        "step": "interact firepit → fire lit",
+        "ok": true,
+        "detail": "{\"fireLit\":true,\"fireBoost\":0,\"seated\":false}"
+      },
+      {
+        "step": "hover woodpile",
+        "ok": true,
+        "detail": "hovered=woodpile"
+      },
+      {
+        "step": "interact woodpile → wood reaches the fire",
+        "ok": true,
+        "detail": "{\"fireLit\":true,\"fireBoost\":0.94,\"seated\":false}"
+      },
+      {
+        "step": "hover seatlog",
+        "ok": true,
+        "detail": "hovered=seatlog"
+      },
+      {
+        "step": "interact seatlog → seated",
+        "ok": true,
+        "detail": "{\"fireLit\":true,\"fireBoost\":0.72,\"seated\":true}"
+      },
+      {
+        "step": "stand up from seat",
+        "ok": true,
+        "detail": "after 50 steps"
+      },
+      {
+        "step": "hover tent",
+        "ok": true
+      },
+      {
+        "step": "sleep advances time of day",
+        "ok": true,
+        "detail": "day → golden"
+      },
+      {
+        "step": "scene still renders at the end",
+        "ok": true,
+        "detail": "175 draw calls"
+      },
+      {
+        "step": "no console/page errors",
+        "ok": true,
+        "detail": ""
+      }
+    ],
+    "errors": [],
+    "passed": true,
+    "failures": []
+  },
+  "finishedAt": "2026-07-26T09:11:03.942Z",
+  "errorCount": 0
+}

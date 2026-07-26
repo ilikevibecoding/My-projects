@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { createTerrain } from './terrain.js';
 import { createSky } from './sky.js';
 import { TimeOfDay, PRESETS } from './timeofday.js';
-import { createGrass, createTrees, createRocks, updateVegetation, LAYER_NO_REFLECT } from './vegetation.js';
+import { createGrass, createTrees, createRocks, updateVegetation, loadFoliageAssets, LAYER_NO_REFLECT } from './vegetation.js';
 import { createWater } from './water.js';
 import { createCamp } from './camp.js';
 import { Player } from './player.js';
@@ -76,6 +76,9 @@ scene.add(sky.mesh);
 const grass = createGrass();
 scene.add(grass);
 
+// the needle atlas must be resident before the trees are built: the distant
+// LOD renders its impostor from the detailed tree at construction time
+await loadFoliageAssets(renderer);
 const trees = createTrees();
 scene.add(trees);
 
@@ -225,7 +228,7 @@ function simulate(dt) {
   camp.update(dt, time);
   hud.update(dt);
 
-  updateVegetation([grass, ...trees.children], time, camera.position);
+  updateVegetation([grass, ...trees.children], time, camera.position, camera);
   sky.uniforms.uTime.value = time;
   sky.mesh.position.copy(camera.position); // dome follows camera
   water.update(time, scene.fog, timeOfDay.sunDir, sun.color);

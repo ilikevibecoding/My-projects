@@ -1,12 +1,111 @@
 // Instanced grass (wind-swayed cards), two tree species, scattered rocks.
 import * as THREE from 'three';
 import { mulberry32, SimplexNoise, clamp, smoothstep } from './noise.js';
-import { placementInfo, POND, getTerrainNormal } from './terrain.js';
+import { placementInfo, POND, getTerrainNormal, getTerrainHeight } from './terrain.js';
 import { makeBarkTexture, makeBirchBarkTexture, makeRockTexture } from './textures.js';
+import { createConiferForest } from './conifer.js';
+import needleAtlasMeta from './assets/conifer_needles.json';
+import needleAtlasUrl from './assets/conifer_needles.png?url';
 
 export const LAYER_NO_REFLECT = 2; // grass excluded from water reflection
 
 const placeNoise = new SimplexNoise(777);
+
+// ---------------------------------------------------------------------------
+// Foliage atlas: photographic needle sprigs, keyed and edge-dilated offline by
+// tools/atlas.mjs so mip levels never grow dark halos.
+// ---------------------------------------------------------------------------
+export const NEEDLE_ATLAS = needleAtlasMeta;
+let _needleTexture = null;
+let _sharedRenderer = null;
+
+export function getNeedleTexture() { return _needleTexture; }
+export function getSharedRenderer() { return _sharedRenderer; }
+
+/**
+ * Build a coverage-preserving mip chain for an alpha-tested cutout.
+ *
+ * Ordinary mipmapping averages alpha, so each smaller level has fewer texels
+ * above the alpha threshold and the foliage steadily dissolves with distance —
+ * a forest that looks solid up close turns into thin wisps on the horizon.
+ * For every level we rescale alpha until the fraction of texels that survive
+ * the alpha test matches the full-resolution image, which keeps the canopy's
+ * apparent density constant at any distance.
+ */
+function coveragePreservingMips(image, alphaTest) {
+  const base = document.createElement('canvas');
+  base.width = image.width;
+  base.height = image.height;
+  const bctx = base.getContext('2d', { willReadFrequently: true });
+  bctx.drawImage(image, 0, 0);
+  const baseData = bctx.getImageData(0, 0, base.width, base.height);
+
+  const coverageOf = (data, scale) => {
+    let n = 0;
+    for (let i = 3; i < data.length; i += 4) if (Math.min(1, (data[i] / 255) * scale) >= alphaTest) n++;
+    return n / (data.length / 4);
+  };
+  const target = coverageOf(baseData.data, 1);
+
+  const mips = [baseData];
+  let w = base.width, h = base.height;
+  let src = base;
+  while (w > 1 || h > 1) {
+    w = Math.max(1, w >> 1);
+    h = Math.max(1, h >> 1);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src, 0, 0, w, h);
+    const img = ctx.getImageData(0, 0, w, h);
+
+    // binary-search the alpha scale that restores the original coverage
+    let lo = 1, hi = 12, scale = 1;
+    for (let it = 0; it < 12; it++) {
+      scale = (lo + hi) / 2;
+      if (coverageOf(img.data, scale) < target) lo = scale; else hi = scale;
+    }
+    scale = (lo + hi) / 2;
+    for (let i = 3; i < img.data.length; i += 4) {
+      img.data[i] = Math.min(255, Math.round(img.data[i] * scale));
+    }
+    ctx.putImageData(img, 0, 0);
+    mips.push(img);
+    src = c;
+  }
+  return mips;
+}
+
+/** Must be awaited before createTrees(): the impostor is rendered at build time. */
+export function loadFoliageAssets(renderer, { alphaTest = 0.42 } = {}) {
+  _sharedRenderer = renderer;
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const tex = new THREE.Texture(img);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.mipmaps = coveragePreservingMips(img, alphaTest);
+      tex.image = tex.mipmaps[0];
+      tex.generateMipmaps = false;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      // anisotropy matters a lot for foliage seen at a grazing angle
+      tex.anisotropy = Math.min(8, renderer?.capabilities?.getMaxAnisotropy?.() ?? 1);
+      tex.needsUpdate = true;
+      _needleTexture = tex;
+      resolve(tex);
+    };
+    img.onerror = reject;
+    img.src = needleAtlasUrl;
+  });
+}
+
+const CONIFER_FORESTS = [];
+export function getConiferForests() { return CONIFER_FORESTS; }
 
 // ---------------------------------------------------------------------------
 // Foliage cost registry — lets the harness report how many foliage cards are
@@ -415,12 +514,28 @@ export function createTrees() {
     ...scatterTrees({ count: 10, rand, minR: 25, maxR: 70, clusterCount: 10, clusterRadius: 22 }),
   ];
 
-  const pineTrunks = new THREE.InstancedMesh(pine.trunk, pineTrunkMat, pinePts.length);
-  const pineFol = new THREE.InstancedMesh(pine.foliage, pineFoliageMat, pinePts.length);
-  fillTreeInstances(pinePts, rand, pineTrunks, pineFol, {
-    sMin: 0.8, sMax: 1.9, sink: 0.25,
-    tintA: new THREE.Color(0x4d7a4a), tintB: new THREE.Color(0x2f5d40), tintC: new THREE.Color(0x6f8c4a),
+  // Remastered conifers: real branch structure with alpha-tested needle
+  // sprigs, three levels of detail, impostors for the distant treeline.
+  // Placement is unchanged — only what stands at each point is different.
+  const coniferPts = pinePts.map((p) => {
+    const s = 0.8 + rand() * 1.1;
+    return {
+      x: p.x,
+      y: getTerrainHeight(p.x, p.z) - 0.25 * s,
+      z: p.z,
+      scale: s,
+      rotY: rand() * Math.PI * 2,
+    };
   });
+  const conifers = createConiferForest({
+    positions: coniferPts,
+    tiles: NEEDLE_ATLAS.tiles,
+    needleTexture: getNeedleTexture(),
+    barkMaterial: pineTrunkMat,
+    renderer: getSharedRenderer(),
+  });
+  group.add(conifers.group);
+  CONIFER_FORESTS.push(conifers);
 
   // --- broadleaf (aspen-like) ---
   const leaf = makeBroadleafGeometries();
@@ -454,16 +569,13 @@ export function createTrees() {
     tintA: new THREE.Color(0x7ba04a), tintB: new THREE.Color(0xa8b04e), tintC: new THREE.Color(0x5e8c42),
   });
 
-  pineTrunks.name = 'pineTrunks';
-  pineFol.name = 'pineFoliage';
   leafTrunks.name = 'leafTrunks';
   leafFol.name = 'leafFoliage';
-  for (const mh of [pineTrunks, pineFol, leafTrunks, leafFol]) {
+  for (const mh of [leafTrunks, leafFol]) {
     mh.castShadow = true;
     mh.receiveShadow = true;
     group.add(mh);
   }
-  registerFoliage(pineFol, { kind: 'pine', cardsPerInstance: 0, radius: 2.4 });
   registerFoliage(leafFol, { kind: 'broadleaf', cardsPerInstance: 0, radius: 2.0 });
   return group;
 }
@@ -576,12 +688,14 @@ vWNorm2 = normalize(mat3(modelMatrix) * normal);
 }
 
 // per-frame updates (wind time)
-export function updateVegetation(meshes, time, camPos) {
+export function updateVegetation(meshes, time, camPos, camera = null) {
   for (const mh of meshes) {
-    const sh = mh.material.userData.shader;
+    const sh = mh.material?.userData?.shader;
     if (sh) {
       if (sh.uniforms.uTime) sh.uniforms.uTime.value = time;
       if (sh.uniforms.uCamPos) sh.uniforms.uCamPos.value.copy(camPos);
     }
   }
+  // conifers manage their own wind uniforms and level-of-detail assignment
+  for (const forest of CONIFER_FORESTS) forest.update(time, camera);
 }

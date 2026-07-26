@@ -1,6 +1,7 @@
 // window.debugAPI — deterministic camera views + state control for the
 // screenshot harness (tools/shots.mjs). Also handy in the browser console.
 import * as THREE from 'three';
+import { getConiferForests } from './vegetation.js';
 import { getTerrainHeight, POND, WATER_LEVEL } from './terrain.js';
 
 export function installDebugAPI({ player, timeOfDay, camp, interactions, renderer, hud, scene, camera }) {
@@ -25,7 +26,12 @@ export function installDebugAPI({ player, timeOfDay, camp, interactions, rendere
   let _cache = null;
   function treeData() {
     if (_cache) return _cache;
-    const pines = instancePositions('pineTrunks');
+    // conifers are LOD-managed, so their authoritative positions live on the
+    // forest object rather than in any single instanced mesh
+    const forests = getConiferForests();
+    const pines = forests.length
+      ? forests[0].trees.map((t) => t.pos.clone())
+      : instancePositions('pineTrunks');
     const leaves = instancePositions('leafTrunks');
     // densest pine: most neighbours within 14 m (the hardest view to render)
     let densest = pines[0] || new THREE.Vector3(-40, 0, -40);
@@ -359,9 +365,17 @@ export function installDebugAPI({ player, timeOfDay, camp, interactions, rendere
       };
     },
 
+    /** Pin conifers to one level of detail (0 near, 1 mid, 2 impostor, -1 auto). */
+    setConiferLOD(level) {
+      for (const f of getConiferForests()) f.forceLOD(level);
+      return level;
+    },
+
     // Foliage cards actually inside the camera frustum (set by vegetation.js).
     getFoliageStats() {
-      return window.__foliageStats ? window.__foliageStats(camera) : null;
+      const base = window.__foliageStats ? window.__foliageStats(camera) : {};
+      const forests = getConiferForests();
+      return { ...base, conifers: forests.map((f) => f.stats()) };
     },
 
     /**
