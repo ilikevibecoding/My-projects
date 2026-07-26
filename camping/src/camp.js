@@ -233,8 +233,13 @@ export function createCamp(scene) {
     }
   }
 
+  function clearAddedWood() {
+    flyingLogs.length = 0;
+    while (addedWood.children.length) addedWood.remove(addedWood.children[0]);
+  }
+
   return {
-    group, fire, update, tossLog,
+    group, fire, update, tossLog, clearAddedWood,
     interactables: {
       firepit: ringGroup,
       woodpile: pile,

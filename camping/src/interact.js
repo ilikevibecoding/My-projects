@@ -45,7 +45,10 @@ export class Interactions {
   update(dt, time) {
     this._pulse = (Math.sin(time * 5) * 0.5 + 0.5) * 0.09;
 
-    // raycast from screen center
+    // raycast from screen center. The camera's world matrix is normally only
+    // refreshed by the renderer, so without this the hover test would use the
+    // *previous* frame's camera transform (one-frame lag when the view moves).
+    this.camera.updateMatrixWorld();
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     let best = null;
     if (this.seated) {

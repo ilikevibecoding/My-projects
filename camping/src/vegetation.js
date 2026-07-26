@@ -9,6 +9,55 @@ export const LAYER_NO_REFLECT = 2; // grass excluded from water reflection
 const placeNoise = new SimplexNoise(777);
 
 // ---------------------------------------------------------------------------
+// Foliage cost registry — lets the harness report how many foliage cards are
+// actually inside the frustum (the number that drives overdraw on a software
+// rasterizer). Purely instrumentation; no effect on rendering.
+// ---------------------------------------------------------------------------
+const FOLIAGE_REGISTRY = [];
+export function registerFoliage(mesh, info) {
+  FOLIAGE_REGISTRY.push({ mesh, ...info });
+}
+
+if (typeof window !== 'undefined') {
+  const _frustum = new THREE.Frustum();
+  const _mvp = new THREE.Matrix4();
+  const _mat = new THREE.Matrix4();
+  const _sphere = new THREE.Sphere();
+  const _pos = new THREE.Vector3();
+  window.__foliageStats = (camera) => {
+    camera.updateMatrixWorld();
+    _mvp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    _frustum.setFromProjectionMatrix(_mvp);
+    const byKind = {};
+    let totalCards = 0;
+    let visibleCards = 0;
+    let visibleInstances = 0;
+    for (const entry of FOLIAGE_REGISTRY) {
+      const { mesh, kind, cardsPerInstance, radius } = entry;
+      if (!mesh || !mesh.visible) continue;
+      let vis = 0;
+      for (let i = 0; i < mesh.count; i++) {
+        mesh.getMatrixAt(i, _mat);
+        _pos.set(_mat.elements[12], _mat.elements[13], _mat.elements[14]);
+        const scale = Math.max(_mat.elements[0], _mat.elements[5], _mat.elements[10]);
+        _sphere.set(_pos, radius * scale);
+        _sphere.center.y += radius * scale * 0.5;
+        if (_frustum.intersectsSphere(_sphere)) vis++;
+      }
+      const cards = cardsPerInstance || 0;
+      byKind[kind] = byKind[kind] || { instances: 0, visibleInstances: 0, cardsPerInstance: cards, visibleCards: 0 };
+      byKind[kind].instances += mesh.count;
+      byKind[kind].visibleInstances += vis;
+      byKind[kind].visibleCards += vis * cards;
+      totalCards += mesh.count * cards;
+      visibleCards += vis * cards;
+      visibleInstances += vis;
+    }
+    return { byKind, totalCards, visibleCards, visibleInstances };
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Grass
 // ---------------------------------------------------------------------------
 function makeGrassCardTexture(size = 128) {
@@ -405,11 +454,17 @@ export function createTrees() {
     tintA: new THREE.Color(0x7ba04a), tintB: new THREE.Color(0xa8b04e), tintC: new THREE.Color(0x5e8c42),
   });
 
+  pineTrunks.name = 'pineTrunks';
+  pineFol.name = 'pineFoliage';
+  leafTrunks.name = 'leafTrunks';
+  leafFol.name = 'leafFoliage';
   for (const mh of [pineTrunks, pineFol, leafTrunks, leafFol]) {
     mh.castShadow = true;
     mh.receiveShadow = true;
     group.add(mh);
   }
+  registerFoliage(pineFol, { kind: 'pine', cardsPerInstance: 0, radius: 2.4 });
+  registerFoliage(leafFol, { kind: 'broadleaf', cardsPerInstance: 0, radius: 2.0 });
   return group;
 }
 

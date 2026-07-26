@@ -184,8 +184,39 @@ window.addEventListener('resize', () => {
 const clock = new THREE.Clock();
 let time = 0;
 
-function animate() {
-  const dt = Math.min(clock.getDelta(), 0.12); // generous clamp: keeps fades/transitions realtime even at low fps
+// Rolling frame-time buffer for accurate perf reporting (p50/p95, not an EMA).
+const FRAME_TIMES = new Float32Array(240);
+let frameTimeIdx = 0;
+let frameTimeCount = 0;
+window.__FRAME_TIMES = FRAME_TIMES;
+window.__frameTimeStats = () => {
+  const n = Math.min(frameTimeCount, FRAME_TIMES.length);
+  if (n === 0) return null;
+  const arr = Array.from(FRAME_TIMES.slice(0, n)).sort((a, b) => a - b);
+  const pick = (p) => arr[Math.min(n - 1, Math.floor(p * n))];
+  const avg = arr.reduce((s, v) => s + v, 0) / n;
+  return {
+    samples: n,
+    avgMs: +avg.toFixed(2),
+    p50Ms: +pick(0.5).toFixed(2),
+    p95Ms: +pick(0.95).toFixed(2),
+    minMs: +arr[0].toFixed(2),
+    maxMs: +arr[n - 1].toFixed(2),
+    avgFps: +(1000 / avg).toFixed(2),
+    p95Fps: +(1000 / pick(0.95)).toFixed(2),
+  };
+};
+window.__resetFrameTimes = () => { frameTimeIdx = 0; frameTimeCount = 0; };
+
+// Deterministic time stepping for automated tests: when set, the simulation
+// advances by a fixed dt per frame regardless of real frame duration, so
+// animation state is reproducible on a slow software rasterizer.
+// Never set during normal play.
+window.__FIXED_STEP = 0;
+
+// Simulation step, separated from rendering so the capture harness can advance
+// the world deterministically and render exactly when it wants to.
+function simulate(dt) {
   time += dt;
 
   player.update(dt);
@@ -205,13 +236,44 @@ function animate() {
   sun.target.position.copy(camera.position);
 
   post.update(time);
-  debugAPI._tickFPS();
+}
+
+function renderFrame() {
   renderer.info.reset(); // count ALL passes of this frame (autoReset is off)
   post.composer.render();
+}
 
-  window.__FRAME++;
+// Exposed for the capture harness (see tools/harness.mjs). Runs entirely
+// synchronously inside one call so a screenshot never has to race the
+// compositor or wait on requestAnimationFrame.
+window.__simulate = simulate;
+window.__renderFrame = renderFrame;
+window.__getTime = () => time;
+
+function animate() {
+  const frameStart = performance.now();
+  const raw = clock.getDelta();
+  const dt = window.__FIXED_STEP > 0 ? window.__FIXED_STEP : Math.min(raw, 0.12);
+
+  if (!window.__MANUAL_MODE) {
+    simulate(dt);
+    debugAPI._tickFPS();
+    if (!window.__PAUSE_RENDER) renderFrame();
+
+    // Freeze only after a complete frame has been drawn, so the capture path
+    // always has a fully composited image to grab.
+    if (window.__PAUSE_AFTER_FRAME && !window.__PAUSE_RENDER) {
+      window.__PAUSE_AFTER_FRAME = false;
+      window.__PAUSE_RENDER = true;
+    }
+
+    window.__FRAME++;
+    FRAME_TIMES[frameTimeIdx] = performance.now() - frameStart;
+    frameTimeIdx = (frameTimeIdx + 1) % FRAME_TIMES.length;
+    frameTimeCount++;
+  }
+
   if (!window.__APP_READY) window.__APP_READY = true;
-
   requestAnimationFrame(animate);
 }
 animate();
