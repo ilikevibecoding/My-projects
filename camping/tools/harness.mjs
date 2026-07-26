@@ -269,42 +269,53 @@ export async function setState(page, { view, timeOfDay, fireLit, hud = false }) 
  * The measurement window is deliberately short: continuous software rendering
  * trips Chrome's GPU watchdog at roughly 90 s.
  */
-export async function measurePerf(page, { seconds = 15, label = '' } = {}) {
-  // measure the *static* costs first, while still in manual mode
-  const overdraw = await page.evaluate(() => window.debugAPI.measureOverdraw(240));
-  const texmem = await page.evaluate(() => window.debugAPI.getTextureMemory());
+export async function measurePerf(page, { frames = 12, label = '' } = {}) {
+  // One measured frame per call, with an idle gap in between. Back-to-back
+  // rendering never lets the GPU process answer Chrome's watchdog, which then
+  // kills the context and makes every subsequent "frame" free (and the numbers
+  // meaningless). glFinish() ensures we time rasterisation, not submission.
+  await page.evaluate(() => window.debugAPI.timeOneFrame()); // warm up / compile
+  await sleep(300);
+  const samples = [];
+  let lostDuring = false;
+  for (let i = 0; i < frames; i++) {
+    const s = await page.evaluate(() => window.debugAPI.timeOneFrame());
+    if (s.contextLost) { lostDuring = true; break; }
+    samples.push(s);
+    await sleep(250);
+  }
+  const times = samples.map((s) => s.ms).sort((a, b) => a - b);
+  const avg = times.reduce((s, v) => s + v, 0) / (times.length || 1);
+  const pick = (p) => times[Math.min(times.length - 1, Math.floor(p * times.length))] ?? 0;
+  const cost = {
+    frames: times.length,
+    avgMs: +avg.toFixed(1),
+    p50Ms: +pick(0.5).toFixed(1),
+    p95Ms: +pick(0.95).toFixed(1),
+    minMs: times[0] ?? 0,
+    maxMs: times[times.length - 1] ?? 0,
+    fps: +(1000 / avg).toFixed(2),
+    drawCalls: samples[0]?.drawCalls ?? 0,
+    triangles: samples[0]?.triangles ?? 0,
+    lostDuringTiming: lostDuring,
+  };
   const foliage = await page.evaluate(() => window.debugAPI.getFoliageStats());
-
-  // now free-run for the throughput sample
-  await page.evaluate(() => {
-    window.debugAPI.setFixedStep(0);
-    window.debugAPI.setManualMode(false);
-    window.debugAPI.resetPerf();
-  });
-  await new Promise((r) => setTimeout(r, 1500)); // let it reach steady state
-  const f0 = await page.evaluate(() => window.__FRAME);
-  const t0 = Date.now();
-  await new Promise((r) => setTimeout(r, seconds * 1000)); // no CDP traffic here
-  const f1 = await page.evaluate(() => window.__FRAME);
-  const elapsed = (Date.now() - t0) / 1000;
+  const texmem = await page.evaluate(() => window.debugAPI.getTextureMemory());
   const stats = await page.evaluate(() => window.debugAPI.getStats());
-  const lost = await page.evaluate(() => window.__CTX_LOST === true);
-  await page.evaluate(() => {
-    window.debugAPI.setManualMode(true);
-    window.debugAPI.setFixedStep(1 / 60);
-  });
-
-  const fps = (f1 - f0) / elapsed;
+  // overdraw last: it is an extra full-scene pass and the most likely step to
+  // upset the driver, so a failure here must not invalidate the timings
+  let overdraw = null;
+  try {
+    overdraw = await page.evaluate(() => window.debugAPI.measureOverdraw(200));
+  } catch (e) {
+    overdraw = { error: String(e.message || e).slice(0, 120) };
+  }
+  const lost = await page.evaluate(() => window.__CTX_LOST === true).catch(() => true);
   return {
     label,
     renderer: stats.renderer,
     contextLostDuringRun: lost,
-    fps: +fps.toFixed(2),
-    frameTimeMs: +(1000 / fps).toFixed(1),
-    framesSampled: f1 - f0,
-    sampleSeconds: +elapsed.toFixed(1),
-    drawCalls: stats.drawCalls,
-    triangles: stats.triangles,
+    ...cost,
     memory: stats.memory,
     textureMemoryMB: texmem.mb,
     textureCount: texmem.textures,

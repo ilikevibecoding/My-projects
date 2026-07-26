@@ -391,6 +391,41 @@ export function installDebugAPI({ player, timeOfDay, camp, interactions, rendere
     },
 
     /**
+     * Measure true per-frame render cost.
+     *
+     * Continuous free-running rendering cannot be measured on this machine —
+     * software rasterisation is slow enough that Chrome's GPU watchdog kills
+     * the context mid-sample. Instead we render a fixed number of frames
+     * explicitly and glFinish() after each one, so the timing includes the
+     * rasterisation rather than just command submission.
+     *
+     * This is a *software-renderer* number, used to compare builds against the
+     * pre-remaster baseline. The 60 fps @1920x1080 release target must be
+     * verified on hardware through a normal browser launch.
+     */
+    timeOneFrame(dt = 1 / 60) {
+      const gl = renderer.getContext();
+      const px = new Uint8Array(4);
+      const t0 = performance.now();
+      window.__simulate(dt);
+      window.__renderFrame();
+      // gl.finish() alone is NOT enough here: ANGLE/SwiftShader defers the
+      // actual rasterisation until something reads the surface, which made
+      // frames look like 5 ms while a canvas readback took 13 s. A one-pixel
+      // read forces the pipeline to complete so the timing is honest.
+      gl.finish();
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const ms = performance.now() - t0;
+      window.__FRAME++;
+      return {
+        ms: +ms.toFixed(1),
+        drawCalls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        contextLost: gl.isContextLost(),
+      };
+    },
+
+    /**
      * Step, render and return the frame as a PNG data URL — all inside a single
      * synchronous call, so one CDP round trip yields one deterministic image.
      */

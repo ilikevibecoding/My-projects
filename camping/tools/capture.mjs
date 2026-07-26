@@ -343,10 +343,10 @@ async function main() {
       const page = await newGamePage(browser, VIEWPORTS[vpName]);
       await setState(page, { view: viewKey, timeOfDay: 'day', fireLit: false, hud: false });
       await page.evaluate(() => window.debugAPI.step(10, 1 / 60));
-      const r = await measurePerf(page, { seconds: 15, label: `${viewKey}@${vpName}` });
+      const r = await measurePerf(page, { frames: 6, label: `${viewKey}@${vpName}` });
       perf[`${viewKey}@${vpName}`] = r;
-      console.log(`  ${viewKey}@${vpName}: ${r.fps} fps (${r.frameTimeMs} ms/frame), ${r.drawCalls} calls, ` +
-        `${(r.triangles / 1e6).toFixed(2)}M tris, overdraw ${r.overdraw.avgOverdrawAllPixels}x, ` +
+      console.log(`  ${viewKey}@${vpName}: ${r.avgMs} ms/frame (p95 ${r.p95Ms}, ${r.fps} fps sw), ${r.drawCalls} calls, ` +
+        `${(r.triangles / 1e6).toFixed(2)}M tris, overdraw ${r.overdraw?.avgOverdrawAllPixels}x, ` +
         `texmem ${r.textureMemoryMB}MB, visFoliage ${r.foliage?.visibleInstances}${r.contextLostDuringRun ? '  [CONTEXT LOST]' : ''}`);
       await page.close();
     }
