@@ -58,8 +58,23 @@ export function createPost(renderer, scene, camera) {
 
   const gtao = new GTAOPass(scene, camera, size.x, size.y);
   gtao.output = GTAOPass.OUTPUT.Default;
-  // restrict AO to the playable bowl: kills silhouette halos on far mountains
-  gtao.setSceneClipBox(new THREE.Box3(new THREE.Vector3(-170, -30, -170), new THREE.Vector3(170, 90, 170)));
+  // AO is confined to the campsite.
+  //
+  // Screen-space AO and alpha-tested foliage do not mix: the cutout edges are
+  // hard depth discontinuities, so GTAO draws a dark halo around every needle
+  // sprig and every impostor quad. That is what produced the black outlines
+  // around the trees — measured, not guessed: with AO enabled the treeline view
+  // had 180 near-black pixels hugging the sky boundary, and with AO disabled it
+  // had exactly 0. Tuning radius/scale/thickness could not fix it (the best
+  // config still left 25), because the artefact is inherent to running SSAO
+  // over cutouts.
+  //
+  // Clipping AO to a box around camp keeps the part that actually earns its
+  // keep — contact darkening under the tent, logs, firepit and rocks, still
+  // two thirds of its original effect there — while every tree in the scene
+  // sits outside the box and renders clean. Verified: 0 fringe pixels in both
+  // the camp and treeline views. See tools/fringe.mjs.
+  gtao.setSceneClipBox(new THREE.Box3(new THREE.Vector3(-20, -8, -20), new THREE.Vector3(20, 10, 20)));
   composer.addPass(gtao);
 
   const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.25, 0.55, 1.0);
@@ -78,6 +93,19 @@ export function createPost(renderer, scene, camera) {
 
   return {
     composer,
+    gtao,
+    setAO(enabled) { gtao.enabled = !!enabled; },
+    setAOBox(halfXZ, minY, maxY) {
+      gtao.setSceneClipBox(new THREE.Box3(
+        new THREE.Vector3(-halfXZ, minY, -halfXZ),
+        new THREE.Vector3(halfXZ, maxY, halfXZ)));
+    },
+    setAOParams({ radius, scale, distanceExponent, thickness } = {}) {
+      if (radius !== undefined) gtao.updateGtaoMaterial({ radius });
+      if (scale !== undefined) gtao.updateGtaoMaterial({ scale });
+      if (distanceExponent !== undefined) gtao.updateGtaoMaterial({ distanceExponent });
+      if (thickness !== undefined) gtao.updateGtaoMaterial({ thickness });
+    },
     setExposure(v) { renderer.toneMappingExposure = v; },
     setBloom(strength, threshold) {
       bloom.strength = strength;

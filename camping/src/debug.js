@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { getConiferForests } from './vegetation.js';
 import { getTerrainHeight, POND, WATER_LEVEL } from './terrain.js';
 
-export function installDebugAPI({ player, timeOfDay, camp, interactions, renderer, hud, scene, camera }) {
+export function installDebugAPI({ player, timeOfDay, camp, interactions, renderer, hud, scene, camera, post }) {
   const h = (x, z) => getTerrainHeight(x, z);
 
   // --- scene introspection: find real instance positions so inspection views
@@ -363,6 +363,116 @@ export function installDebugAPI({ player, timeOfDay, camp, interactions, rendere
         coveragePct: +((covered / px) * 100).toFixed(1),
         resolution: `${w}x${h}`,
       };
+    },
+
+    /**
+     * Temporary isolation switches used to attribute dark edge pixels to a
+     * specific cause (texture filtering vs. branch geometry vs. shadowing).
+     * Diagnostic only — nothing calls this during play.
+     */
+    setForestDebug({ hideWood, hideCards, noCardShadows, flatCardColor, unlitCards, ambientBoost } = {}) {
+      const applied = [];
+      for (const f of getConiferForests()) {
+        for (const l of f.levels) {
+          if (hideWood !== undefined) { l.wood.visible = !hideWood; applied.push('wood'); }
+          if (hideCards !== undefined) { l.cards.visible = !hideCards; }
+          if (noCardShadows !== undefined) {
+            l.cards.castShadow = !noCardShadows;
+            l.cards.receiveShadow = !noCardShadows;
+            l.wood.castShadow = !noCardShadows;
+          }
+          if (flatCardColor !== undefined) {
+            const m = l.cards.material;
+            if (flatCardColor) {
+              if (!m.userData._savedMap) m.userData._savedMap = m.map;
+              m.map = null;
+              m.color = new THREE.Color(0x4a7a3f);
+              m.alphaTest = 0;
+            } else if (m.userData._savedMap) {
+              m.map = m.userData._savedMap;
+              m.color = new THREE.Color(0xffffff);
+              m.alphaTest = 0.42;
+            }
+            m.needsUpdate = true;
+          }
+        }
+        for (const l of f.levels) {
+          const m = l.cards.material;
+          if (unlitCards !== undefined) {
+            if (unlitCards && !m.userData._litClone) {
+              m.userData._litClone = true;
+              const basic = new THREE.MeshBasicMaterial({
+                map: m.map, alphaTest: m.alphaTest, side: m.side, transparent: false });
+              l.cards.userData._litMat = m;
+              l.cards.material = basic;
+            } else if (!unlitCards && l.cards.userData._litMat) {
+              l.cards.material = l.cards.userData._litMat;
+              l.cards.material.userData._litClone = false;
+            }
+          }
+          if (ambientBoost !== undefined) {
+            const sh = l.cards.material.userData?.shader;
+            if (sh?.uniforms?.uAmbientBoost) sh.uniforms.uAmbientBoost.value = ambientBoost;
+          }
+        }
+        if (f.impostorMesh) {
+          const im = f.impostorMesh;
+          if (hideCards !== undefined) im.visible = !hideCards;
+          if (noCardShadows !== undefined) im.receiveShadow = !noCardShadows;
+          if (unlitCards !== undefined) {
+            if (unlitCards && !im.userData._litMat) {
+              im.userData._litMat = im.material;
+              im.material = new THREE.MeshBasicMaterial({
+                map: unlitCards === 'solid' ? null : im.material.map,
+                color: unlitCards === 'solid' ? 0xff0000 : 0xffffff,
+                alphaTest: unlitCards === 'solid' ? 0 : im.material.alphaTest,
+                side: im.material.side, transparent: false });
+            } else if (!unlitCards && im.userData._litMat) {
+              im.material = im.userData._litMat;
+              im.userData._litMat = null;
+            }
+          }
+          if (ambientBoost !== undefined) {
+            const sh = im.material.userData?.shader;
+            if (sh?.uniforms?.uAmbientBoost) sh.uniforms.uAmbientBoost.value = ambientBoost;
+          }
+        }
+      }
+      return applied.length;
+    },
+
+    setAOParams(p) { post.setAOParams(p); return p; },
+    setAOBox(halfXZ, minY, maxY) { post.setAOBox(halfXZ, minY, maxY); return halfXZ; },
+
+    /** Toggle screen-space ambient occlusion (diagnostic). */
+    setAO(enabled) {
+      post.setAO(enabled);
+      return enabled;
+    },
+
+    /** Export the impostor texture (and a chosen mip) as a PNG data URL. */
+    dumpImpostorTexture(level = 0, background = 'magenta') {
+      const f = getConiferForests()[0];
+      if (!f?.impostorMesh) return null;
+      const tex = f.impostorMesh.material.map;
+      const mip = tex.mipmaps?.[level];
+      if (!mip) return null;
+      const c = document.createElement('canvas');
+      c.width = mip.width;
+      c.height = mip.height;
+      const ctx = c.getContext('2d');
+      if (background) { ctx.fillStyle = background; ctx.fillRect(0, 0, c.width, c.height); }
+      const img = ctx.createImageData(mip.width, mip.height);
+      const bg = background === 'magenta' ? [255, 0, 255] : [0, 0, 0];
+      for (let i = 0; i < mip.width * mip.height; i++) {
+        const a = mip.data[i * 4 + 3] / 255;
+        img.data[i * 4] = Math.round(mip.data[i * 4] * a + bg[0] * (1 - a));
+        img.data[i * 4 + 1] = Math.round(mip.data[i * 4 + 1] * a + bg[1] * (1 - a));
+        img.data[i * 4 + 2] = Math.round(mip.data[i * 4 + 2] * a + bg[2] * (1 - a));
+        img.data[i * 4 + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      return c.toDataURL('image/png');
     },
 
     /** Pin conifers to one level of detail (0 near, 1 mid, 2 impostor, -1 auto). */

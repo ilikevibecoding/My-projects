@@ -6,6 +6,7 @@ import { makeBarkTexture, makeBirchBarkTexture, makeRockTexture } from './textur
 import { createConiferForest } from './conifer.js';
 import needleAtlasMeta from './assets/conifer_needles.json';
 import needleAtlasUrl from './assets/conifer_needles.png?url';
+import { imageToRGBA, makeFoliageTexture, edgeDarkeningRatio } from './foliagetex.js';
 
 export const LAYER_NO_REFLECT = 2; // grass excluded from water reflection
 
@@ -22,87 +23,31 @@ let _sharedRenderer = null;
 export function getNeedleTexture() { return _needleTexture; }
 export function getSharedRenderer() { return _sharedRenderer; }
 
-/**
- * Build a coverage-preserving mip chain for an alpha-tested cutout.
- *
- * Ordinary mipmapping averages alpha, so each smaller level has fewer texels
- * above the alpha threshold and the foliage steadily dissolves with distance —
- * a forest that looks solid up close turns into thin wisps on the horizon.
- * For every level we rescale alpha until the fraction of texels that survive
- * the alpha test matches the full-resolution image, which keeps the canopy's
- * apparent density constant at any distance.
- */
-function coveragePreservingMips(image, alphaTest) {
-  const base = document.createElement('canvas');
-  base.width = image.width;
-  base.height = image.height;
-  const bctx = base.getContext('2d', { willReadFrequently: true });
-  bctx.drawImage(image, 0, 0);
-  const baseData = bctx.getImageData(0, 0, base.width, base.height);
-
-  const coverageOf = (data, scale) => {
-    let n = 0;
-    for (let i = 3; i < data.length; i += 4) if (Math.min(1, (data[i] / 255) * scale) >= alphaTest) n++;
-    return n / (data.length / 4);
-  };
-  const target = coverageOf(baseData.data, 1);
-
-  const mips = [baseData];
-  let w = base.width, h = base.height;
-  let src = base;
-  while (w > 1 || h > 1) {
-    w = Math.max(1, w >> 1);
-    h = Math.max(1, h >> 1);
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const ctx = c.getContext('2d', { willReadFrequently: true });
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(src, 0, 0, w, h);
-    const img = ctx.getImageData(0, 0, w, h);
-
-    // binary-search the alpha scale that restores the original coverage
-    let lo = 1, hi = 12, scale = 1;
-    for (let it = 0; it < 12; it++) {
-      scale = (lo + hi) / 2;
-      if (coverageOf(img.data, scale) < target) lo = scale; else hi = scale;
-    }
-    scale = (lo + hi) / 2;
-    for (let i = 3; i < img.data.length; i += 4) {
-      img.data[i] = Math.min(255, Math.round(img.data[i] * scale));
-    }
-    ctx.putImageData(img, 0, 0);
-    mips.push(img);
-    src = c;
-  }
-  return mips;
-}
-
 /** Must be awaited before createTrees(): the impostor is rendered at build time. */
 export function loadFoliageAssets(renderer, { alphaTest = 0.42 } = {}) {
   _sharedRenderer = renderer;
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const tex = new THREE.Texture(img);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.mipmaps = coveragePreservingMips(img, alphaTest);
-      tex.image = tex.mipmaps[0];
-      tex.generateMipmaps = false;
-      tex.minFilter = THREE.LinearMipmapLinearFilter;
-      tex.magFilter = THREE.LinearFilter;
-      tex.wrapS = THREE.ClampToEdgeWrapping;
-      tex.wrapT = THREE.ClampToEdgeWrapping;
-      // anisotropy matters a lot for foliage seen at a grazing angle
-      tex.anisotropy = Math.min(8, renderer?.capabilities?.getMaxAnisotropy?.() ?? 1);
-      tex.needsUpdate = true;
+      const { data, width, height } = imageToRGBA(img);
+      const tex = makeFoliageTexture({
+        data, width, height, alphaTest,
+        colorSpace: THREE.SRGBColorSpace,
+        // anisotropy matters a lot for foliage seen at a grazing angle
+        anisotropy: Math.min(8, renderer?.capabilities?.getMaxAnisotropy?.() ?? 1),
+      });
+      tex.flipY = false;
       _needleTexture = tex;
+      _needleDiag = { edgeDarkening: edgeDarkeningRatio(data, width, height) };
       resolve(tex);
     };
     img.onerror = reject;
     img.src = needleAtlasUrl;
   });
 }
+
+let _needleDiag = null;
+export function getFoliageTextureDiagnostics() { return _needleDiag; }
 
 const CONIFER_FORESTS = [];
 export function getConiferForests() { return CONIFER_FORESTS; }

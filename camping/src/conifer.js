@@ -16,6 +16,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { makeFoliageTexture, edgeDarkeningRatio } from './foliagetex.js';
 
 /** Deterministic RNG so every build of the world is identical. */
 function rngFrom(seed) {
@@ -239,9 +240,14 @@ export function buildImpostorGeometry(height, width) {
  */
 export function renderImpostorTexture(renderer, woodMesh, cardMesh, height, size = { w: 256, h: 512 }) {
   const rt = new THREE.WebGLRenderTarget(size.w, size.h, {
-    minFilter: THREE.LinearMipmapLinearFilter,
+    minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
-    generateMipmaps: true,
+    generateMipmaps: false,
+    // Store the bake sRGB-ENCODED. A render target defaults to no colour-space
+    // conversion, so an 8-bit target ends up holding linear values: a mid-green
+    // canopy becomes ~(15,48,13) and the impostor reads as a black tree. This
+    // also wastes most of the 8-bit range on highlights nobody can see.
+    colorSpace: THREE.SRGBColorSpace,
   });
   const scene = new THREE.Scene();
   const halfW = 2.35;
@@ -253,30 +259,82 @@ export function renderImpostorTexture(renderer, woodMesh, cardMesh, height, size
   // tree still has some internal form, but the canopy-shade boosts the live
   // materials carry would blow the bake out (they turned the trunk bright
   // orange), so the bake uses its own clean materials.
-  scene.add(new THREE.AmbientLight(0xffffff, 0.95));
-  const key = new THREE.DirectionalLight(0xffffff, 0.45);
-  key.position.set(-0.6, 0.7, 1);
-  scene.add(key);
-  const bakeWoodMat = new THREE.MeshStandardMaterial({
+  // Bake plain ALBEDO with unlit materials. The impostor is lit by the scene
+  // when it is drawn, so any lighting baked in here is applied twice — and
+  // relying on lit materials means depending on three.js's physical light
+  // units, where AmbientLight(1) actually yields albedo/PI and quietly produces
+  // a tree half as bright as it should be.
+  const bakeWoodMat = new THREE.MeshBasicMaterial({
     map: woodMesh.material.map || null,
     color: woodMesh.material.color ? woodMesh.material.color.clone() : 0xffffff,
-    roughness: 0.95,
+  });
+  const bakeCardMat = new THREE.MeshBasicMaterial({
+    map: cardMesh.material.map,
+    alphaTest: cardMesh.material.alphaTest,
+    side: THREE.DoubleSide,
+    transparent: false,
   });
   const wood = new THREE.Mesh(woodMesh.geometry, bakeWoodMat);
-  const cards = cardMesh.clone();
+  const cards = new THREE.Mesh(cardMesh.geometry, bakeCardMat);
   scene.add(wood, cards);
 
   const prevTarget = renderer.getRenderTarget();
   const prevClear = renderer.getClearAlpha();
+  const prevToneMapping = renderer.toneMapping;
+  // The impostor is lit and tone-mapped again when it is drawn in the scene, so
+  // tone-mapping the bake as well applies ACES twice and crushes the canopy.
+  renderer.toneMapping = THREE.NoToneMapping;
   renderer.setRenderTarget(rt);
   renderer.setClearColor(0x000000, 0);
   renderer.clear(true, true, true);
   renderer.render(scene, cam);
+
+  // Everything outside the tree's silhouette in this target is transparent
+  // BLACK. Used directly, the first bilinear or mip sample that straddles the
+  // edge mixes that black into the needles and the distant trees get hard black
+  // outlines. So read the bake back and run it through the same dilation and
+  // coverage-preserving mip chain as the needle atlas.
+  const px = new Uint8Array(size.w * size.h * 4);
+  renderer.readRenderTargetPixels(rt, 0, 0, size.w, size.h, px);
   renderer.setRenderTarget(prevTarget);
   renderer.setClearAlpha(prevClear);
+  renderer.toneMapping = prevToneMapping;
 
+  const darkeningBefore = edgeDarkeningRatio(px, size.w, size.h);
+  // mean brightness of the covered texels: a black bake shows up here
+  let lumSum = 0, lumN = 0;
+  for (let i = 0; i < size.w * size.h; i++) {
+    if (px[i * 4 + 3] < 250) continue;
+    lumSum += 0.2126 * px[i * 4] + 0.7152 * px[i * 4 + 1] + 0.0722 * px[i * 4 + 2];
+    lumN++;
+  }
+  const bakeMeanLuma = lumN ? +(lumSum / lumN).toFixed(1) : null;
+  const texture = makeFoliageTexture({
+    data: px,
+    width: size.w,
+    height: size.h,
+    alphaTest: 0.35,
+    // the target is sRGB-encoded (see above), so sample it as sRGB
+    colorSpace: THREE.SRGBColorSpace,
+    anisotropy: Math.min(4, renderer.capabilities.getMaxAnisotropy?.() ?? 1),
+  });
+  texture.flipY = false;
+  const darkeningAfter = edgeDarkeningRatio(texture.mipmaps[1].data, texture.mipmaps[1].width, texture.mipmaps[1].height);
+
+  rt.dispose();
   bakeWoodMat.dispose();
-  return { texture: rt.texture, width: halfW * 2, height };
+  bakeCardMat.dispose();
+  return {
+    texture,
+    width: halfW * 2,
+    height,
+    diagnostics: {
+      edgeDarkeningBefore: darkeningBefore,
+      edgeDarkeningAfterMip1: darkeningAfter,
+      bakeMeanLuma,           // 0-255; a near-zero value means a black impostor
+      bakeOpaqueTexels: lumN,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -398,6 +456,7 @@ export function createConiferForest({
 
   // impostor level, textured from the detailed tree itself
   let impostorMesh = null;
+  let impostorDiagnostics = null;
   if (renderer) {
     const src = variants[0];
     const tmpWood = new THREE.Mesh(src.wood, barkMaterial);
@@ -405,6 +464,7 @@ export function createConiferForest({
       map: needleTexture, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.88,
     }));
     const imp = renderImpostorTexture(renderer, tmpWood, tmpCards, src.height);
+    impostorDiagnostics = imp.diagnostics;
     const impGeo = buildImpostorGeometry(imp.height, imp.width);
     const impMat = foliageWindMaterial(new THREE.MeshStandardMaterial({
       map: imp.texture,
@@ -521,7 +581,7 @@ export function createConiferForest({
       perLevel[`v${l.variant}_lod${l.detail}`] = l.wood.count;
     }
     perLevel.impostors = impostorMesh ? impostorMesh.count : 0;
-    return { visibleCards: cards, perLevel, trees: trees.length };
+    return { visibleCards: cards, perLevel, trees: trees.length, impostorDiagnostics };
   }
 
   return { group, update, stats, forceLOD, trees, levels, impostorMesh };

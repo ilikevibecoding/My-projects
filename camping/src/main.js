@@ -166,7 +166,7 @@ const hud = (() => {
 // ---------------------------------------------------------------------------
 const player = new Player(camera, renderer.domElement);
 const interactions = new Interactions({ camera, camp, player, timeOfDay, hud });
-const debugAPI = installDebugAPI({ player, timeOfDay, camp, interactions, renderer, hud, scene, camera });
+const debugAPI = installDebugAPI({ player, timeOfDay, camp, interactions, renderer, hud, scene, camera, post });
 
 window.__FRAME = 0;
 window.__APP_READY = false;
