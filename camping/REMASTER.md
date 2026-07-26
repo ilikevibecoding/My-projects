@@ -123,7 +123,50 @@ depths, weak contact shadows, no foreground framing.
 
 ---
 
-## 4. Harness reference
+## 4. Conifer spike (stream A, first pass)
+
+The cone-stack pines were rebuilt as: photographic needle sprigs cut into an
+alpha-tested atlas, mounted on real whorled branch geometry, with three levels
+of detail and impostors rendered from the detailed tree itself. Details are in
+`src/conifer.js` and `tools/atlas.mjs`.
+
+**Halo check** (the specific risk with black-background extraction). The atlas
+builder un-premultiplies, edge-dilates and then measures its own mip chain:
+
+| level | size | mean covered colour |
+|---|---|---|
+| base | 1024² | (73.4, 94.6, 53.5) |
+| mip 1 | 512² | (73.1, 94.1, 53.3) |
+| mip 3 | 128² | (77.7, 98.9, 56.9) |
+| mip 5 | 32² | (82.4, 104.5, 61.8) |
+
+Worst-case ratio **0.996** — no darkening, so no black outlines. Confirmed
+visually by compositing the atlas over magenta.
+
+**Benchmark, intentionally difficult forest view, single instance:**
+
+| Metric | Baseline (cones) | Spike | Δ |
+|---|---|---|---|
+| forest_dense @1280×720 | 5402 ms/frame | 7896 ms/frame | +46% |
+| camp @1280×720 | 4583 ms/frame | 4750 ms/frame | +4% |
+| triangles, forest_dense | 2.60 M | 3.20 M | +23% |
+| triangles, camp | 2.13 M | **1.97 M** | −8% |
+| draw calls | 339 | 379 | +12% |
+| overdraw | 40.9× | 53.2× | +30% |
+| texture memory | 1.83 MB | 6.50 MB | budget 24 MB |
+| visible foliage cards | n/a (cone tiers) | ~27 000 | 37 near / 114 mid / 269 impostor |
+| hardware result | — | **not measurable here** — see §2 | |
+
+**The important finding:** cutting triangles by 28% did not change frame time
+at all. The cost is fill, not geometry — on this rasteriser overdraw is
+everything. And the camp view sits at 39.7× overdraw with almost no conifers on
+screen, which means **grass is the dominant global fill cost**, not trees.
+Grass is therefore promoted ahead of broadleaf in the work order, and card
+silhouette trimming is added to the plan for every foliage type.
+
+---
+
+## 5. Harness reference
 
 ```
 node tools/capture.mjs <pass> [--viewports=1280x720,1920x1080,1366x768]
