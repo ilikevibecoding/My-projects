@@ -45,10 +45,12 @@ export class Interactions {
   update(dt, time) {
     this._pulse = (Math.sin(time * 5) * 0.5 + 0.5) * 0.09;
 
-    // raycast from screen center. The camera's world matrix is normally only
-    // refreshed by the renderer, so without this the hover test would use the
-    // *previous* frame's camera transform (one-frame lag when the view moves).
+    // Raycast from screen center. World matrices are normally only refreshed by
+    // the renderer, so without these updates the hover test would run against
+    // the previous frame's camera transform (a one-frame lag whenever the view
+    // moves) and against stale target transforms.
     this.camera.updateMatrixWorld();
+    for (const t of this.targets) t.object.updateWorldMatrix(true, true);
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
     let best = null;
     if (this.seated) {
@@ -102,8 +104,8 @@ export class Interactions {
           this.hud.setStatus('No point — the fire is not lit.');
           break;
         }
-        this.camp.tossLog();
-        setTimeout(() => this.camp.fire.addWood(), 600);
+        // the fire flares when the log lands, not on a wall-clock timer
+        this.camp.tossLog(() => this.camp.fire.addWood());
         this.hud.setStatus('You toss a log onto the fire.');
         break;
       }

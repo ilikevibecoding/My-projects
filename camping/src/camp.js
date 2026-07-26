@@ -203,13 +203,20 @@ export function createCamp(scene) {
 
   // ---------------- "add wood" animation ----------------
   const flyingLogs = [];
-  function tossLog() {
+  /**
+   * Throw a log onto the fire. `onLand` runs when the log actually arrives,
+   * driven by the simulation clock — so the fire flares exactly as the log
+   * hits, at any frame rate. (This used to be a wall-clock setTimeout, which
+   * drifted out of sync with the animation and could not be stepped
+   * deterministically.)
+   */
+  function tossLog(onLand = null) {
     const lg = logMesh(barkTex, ringsTex, 0.7, 0.07);
     const from = new THREE.Vector3(pileX, pileY + 0.7, pileZ);
     addedWood.add(lg);
     lg.position.copy(from);
     flyingLogs.push({
-      mesh: lg, t: 0,
+      mesh: lg, t: 0, onLand,
       from,
       to: new THREE.Vector3(fireX + (rand() - 0.5) * 0.3, fireY + 0.28, fireZ + (rand() - 0.5) * 0.3),
       spin: new THREE.Vector3(rand() * 6, rand() * 2, rand() * 6),
@@ -229,6 +236,7 @@ export function createCamp(scene) {
         f.mesh.rotation.set(Math.PI / 2 + (rand() - 0.5) * 0.6, rand() * Math.PI, 0);
         flyingLogs.splice(i, 1);
         if (addedWood.children.length > 5) addedWood.remove(addedWood.children[0]);
+        f.onLand?.();
       }
     }
   }

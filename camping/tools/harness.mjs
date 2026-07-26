@@ -257,21 +257,52 @@ export async function setState(page, { view, timeOfDay, fireLit, hud = false }) 
  * Official perf measurement. MUST be called on a lone browser instance.
  * Uses real frame timings collected inside the render loop.
  */
-export async function measurePerf(page, { seconds = 6, label = '' } = {}) {
-  // free-run (no fixed step) so timings reflect real cost, then restore
-  const prevStep = await page.evaluate(() => window.__FIXED_STEP);
-  await page.evaluate(() => window.debugAPI.setFixedStep(0));
-  await page.evaluate(() => window.debugAPI.resetPerf());
-  await new Promise((r) => setTimeout(r, seconds * 1000));
-  const stats = await page.evaluate(() => window.debugAPI.getStats());
+/**
+ * Official performance measurement. MUST run on a lone browser instance:
+ * concurrent CPU-rendered workers fight over the same four cores and produce
+ * meaningless numbers.
+ *
+ * Frames are counted by wall clock rather than trusting in-page timers —
+ * SwiftShader rasterises on its own threads, so the JS-side frame time only
+ * measures command submission (~0.02 ms) and wildly overstates throughput.
+ *
+ * The measurement window is deliberately short: continuous software rendering
+ * trips Chrome's GPU watchdog at roughly 90 s.
+ */
+export async function measurePerf(page, { seconds = 15, label = '' } = {}) {
+  // measure the *static* costs first, while still in manual mode
   const overdraw = await page.evaluate(() => window.debugAPI.measureOverdraw(240));
   const texmem = await page.evaluate(() => window.debugAPI.getTextureMemory());
   const foliage = await page.evaluate(() => window.debugAPI.getFoliageStats());
-  await page.evaluate((s) => window.debugAPI.setFixedStep(s), prevStep);
+
+  // now free-run for the throughput sample
+  await page.evaluate(() => {
+    window.debugAPI.setFixedStep(0);
+    window.debugAPI.setManualMode(false);
+    window.debugAPI.resetPerf();
+  });
+  await new Promise((r) => setTimeout(r, 1500)); // let it reach steady state
+  const f0 = await page.evaluate(() => window.__FRAME);
+  const t0 = Date.now();
+  await new Promise((r) => setTimeout(r, seconds * 1000)); // no CDP traffic here
+  const f1 = await page.evaluate(() => window.__FRAME);
+  const elapsed = (Date.now() - t0) / 1000;
+  const stats = await page.evaluate(() => window.debugAPI.getStats());
+  const lost = await page.evaluate(() => window.__CTX_LOST === true);
+  await page.evaluate(() => {
+    window.debugAPI.setManualMode(true);
+    window.debugAPI.setFixedStep(1 / 60);
+  });
+
+  const fps = (f1 - f0) / elapsed;
   return {
     label,
     renderer: stats.renderer,
-    frameTimes: stats.frameTimes,
+    contextLostDuringRun: lost,
+    fps: +fps.toFixed(2),
+    frameTimeMs: +(1000 / fps).toFixed(1),
+    framesSampled: f1 - f0,
+    sampleSeconds: +elapsed.toFixed(1),
     drawCalls: stats.drawCalls,
     triangles: stats.triangles,
     memory: stats.memory,

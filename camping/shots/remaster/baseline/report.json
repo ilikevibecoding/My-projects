@@ -1,0 +1,126 @@
+{
+  "pass": "baseline",
+  "startedAt": "2026-07-26T08:14:31.998Z",
+  "viewports": [
+    "1280x720"
+  ],
+  "states": [
+    {
+      "item": {
+        "name": "camp_day",
+        "view": "camp",
+        "tod": "day",
+        "fire": false,
+        "group": "beauty"
+      },
+      "state": "camp_day",
+      "viewport": "1280x720",
+      "file": "/workspace/camping/shots/remaster/baseline/camp_day@1280x720.png",
+      "group": "beauty",
+      "drawCalls": 229,
+      "triangles": 2130299,
+      "verifiedState": true,
+      "actual": {
+        "timeOfDay": "day",
+        "transitioning": false,
+        "fading": false,
+        "fireLit": false,
+        "fireBoost": 0,
+        "seated": false,
+        "busy": false
+      },
+      "errors": [],
+      "hudCheck": null
+    }
+  ],
+  "motion": [],
+  "perf": null,
+  "playthrough": {
+    "log": [
+      {
+        "step": "walk forward (KeyW)",
+        "ok": true,
+        "detail": "moved 3.32 m"
+      },
+      {
+        "step": "eye height follows terrain",
+        "ok": true,
+        "detail": "eye 1.70 m"
+      },
+      {
+        "step": "strafe left (KeyA)",
+        "ok": true,
+        "detail": "moved 1.74 m"
+      },
+      {
+        "step": "walk back (KeyS)",
+        "ok": true,
+        "detail": "position changed"
+      },
+      {
+        "step": "mouse look changes yaw",
+        "ok": true,
+        "detail": "yaw 2.45 → 1.85"
+      },
+      {
+        "step": "hover firepit",
+        "ok": true,
+        "detail": "hovered=firepit"
+      },
+      {
+        "step": "interact firepit → fire lit",
+        "ok": true,
+        "detail": "{\"fireLit\":true,\"fireBoost\":0,\"seated\":false}"
+      },
+      {
+        "step": "hover woodpile",
+        "ok": true,
+        "detail": "hovered=woodpile"
+      },
+      {
+        "step": "interact woodpile → wood reaches the fire",
+        "ok": true,
+        "detail": "{\"fireLit\":true,\"fireBoost\":0.94,\"seated\":false}"
+      },
+      {
+        "step": "hover seatlog",
+        "ok": true,
+        "detail": "hovered=seatlog"
+      },
+      {
+        "step": "interact seatlog → seated",
+        "ok": true,
+        "detail": "{\"fireLit\":true,\"fireBoost\":0.72,\"seated\":true}"
+      },
+      {
+        "step": "stand up from seat",
+        "ok": true,
+        "detail": "after 50 steps"
+      },
+      {
+        "step": "hover tent",
+        "ok": true
+      },
+      {
+        "step": "sleep advances time of day",
+        "ok": true,
+        "detail": "day → golden"
+      },
+      {
+        "step": "scene still renders at the end",
+        "ok": true,
+        "detail": "165 draw calls"
+      },
+      {
+        "step": "no console/page errors",
+        "ok": true,
+        "detail": ""
+      }
+    ],
+    "errors": [],
+    "passed": true,
+    "failures": []
+  },
+  "finishedAt": "2026-07-26T08:15:25.808Z",
+  "errorCount": 0
+}

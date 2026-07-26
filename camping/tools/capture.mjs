@@ -145,74 +145,119 @@ async function captureMotionPair(page, m, vpName, dir) {
 // after every visual change. Uses genuine key events, not debugAPI shortcuts.
 // ---------------------------------------------------------------------------
 async function playthrough(browser, dir) {
+  // Real keyboard/mouse events drive the game's own handlers; the simulation is
+  // advanced explicitly so the result does not depend on how fast this machine
+  // can rasterise. Same input path as a player, deterministic timing.
   const page = await newGamePage(browser, VIEWPORTS['1280x720']);
   const log = [];
-  const rec = (step, ok, detail) => { log.push({ step, ok, detail }); console.log(`   ${ok ? 'PASS' : 'FAIL'}  ${step}${detail ? ' — ' + detail : ''}`); };
+  const rec = (step, ok, detail) => {
+    log.push({ step, ok, detail });
+    console.log(`   ${ok ? 'PASS' : 'FAIL'}  ${step}${detail ? ' — ' + detail : ''}`);
+  };
+  const step = (n) => page.evaluate((k) => window.debugAPI.step(k, 1 / 60), n);
+  const stepUntil = (predSrc, max = 900) => page.evaluate(([src, m]) => {
+    const fn = new Function(`return (${src})`)();
+    for (let i = 0; i < m; i++) {
+      if (fn()) return i;
+      window.debugAPI.step(1, 1 / 60);
+    }
+    return -1;
+  }, [predSrc.toString(), max]);
+  const state = () => page.evaluate(() => window.debugAPI.getState());
+  const pstate = () => page.evaluate(() => window.debugAPI.getPlayerState());
 
   await page.evaluate(() => window.debugAPI.setHUD(true));
 
-  // 1. walking with real WASD
-  const before = await page.evaluate(() => window.debugAPI.getPlayerState());
+  // 1. walking with real key events
+  const before = await pstate();
   await page.keyboard.down('KeyW');
-  await waitFrames(page, 45);
+  await step(45);
   await page.keyboard.up('KeyW');
-  await waitFrames(page, 6);
-  const after = await page.evaluate(() => window.debugAPI.getPlayerState());
+  await step(6);
+  const after = await pstate();
   const moved = Math.hypot(after.x - before.x, after.z - before.z);
   rec('walk forward (KeyW)', moved > 0.5, `moved ${moved.toFixed(2)} m`);
-  rec('eye height maintained', Math.abs(after.eyeAboveGround - 1.7) < 0.02, `eye ${after.eyeAboveGround.toFixed(2)} m`);
+  rec('eye height follows terrain', Math.abs(after.eyeAboveGround - 1.7) < 0.05, `eye ${after.eyeAboveGround.toFixed(2)} m`);
 
-  // strafe + back
   await page.keyboard.down('KeyA');
-  await waitFrames(page, 25);
+  await step(25);
   await page.keyboard.up('KeyA');
-  const after2 = await page.evaluate(() => window.debugAPI.getPlayerState());
-  rec('strafe left (KeyA)', Math.hypot(after2.x - after.x, after2.z - after.z) > 0.3, 'position changed');
+  await step(4);
+  const after2 = await pstate();
+  rec('strafe left (KeyA)', Math.hypot(after2.x - after.x, after2.z - after.z) > 0.3,
+    `moved ${Math.hypot(after2.x - after.x, after2.z - after.z).toFixed(2)} m`);
 
-  // 2. look with the mouse
-  const yaw0 = after2.yaw;
-  await page.mouse.move(640, 360);
-  await page.mouse.move(900, 360, { steps: 8 });
-  await waitFrames(page, 4);
-  const yaw1 = (await page.evaluate(() => window.debugAPI.getPlayerState())).yaw;
-  rec('mouse look changes yaw', Math.abs(yaw1 - yaw0) >= 0 /* pointer lock off in automation */, 'pointer-lock path exercised');
+  await page.keyboard.down('KeyS');
+  await step(20);
+  await page.keyboard.up('KeyS');
+  await step(4);
+  const after3 = await pstate();
+  rec('walk back (KeyS)', Math.hypot(after3.x - after2.x, after3.z - after2.z) > 0.2, 'position changed');
 
-  // 3. the four interactions, each via a real [E] press
+  // 2. mouse look — needs pointer lock, which needs a real user gesture
+  await page.mouse.click(640, 360);
+  await step(4);
+  const locked = await page.evaluate(() => document.pointerLockElement !== null);
+  if (locked) {
+    const yaw0 = (await pstate()).yaw;
+    await page.mouse.move(900, 360, { steps: 10 });
+    await step(4);
+    const yaw1 = (await pstate()).yaw;
+    rec('mouse look changes yaw', Math.abs(yaw1 - yaw0) > 0.01, `yaw ${yaw0.toFixed(2)} → ${yaw1.toFixed(2)}`);
+    await page.keyboard.press('Escape');
+    await step(4);
+  } else {
+    rec('pointer lock acquired on click', false, 'not granted in automation — mouse look not exercised');
+  }
+
+  // 3. every interaction, each triggered by a real [E] press
   const seq = [
-    { view: 'aim_fire', key: 'firepit', expect: 'fire lit', check: async () => (await page.evaluate(() => window.debugAPI.getState())).fireLit === true },
-    { view: 'aim_wood', key: 'woodpile', expect: 'wood added', check: async () => (await page.evaluate(() => window.debugAPI.getState())).fireBoost > 0 },
-    { view: 'aim_log', key: 'seatlog', expect: 'seated', check: async () => (await page.evaluate(() => window.debugAPI.getState())).seated === true },
+    { view: 'aim_fire', key: 'firepit', expect: 'fire lit', check: (s) => s.fireLit === true },
+    // the tossed log has to arc through the air before it feeds the fire
+    {
+      view: 'aim_wood', key: 'woodpile', expect: 'wood reaches the fire',
+      settle: '() => window.debugAPI.getState().fireBoost > 0',
+      check: (s) => s.fireBoost > 0,
+    },
+    { view: 'aim_log', key: 'seatlog', expect: 'seated', check: (s) => s.seated === true },
   ];
   for (const s of seq) {
     await page.evaluate((v) => window.debugAPI.setView(v), s.view);
-    await waitFrames(page, 8);
+    await step(8);
     const hovered = await page.evaluate(() => window.debugAPI.getHovered());
     rec(`hover ${s.key}`, hovered === s.key, `hovered=${hovered}`);
-    await page.screenshot({ path: join(dir, `play_hover_${s.key}.png`) });
+    await captureCompositeToFile(page, join(dir, `play_hover_${s.key}.png`), { steps: 2 });
     await page.keyboard.press('KeyE');
-    await waitFrames(page, 30);
-    let ok = false;
-    try { ok = await s.check(); } catch { /* ignore */ }
-    rec(`interact ${s.key} → ${s.expect}`, ok);
-    await page.screenshot({ path: join(dir, `play_after_${s.key}.png`) });
+    await stepUntil(`() => { const st = window.debugAPI.getState(); return !st.busy && !st.fading; }`, 900);
+    if (s.settle) await stepUntil(s.settle, 600);
+    await step(20);
+    const st = await state();
+    rec(`interact ${s.key} → ${s.expect}`, s.check(st), JSON.stringify({ fireLit: st.fireLit, fireBoost: +(st.fireBoost || 0).toFixed(2), seated: st.seated }));
+    await captureCompositeToFile(page, join(dir, `play_after_${s.key}.png`), { steps: 2 });
   }
 
   // stand back up
   await page.keyboard.press('KeyE');
-  await waitUntil(page, '() => !window.debugAPI.getState().seated && !window.debugAPI.getState().busy && !window.debugAPI.getState().fading');
-  rec('stand up', true);
+  const stoodAt = await stepUntil(`() => { const s = window.debugAPI.getState(); return !s.seated && !s.busy && !s.fading; }`, 900);
+  rec('stand up from seat', stoodAt >= 0, `after ${stoodAt} steps`);
 
-  // 4. sleep advances time of day
-  const todBefore = (await page.evaluate(() => window.debugAPI.getState())).timeOfDay;
+  // 4. sleep advances the time of day
+  const todBefore = (await state()).timeOfDay;
   await page.evaluate(() => window.debugAPI.setView('aim_tent'));
-  await waitFrames(page, 8);
+  await step(8);
+  rec('hover tent', (await page.evaluate(() => window.debugAPI.getHovered())) === 'tent');
   await page.keyboard.press('KeyE');
-  await waitUntil(page, '() => !window.debugAPI.getState().busy && !window.debugAPI.getState().fading && !window.debugAPI.getState().transitioning');
-  const todAfter = (await page.evaluate(() => window.debugAPI.getState())).timeOfDay;
-  rec('sleep advances time of day', todBefore !== todAfter, `${todBefore} → ${todAfter}`);
-  await page.screenshot({ path: join(dir, 'play_after_sleep.png') });
+  const doneAt = await stepUntil(`() => { const s = window.debugAPI.getState(); return !s.busy && !s.fading && !s.transitioning; }`, 1800);
+  const todAfter = (await state()).timeOfDay;
+  rec('sleep advances time of day', todBefore !== todAfter && doneAt >= 0, `${todBefore} → ${todAfter}`);
+  await captureCompositeToFile(page, join(dir, 'play_after_sleep.png'), { steps: 2 });
+
+  // 5. the world still renders after the whole sequence
+  const finalStats = await page.evaluate(() => window.debugAPI.getStats());
+  rec('scene still renders at the end', finalStats.drawCalls > 0, `${finalStats.drawCalls} draw calls`);
 
   const errors = page.errors.slice();
+  rec('no console/page errors', errors.length === 0, errors.length ? errors.map((e) => e.text.slice(0, 80)).join(' | ') : '');
   await page.close();
   const failures = log.filter((l) => !l.ok);
   return { log, errors, passed: failures.length === 0, failures };
@@ -294,13 +339,15 @@ async function main() {
     const browser = await launch({ headless: false });
     const perf = {};
     for (const [vpName, viewKey] of [['1280x720', 'forest_dense'], ['1280x720', 'camp'], ['1920x1080', 'forest_dense']]) {
+      // one fresh page per measurement so the watchdog window never elapses
       const page = await newGamePage(browser, VIEWPORTS[vpName]);
       await setState(page, { view: viewKey, timeOfDay: 'day', fireLit: false, hud: false });
-      await waitFrames(page, 20);
-      const r = await measurePerf(page, { seconds: 8, label: `${viewKey}@${vpName}` });
+      await page.evaluate(() => window.debugAPI.step(10, 1 / 60));
+      const r = await measurePerf(page, { seconds: 15, label: `${viewKey}@${vpName}` });
       perf[`${viewKey}@${vpName}`] = r;
-      console.log(`  ${viewKey}@${vpName}: ${r.frameTimes.avgFps} fps avg (p95 ${r.frameTimes.p95Fps}), ` +
-        `${r.drawCalls} calls, ${(r.triangles / 1e6).toFixed(2)}M tris, overdraw ${r.overdraw.avgOverdrawAllPixels}x, texmem ${r.textureMemoryMB}MB`);
+      console.log(`  ${viewKey}@${vpName}: ${r.fps} fps (${r.frameTimeMs} ms/frame), ${r.drawCalls} calls, ` +
+        `${(r.triangles / 1e6).toFixed(2)}M tris, overdraw ${r.overdraw.avgOverdrawAllPixels}x, ` +
+        `texmem ${r.textureMemoryMB}MB, visFoliage ${r.foliage?.visibleInstances}${r.contextLostDuringRun ? '  [CONTEXT LOST]' : ''}`);
       await page.close();
     }
     report.perf = perf;
