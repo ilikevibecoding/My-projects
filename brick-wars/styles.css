@@ -1,0 +1,460 @@
+:root {
+  --gold: #f7c531;
+  --gold-deep: #cf9416;
+  --spirit: #7fe9ff;
+  --ink: #10131c;
+  --paper: #fdf8ee;
+  --red: #d6231f;
+  --blue: #1f6fd0;
+  font-size: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0e16;
+  font-family: "Trebuchet MS", "Segoe UI", Verdana, sans-serif;
+  color: var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+#game-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+/* ---------- HUD ---------- */
+
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.hud-top {
+  position: absolute;
+  top: 18px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 22px;
+}
+
+.hud-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 18px 9px 12px;
+  border-radius: 999px;
+  background: rgba(12, 15, 24, 0.62);
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+.hud-studs {
+  color: var(--gold);
+}
+
+.hud-spirits {
+  color: var(--spirit);
+}
+
+.stud-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #fff3b0 0%, var(--gold) 42%, var(--gold-deep) 100%);
+  box-shadow:
+    inset 0 -3px 5px rgba(120, 70, 0, 0.55),
+    inset 0 3px 5px rgba(255, 255, 230, 0.8),
+    0 0 10px rgba(247, 197, 49, 0.55);
+  position: relative;
+}
+
+.stud-icon::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  border: 2px solid rgba(120, 70, 0, 0.35);
+}
+
+.spirit-icon {
+  width: 22px;
+  height: 26px;
+  background: var(--spirit);
+  border-radius: 11px 11px 4px 4px;
+  box-shadow: 0 0 12px rgba(127, 233, 255, 0.8);
+  -webkit-mask: radial-gradient(circle at 30% 100%, transparent 4px, #000 4.5px),
+    radial-gradient(circle at 70% 100%, transparent 4px, #000 4.5px);
+  mask-composite: intersect;
+  opacity: 0.95;
+}
+
+.hint {
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 20px;
+  border-radius: 999px;
+  background: rgba(12, 15, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  color: rgba(253, 248, 238, 0.92);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  transition: opacity 0.5s ease;
+}
+
+.toast {
+  position: absolute;
+  top: 21%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 30px;
+  border-radius: 14px;
+  background: rgba(10, 24, 32, 0.72);
+  border: 2px solid rgba(127, 233, 255, 0.45);
+  color: var(--spirit);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 14px rgba(127, 233, 255, 0.8);
+  box-shadow: 0 0 30px rgba(127, 233, 255, 0.25);
+  animation: toast-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+  white-space: nowrap;
+}
+
+@keyframes toast-pop {
+  0% {
+    transform: translateX(-50%) scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.build-prompt {
+  position: absolute;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 26px;
+  border-radius: 14px;
+  background: rgba(12, 15, 24, 0.66);
+  border: 2px solid rgba(247, 197, 49, 0.5);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.build-bar {
+  width: 180px;
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.build-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold));
+  box-shadow: 0 0 10px rgba(247, 197, 49, 0.8);
+  transition: width 0.05s linear;
+}
+
+/* ---------- Overlays ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(64, 120, 220, 0.18), transparent 60%),
+    radial-gradient(900px 500px at 80% 110%, rgba(214, 35, 31, 0.14), transparent 60%),
+    rgba(7, 9, 15, 0.78);
+  backdrop-filter: blur(7px);
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.overlay-card {
+  max-width: 560px;
+  width: 100%;
+  text-align: center;
+  padding: 38px 40px 28px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(22, 27, 41, 0.92), rgba(13, 16, 26, 0.94));
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* stud strip across the card top, like the top of a brick */
+.overlay-card::before {
+  content: "";
+  display: block;
+  height: 14px;
+  margin: -16px auto 22px;
+  width: 78%;
+  background:
+    radial-gradient(circle at 9% 50%, var(--gold) 6px, transparent 7px),
+    radial-gradient(circle at 23.5% 50%, var(--red) 6px, transparent 7px),
+    radial-gradient(circle at 38% 50%, var(--blue) 6px, transparent 7px),
+    radial-gradient(circle at 52.5% 50%, #2da44e 6px, transparent 7px),
+    radial-gradient(circle at 67% 50%, var(--gold) 6px, transparent 7px),
+    radial-gradient(circle at 81.5% 50%, var(--red) 6px, transparent 7px),
+    radial-gradient(circle at 96% 50%, var(--blue) 6px, transparent 7px);
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.4));
+}
+
+.kicker {
+  margin: 0 0 14px;
+  font-size: 0.92rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fb6e8;
+}
+
+.game-title {
+  margin: 0;
+  font-size: clamp(3rem, 9vw, 4.6rem);
+  line-height: 0.95;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: var(--gold);
+  text-shadow:
+    0 2px 0 #a4720a,
+    0 4px 0 #7a540a,
+    0 7px 0 rgba(0, 0, 0, 0.45),
+    0 14px 30px rgba(0, 0, 0, 0.6);
+  transform: perspective(420px) rotateX(12deg);
+}
+
+.game-title span {
+  color: var(--red);
+  text-shadow:
+    0 2px 0 #8c1411,
+    0 4px 0 #5e0d0b,
+    0 7px 0 rgba(0, 0, 0, 0.45),
+    0 14px 30px rgba(0, 0, 0, 0.6);
+}
+
+.game-subtitle {
+  margin: 10px 0 16px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  color: var(--spirit);
+  text-shadow: 0 0 18px rgba(127, 233, 255, 0.65);
+}
+
+.title-blurb {
+  margin: 0 auto 20px;
+  max-width: 430px;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: rgba(253, 248, 238, 0.85);
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 14px;
+  margin: 0 auto 24px;
+  max-width: 470px;
+  font-size: 0.88rem;
+  color: rgba(253, 248, 238, 0.8);
+}
+
+.controls-grid div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.key-cap {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #3a4257, #232a3c);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.play-button {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #2c1900;
+  padding: 15px 46px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(180deg, #ffe27a, var(--gold) 45%, var(--gold-deep));
+  box-shadow:
+    0 5px 0 #8a5e05,
+    0 14px 30px rgba(247, 197, 49, 0.35),
+    inset 0 2px 0 rgba(255, 255, 255, 0.65);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+}
+
+.play-button:hover {
+  filter: brightness(1.06);
+}
+
+.play-button:active {
+  transform: translateY(4px);
+  box-shadow:
+    0 1px 0 #8a5e05,
+    0 8px 18px rgba(247, 197, 49, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.65);
+}
+
+.disclaimer {
+  margin: 24px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: rgba(253, 248, 238, 0.45);
+}
+
+/* ---------- Win screen ---------- */
+
+.win-title {
+  margin: 0 0 10px;
+  font-size: clamp(2rem, 6vw, 2.9rem);
+  font-weight: 900;
+  color: var(--spirit);
+  text-shadow: 0 0 26px rgba(127, 233, 255, 0.75), 0 4px 0 rgba(0, 0, 0, 0.4);
+}
+
+.win-blurb {
+  margin: 0 0 24px;
+  color: rgba(253, 248, 238, 0.82);
+}
+
+.win-stats {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.win-stat {
+  min-width: 110px;
+  padding: 14px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.win-stat span {
+  display: block;
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.win-stat label {
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(253, 248, 238, 0.6);
+}
+
+/* ---------- Error banner ---------- */
+
+.error-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 50;
+  max-width: 90vw;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: rgba(150, 24, 24, 0.92);
+  color: #fff;
+  font-size: 0.85rem;
+  font-family: monospace;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.perf-banner {
+  position: fixed;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(92vw, 640px);
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: rgba(140, 96, 10, 0.94);
+  border: 1px solid rgba(255, 220, 130, 0.5);
+  color: #fff8e6;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: center;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 640px) {
+  .controls-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hud-pill {
+    font-size: 1.05rem;
+  }
+}
