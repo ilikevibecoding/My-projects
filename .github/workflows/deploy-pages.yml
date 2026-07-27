@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - cursor/virtual-phone-gift-6027
-  workflow_dispatch:
 
 permissions:
   contents: read
