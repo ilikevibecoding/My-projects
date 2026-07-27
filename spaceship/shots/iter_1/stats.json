@@ -1,0 +1,53 @@
+{
+  "stats": {
+    "cockpit": {
+      "fps": 0,
+      "drawCalls": 195,
+      "triangles": 107657
+    },
+    "corridor": {
+      "fps": 0,
+      "drawCalls": 232,
+      "triangles": 108681
+    },
+    "quarters": {
+      "fps": 0,
+      "drawCalls": 203,
+      "triangles": 112163
+    },
+    "window": {
+      "fps": 0,
+      "drawCalls": 196,
+      "triangles": 112443
+    }
+  },
+  "interactResults": {
+    "bed": {
+      "hover": null,
+      "prompt": {
+        "text": "E: Freshen up",
+        "on": false
+      },
+      "fired": false,
+      "midState": null
+    },
+    "galley": {
+      "hover": null,
+      "prompt": {
+        "text": "E: Freshen up",
+        "on": false
+      },
+      "fired": false,
+      "midState": null
+    },
+    "bathroom": {
+      "hover": null,
+      "prompt": {
+        "text": "E: Freshen up",
+        "on": false
+      },
+      "fired": false,
+      "midState": null
+    }
+  }
+}

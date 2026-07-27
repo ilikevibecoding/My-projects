@@ -24,10 +24,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: spaceship/package-lock.json
+
+      - name: Build spaceship game
+        run: |
+          npm ci --prefix spaceship
+          npm run build --prefix spaceship
+
       - name: Prepare site
         run: |
           mkdir -p dist
           cp -R index.html browser-phone dist/
+          cp -R spaceship/dist dist/spaceship
           cp CNAME dist/CNAME
 
       - name: Setup Pages
