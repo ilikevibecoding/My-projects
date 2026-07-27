@@ -1,0 +1,46 @@
+{
+  "cols": 4,
+  "rows": 2,
+  "cells": [
+    {
+      "cell": 0,
+      "heightM": 0.147,
+      "frameM": 0.342
+    },
+    {
+      "cell": 1,
+      "heightM": 0.169,
+      "frameM": 0.307
+    },
+    {
+      "cell": 2,
+      "heightM": 0.218,
+      "frameM": 0.235
+    },
+    {
+      "cell": 3,
+      "heightM": 0.142,
+      "frameM": 0.301
+    },
+    {
+      "cell": 4,
+      "heightM": 0.323,
+      "frameM": 0.348
+    },
+    {
+      "cell": 5,
+      "heightM": 0.178,
+      "frameM": 0.203
+    },
+    {
+      "cell": 6,
+      "heightM": 0.403,
+      "frameM": 0.435
+    },
+    {
+      "cell": 7,
+      "heightM": 0.26,
+      "frameM": 0.343
+    }
+  ]
+}
