@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Pocket Monsters — Verdant Version</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='%23f8f8f8' stroke='%2321232b'/><path d='M1 8a7 7 0 0 1 14 0z' fill='%23d23b3b'/><rect x='1' y='7' width='14' height='2' fill='%2321232b'/><circle cx='8' cy='8' r='2' fill='%23f8f8f8' stroke='%2321232b'/></svg>" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <div class="console-frame">
+        <canvas id="game" width="240" height="160"></canvas>
+        <div class="touch-controls" id="touch-controls" aria-hidden="true">
+          <div class="dpad">
+            <button class="pad up" data-key="up">▲</button>
+            <button class="pad left" data-key="left">◀</button>
+            <button class="pad right" data-key="right">▶</button>
+            <button class="pad down" data-key="down">▼</button>
+          </div>
+          <div class="ab">
+            <button class="round b" data-key="b">B</button>
+            <button class="round a" data-key="a">A</button>
+          </div>
+          <div class="start-row">
+            <button class="pill" data-key="map">MAP</button>
+            <button class="pill" data-key="start">START</button>
+          </div>
+        </div>
+      </div>
+      <footer class="page-footer">
+        <span>Z / Space = A &nbsp;·&nbsp; X = B &nbsp;·&nbsp; Enter = Start &nbsp;·&nbsp; Arrows / WASD = Move</span>
+        <span class="links">
+          <a id="download-link" href="../downloads/pokemon-pc.zip" download>Download PC version</a>
+          <a href="https://github.com/ilikevibecoding/My-projects" target="_blank" rel="noreferrer">Source</a>
+        </span>
+        <span class="disclaimer">Fan project. Not affiliated with Nintendo / Game Freak / The Pokémon Company.</span>
+      </footer>
+    </main>
+
+    <!-- Data (generated) -->
+    <script src="data/pokedex.js"></script>
+    <script src="data/moves.js"></script>
+    <!-- Data (authored) -->
+    <script src="data/maps.js"></script>
+    <script src="data/encounters.js"></script>
+    <script src="data/trainers.js"></script>
+    <!-- Engine -->
+    <script src="js/formulas.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/save.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/sprites.js"></script>
+    <script src="js/tileset.js"></script>
+    <script src="js/charsprites.js"></script>
+    <script src="js/dialog.js"></script>
+    <script src="js/pokemon.js"></script>
+    <script src="js/bag.js"></script>
+    <script src="js/party.js"></script>
+    <script src="js/pokedex_ui.js"></script>
+    <script src="js/shop.js"></script>
+    <script src="js/menu.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/battle.js"></script>
+    <script src="js/overworld.js"></script>
+    <script src="js/intro.js"></script>
+    <script src="js/title.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
