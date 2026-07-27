@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-      - cursor/virtual-phone-gift-6027
-      - cursor/spaceship-interior-demo-38d1
-  workflow_dispatch:
 
 permissions:
   contents: read
