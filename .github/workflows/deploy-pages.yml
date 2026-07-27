@@ -27,7 +27,7 @@ jobs:
       - name: Prepare site
         run: |
           mkdir -p dist
-          cp -R index.html browser-phone dist/
+          cp -R index.html browser-phone minecraft dist/
           cp CNAME dist/CNAME
 
       - name: Setup Pages

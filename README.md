@@ -1,5 +1,10 @@
 # Subnautica-Inspired Underwater Slice
 
+> **Also in this repo:** [`minecraft/`](minecraft/) — BlockCraft, a
+> browser-based Minecraft clone built with three.js (procedural terrain,
+> day/night cycle, block building). It is deployed with the GitHub Pages site
+> at `/minecraft/`.
+
 This repository is now a **Unity 6.3 LTS** prototype focused on building the look and feel of a
 Subnautica-style underwater scene. The goal is a strong visual vertical slice rather than a full
 survival sandbox.
