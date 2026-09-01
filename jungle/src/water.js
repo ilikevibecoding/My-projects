@@ -113,7 +113,7 @@ function createRippleSim(renderer, size) {
       velocity = velocity.add(splash);
     }
 
-    let height = center.r.add(velocity).mul(0.996);
+    let height = center.r.add(velocity).mul(0.993);
 
     // fade at the domain border so waves never bounce off the edge
     // (smoothstep edges must be increasing — inverted edges are UB in GLSL)
@@ -314,7 +314,7 @@ export function createWater(ctx) {
     const foamPattern = smoothstep(0.42, 0.72, foamTexA.mul(0.6).add(foamTexB.mul(0.4)));
 
     const shoreFoam = smoothstep(0.06, 0.55, columnDepth).oneMinus().mul(foamPattern.mul(0.7).add(0.3));
-    const crestFoam = smoothstep(0.06, 0.22, rippleGradient().length()).mul(0.7);
+    const crestFoam = smoothstep(0.1, 0.32, rippleGradient().length()).mul(0.65);
     const fallDist = worldXZ.sub(vec2(WORLD.waterfallX, -80)).length();
     const fallFoam = smoothstep(3.5, 9, fallDist).oneMinus().mul(foamPattern.mul(0.5).add(0.5)).mul(0.85);
     const foam = clamp(shoreFoam.add(crestFoam).add(fallFoam), 0, 1);
@@ -518,7 +518,7 @@ export function createWater(ctx) {
       ripple.addImpulse(
         player.position.x,
         player.position.z,
-        Math.min(0.16, 0.05 + player.speed2D * 0.018),
+        Math.min(0.1, 0.035 + player.speed2D * 0.012),
         0.5
       );
     }
@@ -540,16 +540,16 @@ export function createWater(ctx) {
     if (player.isSwimming && player.speed2D > 0.5) {
       stirTimer -= dt;
       if (stirTimer <= 0) {
-        stirTimer = 0.16;
-        ripple.addImpulse(player.position.x, player.position.z, 0.07, 0.7);
+        stirTimer = 0.22;
+        ripple.addImpulse(player.position.x, player.position.z, 0.032, 0.55);
       }
     }
 
     // entering the water with speed → splash
     const inWater = player.isWading || player.isSwimming;
     if (inWater && !wasInWater) {
-      const punch = Math.min(0.5, 0.12 + Math.abs(player.velocity.y) * 0.06 + player.speed2D * 0.02);
-      ripple.addImpulse(player.position.x, player.position.z, punch, 1.0);
+      const punch = Math.min(0.3, 0.08 + Math.abs(player.velocity.y) * 0.045 + player.speed2D * 0.015);
+      ripple.addImpulse(player.position.x, player.position.z, punch, 0.9);
     }
     wasInWater = inWater;
 
