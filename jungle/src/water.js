@@ -30,6 +30,8 @@ import {
   Fn,
   cameraPosition,
   reflector,
+  textureLoad,
+  ivec2,
 } from 'three/tsl';
 import { WORLD } from './config.js';
 import { mulberry32 } from './noise.js';
@@ -154,15 +156,26 @@ function createRippleSim(renderer, size) {
     rtA = rtB;
     rtB = tmp;
     prevTexture.value = rtA.texture;
+    for (const node of dependentNodes) {
+      node.value = rtA.texture;
+    }
   }
+
+  const dependentNodes = [];
 
   return {
     update,
     addImpulse,
     textureNode: prevTexture,
     centerUniform: uCenter,
-    get rtA() {
-      return rtA;
+    size,
+    get latestTexture() {
+      return rtA.texture;
+    },
+    // keep external texture nodes pointed at the freshest sim state
+    bindNode(node) {
+      dependentNodes.push(node);
+      return node;
     },
   };
 }
@@ -249,9 +262,13 @@ export function createWater(ctx) {
   const columnDepth = float(WORLD.waterLevel).sub(terrainHeightNode);
   const depthFactor = clamp(columnDepth.div(3.2), 0, 1);
 
-  // vertex displacement: analytic waves + simulated ripples
+  // vertex displacement: analytic waves + simulated ripples.
+  // NB: regular texture sampling in the vertex stage returned garbage on the
+  // WebGL2 backend, so the vertex path uses texelFetch (textureLoad) instead.
   const surfaceRippleUV = rippleUV(positionLocal.xz);
-  const surfaceRipple = clamp(ripple.textureNode.sample(surfaceRippleUV).r, -0.6, 0.6)
+  const rippleTexel = ivec2(clamp(surfaceRippleUV, 0, 1).mul(ripple.size - 1));
+  const rippleLoadNode = ripple.bindNode(textureLoad(ripple.latestTexture, rippleTexel));
+  const surfaceRipple = clamp(rippleLoadNode.r, -0.6, 0.6)
     .mul(rippleMaskFor(surfaceRippleUV));
 
   function buildSurfaceMaterial(reflectionNode) {
