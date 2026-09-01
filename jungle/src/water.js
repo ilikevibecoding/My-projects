@@ -105,11 +105,12 @@ function createRippleSim(renderer, size) {
     const laplacian = hL.add(hR).add(hD).add(hU).mul(0.25).sub(center.r);
     let velocity = center.g.add(laplacian.mul(1.35)).mul(0.976);
 
-    // impulses (player steps, swimming, waterfall churn)
+    // impulses (player steps, swimming, waterfall churn) — Laplacian-of-Gaussian
+    // shape so each splash is zero-mean and can't pump net volume into the sim
     const worldPos = uv().sub(0.5).mul(RIPPLE_DOMAIN).add(uCenter);
     for (const imp of impulses) {
-      const d = worldPos.sub(imp.xy).length();
-      const splash = exp(d.mul(d).div(imp.w.mul(imp.w)).negate()).mul(imp.z);
+      const d2 = worldPos.sub(imp.xy).lengthSq().div(imp.w.mul(imp.w));
+      const splash = exp(d2.negate()).mul(float(1).sub(d2.mul(2))).mul(imp.z);
       velocity = velocity.add(splash);
     }
 
@@ -302,7 +303,7 @@ export function createWater(ctx) {
     }
 
     const sunDir = uniform(ctx.sky.sunDirection.clone());
-    const glint = pow(max(dot(reflect(viewDir.negate(), normal), sunDir), 0), 240).mul(2.4);
+    const glint = pow(max(dot(reflect(viewDir.negate(), normal), sunDir), 0), 340).mul(1.5);
 
     // foam: shoreline band + ripple crests + waterfall churn pool
     const foamTexA = texture(textures.noise, worldXZ.mul(0.22).add(vec2(time.mul(0.025), time.mul(-0.018)))).r;
@@ -318,8 +319,9 @@ export function createWater(ctx) {
     const waterShade = mix(baseColor, reflectionColor, fresnel.mul(reflectionNode ? 0.9 : 0.75));
     const foamColor = vec3(0.97, 1.0, 0.99);
     material.colorNode = mix(waterShade, foamColor, foam).add(glint);
+    // more opaque with depth, foam and at grazing angles (no transmission there)
     material.opacityNode = clamp(
-      float(0.58).add(depthFactor.mul(0.36)).add(foam.mul(0.4)),
+      float(0.5).add(depthFactor.mul(0.3)).add(fresnel.mul(1.1)).add(foam.mul(0.4)),
       0,
       0.97
     );
