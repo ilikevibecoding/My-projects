@@ -64,18 +64,17 @@ function createRippleSim(renderer, size) {
   let rtB = new THREE.RenderTarget(size, size, options);
 
   // Uninitialized render targets contain garbage which the wave equation then
-  // treats as real water state — clear both to flat water first.
+  // treats as real water state — write flat zeros into both first.
   {
+    const zeroMaterial = new THREE.NodeMaterial();
+    zeroMaterial.fragmentNode = vec4(0, 0, 0, 1);
+    const zeroQuad = new THREE.QuadMesh(zeroMaterial);
     const prevRT = renderer.getRenderTarget();
-    const prevColor = renderer.getClearColor(new THREE.Color());
-    const prevAlpha = renderer.getClearAlpha();
-    renderer.setClearColor(0x000000, 0);
     for (const rt of [rtA, rtB]) {
       renderer.setRenderTarget(rt);
-      renderer.clear(true, false, false);
+      zeroQuad.render(renderer);
     }
     renderer.setRenderTarget(prevRT);
-    renderer.setClearColor(prevColor, prevAlpha);
   }
 
   const texel = 1 / size;
@@ -234,6 +233,17 @@ export function createWater(ctx) {
     return h;
   };
 
+  // ripple slope (DC-offset-immune — the sim can carry a small bias)
+  const rippleGradient = () => {
+    const ruv = rippleUV(worldXZ);
+    const mask = rippleMaskFor(ruv);
+    const e = 0.45;
+    const rC = ripple.textureNode.sample(ruv).r;
+    const rX = ripple.textureNode.sample(rippleUV(worldXZ.add(vec2(e, 0)))).r;
+    const rZ = ripple.textureNode.sample(rippleUV(worldXZ.add(vec2(0, e)))).r;
+    return vec2(rX.sub(rC), rZ.sub(rC)).div(e).mul(mask);
+  };
+
   // analytic wave normal + ripple gradient
   const waterNormalNode = () => {
     let dhdx = float(0);
@@ -244,15 +254,8 @@ export function createWater(ctx) {
       dhdx = dhdx.add(slope.mul(w.dirX));
       dhdz = dhdz.add(slope.mul(w.dirZ));
     }
-    const ruv = rippleUV(worldXZ);
-    const mask = rippleMaskFor(ruv);
-    const e = 0.45;
-    const rC = ripple.textureNode.sample(ruv).r;
-    const rX = ripple.textureNode.sample(rippleUV(worldXZ.add(vec2(e, 0)))).r;
-    const rZ = ripple.textureNode.sample(rippleUV(worldXZ.add(vec2(0, e)))).r;
-    const gradX = rX.sub(rC).div(e).mul(mask).mul(2.8);
-    const gradZ = rZ.sub(rC).div(e).mul(mask).mul(2.8);
-    return normalize(vec3(dhdx.add(gradX).negate(), 1, dhdz.add(gradZ).negate()));
+    const grad = rippleGradient().mul(2.8);
+    return normalize(vec3(dhdx.add(grad.x).negate(), 1, dhdz.add(grad.y).negate()));
   };
 
   // water-column depth from the baked terrain height
@@ -311,7 +314,7 @@ export function createWater(ctx) {
     const foamPattern = smoothstep(0.42, 0.72, foamTexA.mul(0.6).add(foamTexB.mul(0.4)));
 
     const shoreFoam = smoothstep(0.06, 0.55, columnDepth).oneMinus().mul(foamPattern.mul(0.7).add(0.3));
-    const crestFoam = smoothstep(0.035, 0.11, abs(surfaceRipple)).mul(0.7);
+    const crestFoam = smoothstep(0.06, 0.22, rippleGradient().length()).mul(0.7);
     const fallDist = worldXZ.sub(vec2(WORLD.waterfallX, -80)).length();
     const fallFoam = smoothstep(3.5, 9, fallDist).oneMinus().mul(foamPattern.mul(0.5).add(0.5)).mul(0.85);
     const foam = clamp(shoreFoam.add(crestFoam).add(fallFoam), 0, 1);
