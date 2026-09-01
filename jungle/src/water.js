@@ -30,8 +30,6 @@ import {
   Fn,
   cameraPosition,
   reflector,
-  textureLoad,
-  ivec2,
 } from 'three/tsl';
 import { WORLD } from './config.js';
 import { mulberry32 } from './noise.js';
@@ -156,12 +154,7 @@ function createRippleSim(renderer, size) {
     rtA = rtB;
     rtB = tmp;
     prevTexture.value = rtA.texture;
-    for (const node of dependentNodes) {
-      node.value = rtA.texture;
-    }
   }
-
-  const dependentNodes = [];
 
   return {
     update,
@@ -169,14 +162,6 @@ function createRippleSim(renderer, size) {
     textureNode: prevTexture,
     centerUniform: uCenter,
     size,
-    get latestTexture() {
-      return rtA.texture;
-    },
-    // keep external texture nodes pointed at the freshest sim state
-    bindNode(node) {
-      dependentNodes.push(node);
-      return node;
-    },
   };
 }
 
@@ -262,13 +247,11 @@ export function createWater(ctx) {
   const columnDepth = float(WORLD.waterLevel).sub(terrainHeightNode);
   const depthFactor = clamp(columnDepth.div(3.2), 0, 1);
 
-  // vertex displacement: analytic waves + simulated ripples.
-  // NB: regular texture sampling in the vertex stage returned garbage on the
-  // WebGL2 backend, so the vertex path uses texelFetch (textureLoad) instead.
-  const surfaceRippleUV = rippleUV(positionLocal.xz);
-  const rippleTexel = ivec2(clamp(surfaceRippleUV, 0, 1).mul(ripple.size - 1));
-  const rippleLoadNode = ripple.bindNode(textureLoad(ripple.latestTexture, rippleTexel));
-  const surfaceRipple = clamp(rippleLoadNode.r, -0.6, 0.6)
+  // Ripples are read only in the fragment stage (normals, foam, shading) —
+  // texture fetches in the vertex stage return garbage on the WebGL2 backend,
+  // and at ±10 cm amplitude the lighting response carries the entire effect.
+  const surfaceRippleUV = rippleUV(worldXZ);
+  const surfaceRipple = clamp(ripple.textureNode.sample(surfaceRippleUV).r, -0.6, 0.6)
     .mul(rippleMaskFor(surfaceRippleUV));
 
   function buildSurfaceMaterial(reflectionNode) {
@@ -278,7 +261,7 @@ export function createWater(ctx) {
       depthWrite: true,
     });
     material.positionNode = positionLocal.add(
-      vec3(0, waveHeightNode(positionLocal.xz).add(surfaceRipple.mul(1.1)), 0)
+      vec3(0, waveHeightNode(positionLocal.xz), 0)
     );
 
     const normal = waterNormalNode();

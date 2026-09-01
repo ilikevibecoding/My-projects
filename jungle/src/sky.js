@@ -13,7 +13,7 @@ export function createSky(ctx) {
   sky.scale.setScalar(800); // must stay inside the camera far plane
   sky.material.fog = false; // never fog the sky dome itself
   sky.turbidity.value = 2.0;
-  sky.rayleigh.value = 1.0;
+  sky.rayleigh.value = 1.35; // bluer dome + less white horizon in reflections
   sky.mieCoefficient.value = 0.001;
   sky.mieDirectionalG.value = 0.7;
   // The dome is scaled to 800 (not the 450k of the three.js example), so the
