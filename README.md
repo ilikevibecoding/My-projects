@@ -1,3 +1,9 @@
+# My Projects
+
+> **New:** [`jungle/`](jungle/README.md) — a first-person jungle biome graphics
+> test built on Three.js r184's WebGPURenderer + TSL (live at
+> https://ehpurple.com/jungle/ once deployed).
+
 # Subnautica-Inspired Underwater Slice
 
 This repository is now a **Unity 6.3 LTS** prototype focused on building the look and feel of a
