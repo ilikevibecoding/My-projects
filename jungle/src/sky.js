@@ -22,6 +22,7 @@ export function createSky(ctx) {
   sky.cloudCoverage.value = 0.3;
   sky.cloudDensity.value = 0.42;
   sky.cloudSpeed.value = 0.02;
+  sky.showSunDisc.value = 0; // renders as a black dot with these settings — off
   scene.add(sky);
 
   const sunDirection = new THREE.Vector3();
@@ -50,9 +51,8 @@ export function createSky(ctx) {
   scene.add(hemi);
 
   // ---------- fog ----------
-  // Explicit TSL fog node: a gentle warm haze that only really builds up far
-  // away (scene.fog proved far denser than its near/far suggest here).
-  scene.fogNode = fog(color(WORLD.fogColor), rangeFogFactor(70, 480).mul(0.82));
+  // Explicit TSL fog node: a light green haze that only softens far silhouettes.
+  scene.fogNode = fog(color(WORLD.fogColor), rangeFogFactor(90, 500).mul(0.55));
 
   // Keep the shadow frustum and sky dome centered on the player.
   const sunOffset = sunDirection.clone().multiplyScalar(130);

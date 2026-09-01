@@ -331,7 +331,7 @@ export function createWater(ctx) {
   const fallTop = 19.5;
   const fallBottom = -0.6;
   const fallHeight = fallTop - fallBottom;
-  const fallGeo = new THREE.PlaneGeometry(7.5, fallHeight, 10, 26);
+  const fallGeo = new THREE.PlaneGeometry(11, fallHeight, 12, 26);
   {
     const pos = fallGeo.attributes.position;
     for (let i = 0; i < pos.count; i += 1) {
