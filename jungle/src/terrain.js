@@ -316,7 +316,7 @@ export function createTerrain(ctx) {
   const sandTex = texture(textures.sand, worldXZ.mul(0.15));
   const mossTex = texture(textures.moss, worldXZ.mul(0.08));
   const dirtTex = texture(textures.dirt, worldXZ.mul(0.27));
-  const litterTex = texture(textures.litter, worldXZ.mul(0.14));
+  const litterTex = texture(textures.litter, worldXZ.mul(0.22));
   const mottle = texture(textures.noise, worldXZ.mul(0.012)).r;
   const mottleFine = texture(textures.noise, worldXZ.mul(0.05)).r;
   const mottleMid = texture(textures.noise, worldXZ.mul(0.027).add(0.5)).r;
@@ -385,7 +385,7 @@ export function createTerrain(ctx) {
   const nGrass = texture(textures.grassNormal, worldXZ.mul(0.12)).rgb;
   const nSand = texture(textures.sandNormal, worldXZ.mul(0.15)).rgb;
   const nDirt = texture(textures.dirtNormal, worldXZ.mul(0.27)).rgb;
-  const nLitter = texture(textures.litterNormal, worldXZ.mul(0.14)).rgb;
+  const nLitter = texture(textures.litterNormal, worldXZ.mul(0.22)).rgb;
   const nRock = texture(textures.rockNormal, positionWorld.xz.mul(rockScale)).rgb.mul(wY)
     .add(texture(textures.rockNormal, positionWorld.xy.mul(rockScale)).rgb.mul(wZ))
     .add(texture(textures.rockNormal, positionWorld.zy.mul(rockScale)).rgb.mul(wX));
