@@ -32,6 +32,13 @@ export function createPlayer(ctx) {
     onStep(listener) {
       stepListeners.push(listener);
     },
+    // debug/testing helper
+    teleport(x, z, newYaw = yaw, newPitch = pitch) {
+      position.set(x, terrain.sampleHeight(x, z), z);
+      velocity.set(0, 0, 0);
+      yaw = newYaw;
+      pitch = newPitch;
+    },
   };
 
   camera.rotation.order = 'YXZ';
@@ -86,13 +93,15 @@ export function createPlayer(ctx) {
 
     // ---------- vertical ----------
     if (swimming) {
-      // buoyancy spring keeps the eyes a touch above the surface
+      // buoyancy spring keeps the eyes a touch above the surface — but relax it
+      // while the player is actively diving (looking down and moving forward)
+      const diving = pitch < -0.3 && moveZ > 0.15;
       const targetFeetY = WORLD.waterLevel - WORLD.eyeHeight + 0.46;
-      const buoyancy = (targetFeetY - position.y) * 6.5;
+      const buoyancy = (targetFeetY - position.y) * (diving ? 0.7 : 6.5);
       velocity.y = lerp(velocity.y, buoyancy, 1 - Math.exp(-5 * dt));
-      // swim down/up with pitch while moving
+      // swim along the look pitch while moving
       if (wishDir.lengthSq() > 0.01) {
-        velocity.y += Math.sin(pitch) * moveZ * WORLD.swimSpeed * 0.55 * dt * 12;
+        velocity.y += Math.sin(pitch) * moveZ * WORLD.swimSpeed * 6.6 * dt;
       }
       if (input.state.jumpHeld) {
         velocity.y += 7.5 * dt;
@@ -181,7 +190,7 @@ export function createPlayer(ctx) {
     camera.position.copy(player.eye);
     camera.rotation.set(pitch, yaw, 0);
 
-    player.headUnderwater = player.eye.y < WORLD.waterLevel - 0.06;
+    player.headUnderwater = player.eye.y < WORLD.waterLevel - 0.12;
   }
 
   return Object.assign(player, { update });

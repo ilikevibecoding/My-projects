@@ -262,8 +262,8 @@ export function createWater(ctx) {
     const normal = waterNormalNode();
     const viewDir = normalize(cameraPosition.sub(positionWorld));
     const fresnel = pow(clamp(float(1).sub(max(dot(viewDir, normal), 0)), 0, 1), 5)
-      .mul(0.88)
-      .add(0.05);
+      .mul(0.58)
+      .add(0.04);
 
     const shallowColor = vec3(0.21, 0.74, 0.66);
     const deepColor = vec3(0.015, 0.23, 0.28);
@@ -271,7 +271,8 @@ export function createWater(ctx) {
 
     let reflectionColor;
     if (reflectionNode) {
-      reflectionColor = reflectionNode.rgb;
+      // tint the mirror toward water so the foggy horizon can't white it out
+      reflectionColor = reflectionNode.rgb.mul(vec3(0.62, 0.82, 0.84));
     } else {
       // cheap sky-gradient reflection for Low/Medium
       const reflectDir = reflect(viewDir.negate(), normal);
@@ -293,7 +294,7 @@ export function createWater(ctx) {
     const fallFoam = smoothstep(9, 3.5, fallDist).mul(foamPattern.mul(0.5).add(0.5)).mul(0.85);
     const foam = clamp(shoreFoam.add(crestFoam).add(fallFoam), 0, 1);
 
-    const waterShade = mix(baseColor, reflectionColor, fresnel.mul(reflectionNode ? 0.95 : 0.8));
+    const waterShade = mix(baseColor, reflectionColor, fresnel.mul(reflectionNode ? 0.9 : 0.75));
     const foamColor = vec3(0.97, 1.0, 0.99);
     material.colorNode = mix(waterShade, foamColor, foam).add(glint);
     material.opacityNode = clamp(
@@ -305,7 +306,7 @@ export function createWater(ctx) {
   }
 
   // planar reflection target (only rendered on High/Ultra)
-  const reflection = reflector({ resolution: 0.5 });
+  const reflection = reflector({ resolutionScale: 0.5 });
   reflection.target.rotateX(-Math.PI / 2);
   reflection.target.position.set(0, WORLD.waterLevel, 0);
   scene.add(reflection.target);
@@ -330,7 +331,7 @@ export function createWater(ctx) {
     const pos = fallGeo.attributes.position;
     for (let i = 0; i < pos.count; i += 1) {
       const y = pos.getY(i) + fallHeight / 2; // 0..height from bottom
-      const t = y / fallHeight;
+      const t = Math.min(1, Math.max(0, y / fallHeight));
       // sheet hugs the cliff at the top, pours forward at the bottom
       const bulge = Math.pow(1 - t, 1.8) * 4.2;
       const xNarrow = 1 - (1 - t) * 0.18;
@@ -353,9 +354,9 @@ export function createWater(ctx) {
     const streaks = streaksA.mul(0.6).add(streaksB.mul(0.55));
     const edge = smoothstep(0, 0.16, streakUV.x).mul(smoothstep(1, 0.84, streakUV.x));
     const headFade = smoothstep(1.0, 0.93, streakUV.y);
-    const bottomBoost = smoothstep(0.35, 0.0, streakUV.y).mul(0.35);
+    const bottomBoost = smoothstep(0.35, 0.0, streakUV.y).mul(0.3);
     material.colorNode = mix(brightLow, brightHigh, streaks).add(bottomBoost);
-    material.opacityNode = clamp(streaks.mul(opacity).add(0.16).add(bottomBoost), 0, 1)
+    material.opacityNode = clamp(streaks.mul(opacity).add(0.12).add(bottomBoost), 0, 1)
       .mul(edge)
       .mul(headFade);
     return material;
@@ -367,8 +368,8 @@ export function createWater(ctx) {
       scaleX: 3.2,
       scaleY: 1.4,
       speed: 0.55,
-      brightLow: vec3(0.62, 0.78, 0.84),
-      brightHigh: vec3(1.02, 1.06, 1.08),
+      brightLow: vec3(0.52, 0.7, 0.78),
+      brightHigh: vec3(0.94, 1.0, 1.04),
       opacity: 0.75,
     })
   );

@@ -49,7 +49,7 @@ export function createSky(ctx) {
   scene.add(hemi);
 
   // ---------- fog ----------
-  scene.fog = new THREE.Fog(new THREE.Color(WORLD.fogColor), 60, 420);
+  scene.fog = new THREE.Fog(new THREE.Color(WORLD.fogColor), 85, 520);
 
   // Keep the shadow frustum and sky dome centered on the player.
   const sunOffset = sunDirection.clone().multiplyScalar(130);

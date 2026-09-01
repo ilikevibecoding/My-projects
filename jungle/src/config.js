@@ -32,7 +32,7 @@ export const WORLD = {
   sunElevation: 68, // degrees
   sunAzimuth: 160, // degrees — high sun, slightly east so the falls get side light
 
-  fogColor: 0xcfe8c4,
+  fogColor: 0xc2ddb6,
 };
 
 export const QUALITY_PRESETS = {
