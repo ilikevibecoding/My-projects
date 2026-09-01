@@ -65,7 +65,9 @@ export function createPost(ctx) {
   })();
 
   // ---------- bloom ----------
-  const bloomPass = bloom(sceneColor, 0.6, 0.45, 0.82);
+  // High threshold: only true HDR highlights (glints, waterfall, sun glow)
+  // may bloom — the tropical sky itself is >1 and must not wash the frame.
+  const bloomPass = bloom(sceneColor, 0.5, 0.4, 1.6);
 
   // ---------- compose + grade ----------
   const composed = Fn(() => {
@@ -118,7 +120,7 @@ export function createPost(ctx) {
   }
 
   function applyQuality(preset) {
-    godRayStrength.value = preset.godRays ? 0.5 : 0;
+    godRayStrength.value = preset.godRays ? 0.42 : 0;
     bloomPass.strength.value = preset.bloom ? preset.bloomStrength : 0;
     if (preset.fxaa !== usingFxaa) {
       usingFxaa = preset.fxaa;
