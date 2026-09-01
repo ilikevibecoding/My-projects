@@ -67,7 +67,7 @@ export function createPost(ctx) {
   // ---------- bloom ----------
   // High threshold: only true HDR highlights (glints, waterfall, sun glow)
   // may bloom — the tropical sky itself is >1 and must not wash the frame.
-  const bloomPass = bloom(sceneColor, 0.5, 0.4, 1.6);
+  const bloomPass = bloom(sceneColor, 0.45, 0.4, 2.4);
 
   // ---------- compose + grade ----------
   const composed = Fn(() => {
