@@ -46,27 +46,50 @@ export function createGrassTexture() {
   const ctx = canvas.getContext('2d');
   const random = mulberry32(101);
 
+  // olive jungle floor — not lawn green: mixed live/dead blades, soil showing through
   const base = ctx.createLinearGradient(0, 0, 512, 512);
-  base.addColorStop(0, '#3d7a2c');
-  base.addColorStop(0.5, '#46892f');
-  base.addColorStop(1, '#39732a');
+  base.addColorStop(0, '#3a5f26');
+  base.addColorStop(0.5, '#446b2a');
+  base.addColorStop(1, '#385a25');
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, 512, 512);
 
-  speckle(ctx, random, 2600, 5, 0.16, ['#59a63b', '#2d5f21', '#6cb344', '#356b27']);
+  // soil + shadow patches under the blades
+  speckle(ctx, random, 900, 14, 0.18, ['#2c3f1c', '#4a3d24', '#253618']);
+  speckle(ctx, random, 2600, 5, 0.16, ['#5a8a3a', '#2d4f21', '#6b9a44', '#3b5f27', '#7a8a3c']);
 
-  // blade strokes
-  for (let i = 0; i < 1500; i += 1) {
+  // blade strokes — live greens, yellowed and dead brown blades
+  for (let i = 0; i < 2100; i += 1) {
     const x = random() * 512;
     const y = random() * 512;
     const len = 5 + random() * 14;
     const lean = (random() - 0.5) * 6;
-    ctx.strokeStyle = random() > 0.5 ? 'rgba(96, 175, 64, 0.5)' : 'rgba(38, 84, 28, 0.45)';
+    const r = random();
+    ctx.strokeStyle = r > 0.62
+      ? 'rgba(104, 160, 66, 0.5)'
+      : r > 0.28
+        ? 'rgba(44, 84, 30, 0.45)'
+        : r > 0.12
+          ? 'rgba(150, 140, 70, 0.4)'
+          : 'rgba(110, 84, 46, 0.42)';
     ctx.lineWidth = 0.8 + random() * 1.2;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.quadraticCurveTo(x + lean * 0.5, y - len * 0.6, x + lean, y - len);
     ctx.stroke();
+  }
+
+  // clover / small round leaves
+  for (let i = 0; i < 260; i += 1) {
+    const x = random() * 512;
+    const y = random() * 512;
+    ctx.fillStyle = random() > 0.5 ? 'rgba(78, 128, 52, 0.55)' : 'rgba(58, 104, 42, 0.55)';
+    for (let k = 0; k < 3; k += 1) {
+      const a = (k / 3) * Math.PI * 2 + random();
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * 2.2, y + Math.sin(a) * 2.2, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   return toTexture(canvas);
@@ -109,31 +132,56 @@ export function createRockTexture() {
   const random = mulberry32(303);
 
   const base = ctx.createLinearGradient(0, 0, 512, 512);
-  base.addColorStop(0, '#6f7163');
-  base.addColorStop(0.5, '#7d8071');
-  base.addColorStop(1, '#666858');
+  base.addColorStop(0, '#6a6c60');
+  base.addColorStop(0.5, '#7b7d70');
+  base.addColorStop(1, '#5f6154');
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, 512, 512);
 
+  // large tonal plates (weathered blocks) then fine grain
+  speckle(ctx, random, 90, 60, 0.16, ['#8a8c7c', '#55584b', '#74776a', '#8f8a78']);
   speckle(ctx, random, 2400, 7, 0.14, ['#8d9080', '#565a4c', '#9aa08c', '#4c5044']);
+  speckle(ctx, random, 6000, 1.6, 0.22, ['#a0a394', '#3e4238', '#8a8d7e']);
 
-  // strata cracks
-  for (let i = 0; i < 42; i += 1) {
+  // strata cracks with a light edge (chiselled look)
+  for (let i = 0; i < 48; i += 1) {
     const y0 = random() * 512;
-    ctx.strokeStyle = `rgba(40, 44, 36, ${0.18 + random() * 0.2})`;
-    ctx.lineWidth = 1 + random() * 2.2;
-    ctx.beginPath();
-    ctx.moveTo(0, y0);
+    const width = 1 + random() * 2.2;
+    const points = [];
     let y = y0;
     for (let x = 0; x <= 512; x += 24) {
       y += (random() - 0.5) * 14;
+      points.push([x, y]);
+    }
+    ctx.strokeStyle = 'rgba(190, 192, 176, 0.16)';
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    points.forEach(([x, py], k) => (k === 0 ? ctx.moveTo(x, py - width) : ctx.lineTo(x, py - width)));
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(34, 38, 30, ${0.24 + random() * 0.22})`;
+    ctx.beginPath();
+    points.forEach(([x, py], k) => (k === 0 ? ctx.moveTo(x, py) : ctx.lineTo(x, py)));
+    ctx.stroke();
+  }
+  // vertical fissures
+  for (let i = 0; i < 18; i += 1) {
+    const x0 = random() * 512;
+    ctx.strokeStyle = `rgba(30, 34, 28, ${0.2 + random() * 0.2})`;
+    ctx.lineWidth = 0.8 + random() * 1.6;
+    ctx.beginPath();
+    let x = x0;
+    ctx.moveTo(x, 0);
+    for (let y = 0; y <= 512; y += 20) {
+      x += (random() - 0.5) * 10;
       ctx.lineTo(x, y);
     }
     ctx.stroke();
   }
 
-  // mossy patches in crevices
-  speckle(ctx, random, 320, 9, 0.12, ['#4d6b35', '#3c5829']);
+  // lichen + mossy patches in crevices
+  speckle(ctx, random, 260, 9, 0.12, ['#4d6b35', '#3c5829']);
+  speckle(ctx, random, 420, 5, 0.16, ['#9aa06a', '#c9c98a', '#7e8a55']);
+  speckle(ctx, random, 160, 3.5, 0.2, ['#c98d5a', '#a8683c']);
 
   return toTexture(canvas);
 }

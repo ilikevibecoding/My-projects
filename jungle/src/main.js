@@ -188,6 +188,42 @@ async function init() {
     9000
   );
 
+  // ---------- place discovery (authored zones get a name when first entered) ----------
+  const PLACES = [
+    { key: 'overlook', name: 'The Overlook', threshold: 0.55 },
+    { key: 'ravine', name: 'Root Ravine', threshold: 0.6 },
+    { key: 'terrace', name: 'The Terraces', threshold: 0.6 },
+    { key: 'clearing', name: 'Sunlit Clearing', threshold: 0.6 },
+    { key: 'ruins', name: 'The Forgotten Shrine', threshold: 0.6 },
+  ];
+  const discovered = new Set();
+  let placeTimer = 0;
+  function pollPlaces(dt) {
+    placeTimer -= dt;
+    if (placeTimer > 0 || ctx.hud.placeVisible) {
+      return;
+    }
+    placeTimer = 0.5;
+    const p = ctx.player.position;
+    const zones = ctx.terrain.zonesAt(p.x, p.z);
+    for (const place of PLACES) {
+      if (!discovered.has(place.key) && zones[place.key] > place.threshold) {
+        discovered.add(place.key);
+        ctx.hud.showPlace(place.name);
+        return;
+      }
+    }
+    // the lagoon + falls are discovered from the water's edge
+    const dL = Math.hypot(p.x - WORLD.lagoonCenter.x, p.z - WORLD.lagoonCenter.z);
+    if (!discovered.has('lagoon') && dL < WORLD.lagoonRadius + 4) {
+      discovered.add('lagoon');
+      ctx.hud.showPlace('Emerald Lagoon');
+    } else if (!discovered.has('falls') && Math.hypot(p.x - WORLD.waterfallX, p.z + 78) < 14) {
+      discovered.add('falls');
+      ctx.hud.showPlace('The Falls');
+    }
+  }
+
   // ---------- frame loop ----------
   const timer = new THREE.Timer();
   let fpsAccum = 0;
@@ -205,6 +241,7 @@ async function init() {
       updatable.update(dt, ctx.time);
     }
     document.body.classList.toggle('is-underwater', ctx.player.headUnderwater);
+    pollPlaces(dt);
 
     if (ctx.post) {
       ctx.post.render();

@@ -90,7 +90,26 @@ export function createHud() {
     muteButton.classList.toggle('is-on', !muted);
   }
 
+  // Place-name toast (shown when the player discovers an authored zone).
+  const placeEl = document.querySelector('[data-place]');
+  let placeTimer = 0;
+  let placeVisibleUntil = 0;
+  function showPlace(name) {
+    if (!placeEl) {
+      return;
+    }
+    placeEl.textContent = name;
+    placeEl.classList.add('is-visible');
+    window.clearTimeout(placeTimer);
+    placeVisibleUntil = performance.now() + 3600;
+    placeTimer = window.setTimeout(() => placeEl.classList.remove('is-visible'), 3600);
+  }
+
   return {
+    showPlace,
+    get placeVisible() {
+      return performance.now() < placeVisibleUntil;
+    },
     setLoading,
     finishLoading,
     fatal,
