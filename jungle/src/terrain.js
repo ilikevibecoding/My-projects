@@ -47,9 +47,9 @@ export function createHeightSampler() {
     // Rocky shoulders flanking the falls
     h += cliffRamp * cliffFar * northness * detail(x * 0.05, z * 0.05) * 3.2;
 
-    // --- lagoon bowl ---
-    const shore = smoothstepJs(WORLD.lagoonRadius + 6, WORLD.lagoonRadius - 11, distL);
-    const bowlDepth = -4.6 - 1.6 * smoothstepJs(WORLD.lagoonRadius * 0.7, 0, distL);
+    // --- lagoon bowl (waterline sits near the outer radius so it reads full) ---
+    const shore = smoothstepJs(WORLD.lagoonRadius + 7, WORLD.lagoonRadius - 5, distL);
+    const bowlDepth = -4.8 - 1.6 * smoothstepJs(WORLD.lagoonRadius * 0.7, 0, distL);
     h = lerp(h, bowlDepth, shore);
 
     // --- river channel heading south out of the lagoon ---
@@ -63,8 +63,8 @@ export function createHeightSampler() {
     }
 
     // --- flatten sandy shores right around the waterline ---
-    const nearWaterline = 1 - smoothstepJs(0.15, 1.8, Math.abs(h - 0.5));
-    h = lerp(h, 0.42, nearWaterline * 0.38);
+    const nearWaterline = 1 - smoothstepJs(0.15, 1.6, Math.abs(h - 0.45));
+    h = lerp(h, 0.4, nearWaterline * 0.3);
 
     return h;
   }

@@ -161,6 +161,9 @@ function createRippleSim(renderer, size) {
     addImpulse,
     textureNode: prevTexture,
     centerUniform: uCenter,
+    get rtA() {
+      return rtA;
+    },
   };
 }
 

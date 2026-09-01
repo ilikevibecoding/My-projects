@@ -1,6 +1,7 @@
 // Sky dome, sun, fill lighting and fog — bright tropical late morning.
 
 import * as THREE from 'three/webgpu';
+import { fog, rangeFogFactor, color } from 'three/tsl';
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 import { WORLD } from './config.js';
 
@@ -49,7 +50,9 @@ export function createSky(ctx) {
   scene.add(hemi);
 
   // ---------- fog ----------
-  scene.fog = new THREE.Fog(new THREE.Color(WORLD.fogColor), 85, 520);
+  // Explicit TSL fog node: a gentle warm haze that only really builds up far
+  // away (scene.fog proved far denser than its near/far suggest here).
+  scene.fogNode = fog(color(WORLD.fogColor), rangeFogFactor(70, 480).mul(0.82));
 
   // Keep the shadow frustum and sky dome centered on the player.
   const sunOffset = sunDirection.clone().multiplyScalar(130);

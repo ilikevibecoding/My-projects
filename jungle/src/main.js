@@ -205,3 +205,6 @@ init();
 // expose for headless testing + console debugging
 window.__jungle = ctx;
 window.__THREE = THREE;
+import('three/tsl').then((tsl) => {
+  window.__TSL = tsl;
+});
