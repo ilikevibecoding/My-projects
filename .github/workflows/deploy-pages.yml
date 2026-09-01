@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - cursor/virtual-phone-gift-6027
+      - cursor/jungle-biome-graphics-9c35
   workflow_dispatch:
 
 permissions:
@@ -29,7 +30,7 @@ jobs:
       - name: Prepare site
         run: |
           mkdir -p dist
-          cp -R index.html browser-phone dist/
+          cp -R index.html browser-phone jungle dist/
           cp CNAME dist/CNAME
 
       - name: Setup Pages
