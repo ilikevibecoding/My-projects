@@ -10,6 +10,9 @@ import { createInput } from './input.js';
 import { createPlayer } from './player.js';
 import { createVegetation } from './vegetation.js';
 import { createWater } from './water.js';
+import { createParticles } from './particles.js';
+import { createPost } from './post.js';
+import { createAudio } from './audio.js';
 
 const ctx = {
   renderer: null,
@@ -134,9 +137,21 @@ async function init() {
     ctx.player = createPlayer(ctx);
   });
 
-  await loadStep(0.85, 'filling the lagoon', () => {
+  await loadStep(0.8, 'filling the lagoon', () => {
     ctx.water = createWater(ctx);
     ctx.updatables.push(ctx.water);
+  });
+
+  await loadStep(0.9, 'releasing the butterflies', () => {
+    ctx.particles = createParticles(ctx);
+    ctx.updatables.push(ctx.particles);
+    ctx.audio = createAudio(ctx);
+    ctx.updatables.push(ctx.audio);
+  });
+
+  await loadStep(0.96, 'polishing the light', () => {
+    ctx.post = createPost(ctx);
+    ctx.updatables.push(ctx.post);
   });
 
   applyQuality(ctx.qualityName);
