@@ -108,7 +108,7 @@ export function createTerrain(ctx) {
   const slope = clamp(float(1).sub(normalWorld.y), 0, 1);
 
   // sand near the waterline (and under water)
-  const sandMask = smoothstep(1.8, 0.55, height);
+  const sandMask = smoothstep(0.55, 1.8, height).oneMinus();
   // rock on steep slopes and high cliffs
   const rockMask = smoothstep(0.18, 0.42, slope).max(smoothstep(10.5, 16.5, height));
   // mossy mottling across the jungle floor (sand/rock layered on top win near water/cliffs)
@@ -123,13 +123,13 @@ export function createTerrain(ctx) {
   albedo = albedo.mul(mix(float(0.92), float(1.06), mottleFine));
 
   // animated caustic light webs on everything below the waterline
-  const underwaterMask = smoothstep(0.25, -0.6, height);
+  const underwaterMask = smoothstep(-0.6, 0.25, height).oneMinus();
   const causticsA = texture(textures.caustics, worldXZ.mul(0.14).add(vec2(time.mul(0.021), time.mul(0.013)))).r;
   const causticsB = texture(textures.caustics, worldXZ.mul(0.09).sub(vec2(time.mul(0.017), time.mul(-0.011)))).r;
   const caustics = causticsA.mul(causticsB).mul(3.4).add(causticsA.mul(0.35));
   albedo = albedo.add(caustics.mul(underwaterMask).mul(0.55));
   // wet sand darkening right above the waterline
-  const wetBand = smoothstep(0.85, 0.25, height).mul(float(1).sub(underwaterMask)).mul(0.24);
+  const wetBand = smoothstep(0.25, 0.85, height).oneMinus().mul(float(1).sub(underwaterMask)).mul(0.24);
   albedo = albedo.mul(float(1).sub(wetBand));
 
   material.colorNode = albedo;

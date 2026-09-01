@@ -88,7 +88,7 @@ function createRippleSim(renderer, size) {
     const hU = prevTexture.sample(u.add(vec2(0, texel))).r;
 
     const laplacian = hL.add(hR).add(hD).add(hU).mul(0.25).sub(center.r);
-    let velocity = center.g.add(laplacian.mul(1.85)).mul(0.984);
+    let velocity = center.g.add(laplacian.mul(1.35)).mul(0.976);
 
     // impulses (player steps, swimming, waterfall churn)
     const worldPos = uv().sub(0.5).mul(RIPPLE_DOMAIN).add(uCenter);
@@ -98,15 +98,17 @@ function createRippleSim(renderer, size) {
       velocity = velocity.add(splash);
     }
 
-    let height = center.r.add(velocity).mul(0.9965);
+    let height = center.r.add(velocity).mul(0.996);
 
     // fade at the domain border so waves never bounce off the edge
+    // (smoothstep edges must be increasing — inverted edges are UB in GLSL)
     const border = smoothstep(0.0, 0.08, uv().x)
-      .mul(smoothstep(1.0, 0.92, uv().x))
+      .mul(smoothstep(0.92, 1.0, uv().x).oneMinus())
       .mul(smoothstep(0.0, 0.08, uv().y))
-      .mul(smoothstep(1.0, 0.92, uv().y));
-    height = height.mul(border);
-    velocity = velocity.mul(border);
+      .mul(smoothstep(0.92, 1.0, uv().y).oneMinus());
+    // hard stability clamp — the sim can never blow up past these bounds
+    height = clamp(height.mul(border), -0.6, 0.6);
+    velocity = clamp(velocity.mul(border), -0.5, 0.5);
 
     return vec4(height, velocity, 0, 1);
   })();
@@ -201,9 +203,9 @@ export function createWater(ctx) {
   const rippleUV = (xz) => xz.sub(ripple.centerUniform).div(RIPPLE_DOMAIN).add(0.5);
   const rippleMaskFor = (ruv) =>
     smoothstep(0.0, 0.06, ruv.x)
-      .mul(smoothstep(1.0, 0.94, ruv.x))
+      .mul(smoothstep(0.94, 1.0, ruv.x).oneMinus())
       .mul(smoothstep(0.0, 0.06, ruv.y))
-      .mul(smoothstep(1.0, 0.94, ruv.y));
+      .mul(smoothstep(0.94, 1.0, ruv.y).oneMinus());
 
   const waveHeightNode = (xz) => {
     let h = float(0);
@@ -246,7 +248,7 @@ export function createWater(ctx) {
 
   // vertex displacement: analytic waves + simulated ripples
   const surfaceRippleUV = rippleUV(positionLocal.xz);
-  const surfaceRipple = ripple.textureNode.sample(surfaceRippleUV).r
+  const surfaceRipple = clamp(ripple.textureNode.sample(surfaceRippleUV).r, -0.6, 0.6)
     .mul(rippleMaskFor(surfaceRippleUV));
 
   function buildSurfaceMaterial(reflectionNode) {
@@ -288,10 +290,10 @@ export function createWater(ctx) {
     const foamTexB = texture(textures.noise, worldXZ.mul(0.13).add(vec2(time.mul(-0.02), time.mul(0.024)))).r;
     const foamPattern = smoothstep(0.42, 0.72, foamTexA.mul(0.6).add(foamTexB.mul(0.4)));
 
-    const shoreFoam = smoothstep(0.55, 0.06, columnDepth).mul(foamPattern.mul(0.7).add(0.3));
+    const shoreFoam = smoothstep(0.06, 0.55, columnDepth).oneMinus().mul(foamPattern.mul(0.7).add(0.3));
     const crestFoam = smoothstep(0.07, 0.16, abs(surfaceRipple)).mul(0.7);
     const fallDist = worldXZ.sub(vec2(WORLD.waterfallX, -80)).length();
-    const fallFoam = smoothstep(9, 3.5, fallDist).mul(foamPattern.mul(0.5).add(0.5)).mul(0.85);
+    const fallFoam = smoothstep(3.5, 9, fallDist).oneMinus().mul(foamPattern.mul(0.5).add(0.5)).mul(0.85);
     const foam = clamp(shoreFoam.add(crestFoam).add(fallFoam), 0, 1);
 
     const waterShade = mix(baseColor, reflectionColor, fresnel.mul(reflectionNode ? 0.9 : 0.75));
@@ -352,9 +354,9 @@ export function createWater(ctx) {
     const streaksA = texture(textures.noise, vec2(streakUV.x.mul(scaleX), streakUV.y.mul(scaleY).sub(time.mul(speed)))).r;
     const streaksB = texture(textures.noise, vec2(streakUV.x.mul(scaleX * 2.1).add(0.31), streakUV.y.mul(scaleY * 2).sub(time.mul(speed * 1.7)))).r;
     const streaks = streaksA.mul(0.6).add(streaksB.mul(0.55));
-    const edge = smoothstep(0, 0.16, streakUV.x).mul(smoothstep(1, 0.84, streakUV.x));
-    const headFade = smoothstep(1.0, 0.93, streakUV.y);
-    const bottomBoost = smoothstep(0.35, 0.0, streakUV.y).mul(0.3);
+    const edge = smoothstep(0, 0.16, streakUV.x).mul(smoothstep(0.84, 1, streakUV.x).oneMinus());
+    const headFade = smoothstep(0.93, 1.0, streakUV.y).oneMinus();
+    const bottomBoost = smoothstep(0.0, 0.35, streakUV.y).oneMinus().mul(0.3);
     material.colorNode = mix(brightLow, brightHigh, streaks).add(bottomBoost);
     material.opacityNode = clamp(streaks.mul(opacity).add(0.12).add(bottomBoost), 0, 1)
       .mul(edge)
