@@ -3,8 +3,9 @@
 import * as THREE from 'three/webgpu';
 import { QUALITY_PRESETS, detectQualityName, isWebGLForced, WORLD } from './config.js';
 import { createHud } from './hud.js';
-import { createAllTextures } from './textures.js';
+import { createAllTexturesWithNormals } from './textures.js';
 import { createTerrain } from './terrain.js';
+import { createBackdrop } from './backdrop.js';
 import { createSky } from './sky.js';
 import { createInput } from './input.js';
 import { createPlayer } from './player.js';
@@ -111,16 +112,18 @@ async function init() {
   ctx.isWebGPU = isWebGPU;
 
   ctx.scene = new THREE.Scene();
-  ctx.camera = new THREE.PerspectiveCamera(66, window.innerWidth / window.innerHeight, 0.1, 900);
+  // far plane covers the sky dome + backdrop rings from anywhere on the map
+  ctx.camera = new THREE.PerspectiveCamera(66, window.innerWidth / window.innerHeight, 0.1, 1600);
   ctx.camera.position.set(WORLD.spawn.x, 4, WORLD.spawn.z);
   ctx.scene.add(ctx.camera);
 
   // ---------- build the world ----------
-  ctx.textures = await loadStep(0.1, 'painting textures', () => createAllTextures());
+  ctx.textures = await loadStep(0.1, 'painting textures', () => createAllTexturesWithNormals());
 
   await loadStep(0.3, 'raising terrain', () => {
     ctx.terrain = createTerrain(ctx);
     ctx.scene.add(ctx.terrain.mesh);
+    ctx.backdrop = createBackdrop(ctx);
   });
 
   await loadStep(0.4, 'lighting the sun', () => {

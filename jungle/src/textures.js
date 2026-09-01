@@ -151,6 +151,161 @@ export function createMossTexture() {
   return toTexture(canvas);
 }
 
+export function createDirtTexture() {
+  const canvas = makeCanvas(512);
+  const ctx = canvas.getContext('2d');
+  const random = mulberry32(606);
+
+  const base = ctx.createLinearGradient(0, 0, 512, 512);
+  base.addColorStop(0, '#6b4f36');
+  base.addColorStop(0.5, '#7a5b3e');
+  base.addColorStop(1, '#5e452f');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, 512, 512);
+
+  speckle(ctx, random, 3600, 3.5, 0.2, ['#8a6a48', '#4d3826', '#95784f', '#3f2d1e']);
+  // pebbles
+  for (let i = 0; i < 380; i += 1) {
+    const x = random() * 512;
+    const y = random() * 512;
+    const r = 1.5 + random() * 4;
+    ctx.fillStyle = random() > 0.5 ? 'rgba(150, 140, 120, 0.55)' : 'rgba(70, 58, 44, 0.6)';
+    ctx.beginPath();
+    ctx.ellipse(x, y, r, r * (0.6 + random() * 0.4), random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 240, 210, 0.16)';
+    ctx.beginPath();
+    ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // faint root streaks
+  for (let i = 0; i < 40; i += 1) {
+    ctx.strokeStyle = `rgba(60, 42, 28, ${0.2 + random() * 0.2})`;
+    ctx.lineWidth = 1.5 + random() * 3;
+    ctx.beginPath();
+    let x = random() * 512;
+    let y = random() * 512;
+    ctx.moveTo(x, y);
+    for (let s = 0; s < 6; s += 1) {
+      x += (random() - 0.5) * 60;
+      y += (random() - 0.5) * 60;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  return toTexture(canvas);
+}
+
+export function createLitterTexture() {
+  const canvas = makeCanvas(512);
+  const ctx = canvas.getContext('2d');
+  const random = mulberry32(707);
+
+  ctx.fillStyle = '#3a2c1c';
+  ctx.fillRect(0, 0, 512, 512);
+  speckle(ctx, random, 3000, 4, 0.25, ['#4c3a25', '#2c2114', '#55412a']);
+
+  // fallen leaves — ellipses in browns, ochres, a few still-green
+  const palette = ['#8a5a2b', '#a86f34', '#6b4a22', '#b98a3f', '#7d6a2c', '#5d7a2f', '#c49a4a', '#4f3a1d'];
+  for (let i = 0; i < 900; i += 1) {
+    const x = random() * 512;
+    const y = random() * 512;
+    const len = 5 + random() * 12;
+    const wid = len * (0.35 + random() * 0.3);
+    const rot = random() * Math.PI;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.fillStyle = palette[Math.floor(random() * palette.length)];
+    ctx.globalAlpha = 0.7 + random() * 0.3;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, len, wid, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // midrib
+    ctx.strokeStyle = 'rgba(40, 26, 12, 0.35)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-len, 0);
+    ctx.lineTo(len, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  // twigs
+  for (let i = 0; i < 120; i += 1) {
+    ctx.strokeStyle = `rgba(70, 50, 30, ${0.5 + random() * 0.4})`;
+    ctx.lineWidth = 1 + random() * 1.5;
+    const x = random() * 512;
+    const y = random() * 512;
+    const a = random() * Math.PI;
+    const l = 8 + random() * 22;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+    ctx.stroke();
+  }
+
+  return toTexture(canvas);
+}
+
+// Derive a tangent-space normal map from the luminance of an albedo canvas
+// (dark cracks read as grooves, bright specks as bumps).
+export function createNormalFromCanvas(sourceTexture, strength = 2.0, blur = 1) {
+  const source = sourceTexture.image;
+  const size = source.width;
+  const srcCtx = source.getContext('2d');
+  const src = srcCtx.getImageData(0, 0, size, size).data;
+
+  const heights = new Float32Array(size * size);
+  for (let i = 0; i < size * size; i += 1) {
+    heights[i] = (src[i * 4] * 0.299 + src[i * 4 + 1] * 0.587 + src[i * 4 + 2] * 0.114) / 255;
+  }
+  // small box blur so the normals aren't pixel-noisy
+  for (let pass = 0; pass < blur; pass += 1) {
+    const copy = heights.slice();
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        let sum = 0;
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            sum += copy[((y + dy + size) % size) * size + ((x + dx + size) % size)];
+          }
+        }
+        heights[y * size + x] = sum / 9;
+      }
+    }
+  }
+
+  const canvas = makeCanvas(size);
+  const ctx = canvas.getContext('2d');
+  const out = ctx.createImageData(size, size);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const hL = heights[y * size + ((x - 1 + size) % size)];
+      const hR = heights[y * size + ((x + 1) % size)];
+      const hD = heights[((y - 1 + size) % size) * size + x];
+      const hU = heights[((y + 1) % size) * size + x];
+      let nx = (hL - hR) * strength;
+      let ny = (hD - hU) * strength;
+      let nz = 1;
+      const len = Math.hypot(nx, ny, nz);
+      nx /= len;
+      ny /= len;
+      nz /= len;
+      const o = (y * size + x) * 4;
+      out.data[o] = Math.round((nx * 0.5 + 0.5) * 255);
+      out.data[o + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+      out.data[o + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+      out.data[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(out, 0, 0);
+  const texture = toTexture(canvas, { srgb: false });
+  texture.colorSpace = THREE.NoColorSpace;
+  return texture;
+}
+
 // Tileable monochrome noise — sampled in shaders for terrain mottling.
 export function createNoiseTexture(size = 256, seed = 808) {
   const canvas = makeCanvas(size);
@@ -690,4 +845,19 @@ export function createAllTextures() {
     butterflyB: createButterflyTexture(2313),
     caustics: createCausticsTexture(),
   };
+}
+
+// Full texture set including derived normal maps (call once at startup).
+export function createAllTexturesWithNormals() {
+  const textures = createAllTextures();
+  textures.dirt = createDirtTexture();
+  textures.litter = createLitterTexture();
+  textures.rockNormal = createNormalFromCanvas(textures.rock, 3.2, 1);
+  textures.sandNormal = createNormalFromCanvas(textures.sand, 1.4, 1);
+  textures.dirtNormal = createNormalFromCanvas(textures.dirt, 2.6, 1);
+  textures.litterNormal = createNormalFromCanvas(textures.litter, 2.4, 1);
+  textures.grassNormal = createNormalFromCanvas(textures.grass, 1.2, 2);
+  textures.barkNormal = createNormalFromCanvas(textures.bark, 3.0, 1);
+  textures.palmBarkNormal = createNormalFromCanvas(textures.palmBark, 3.0, 1);
+  return textures;
 }

@@ -3,7 +3,7 @@
 export const WORLD = {
   // World footprint (meters). Terrain is centered on the origin.
   size: 400,
-  terrainSegments: 256,
+  terrainSegments: 384,
   seed: 1337,
 
   // Water bodies
@@ -33,6 +33,34 @@ export const WORLD = {
   sunAzimuth: 160, // degrees — high sun, slightly east so the falls get side light
 
   fogColor: 0xc2ddb6,
+
+  // ---------- authored landforms (all inside the same 400 m map) ----------
+  // East ridge with a cliff-top overlook facing the lagoon + falls.
+  ridge: { x: 128, halfWidthWest: 22, halfWidthEast: 48, height: 21, zFrom: -150, zTo: 120 },
+  overlook: { x: 124, z: -12, radius: 14 },
+  // Shaded ravine running north–south on the west side.
+  ravine: { x: -112, wiggle: 9, halfWidth: 12, depth: 3.2, zFrom: -150, zTo: 70 },
+  // Stepped rock terraces north-east of the lagoon.
+  terraces: { x: 78, z: -102, radius: 50, step: 3.6 },
+  // Sunlit clearing (meadow) south-east — flowers, butterflies, the signature tree nearby.
+  clearing: { x: 62, z: 68, radius: 28, height: 3.4 },
+  // Low knoll south-west carrying the ruins.
+  ruins: { x: -72, z: 86, radius: 16, height: 6.2 },
+  // Signature giant tree at the clearing's edge.
+  giantTree: { x: 82, z: 48 },
+  // Walkable trail network (polylines, meters). Ground blends to dirt; plants avoid it.
+  trails: [
+    // spawn → lagoon south shore → east shore → climb to the overlook
+    [[-44, 66], [-30, 34], [-22, 20], [-6, 11], [14, 8], [30, 6], [48, -2], [62, -8], [80, -18], [98, -26], [112, -22], [124, -12]],
+    // shore junction → clearing → around south → ruins knoll
+    [[30, 6], [40, 22], [50, 42], [62, 64], [50, 90], [22, 106], [-12, 110], [-44, 100], [-64, 90], [-72, 86]],
+    // spawn junction → west into the ravine
+    [[-22, 20], [-46, 12], [-72, 2], [-96, -8], [-108, -30], [-112, -60], [-110, -95]],
+    // clearing → bamboo corridor → terraces
+    [[62, 64], [82, 46], [92, 20], [96, -4], [88, -34], [82, -60], [80, -84]],
+  ],
+  trailHalfWidth: 2.2,
+  rimHeight: 24,
 };
 
 export const QUALITY_PRESETS = {
