@@ -26,7 +26,7 @@ import { fxaa } from 'three/addons/tsl/display/FXAANode.js';
 export function createPost(ctx) {
   const { renderer, scene, camera } = ctx;
 
-  const postProcessing = new THREE.PostProcessing(renderer);
+  const postProcessing = new THREE.RenderPipeline(renderer);
   // We tone-map mid-chain ourselves (before FXAA), not at the very end.
   postProcessing.outputColorTransform = false;
 
@@ -41,7 +41,7 @@ export function createPost(ctx) {
   const godRays = Fn(() => {
     const NUM_TAPS = 22;
     const density = 0.92;
-    const decayBase = 0.94;
+    const decayBase = 0.93;
 
     const delta = sunScreen.sub(uv()).mul(density / NUM_TAPS);
     const accum = float(0).toVar();
@@ -52,9 +52,10 @@ export function createPost(ctx) {
       sampleUV.addAssign(delta);
       const clamped = clamp(sampleUV, vec2(0), vec2(1));
       const c = sceneColor.sample(clamped);
-      // only bright sky/water sparkle feeds the shafts
-      const bright = smoothstep(0.72, 1.6, luminance(c.rgb));
-      accum.addAssign(bright.mul(decay));
+      const bright = smoothstep(0.85, 1.9, luminance(c.rgb));
+      // shafts only stream from around the sun itself, not the whole sky
+      const nearSun = smoothstep(0.5, 0.12, clamped.sub(sunScreen).length());
+      accum.addAssign(bright.mul(nearSun).mul(decay));
       decay.mulAssign(decayBase);
     });
 
@@ -68,7 +69,7 @@ export function createPost(ctx) {
 
   // ---------- compose + grade ----------
   const composed = Fn(() => {
-    let color = sceneColor.rgb.add(bloomPass).add(godRays);
+    let color = sceneColor.rgb.add(bloomPass.rgb).add(godRays);
 
     // gentle saturation lift (keeps the jungle lush after tone mapping)
     const gray = luminance(color);
@@ -93,14 +94,22 @@ export function createPost(ctx) {
   // ---------- sun screen-position tracking ----------
   const sunWorld = new THREE.Vector3();
   const projected = new THREE.Vector3();
+  const cameraForward = new THREE.Vector3();
 
   function update() {
+    // is the camera even looking toward the sun? (projected.z lies behind camera)
+    camera.getWorldDirection(cameraForward);
+    const facing = cameraForward.dot(ctx.sky.sunDirection);
+    if (facing <= 0.05) {
+      sunVisibility.value = 0;
+      return;
+    }
+
     sunWorld.copy(ctx.sky.sunDirection).multiplyScalar(600).add(camera.position);
     projected.copy(sunWorld).project(camera);
-    const onScreenX = 1 - THREE.MathUtils.clamp(Math.abs(projected.x) - 0.9, 0, 1.2) / 1.2;
-    const onScreenY = 1 - THREE.MathUtils.clamp(Math.abs(projected.y) - 0.9, 0, 1.2) / 1.2;
-    const inFront = projected.z < 1 ? 1 : 0;
-    sunVisibility.value = onScreenX * onScreenY * inFront;
+    const onScreenX = 1 - THREE.MathUtils.clamp(Math.abs(projected.x) - 0.85, 0, 1.1) / 1.1;
+    const onScreenY = 1 - THREE.MathUtils.clamp(Math.abs(projected.y) - 0.85, 0, 1.1) / 1.1;
+    sunVisibility.value = onScreenX * onScreenY * THREE.MathUtils.smoothstep(facing, 0.05, 0.35);
     sunScreen.value.set(projected.x * 0.5 + 0.5, projected.y * 0.5 + 0.5);
   }
 
