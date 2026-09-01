@@ -9,6 +9,7 @@ import { createSky } from './sky.js';
 import { createInput } from './input.js';
 import { createPlayer } from './player.js';
 import { createVegetation } from './vegetation.js';
+import { createWater } from './water.js';
 
 const ctx = {
   renderer: null,
@@ -128,9 +129,14 @@ async function init() {
     ctx.updatables.push(ctx.vegetation);
   });
 
-  await loadStep(0.75, 'waking the player', () => {
+  await loadStep(0.7, 'waking the player', () => {
     ctx.input = createInput(ctx);
     ctx.player = createPlayer(ctx);
+  });
+
+  await loadStep(0.85, 'filling the lagoon', () => {
+    ctx.water = createWater(ctx);
+    ctx.updatables.push(ctx.water);
   });
 
   applyQuality(ctx.qualityName);
@@ -173,6 +179,7 @@ async function init() {
     for (const updatable of ctx.updatables) {
       updatable.update(dt, ctx.time);
     }
+    document.body.classList.toggle('is-underwater', ctx.player.headUnderwater);
 
     if (ctx.post) {
       ctx.post.render();
