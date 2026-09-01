@@ -339,6 +339,8 @@ export function createWater(ctx) {
       depth: vec3(depthFactor),
       normal: normal.mul(0.5).add(0.5),
       shade: waterShade,
+      final: mix(waterShade, foamColor, foam).add(glint),
+      opacity: vec3(clamp(float(0.5).add(depthFactor.mul(0.3)).add(fresnel.mul(1.1)).add(foam.mul(0.4)), 0, 0.97)),
     };
     return material;
   }
