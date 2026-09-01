@@ -78,6 +78,9 @@ export function createInput(ctx) {
     });
   }
 
+  // no long-press context menu / text selection on the canvas
+  canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
   // ---------- touch: dual sticks ----------
   if (isTouch) {
     document.body.classList.add('is-touch');

@@ -582,6 +582,7 @@ export function createWater(ctx) {
     const useReflection = preset.planarReflection;
     surface.material = useReflection ? materialWithReflection : materialCheap;
     reflection.target.visible = useReflection;
+    reflection.resolutionScale = preset.reflectionSize >= 1024 ? 0.75 : 0.5;
   }
 
   return {

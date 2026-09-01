@@ -124,7 +124,7 @@ export function createPost(ctx) {
   }
 
   function applyQuality(preset) {
-    godRayStrength.value = preset.godRays ? 0.42 : 0;
+    godRayStrength.value = preset.godRays ? 0.55 : 0;
     bloomPass.strength.value = preset.bloom ? preset.bloomStrength : 0;
     if (preset.fxaa !== usingFxaa) {
       usingFxaa = preset.fxaa;
