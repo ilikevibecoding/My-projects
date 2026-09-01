@@ -63,6 +63,21 @@ function createRippleSim(renderer, size) {
   let rtA = new THREE.RenderTarget(size, size, options);
   let rtB = new THREE.RenderTarget(size, size, options);
 
+  // Uninitialized render targets contain garbage which the wave equation then
+  // treats as real water state — clear both to flat water first.
+  {
+    const prevRT = renderer.getRenderTarget();
+    const prevColor = renderer.getClearColor(new THREE.Color());
+    const prevAlpha = renderer.getClearAlpha();
+    renderer.setClearColor(0x000000, 0);
+    for (const rt of [rtA, rtB]) {
+      renderer.setRenderTarget(rt);
+      renderer.clear(true, false, false);
+    }
+    renderer.setRenderTarget(prevRT);
+    renderer.setClearColor(prevColor, prevAlpha);
+  }
+
   const texel = 1 / size;
   const prevTexture = texture(rtA.texture);
   const uCenter = uniform(new THREE.Vector2(0, 0));
@@ -308,6 +323,17 @@ export function createWater(ctx) {
       0,
       0.97
     );
+    // visualization hooks for headless debugging
+    material.userData.debugNodes = {
+      base: baseColor,
+      reflection: reflectionColor,
+      fresnel: vec3(fresnel),
+      foam: vec3(foam),
+      glint: vec3(glint),
+      depth: vec3(depthFactor),
+      normal: normal.mul(0.5).add(0.5),
+      shade: waterShade,
+    };
     return material;
   }
 
