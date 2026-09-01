@@ -234,8 +234,8 @@ export function createWater(ctx) {
     const rC = ripple.textureNode.sample(ruv).r;
     const rX = ripple.textureNode.sample(rippleUV(worldXZ.add(vec2(e, 0)))).r;
     const rZ = ripple.textureNode.sample(rippleUV(worldXZ.add(vec2(0, e)))).r;
-    const gradX = rX.sub(rC).div(e).mul(mask).mul(1.6);
-    const gradZ = rZ.sub(rC).div(e).mul(mask).mul(1.6);
+    const gradX = rX.sub(rC).div(e).mul(mask).mul(2.8);
+    const gradZ = rZ.sub(rC).div(e).mul(mask).mul(2.8);
     return normalize(vec3(dhdx.add(gradX).negate(), 1, dhdz.add(gradZ).negate()));
   };
 
@@ -267,7 +267,7 @@ export function createWater(ctx) {
     const normal = waterNormalNode();
     const viewDir = normalize(cameraPosition.sub(positionWorld));
     const fresnel = pow(clamp(float(1).sub(max(dot(viewDir, normal), 0)), 0, 1), 5)
-      .mul(0.58)
+      .mul(0.42)
       .add(0.04);
 
     const shallowColor = vec3(0.21, 0.74, 0.66);
@@ -276,8 +276,9 @@ export function createWater(ctx) {
 
     let reflectionColor;
     if (reflectionNode) {
-      // tint the mirror toward water so the foggy horizon can't white it out
-      reflectionColor = reflectionNode.rgb.mul(vec3(0.62, 0.82, 0.84));
+      // tint the mirror toward water and cap its brightness — the HDR-bright
+      // sky horizon otherwise turns every grazing view into white glare
+      reflectionColor = reflectionNode.rgb.mul(vec3(0.48, 0.72, 0.74)).min(vec3(0.62, 0.78, 0.8));
     } else {
       // cheap sky-gradient reflection for Low/Medium
       const reflectDir = reflect(viewDir.negate(), normal);
@@ -294,7 +295,7 @@ export function createWater(ctx) {
     const foamPattern = smoothstep(0.42, 0.72, foamTexA.mul(0.6).add(foamTexB.mul(0.4)));
 
     const shoreFoam = smoothstep(0.06, 0.55, columnDepth).oneMinus().mul(foamPattern.mul(0.7).add(0.3));
-    const crestFoam = smoothstep(0.07, 0.16, abs(surfaceRipple)).mul(0.7);
+    const crestFoam = smoothstep(0.035, 0.11, abs(surfaceRipple)).mul(0.7);
     const fallDist = worldXZ.sub(vec2(WORLD.waterfallX, -80)).length();
     const fallFoam = smoothstep(3.5, 9, fallDist).oneMinus().mul(foamPattern.mul(0.5).add(0.5)).mul(0.85);
     const foam = clamp(shoreFoam.add(crestFoam).add(fallFoam), 0, 1);
@@ -315,7 +316,7 @@ export function createWater(ctx) {
   reflection.target.rotateX(-Math.PI / 2);
   reflection.target.position.set(0, WORLD.waterLevel, 0);
   scene.add(reflection.target);
-  reflection.uvNode = reflection.uvNode.add(waterNormalNode().xz.mul(0.05));
+  reflection.uvNode = reflection.uvNode.add(waterNormalNode().xz.mul(0.03));
 
   const materialWithReflection = buildSurfaceMaterial(reflection);
   const materialCheap = buildSurfaceMaterial(null);
