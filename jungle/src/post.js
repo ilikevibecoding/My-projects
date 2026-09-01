@@ -32,6 +32,7 @@ export function createPost(ctx) {
 
   const scenePass = pass(scene, camera);
   const sceneColor = scenePass.getTextureNode('output');
+  const sceneDepth = scenePass.getTextureNode('depth');
 
   // ---------- god rays (screen-space radial scattering from the sun) ----------
   const sunScreen = uniform(new THREE.Vector2(0.5, 0.8));
@@ -65,9 +66,12 @@ export function createPost(ctx) {
   })();
 
   // ---------- bloom ----------
-  // High threshold: only true HDR highlights (glints, waterfall, sun glow)
-  // may bloom — the tropical sky itself is >1 and must not wash the frame.
-  const bloomPass = bloom(sceneColor, 0.45, 0.4, 2.4);
+  // The HDR sky dome is brighter than any threshold — mask it out via scene
+  // depth (dome sits at ~800 m) so only real highlights bloom: water glints,
+  // waterfall whites, flowers in sunlight.
+  const notSky = smoothstep(0.9998, 0.99996, sceneDepth).oneMinus();
+  const bloomInput = sceneColor.rgb.mul(notSky);
+  const bloomPass = bloom(bloomInput, 0.45, 0.4, 1.1);
 
   // ---------- compose + grade ----------
   const composed = Fn(() => {
@@ -129,5 +133,13 @@ export function createPost(ctx) {
     }
   }
 
-  return { update, render, applyQuality };
+  return {
+    update,
+    render,
+    applyQuality,
+    // debug hooks
+    _bloom: bloomPass,
+    _godRayStrength: godRayStrength,
+    _sunVisibility: sunVisibility,
+  };
 }
