@@ -549,7 +549,10 @@ export function createBarkTexture(seed = 505, tint = { r: 96, g: 70, b: 48 }) {
   ctx.fillStyle = `rgb(${tint.r}, ${tint.g}, ${tint.b})`;
   ctx.fillRect(0, 0, 256, 512);
 
-  // vertical striations
+  // vertical striations: the wander is a sum of sinusoids with periods that
+  // divide the tile height, so a fibre leaves the bottom edge exactly where it
+  // re-enters at the top (a random walk showed a seam every repeat on tall trunks)
+  const TAU = Math.PI * 2;
   for (let i = 0; i < 130; i += 1) {
     const x0 = random() * 256;
     const light = random() > 0.5;
@@ -557,27 +560,42 @@ export function createBarkTexture(seed = 505, tint = { r: 96, g: 70, b: 48 }) {
       ? `rgba(${tint.r + 38}, ${tint.g + 32}, ${tint.b + 26}, ${0.16 + random() * 0.2})`
       : `rgba(${Math.max(0, tint.r - 42)}, ${Math.max(0, tint.g - 34)}, ${Math.max(0, tint.b - 26)}, ${0.2 + random() * 0.24})`;
     ctx.lineWidth = 1.5 + random() * 4;
-    ctx.beginPath();
-    let x = x0;
-    ctx.moveTo(x, -10);
-    for (let y = 0; y <= 512; y += 36) {
-      x += (random() - 0.5) * 10;
-      ctx.lineTo(x, y);
+    const k1 = 1 + Math.floor(random() * 2);
+    const k2 = 3 + Math.floor(random() * 3);
+    const p1 = random() * TAU;
+    const p2 = random() * TAU;
+    const a1 = 4 + random() * 8;
+    const a2 = 1.5 + random() * 3;
+    const wander = (y) => a1 * Math.sin((y / 512) * TAU * k1 + p1) + a2 * Math.sin((y / 512) * TAU * k2 + p2);
+    for (const dx of [-256, 0, 256]) {
+      ctx.beginPath();
+      ctx.moveTo(x0 + dx + wander(-24), -24);
+      for (let y = 0; y <= 536; y += 24) {
+        ctx.lineTo(x0 + dx + wander(y), y);
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
   }
 
-  // horizontal ring cracks
+  // horizontal ring cracks (drawn again a tile up/down so those near the edge wrap)
   for (let i = 0; i < 22; i += 1) {
-    const y = random() * 512;
+    const y0 = random() * 512;
     ctx.strokeStyle = `rgba(30, 20, 12, ${0.12 + random() * 0.18})`;
     ctx.lineWidth = 1 + random() * 1.6;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    for (let x = 0; x <= 256; x += 18) {
-      ctx.lineTo(x, y + (random() - 0.5) * 6);
+    const jitter = [];
+    for (let x = 0; x <= 256; x += 18) jitter.push((random() - 0.5) * 6);
+    jitter[jitter.length - 1] = jitter[0];
+    for (const dy of [-512, 0, 512]) {
+      const y = y0 + dy;
+      if (y < -8 || y > 520) continue;
+      ctx.beginPath();
+      ctx.moveTo(0, y + jitter[0]);
+      let j = 0;
+      for (let x = 0; x <= 256; x += 18, j += 1) {
+        ctx.lineTo(x, y + jitter[j]);
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
   }
 
   speckle(ctx, random, 350, 3, 0.2, ['#503a26', '#7a5c3e', '#2e2014']);

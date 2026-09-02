@@ -256,6 +256,9 @@ export function createCanopyDensitySampler(sampleHeight) {
     d *= 1 - zone.terrace * 0.55;
     d *= 1 - zone.ruins * 0.55;
     d *= 1 - trailMask(x, z) * 0.75;
+    // a sun-gap over the trailhead: the first frame should be dappled light on
+    // the path, not the black floor of a closed canopy
+    d *= 1 - radialMask(x, z, WORLD.spawn.x, WORLD.spawn.z, 7, 17) * 0.8;
     d = d * (1 - zone.ravine * 0.3) + zone.ravine * 0.55;
     // slope: no forest on cliff faces
     const e = 1.6;
