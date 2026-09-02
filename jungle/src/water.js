@@ -1233,6 +1233,33 @@ export function createWater(ctx) {
   // 1.56 m quads: enough for the analytic waves and the plunge-pool heave
   const surfaceGeo = new THREE.PlaneGeometry(WORLD.size, WORLD.size, 256, 256);
   surfaceGeo.rotateX(-Math.PI / 2);
+  {
+    // Water only exists where the ground dips below the waterline (lagoon +
+    // river ≈ a sixth of the map), so drop every quad whose four corners all
+    // sit on dry land: ~130k triangles become ~25k with no visible change.
+    // A 0.6 m margin keeps the analytic waves and the plunge heave covered.
+    const segs = 256;
+    const pos = surfaceGeo.attributes.position;
+    const heights = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i += 1) {
+      heights[i] = terrain.sampleHeight(pos.getX(i), pos.getZ(i));
+    }
+    const keepBelow = WORLD.waterLevel + 0.6;
+    const index = [];
+    for (let iy = 0; iy < segs; iy += 1) {
+      for (let ix = 0; ix < segs; ix += 1) {
+        const a = ix + (segs + 1) * iy;
+        const b = ix + (segs + 1) * (iy + 1);
+        const c = ix + 1 + (segs + 1) * (iy + 1);
+        const d = ix + 1 + (segs + 1) * iy;
+        if (Math.min(heights[a], heights[b], heights[c], heights[d]) < keepBelow) {
+          index.push(a, b, d, b, c, d);
+        }
+      }
+    }
+    surfaceGeo.setIndex(index);
+    surfaceGeo.computeBoundingSphere();
+  }
 
   // planar reflection target (only rendered on High/Ultra)
   const reflection = reflector({ resolutionScale: 0.5 });
