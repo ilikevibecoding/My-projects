@@ -256,7 +256,10 @@ async function init() {
 
   renderer.setAnimationLoop(() => {
     timer.update();
-    const dt = Math.min(timer.getDelta(), 0.05);
+    // simulation step is clamped (a hitch must not launch the player), but the
+    // meter has to see the real frame time or it can never read below 20 fps
+    const rawDt = timer.getDelta();
+    const dt = Math.min(rawDt, 0.05);
     ctx.time += dt;
 
     ctx.player.update(dt);
@@ -274,9 +277,9 @@ async function init() {
     }
 
     // fps meter
-    fpsAccum += dt;
+    fpsAccum += rawDt;
     fpsFrames += 1;
-    fpsTimer += dt;
+    fpsTimer += rawDt;
     if (fpsTimer > 0.5) {
       ctx.hud.setFps(fpsFrames / fpsAccum);
       fpsAccum = 0;

@@ -14,6 +14,7 @@ import {
   positionLocal,
   positionGeometry,
   positionWorld,
+  normalWorld,
   cameraPosition,
   vec2,
   vec3,
@@ -282,11 +283,17 @@ function foliageMaterial(map, {
     const viewDir = cameraPosition.sub(positionWorld).normalize();
     const backlight = viewDir.dot(sunDirUniform).negate().clamp(0, 1).pow(4);
     const underside = viewDir.y.negate().clamp(0, 1).mul(0.2);
-    let transmitted = backlight.add(underside).mul(translucency);
+    // energy-ish conservation: a card whose shading normal already faces the
+    // sun is being lit by reflection, so it transmits little; only the side
+    // turned away from the sun glows. Capped so translucency + direct + bloom
+    // can never stack a broadleaf into a white cut-out.
+    const facingSun = normalWorld.dot(sunDirUniform).clamp(0, 1);
+    let transmitted = backlight.add(underside).mul(translucency).mul(facingSun.mul(0.7).oneMinus());
     if (backShade) {
       // the shaded back of a leaf is where the sun shines *through* it
       transmitted = transmitted.mul(mix(float(1.6), float(1), backShade));
     }
+    transmitted = transmitted.min(0.32);
     // transmitted light is yellow-green, but kept below the lit albedo so leaves
     // stay leaf-green instead of turning lime whenever the sun is behind them
     material.emissiveNode = color.mul(vec3(0.7, 0.85, 0.35)).mul(transmitted);
@@ -309,7 +316,8 @@ function barkMaterial(map, normalTex, noiseTex, mossTex, {
   const material = new THREE.MeshStandardNodeMaterial({ map, roughness, metalness: 0 });
   const value = mix(float(1 - valueSpread), float(1 + valueSpread), hash(instanceIndex.add(11)));
   const hueAngle = hash(instanceIndex.add(29)).sub(0.5).mul(2 * hueSpread);
-  const bark = texture(map);
+  // per-instance V offset: neighbouring trunks no longer share ring phase
+  const bark = texture(map, uv().add(vec2(0, hash(instanceIndex.add(5)))));
   const y = positionGeometry.y; // pre-instance height above the trunk base (m at scale 1)
   const heightMix = smoothstep(0.0, gradientHeight, y);
   let color = hueRotate(bark.rgb, hueAngle).mul(mix(vec3(baseTint[0], baseTint[1], baseTint[2]), vec3(1 + lighten, 1 + lighten, 1 + lighten), heightMix));
@@ -322,7 +330,7 @@ function barkMaterial(map, normalTex, noiseTex, mossTex, {
   // faint sky bounce so the shaded side of a trunk keeps its colour under the
   // canopy instead of dropping to black
   material.emissiveNode = color.mul(vec3(0.05, 0.06, 0.07));
-  material.normalNode = normalMap(texture(normalTex).rgb, vec2(normalScale));
+  material.normalNode = normalMap(texture(normalTex, uv().add(vec2(0, hash(instanceIndex.add(5))))).rgb, vec2(normalScale));
   material.roughnessNode = mix(float(roughness), float(0.98), mossMask);
   return material;
 }
@@ -445,9 +453,41 @@ function crossedCards(width, height, cards = 2, horizontalCap = false) {
     parts.push(plane);
   }
   if (horizontalCap) {
-    const cap = new THREE.PlaneGeometry(width, width);
-    cap.rotateX(-Math.PI / 2);
-    cap.translate(0, height * 0.22, 0);
+    // two smaller caps tilted against each other: one flat cap seen edge-on at
+    // eye level collapsed into a hard line drawn across the whole shrub
+    for (const [tiltX, tiltZ, dy] of [[0.42, 0.18, 0.18], [-0.38, -0.24, 0.26]]) {
+      const cap = new THREE.PlaneGeometry(width * 0.78, width * 0.78);
+      cap.rotateX(-Math.PI / 2 + tiltX);
+      cap.rotateZ(tiltZ);
+      cap.translate(0, height * dy, 0);
+      parts.push(cap);
+    }
+  }
+  const merged = mergeGeometries(parts);
+  parts.forEach((p) => p.dispose());
+  return merged;
+}
+
+// Shrub: cards fanned around the axis but each pushed off-centre, tilted and
+// scaled a little differently, plus two counter-tilted caps. Crossed cards
+// meeting on one axis show a dark seam from every angle; this never lines up.
+function shrubCluster(width, height, cards = 5, seed = 71) {
+  const random = mulberry32(seed);
+  const parts = [];
+  for (let i = 0; i < cards; i += 1) {
+    const s = 0.72 + random() * 0.36;
+    const plane = new THREE.PlaneGeometry(width * s, height * (0.85 + random() * 0.3));
+    plane.rotateX((random() - 0.5) * 0.5);
+    plane.rotateZ((random() - 0.5) * 0.4);
+    plane.rotateY((i / cards) * Math.PI + (random() - 0.5) * 0.5);
+    plane.translate((random() - 0.5) * width * 0.34, (random() - 0.5) * height * 0.2, (random() - 0.5) * width * 0.34);
+    parts.push(plane);
+  }
+  for (const [tiltX, tiltZ, dy] of [[0.42, 0.18, 0.18], [-0.38, -0.24, 0.26]]) {
+    const cap = new THREE.PlaneGeometry(width * 0.78, width * 0.78);
+    cap.rotateX(-Math.PI / 2 + tiltX);
+    cap.rotateZ(tiltZ);
+    cap.translate(0, height * dy, 0);
     parts.push(cap);
   }
   const merged = mergeGeometries(parts);
@@ -1811,7 +1851,8 @@ export function createVegetation(ctx) {
   })();
   // tint pulled down and an occlusion ramp over frond height: the rising young
   // fronds are sunlit, the arching old ones sit under them in shade
-  const frondMat = foliageMaterial(textures.palmFrond, { translucency: 0.32, roughness: 0.62, tint: [0.66, 0.8, 0.56], hueSpread: 0.08, valueSpread: 0.14, vertexTint: true, ao: [-1.5, 2.5, 0.3] });
+  // matte (0.74): a glossy pale frond against the sky went white
+  const frondMat = foliageMaterial(textures.palmFrond, { translucency: 0.32, roughness: 0.74, tint: [0.66, 0.8, 0.56], hueSpread: 0.08, valueSpread: 0.14, vertexTint: true, ao: [-1.5, 2.5, 0.3] });
   // heightFloor 0.4 × 0.4 = 0.16: the head's base moves exactly like the trunk tip
   applyVertex(frondMat, { wind: { strength: 0.4, speed: 0.6, heightRef: 4.6, heightPow: 1.2, flutter: 0.05, heightFloor: 0.4 }, inst: palmHeadInst });
   const palmTrunks = new THREE.InstancedMesh(palmTrunkGeo, palmBarkMat, Math.max(1, palmPlacements.length));
@@ -1982,7 +2023,7 @@ export function createVegetation(ctx) {
   const culms = new THREE.InstancedMesh(culmGeo, culmMat, Math.max(1, bambooCulms.length));
   culms.name = 'bamboo-culms';
   const bambooLeafGeo = prepareFoliage(crossedCards(1.9, 1.4, 2), 0.62, 0.5);
-  const bambooLeafMat = foliageMaterial(ft.bambooLeaf, { translucency: 0.4, roughness: 0.6, tint: [0.86, 0.96, 0.76], hueSpread: 0.12 });
+  const bambooLeafMat = foliageMaterial(ft.bambooLeaf, { translucency: 0.4, roughness: 0.72, tint: [0.74, 0.86, 0.64], hueSpread: 0.12 });
   applyVertex(bambooLeafMat, { wind: { strength: 0.42, speed: 0.55, uniformSway: true, flutter: 0.08 } });
   const bambooLeaves = new THREE.InstancedMesh(bambooLeafGeo, bambooLeafMat, Math.max(1, bambooCulms.length * 3));
   bambooLeaves.name = 'bamboo-leaves';
@@ -2172,7 +2213,7 @@ export function createVegetation(ctx) {
   });
 
   // ---------- bushes / shrubs ----------
-  const bushGeo = prepareFoliage(crossedCards(2.2, 1.7, 3, true), 0.72, 0.7);
+  const bushGeo = prepareFoliage(shrubCluster(2.2, 1.7, 5), 0.72, 0.7);
   bushGeo.translate(0, 0.72, 0);
   const bushMat = foliageMaterial(ft.bush, { translucency: 0.45, roughness: 0.7, fade: [105, 135], hueSpread: 0.12, ao: [0, 1.4, 0.4] });
   const bushInst = instanceStream(3800);
@@ -2186,7 +2227,8 @@ export function createVegetation(ctx) {
       count: 3800,
       seed: 161,
       rule: (s, x, z) => {
-        if (!plantRule(s, { slopeMin: 0.55 })) return 0;
+        // 0.68 ≈ 47°: past that a shrub's downhill side hangs off the face
+        if (!plantRule(s, { slopeMin: 0.68 })) return 0;
         if ((s.canopy < 0.08 && s.water < 0.4 && s.cliff < 0.3) || s.zone.clearing > 0.5) return 0;
         if (!treeClear(x, z, 1.3)) return 0;
         const edge = 1 - Math.min(1, Math.abs(s.canopy - 0.4) * 2);
@@ -2200,8 +2242,8 @@ export function createVegetation(ctx) {
     }),
     scale: (p, rng) => 0.6 + rng() * 0.9,
     yJitter: 0.3,
-    sink: 0.1,
-    align: 0.35,
+    sink: 0.22,
+    align: 0.5,
     inst: bushInst,
   });
 
@@ -2375,7 +2417,7 @@ export function createVegetation(ctx) {
   // Olive tint so blades sit in the ground's grass albedo instead of glowing
   // lime above it.
   const grassHandover = [GRASS_DISC_FADE.start, GRASS_DISC_FADE.end];
-  const grassMat = foliageMaterial(textures.grassBlade, { translucency: 0.35, roughness: 0.8, fade: [95, 125], fadeIn: grassHandover, hueSpread: 0.1, valueSpread: 0.18, tint: [0.7, 0.8, 0.52], ao: [0, 0.65, 0.5] });
+  const grassMat = foliageMaterial(textures.grassBlade, { translucency: 0.35, roughness: 0.8, fade: [95, 125], fadeIn: grassHandover, hueSpread: 0.1, valueSpread: 0.18, tint: [0.66, 0.74, 0.54], ao: [0, 0.65, 0.5] });
   const grassInst = instanceStream(16000);
   applyVertex(grassMat, { wind: { strength: 0.14, speed: 1.7, heightRef: 0.8, flutter: 0.05 }, fade: [95, 125], fadeIn: grassHandover, inst: grassInst });
   buildSimple({
@@ -2411,7 +2453,7 @@ export function createVegetation(ctx) {
   const tallGrassGeoBase = crossedCards(1.4, 1.75, 3);
   tallGrassGeoBase.translate(0, 0.82, 0);
   const tallGrassGeo = prepareFoliage(tallGrassGeoBase, 0.75);
-  const tallGrassMat = foliageMaterial(ft.tallGrass, { translucency: 0.5, roughness: 0.78, fade: [80, 110], hueSpread: 0.08, valueSpread: 0.16, tint: [0.8, 0.88, 0.66], ao: [0, 1.3, 0.45] });
+  const tallGrassMat = foliageMaterial(ft.tallGrass, { translucency: 0.5, roughness: 0.78, fade: [80, 110], hueSpread: 0.08, valueSpread: 0.16, tint: [0.76, 0.82, 0.66], ao: [0, 1.3, 0.45] });
   const tallGrassInst = instanceStream(4200);
   applyVertex(tallGrassMat, { wind: { strength: 0.24, speed: 1.3, heightRef: 1.6, heightPow: 1.3, flutter: 0.06 }, fade: [80, 110], inst: tallGrassInst });
   buildSimple({
@@ -2501,8 +2543,8 @@ export function createVegetation(ctx) {
     rule: (s) => (plantRule(s, { slopeMin: 0.7, trailClear: 2.6, giantClear: 3 }) && s.canopy > 0.55 ? 1 : 0),
     maxTries: 60000,
   });
-  const mushroomGeoBase = crossedCards(0.34, 0.28, 2);
-  mushroomGeoBase.translate(0, 0.13, 0);
+  const mushroomGeoBase = crossedCards(0.24, 0.2, 2);
+  mushroomGeoBase.translate(0, 0.09, 0);
   const mushroomGeo = prepareFoliage(mushroomGeoBase, 0.7);
   const mushroomMat = foliageMaterial(ft.mushroom, { translucency: 0.15, roughness: 0.6, fade: [30, 45], hueSpread: 0.05, valueSpread: 0.15 });
   const mushroomInst = instanceStream(1300);

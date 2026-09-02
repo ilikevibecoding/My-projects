@@ -783,16 +783,20 @@ export function createDirtTextureSet(size = 1024) {
   const mudTone = [160, 138, 108];
   for (let i = 0; i < size * size; i += 1) {
     const t = tone[i];
-    const mudGate = smooth01((mud[i] - 0.64) / 0.14);
+    // dried-mud patches are the exception, not the rule (a full-tile crack
+    // network read as flagstone paving from a few metres), and the cracks are
+    // partial: they fade in and out along their length with the clod noise
+    const mudGate = smooth01((mud[i] - 0.7) / 0.12);
     const crackW = plates.f2[i] - plates.f1[i];
-    const crack = Math.max(0, 1 - crackW / 0.05) * mudGate;
-    const fineCrack = Math.max(0, 1 - (platesFine.f2[i] - platesFine.f1[i]) / 0.04) * smooth01((mud[i] - 0.72) / 0.1);
+    const crackGate = smooth01((clods[i] - 0.32) / 0.36);
+    const crack = Math.max(0, 1 - crackW / 0.035) * mudGate * crackGate;
+    const fineCrack = Math.max(0, 1 - (platesFine.f2[i] - platesFine.f1[i]) / 0.03) * smooth01((mud[i] - 0.78) / 0.1) * crackGate;
     // soil crumbs: a dome per Voronoi cell, flattened where the mud dried smooth
     const crumb = Math.max(0, 1 - crumbs.f1[i] * 1.5) * crumbHeight[crumbs.id[i]] * (1 - mudGate * 0.85);
     // mud plates curl up at the edges as they dry
     const curl = mudGate * smooth01(1 - crackW / 0.35) * 0.35 * (0.6 + plateTilt[plates.id[i]] * 0.4);
     let h = 0.48 + (clods[i] - 0.5) * 0.3 + crumb * 0.2 + (grit[i] - 0.5) * 0.1 * (1 - mudGate * 0.7);
-    h += curl * 0.1 - crack * crack * 0.24 - fineCrack * 0.09;
+    h += curl * 0.07 - crack * crack * 0.16 - fineCrack * 0.06;
     baseH[i] = h;
 
     // albedo: damp ↔ dry drift, a red iron patch where the tone is high, pale
@@ -804,11 +808,11 @@ export function createDirtTextureSet(size = 1024) {
     r = r * (1 - ironMix) + iron[0] * ironMix;
     g = g * (1 - ironMix) + iron[1] * ironMix;
     b = b * (1 - ironMix) + iron[2] * ironMix;
-    const mudMix = mudGate * 0.72;
+    const mudMix = mudGate * 0.55;
     r = r * (1 - mudMix) + mudTone[0] * mudMix;
     g = g * (1 - mudMix) + mudTone[1] * mudMix;
     b = b * (1 - mudMix) + mudTone[2] * mudMix;
-    const shade = (0.86 + (h - 0.5) * 0.55) * (0.93 + grit[i] * 0.14) * (1 - crack * crack * 0.34 - fineCrack * 0.2);
+    const shade = (0.86 + (h - 0.5) * 0.55) * (0.93 + grit[i] * 0.14) * (1 - crack * crack * 0.24 - fineCrack * 0.14);
     const o = i * 4;
     data[o] = r * shade;
     data[o + 1] = g * shade;
@@ -1290,24 +1294,29 @@ export function createBarkTexture(seed = 505, tint = { r: 96, g: 70, b: 48 }) {
     }
   }
 
-  // horizontal ring cracks (drawn again a tile up/down so those near the edge wrap)
-  for (let i = 0; i < 22; i += 1) {
+  // a few faint, partial ring cracks (drawn again a tile up/down so those
+  // near the edge wrap); 22 full-width rings made every trunk a cardboard tube
+  for (let i = 0; i < 9; i += 1) {
     const y0 = random() * 512;
-    ctx.strokeStyle = `rgba(30, 20, 12, ${0.12 + random() * 0.18})`;
+    ctx.strokeStyle = `rgba(30, 20, 12, ${0.06 + random() * 0.12})`;
     ctx.lineWidth = 1 + random() * 1.6;
+    // partial: a crack runs 25–65 % of the way round, then peters out
+    const xs = random() * 256;
+    const len = 64 + random() * 100;
     const jitter = [];
-    for (let x = 0; x <= 256; x += 18) jitter.push((random() - 0.5) * 6);
-    jitter[jitter.length - 1] = jitter[0];
+    for (let x = 0; x <= len; x += 18) jitter.push((random() - 0.5) * 6);
     for (const dy of [-512, 0, 512]) {
       const y = y0 + dy;
       if (y < -8 || y > 520) continue;
-      ctx.beginPath();
-      ctx.moveTo(0, y + jitter[0]);
-      let j = 0;
-      for (let x = 0; x <= 256; x += 18, j += 1) {
-        ctx.lineTo(x, y + jitter[j]);
+      for (const dx of [-256, 0]) {
+        ctx.beginPath();
+        ctx.moveTo(xs + dx, y + jitter[0]);
+        let j = 0;
+        for (let x = 0; x <= len; x += 18, j += 1) {
+          ctx.lineTo(xs + dx + x, y + jitter[j]);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
     }
   }
 
@@ -1498,18 +1507,37 @@ export function createFernTexture(seed = 909) {
     const stemX = cx - 8 * Math.sin(t * 2.4) + 2;
     const len = 86 * Math.sin(Math.PI * (0.12 + 0.88 * (1 - t))) + 8;
     for (const side of [-1, 1]) {
-      // each pinna is a row of tiny leaflets
       const tipX = stemX + side * len;
       const tipY = y + 16 + t * 10;
-      const segs = 7;
+      // a continuous tapered blade under the leaflets plus a midrib: rows of
+      // disjoint ellipses eroded into dotted lines under mipmapping + alpha test
+      const nx = -(tipY - y);
+      const nz = tipX - stemX;
+      const nl = Math.hypot(nx, nz) || 1;
+      const halfW = 5.5;
+      ctx.fillStyle = `rgba(${48 + random() * 20}, ${112 + random() * 30}, ${38 + random() * 16}, 0.9)`;
+      ctx.beginPath();
+      ctx.moveTo(stemX + (nx / nl) * halfW, y + (nz / nl) * halfW);
+      ctx.lineTo(tipX, tipY);
+      ctx.lineTo(stemX - (nx / nl) * halfW, y - (nz / nl) * halfW);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#2a5c1e';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(stemX, y);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
+      // overlapping leaflets give the blade its serrated silhouette
+      const segs = 9;
       for (let s = 0; s < segs; s += 1) {
         const st = s / segs;
         const px = stemX + (tipX - stemX) * st;
         const py = y + (tipY - y) * st;
-        const ll = (1 - st) * 13 + 3;
+        const ll = (1 - st) * 14 + 5;
         ctx.fillStyle = `rgba(${52 + random() * 30}, ${125 + random() * 40}, ${40 + random() * 20}, 0.95)`;
         ctx.beginPath();
-        ctx.ellipse(px, py, ll * 0.5, ll * 0.22, side * (0.5 + st * 0.4), 0, Math.PI * 2);
+        ctx.ellipse(px, py, ll * 0.55, ll * 0.26, side * (0.5 + st * 0.4), 0, Math.PI * 2);
         ctx.fill();
       }
     }

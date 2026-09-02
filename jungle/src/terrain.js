@@ -13,6 +13,7 @@ import {
   float,
   vec2,
   vec3,
+  vec4,
   smoothstep,
   mix,
   clamp,
@@ -65,8 +66,17 @@ export function trailMask(x, z) {
   return 1 - smoothstepJs(WORLD.trailHalfWidth, WORLD.trailHalfWidth + 2.6, trailDistance(x, z));
 }
 
+// Angular warp so authored features are never perfect circles: the radius
+// breathes ±12 % with a few low harmonics of the bearing (periodic in angle,
+// so there is no seam), phased by the feature's position.
+function angularWarp(x, z, cx, cz, amount = 0.12) {
+  const a = Math.atan2(z - cz, x - cx);
+  const ph = cx * 0.037 + cz * 0.051;
+  return 1 + amount * (0.55 * Math.sin(2 * a + ph) + 0.35 * Math.sin(3 * a - 1.3 + ph * 0.7) + 0.25 * Math.sin(5 * a + 2.1 - ph));
+}
+
 function radialMask(x, z, cx, cz, inner, outer) {
-  const d = Math.hypot(x - cx, z - cz);
+  const d = Math.hypot(x - cx, z - cz) / angularWarp(x, z, cx, cz);
   return 1 - smoothstepJs(inner, outer, d);
 }
 
@@ -183,9 +193,12 @@ export function createHeightSampler() {
       const q = (h + 0.7 + warp) / terraces.step;
       const k = Math.floor(q);
       const f = q - k;
-      const riser = smoothstepJs(0.74, 1.0, f);
-      const talus = (1 - smoothstepJs(0.0, 0.3, f)) * 0.22;
-      const stepped = (k + riser) * terraces.step - 0.7 + talus + crags(x * 0.12, z * 0.12) * 0.35;
+      const riser = smoothstepJs(0.7, 1.0, f);
+      // a proper scree apron at each riser's foot, and broken rock on the face
+      // itself so the shelves don't read as machined concrete steps
+      const talus = (1 - smoothstepJs(0.0, 0.34, f)) * 0.55;
+      const faceBreak = 4 * riser * (1 - riser) * crags(x * 0.35 + 1.7, z * 0.35 - 4.2) * 0.5;
+      const stepped = (k + riser) * terraces.step - 0.7 + talus + faceBreak + crags(x * 0.12, z * 0.12) * 0.35;
       h = lerp(h, stepped, terraceMask * 0.85);
     }
 
@@ -198,8 +211,11 @@ export function createHeightSampler() {
     h = lerp(h, ruins.height + detailTerm * 0.1, knoll);
 
     // --- lagoon bowl (waterline sits near the outer radius so it reads full) ---
-    const shore = smoothstepJs(WORLD.lagoonRadius + 7, WORLD.lagoonRadius - 5, distL);
-    const bowlDepth = -4.8 - 1.6 * smoothstepJs(WORLD.lagoonRadius * 0.7, 0, distL);
+    // the bowl radius breathes with bearing so the shoreline is a bay with
+    // points and coves rather than a compass circle
+    const distLw = distL / angularWarp(x, z, lagoon.x, lagoon.z, 0.085);
+    const shore = smoothstepJs(WORLD.lagoonRadius + 7, WORLD.lagoonRadius - 5, distLw);
+    const bowlDepth = -4.8 - 1.6 * smoothstepJs(WORLD.lagoonRadius * 0.7, 0, distLw);
     h = lerp(h, bowlDepth, shore);
 
     // --- river channel heading south out of the lagoon ---
@@ -294,7 +310,10 @@ function bakeControlMap(sampleHeight, canopyDensity) {
       avg /= 4;
       const cavity = clampJs((avg - h) / 3.2, 0, 1);
       const o = (iz * size + ix) * 4;
-      data[o] = Math.round(trailMask(x, z) * 255);
+      // R is a soft trail *profile* (1 on the centre line → 0 at the verge),
+      // not the binary mask, so the shader can tell the trodden core from the
+      // edges; trailMask() itself stays the placement rule for plants
+      data[o] = Math.round((1 - smoothstepJs(0, WORLD.trailHalfWidth + 2.6, trailDistance(x, z))) * 255);
       data[o + 1] = Math.round(canopyDensity(x, z) * 255);
       data[o + 2] = Math.round(cavity * 255);
       data[o + 3] = Math.round(waterProximity(x, z) * 255);
@@ -401,7 +420,9 @@ export function createTerrain(ctx) {
 
   const worldXZ = positionWorld.xz;
   const control = texture(controlTex, worldXZ.div(size).add(0.5));
-  const trail = control.r;
+  // profile 0.53 ≈ the trail half-width, so this reproduces the old hard mask
+  // (the trodden centre / verge split comes from the lateral-distance bake below)
+  const trail = smoothstep(0.0, 0.53, control.r);
   const canopy = control.g;
   const cavity = control.b;
   const shoreProximity = control.a;
@@ -498,12 +519,17 @@ export function createTerrain(ctx) {
   rockTex = rockTex.mul(mix(float(0.84), float(1.12), ledges));
   const streaks = texture(textures.noise, vec2(positionWorld.x.add(positionWorld.z).mul(0.05), positionWorld.y.mul(0.006))).r;
   rockTex = rockTex.mul(mix(float(0.82), float(1.0), smoothstep(0.35, 0.7, streaks)));
+  // the cool sky fill turns shaded rock slate-blue; a warm cast keeps it stone
+  rockTex = rockTex.mul(vec4(1.07, 1.0, 0.9, 1.0));
 
   const height = positionWorld.y;
   const slope = clamp(float(1).sub(normalWorld.y), 0, 1);
 
   // masks
-  const sandMask = smoothstep(0.55, 1.9, height).oneMinus().mul(shoreProximity);
+  // the beach's upper edge wanders with the slow mottle (±0.6 m) and stays
+  // narrow on steep banks, so the sand is not a constant-width ring
+  const sandTop = float(1.9).add(mottle.sub(0.5).mul(1.3)).sub(slope.mul(2.5));
+  const sandMask = smoothstep(0.55, sandTop.max(0.75), height).oneMinus().mul(shoreProximity);
   const rockMask = smoothstep(0.16, 0.4, slope).max(smoothstep(11.5, 17.5, height).mul(smoothstep(0.05, 0.2, slope)));
   const mossMask = smoothstep(0.45, 0.72, mottle).mul(0.85);
   // leaf litter piles up under the canopy — denser than before, patchy, and

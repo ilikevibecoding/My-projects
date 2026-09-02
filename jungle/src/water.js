@@ -1625,7 +1625,9 @@ export function createWater(ctx) {
     const nFres = normalize(vec3(fullSlope.x.mul(flatten).negate(), 1, fullSlope.y.mul(flatten).negate()));
     const cosT = clamp(abs(dot(viewDir, nFres)), 0, 1);
     const rough = clamp(float(0.03).add(chop.mul(0.1)).add(foam.mul(0.4)), 0, 1);
-    const fresnel = float(0.02).add(rough.oneMinus().sub(0.02).max(0).mul(pow(float(1).sub(cosT), 5))).min(0.9);
+    // F0 a touch above physical (0.02): skylight and the micro-waves the sim
+    // can't resolve make a real lagoon read its treeline even at 30°
+    const fresnel = float(0.035).add(rough.oneMinus().sub(0.035).max(0).mul(pow(float(1).sub(cosT), 5))).min(0.9);
 
     // ---- reflection ----
     let refl;
@@ -1637,10 +1639,15 @@ export function createWater(ctx) {
       reflectionNode.uvNode = reflectionNode.uvNode.add(mirrorSlope);
       refl = reflectionNode.rgb;
     } else {
-      // cheap sky-gradient reflection for Low/Medium
+      // cheap analytic reflection for Low/Medium: a sky gradient, with the
+      // near-horizontal rays hitting the treeline that rings every bank — a
+      // sky-only fake left the lagoon an opaque turquoise sheet
       const reflectDir = reflect(viewDir.negate(), nFull);
       const upness = clamp(reflectDir.y, 0, 1);
       refl = mix(vec3(0.7, 0.8, 0.78), vec3(0.32, 0.55, 0.85), pow(upness, 0.6));
+      const treeline = smoothstep(0.3, 0.06, reflectDir.y);
+      const canopyTone = mix(vec3(0.06, 0.14, 0.08), vec3(0.16, 0.3, 0.14), texture(noiseTex, xz.mul(0.04)).r);
+      refl = mix(refl, canopyTone, treeline.mul(0.85));
     }
     refl = refl.mul(vec3(0.78, 0.86, 0.9));
     // soft knee: keep tree reflections crisp (they sit below the knee), but
@@ -1704,7 +1711,11 @@ export function createWater(ctx) {
     // normal, plus micro-glints from two fast capillary layers that twinkle ----
     const R = reflect(viewDir.negate(), nFull);
     const sunDot = max(dot(R, sunDir), 0);
-    const glint = pow(sunDot, 400).mul(2.4).add(pow(sunDot, 56).mul(0.09));
+    // the sparkle is damped where the ripple sim has tilted the surface hard
+    // (a swimmer's wake) — every disturbed facet catching the sun at once made
+    // an HDR white splat — and capped so bloom cannot blow it out
+    const rippleDamp = smoothstep(0.25, 0.9, length(grad)).mul(0.75).oneMinus();
+    const glint = pow(sunDot, 400).mul(2.4).mul(rippleDamp).min(1.2).add(pow(sunDot, 56).mul(0.09));
     const sp = texture(normalTex, xz.mul(3.7).add(time.mul(vec2(0.23, -0.17)))).rg.mul(2).sub(1)
       .add(texture(normalTex, xz.mul(5.3).sub(time.mul(vec2(0.19, 0.21)))).rg.mul(2).sub(1));
     const sparkSlope = fullSlope.add(sp.mul(0.28));
@@ -2125,10 +2136,13 @@ export function createWater(ctx) {
       return false;
     };
     const clump = (x, z) => {
-      const n = 2 + Math.floor(reedRandom() * 4);
+      const n = 3 + Math.floor(reedRandom() * 5);
       for (let k = 0; k < n; k += 1) {
-        const px = x + (reedRandom() - 0.5) * 1.6;
-        const pz = z + (reedRandom() - 0.5) * 1.6;
+        // disc footprint, denser at the centre (a square one read as a block)
+        const ca = reedRandom() * TAU;
+        const cr = Math.sqrt(reedRandom()) * 1.1;
+        const px = x + Math.cos(ca) * cr;
+        const pz = z + Math.sin(ca) * cr;
         const h = terrain.sampleHeight(px, pz);
         if (h < -0.55 || h > 0.5) continue;
         if (insideRock(px, pz)) continue;

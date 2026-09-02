@@ -199,7 +199,7 @@ export function createAudio(ctx) {
   function buildCanopyGrid() {
     const cells = CANOPY_CELLS;
     let grid = new Float32Array(cells * cells);
-    const weights = { 'tree-trunks': 1.0, 'palm-trunks': 0.55, 'banana-plants': 0.18 };
+    const weights = { 'emergent-trunks': 1.6, 'canopy-trunks': 1.0, 'understory-trunks': 0.45, 'palm-trunks': 0.55, 'fan-palm-trunks': 0.3, 'banana-plants': 0.18 };
     let found = false;
     for (const mesh of ctx.vegetation?.meshes ?? []) {
       const w = weights[mesh.name];

@@ -169,6 +169,70 @@ export function createPlayer(ctx) {
   // walkable floor = terrain, raised by any landmark surface (logs, ruin tiers, rocks)
   const floorAt = (x, z) => Math.max(terrain.sampleHeight(x, z), ctx.landmarks?.heightAt?.(x, z) ?? -Infinity);
 
+  // Lateral colliders: tree trunks (the heightfield + landmark surfaces stop
+  // you at rocks and walls, but nothing stops you walking through a tree).
+  // Built lazily from the instanced trunk layers into a 6 m spatial hash;
+  // instance k of a layer only collides while k < mesh.count (quality density).
+  const TRUNK_RADII = { 'emergent-trunks': 0.95, 'canopy-trunks': 0.34, 'understory-trunks': 0.2, 'palm-trunks': 0.24, 'fan-palm-trunks': 0.16, 'tree-fern-trunks': 0.17 };
+  const COLLIDER_CELL = 6;
+  let colliderHash = null;
+  function buildColliders() {
+    colliderHash = new Map();
+    const m = new THREE.Matrix4();
+    const p = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    const s = new THREE.Vector3();
+    for (const mesh of ctx.vegetation?.meshes ?? []) {
+      const radius = TRUNK_RADII[mesh.name];
+      if (!radius) continue;
+      for (let i = 0; i < mesh.instanceMatrix.count; i += 1) {
+        mesh.getMatrixAt(i, m);
+        m.decompose(p, q, s);
+        if (s.x < 0.01) continue;
+        const key = `${Math.floor(p.x / COLLIDER_CELL)},${Math.floor(p.z / COLLIDER_CELL)}`;
+        let cell = colliderHash.get(key);
+        if (!cell) {
+          cell = [];
+          colliderHash.set(key, cell);
+        }
+        cell.push({ x: p.x, z: p.z, r: radius * s.x, mesh, index: i });
+      }
+    }
+  }
+  // Push the feet out of any trunk they overlap; returns true when it moved us.
+  function resolveTrunks(pos, vel, bodyRadius) {
+    if (!colliderHash) buildColliders();
+    const cx = Math.floor(pos.x / COLLIDER_CELL);
+    const cz = Math.floor(pos.z / COLLIDER_CELL);
+    let pushed = false;
+    for (let dz = -1; dz <= 1; dz += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        const cell = colliderHash.get(`${cx + dx},${cz + dz}`);
+        if (!cell) continue;
+        for (const c of cell) {
+          if (c.index >= c.mesh.count) continue;
+          const ox = pos.x - c.x;
+          const oz = pos.z - c.z;
+          const minDist = c.r + bodyRadius;
+          const d2 = ox * ox + oz * oz;
+          if (d2 >= minDist * minDist) continue;
+          const d = Math.sqrt(d2) || 1e-4;
+          const nx = ox / d;
+          const nz = oz / d;
+          pos.x = c.x + nx * minDist;
+          pos.z = c.z + nz * minDist;
+          const into = -(vel.x * nx + vel.z * nz);
+          if (into > 0) {
+            vel.x += nx * into;
+            vel.z += nz * into;
+          }
+          pushed = true;
+        }
+      }
+    }
+    return pushed;
+  }
+
   const spawnGround = terrain.sampleHeight(WORLD.spawn.x, WORLD.spawn.z);
   const position = new THREE.Vector3(WORLD.spawn.x, spawnGround, WORLD.spawn.z); // feet
   const velocity = new THREE.Vector3();
@@ -693,6 +757,11 @@ export function createPlayer(ctx) {
         velocity.z = 0;
         floorY = floorAt(prevX, prevZ);
       }
+    }
+    if (resolveTrunks(position, velocity, FEEL.bodyRadius * 0.8)) {
+      position.x = clamp(position.x, -limit, limit);
+      position.z = clamp(position.z, -limit, limit);
+      floorY = floorAt(position.x, position.z);
     }
     position.y += velocity.y * dt;
 

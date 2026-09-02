@@ -144,7 +144,9 @@ export function createPost(ctx) {
   // display-relative units.
   const bloomInput = sceneColor.rgb.mul(uExposure).mul(notSky);
   // bloom(input, strength, radius, threshold) — strength is set per preset
-  const bloomPass = bloom(bloomInput, 0.45, 0.55, 1.4);
+  // threshold 1.7: a sunlit leaf sits around 1.2–1.5 after exposure, so only
+  // the glints, foam and the falls themselves bloom, not whole backlit crowns
+  const bloomPass = bloom(bloomInput, 0.45, 0.55, 1.7);
 
   // ---------- chain builder ----------
   const chains = new Map();

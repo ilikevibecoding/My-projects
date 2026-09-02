@@ -4,7 +4,7 @@
 // and a per-vertex "distant canopy" bumpiness along the crest.
 
 import * as THREE from 'three/webgpu';
-import { positionWorld, float, vec3, mix, smoothstep, texture, uniform } from 'three/tsl';
+import { positionWorld, normalWorld, float, vec3, mix, smoothstep, texture, uniform } from 'three/tsl';
 import { WORLD } from './config.js';
 import { createFbm2D } from './noise.js';
 
@@ -25,6 +25,7 @@ export function createBackdrop(ctx) {
     const ridge = createFbm2D(WORLD.seed + 500 + ringIndex * 13, { octaves: 4 });
     const bumps = createFbm2D(WORLD.seed + 600 + ringIndex * 7, { octaves: 2 });
     const crowns = createFbm2D(WORLD.seed + 700 + ringIndex * 5, { octaves: 1 });
+    const peaksNoise = createFbm2D(WORLD.seed + 800 + ringIndex * 11, { octaves: 2 });
     const rows = 6;
     const cols = ring.segments;
     const positions = new Float32Array((rows + 1) * (cols + 1) * 3);
@@ -42,7 +43,11 @@ export function createBackdrop(ctx) {
       const fine = bumps(cosA * 22, sinA * 22) * 0.5 + 0.5;
       const crownAmp = ringIndex === 0 ? 0.28 : ringIndex === 1 ? 0.14 : 0.06;
       const crown = Math.pow(Math.max(0, crowns(cosA * 95, sinA * 95)), 1.6);
-      const crest = ring.baseHeight + ring.ridgeHeight * (0.35 + broad * 0.65) + fine * ring.ridgeHeight * 0.2 + crown * ring.ridgeHeight * crownAmp;
+      // a few dominant summits per ring (sparse, high-amplitude) so the
+      // skyline has landmarks instead of an even sawtooth; the fine
+      // crenellation only rides the ridges, not the saddles
+      const peaks = Math.pow(Math.max(0, peaksNoise(cosA * 3.1 + 4.2 + ringIndex * 2, sinA * 3.1 - 1.7)), 2.4) * (ringIndex === 0 ? 0.35 : 0.7);
+      const crest = ring.baseHeight + ring.ridgeHeight * (0.35 + broad * 0.65) + fine * ring.ridgeHeight * 0.14 * (0.4 + broad * 0.6) + crown * ring.ridgeHeight * crownAmp + peaks * ring.ridgeHeight;
       // radius wobble so the ring isn't a perfect circle
       const r = ring.radius * (1 + (ridge(cosA * 1.3 + 9, sinA * 1.3) * 0.08));
       for (let rIdx = 0; rIdx <= rows; rIdx += 1) {
@@ -85,7 +90,16 @@ export function createBackdrop(ctx) {
     const shade = mix(float(0.72), float(1.18), clumps).mul(mix(float(0.9), float(1.08), clumpsFine));
     const heightFade = smoothstep(-40, 60, positionWorld.y);
     const crestLight = smoothstep(0.55, 1.0, heightFade).mul(0.18);
-    let ringColor = vec3(tint).mul(shade).add(crestLight);
+    // unlit material, so fake the sun on one flank of every peak: the far
+    // ranges were a flat cardboard tint with no form
+    const sunEl = THREE.MathUtils.degToRad(WORLD.sunElevation);
+    const sunAz = THREE.MathUtils.degToRad(WORLD.sunAzimuth);
+    const sunDir = vec3(Math.cos(sunEl) * Math.sin(sunAz), Math.sin(sunEl), Math.cos(sunEl) * Math.cos(sunAz));
+    const flank = normalWorld.dot(sunDir).mul(0.5).add(0.5);
+    const form = mix(float(0.84), float(1.14), flank);
+    // valley floors bluer/darker, crests warmer: a vertical gradient per ring
+    const gradient = mix(vec3(0.88, 0.94, 1.04), vec3(1.06, 1.02, 0.94), heightFade);
+    let ringColor = vec3(tint).mul(shade).mul(form).mul(gradient).add(crestLight);
     // more haze low down and with distance (ring order)
     const hazeAmount = float(ring.hazeMix).add(heightFade.oneMinus().mul(0.25));
     ringColor = mix(ringColor, vec3(haze), clamp01(hazeAmount));

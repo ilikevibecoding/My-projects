@@ -72,7 +72,7 @@ export function createSky(ctx) {
   // ---------- ambient fill ----------
   // Cool sky bounce from above, warm olive ground bounce from below. Lambert
   // divides this by pi, so 2.2 is ~0.7 irradiance in the shade.
-  const hemi = new THREE.HemisphereLight(0xa8c8e6, 0x55603a, 2.2);
+  const hemi = new THREE.HemisphereLight(0xa8c8e6, 0x55603a, 2.7);
   scene.add(hemi);
 
   // ---------- atmosphere ----------
@@ -82,12 +82,12 @@ export function createSky(ctx) {
   //  * an exponential height mist pooled in the lagoon basin / valley floor.
   const atmosphere = {
     hazeColor: uniform(new THREE.Color(0.44, 0.66, 0.72)),
-    hazeDensity: uniform(0.0027),
-    hazeStart: uniform(40.0),
+    hazeDensity: uniform(0.0021),
+    hazeStart: uniform(60.0),
     glowColor: uniform(new THREE.Color(1.0, 0.82, 0.58)),
     glowStrength: uniform(0.55),
     mistColor: uniform(new THREE.Color(0.66, 0.78, 0.74)),
-    mistDensity: uniform(0.006),
+    mistDensity: uniform(0.0045),
     mistBase: uniform(WORLD.waterLevel + 0.6),
     mistFalloff: uniform(0.42),
     sunDir: uniform(sunDirection.clone()),
@@ -171,7 +171,7 @@ export function createSky(ctx) {
     shadow.mapSize.set(shadowState.mapSize, shadowState.mapSize);
     shadow.bias = -0.00025;
     shadow.normalBias = 0.05;
-    shadow.radius = 2;
+    shadow.radius = 3;
     const cam = shadow.camera;
     cam.near = 1;
     cam.far = 320;
