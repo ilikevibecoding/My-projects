@@ -340,10 +340,15 @@ function crossedCards(width, height, cards = 2, horizontalCap = false) {
     parts.push(plane);
   }
   if (horizontalCap) {
-    const cap = new THREE.PlaneGeometry(width, width);
-    cap.rotateX(-Math.PI / 2);
-    cap.translate(0, height * 0.22, 0);
-    parts.push(cap);
+    // two smaller caps tilted against each other: one flat cap seen edge-on at
+    // eye level collapsed into a hard line drawn across the whole shrub
+    for (const [tiltX, tiltZ, dy] of [[0.42, 0.18, 0.18], [-0.38, -0.24, 0.26]]) {
+      const cap = new THREE.PlaneGeometry(width * 0.78, width * 0.78);
+      cap.rotateX(-Math.PI / 2 + tiltX);
+      cap.rotateZ(tiltZ);
+      cap.translate(0, height * dy, 0);
+      parts.push(cap);
+    }
   }
   const merged = mergeGeometries(parts);
   parts.forEach((p) => p.dispose());
@@ -2019,8 +2024,8 @@ export function createVegetation(ctx) {
     rule: (s) => (plantRule(s, { slopeMin: 0.7, trailClear: 2.6, giantClear: 3 }) && s.canopy > 0.55 ? 1 : 0),
     maxTries: 60000,
   });
-  const mushroomGeoBase = crossedCards(0.34, 0.28, 2);
-  mushroomGeoBase.translate(0, 0.13, 0);
+  const mushroomGeoBase = crossedCards(0.24, 0.2, 2);
+  mushroomGeoBase.translate(0, 0.09, 0);
   const mushroomGeo = prepareFoliage(mushroomGeoBase, 0.7);
   const mushroomMat = foliageMaterial(ft.mushroom, { translucency: 0.15, roughness: 0.6, fade: [30, 45], hueSpread: 0.05, valueSpread: 0.15 });
   const mushroomInst = instanceStream(1300);

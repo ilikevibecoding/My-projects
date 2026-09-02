@@ -728,7 +728,9 @@ export function createMushroomTexture(seed = 4313) {
   const random = mulberry32(seed);
   ctx.clearRect(0, 0, size, size);
 
-  const caps = [['#c8873a', '#f0b769'], ['#b2542a', '#e88a4f'], ['#d8c29a', '#f4e6c8'], ['#8d5a33', '#c98f5a']];
+  // muted forest-floor fungi (tan, ochre, dun, umber); the old saturated
+  // orange caps with white spots read as cartoon toadstools
+  const caps = [['#8a6a3c', '#b8945c'], ['#7a4a2c', '#a8744a'], ['#9a8a6a', '#c2b394'], ['#5e4128', '#8c6a46']];
   const n = 4 + Math.floor(random() * 2);
   for (let i = 0; i < n; i += 1) {
     const x = 50 + random() * 156;
@@ -738,7 +740,7 @@ export function createMushroomTexture(seed = 4313) {
     const baseY = 250 - random() * 20;
     const [c0, c1] = caps[Math.floor(random() * caps.length)];
     // stem
-    ctx.fillStyle = gradient(ctx, x - 8, 0, x + 8, 0, '#d9cbb0', '#f4ecd8');
+    ctx.fillStyle = gradient(ctx, x - 8, 0, x + 8, 0, '#8c7c60', '#bfb096');
     ctx.beginPath();
     ctx.roundRect(x - 7 - capW * 0.06, baseY - h, 14 + capW * 0.12, h, 6);
     ctx.fill();
@@ -753,9 +755,9 @@ export function createMushroomTexture(seed = 4313) {
     ctx.beginPath();
     ctx.ellipse(x, baseY - h + 3, capW * 0.92, 5, 0, 0, Math.PI);
     ctx.fill();
-    // spots
-    for (let s = 0; s < 4; s += 1) {
-      ctx.fillStyle = 'rgba(255, 245, 225, 0.55)';
+    // faint scale flecks
+    for (let s = 0; s < 3; s += 1) {
+      ctx.fillStyle = 'rgba(230, 215, 190, 0.22)';
       ctx.beginPath();
       ctx.arc(x + (random() - 0.5) * capW * 1.3, baseY - h - capH * random() * 0.7, 2 + random() * 3, 0, Math.PI * 2);
       ctx.fill();
