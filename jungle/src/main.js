@@ -116,7 +116,7 @@ async function init() {
 
   ctx.scene = new THREE.Scene();
   // far plane covers the sky dome + backdrop rings from anywhere on the map
-  ctx.camera = new THREE.PerspectiveCamera(66, window.innerWidth / window.innerHeight, 0.1, 1600);
+  ctx.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1600);
   ctx.camera.position.set(WORLD.spawn.x, 4, WORLD.spawn.z);
   ctx.scene.add(ctx.camera);
 
@@ -184,10 +184,13 @@ async function init() {
   ctx.hud.finishLoading();
   ctx.hud.showHint(
     ctx.input.state.isTouch
-      ? 'left thumb to walk — right thumb to look — double-tap right side to jump'
+      ? 'left thumb to walk (push to the rim to sprint) — right thumb to look — double-tap right side to jump'
       : 'click to look around — WASD to walk — shift to sprint — space to jump',
     9000
   );
+  ctx.input.onGamepadConnected?.(() => {
+    ctx.hud.showHint('gamepad: left stick walk — right stick look — A jump — click left stick / right trigger sprint', 7000);
+  });
 
   // ---------- place discovery (authored zones get a name when first entered) ----------
   const PLACES = [
