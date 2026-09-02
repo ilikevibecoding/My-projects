@@ -217,14 +217,20 @@ async function init() {
         return;
       }
     }
-    // the lagoon + falls are discovered from the water's edge
-    const dL = Math.hypot(p.x - WORLD.lagoonCenter.x, p.z - WORLD.lagoonCenter.z);
-    if (!discovered.has('lagoon') && dL < WORLD.lagoonRadius + 4) {
-      discovered.add('lagoon');
-      ctx.hud.showPlace('Emerald Lagoon');
-    } else if (!discovered.has('falls') && Math.hypot(p.x - WORLD.waterfallX, p.z + 78) < 14) {
-      discovered.add('falls');
-      ctx.hud.showPlace('The Falls');
+    // point landmarks
+    const POINTS = [
+      ['lagoon', 'Emerald Lagoon', WORLD.lagoonCenter.x, WORLD.lagoonCenter.z, WORLD.lagoonRadius + 4],
+      ['falls', 'The Falls', WORLD.waterfallX, -78, 14],
+      ['giant', 'The Elder Kapok', WORLD.giantTree.x, WORLD.giantTree.z, 16],
+      ['snag', 'The Sentinel', WORLD.sentinelSnag.x, WORLD.sentinelSnag.z, 12],
+      ['bridge', 'Fallen Log Crossing', 7, 36, 9],
+    ];
+    for (const [key, name, x, z, radius] of POINTS) {
+      if (!discovered.has(key) && Math.hypot(p.x - x, p.z - z) < radius) {
+        discovered.add(key);
+        ctx.hud.showPlace(name);
+        return;
+      }
     }
   }
 

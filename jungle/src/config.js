@@ -48,6 +48,8 @@ export const WORLD = {
   ruins: { x: -72, z: 86, radius: 16, height: 6.2 },
   // Signature giant tree at the clearing's edge.
   giantTree: { x: 82, z: 48 },
+  // Bleached dead emergent on the cliff top — the skyline landmark seen from spawn.
+  sentinelSnag: { x: 30, z: -105, height: 28 },
   // Walkable trail network (polylines, meters). Ground blends to dirt; plants avoid it.
   trails: [
     // spawn → lagoon south shore → east shore → climb to the overlook
@@ -57,7 +59,7 @@ export const WORLD = {
     // spawn junction → west into the ravine
     [[-22, 20], [-46, 12], [-72, 2], [-96, -8], [-108, -30], [-112, -60], [-110, -95]],
     // clearing → bamboo corridor → terraces
-    [[62, 64], [82, 46], [92, 20], [96, -4], [88, -34], [82, -60], [80, -84]],
+    [[62, 64], [86, 40], [92, 20], [96, -4], [88, -34], [82, -60], [80, -84]],
   ],
   trailHalfWidth: 2.2,
   rimHeight: 24,
