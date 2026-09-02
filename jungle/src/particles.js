@@ -858,8 +858,9 @@ export function createParticles(ctx) {
         d3.set(i, 0.42, 0.9 + placeRandom() * 0.1, 0.4 + placeRandom() * 0.5, 0);
       } else {
         const x0 = tri(5.4);
-        d0.set(i, x0, 0.1 + placeRandom() * 0.9, IMPACT_Z + tri(1.6), 1.8 + placeRandom() * 1.6);
-        d1.set(i, 3.2 + placeRandom() * 3.0, 2.5 + placeRandom() * 4.0, 1.5 + placeRandom() * 3.5, 0.14 + placeRandom() * 0.12);
+        // plunge mist: thinner + lower so the falling sheet stays legible above it
+        d0.set(i, x0, 0.1 + placeRandom() * 0.9, IMPACT_Z + tri(1.6), 1.6 + placeRandom() * 1.5);
+        d1.set(i, 3.2 + placeRandom() * 3.0, 1.8 + placeRandom() * 2.8, 1.5 + placeRandom() * 3.5, 0.085 + placeRandom() * 0.075);
         d2.set(i, (placeRandom() - 0.5) * 0.56, 0.7 + placeRandom() * 0.7, x0 * (0.15 + placeRandom() * 0.45) + tri(0.8), placeRandom());
         d3.set(i, 1, 0.85 + placeRandom() * 0.15, 0.6 + placeRandom() * 0.8, 0);
       }
@@ -945,9 +946,10 @@ export function createParticles(ctx) {
       const x0 = tri(4.6);
       const y0 = 0.1 + placeRandom() * 1.2;
       const vy = 2.2 + placeRandom() * 5.0;
-      spray.d0.set(i, x0, y0, IMPACT_Z + tri(1.0), 0.08 + placeRandom() * 0.12);
+      // fine droplets (a few cm) — big blobs read as cartoon foam from mid-distance
+      spray.d0.set(i, x0, y0, IMPACT_Z + tri(1.0), 0.035 + placeRandom() * 0.06);
       spray.d1.set(i, x0 * 0.25 + tri(2.2), vy, 0.6 + placeRandom() * 3.6, flight(vy, y0));
-      spray.d2.set(i, placeRandom(), 0.35 + placeRandom() * 0.4, 0.14 + placeRandom() * 0.14, 0);
+      spray.d2.set(i, placeRandom(), 0.35 + placeRandom() * 0.4, 0.08 + placeRandom() * 0.08, 0);
     }
     // arcing jets: 15 arcs × 6 beads following the same trajectory
     for (let a = 0; a < 15; a += 1) {
@@ -960,9 +962,9 @@ export function createParticles(ctx) {
       const T = flight(vy, y0);
       const phase = placeRandom();
       for (let k = 0; k < 6; k += 1, i += 1) {
-        spray.d0.set(i, x0, y0, z0, 0.16 - k * 0.012);
+        spray.d0.set(i, x0, y0, z0, 0.085 - k * 0.007);
         spray.d1.set(i, vx, vy, vz, T);
-        spray.d2.set(i, phase + k * 0.055, 0.55 - k * 0.05, 0.2, 0);
+        spray.d2.set(i, phase + k * 0.055, 0.55 - k * 0.05, 0.12, 0);
       }
     }
     spray.d0.upload();

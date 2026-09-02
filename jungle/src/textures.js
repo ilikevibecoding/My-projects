@@ -25,6 +25,8 @@ function toTexture(canvas, { srgb = true, repeat = true } = {}) {
   return texture;
 }
 
+// Seamless speckles: discs that overlap a tile edge are repeated on the opposite
+// side so the texture wraps without a visible seam.
 function speckle(ctx, random, count, size, alpha, palette) {
   const { width, height } = ctx.canvas;
   for (let i = 0; i < count; i += 1) {
@@ -32,9 +34,21 @@ function speckle(ctx, random, count, size, alpha, palette) {
     ctx.fillStyle = color;
     ctx.globalAlpha = alpha * (0.4 + random() * 0.6);
     const r = size * (0.35 + random() * 0.65);
-    ctx.beginPath();
-    ctx.arc(random() * width, random() * height, r, 0, Math.PI * 2);
-    ctx.fill();
+    const x = random() * width;
+    const y = random() * height;
+    const xs = [x];
+    const ys = [y];
+    if (x < r) xs.push(x + width);
+    if (x > width - r) xs.push(x - width);
+    if (y < r) ys.push(y + height);
+    if (y > height - r) ys.push(y - height);
+    for (const px of xs) {
+      for (const py of ys) {
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
   ctx.globalAlpha = 1;
 }
@@ -47,12 +61,10 @@ export function createGrassTexture() {
   const random = mulberry32(101);
 
   // olive jungle floor — not lawn green: mixed live/dead blades, soil showing through
-  const base = ctx.createLinearGradient(0, 0, 512, 512);
-  base.addColorStop(0, '#3a5f26');
-  base.addColorStop(0.5, '#446b2a');
-  base.addColorStop(1, '#385a25');
-  ctx.fillStyle = base;
+  // (flat base + wrapped blobs: gradients are not seamless and quilt when tiled)
+  ctx.fillStyle = '#3f652a';
   ctx.fillRect(0, 0, 512, 512);
+  speckle(ctx, random, 40, 120, 0.22, ['#3a5f26', '#466d2b', '#385a25', '#4a6f2e']);
 
   // soil + shadow patches under the blades
   speckle(ctx, random, 900, 14, 0.18, ['#2c3f1c', '#4a3d24', '#253618']);
@@ -100,12 +112,9 @@ export function createSandTexture() {
   const ctx = canvas.getContext('2d');
   const random = mulberry32(202);
 
-  const base = ctx.createLinearGradient(0, 0, 512, 512);
-  base.addColorStop(0, '#d8c190');
-  base.addColorStop(0.55, '#e3cf9e');
-  base.addColorStop(1, '#d2ba87');
-  ctx.fillStyle = base;
+  ctx.fillStyle = '#dcc697';
   ctx.fillRect(0, 0, 512, 512);
+  speckle(ctx, random, 40, 120, 0.2, ['#d8c190', '#e3cf9e', '#d2ba87', '#e6d3a4']);
 
   speckle(ctx, random, 5200, 2.4, 0.2, ['#f0e0b4', '#b89a66', '#cdb27e', '#a98e60']);
   speckle(ctx, random, 240, 4.5, 0.25, ['#8f7a52', '#f7ecc8']);
@@ -131,12 +140,9 @@ export function createRockTexture() {
   const ctx = canvas.getContext('2d');
   const random = mulberry32(303);
 
-  const base = ctx.createLinearGradient(0, 0, 512, 512);
-  base.addColorStop(0, '#6a6c60');
-  base.addColorStop(0.5, '#7b7d70');
-  base.addColorStop(1, '#5f6154');
-  ctx.fillStyle = base;
+  ctx.fillStyle = '#707264';
   ctx.fillRect(0, 0, 512, 512);
+  speckle(ctx, random, 40, 120, 0.2, ['#6a6c60', '#7b7d70', '#5f6154', '#7e8072']);
 
   // large tonal plates (weathered blocks) then fine grain
   speckle(ctx, random, 90, 60, 0.16, ['#8a8c7c', '#55584b', '#74776a', '#8f8a78']);
@@ -204,12 +210,9 @@ export function createDirtTexture() {
   const ctx = canvas.getContext('2d');
   const random = mulberry32(606);
 
-  const base = ctx.createLinearGradient(0, 0, 512, 512);
-  base.addColorStop(0, '#6b4f36');
-  base.addColorStop(0.5, '#7a5b3e');
-  base.addColorStop(1, '#5e452f');
-  ctx.fillStyle = base;
+  ctx.fillStyle = '#6f5238';
   ctx.fillRect(0, 0, 512, 512);
+  speckle(ctx, random, 40, 120, 0.22, ['#6b4f36', '#7a5b3e', '#5e452f', '#7c6044']);
 
   speckle(ctx, random, 3600, 3.5, 0.2, ['#8a6a48', '#4d3826', '#95784f', '#3f2d1e']);
   // pebbles + grit (small, low-contrast — bright dots read as litter from eye height)

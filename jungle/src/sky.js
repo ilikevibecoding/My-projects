@@ -91,6 +91,10 @@ export function createSky(ctx) {
     mistBase: uniform(WORLD.waterLevel + 0.6),
     mistFalloff: uniform(0.42),
     sunDir: uniform(sunDirection.clone()),
+    // submerged: dense teal absorption replaces the air haze while the eye is under water
+    submerged: uniform(0),
+    waterColor: uniform(new THREE.Color(0.03, 0.22, 0.26)),
+    waterDensity: uniform(0.075),
   };
 
   scene.fogNode = Fn(() => {
@@ -119,9 +123,18 @@ export function createSky(ctx) {
     const hazeColor = mix(atmosphere.hazeColor, atmosphere.glowColor, sunAmount.mul(atmosphere.glowStrength));
 
     // layer the two: mist sits in front of the haze
-    const total = clamp(haze.add(mist).sub(haze.mul(mist)), 0, 0.96);
-    const mistShare = mist.div(max(total, 1e-4)).min(1);
-    const fogColor = mix(hazeColor, atmosphere.mistColor, mistShare.mul(0.7));
+    const airTotal = clamp(haze.add(mist).sub(haze.mul(mist)), 0, 0.96);
+    const mistShare = mist.div(max(airTotal, 1e-4)).min(1);
+    const airColor = mix(hazeColor, atmosphere.mistColor, mistShare.mul(0.7));
+
+    // under water: exponential absorption toward deep teal, slightly brighter
+    // looking up toward the surface (light comes from above)
+    const upness = clamp(viewDir.y.mul(0.5).add(0.5), 0, 1);
+    const waterFog = float(1).sub(exp(dist.mul(atmosphere.waterDensity).negate())).mul(0.97);
+    const waterColor = mix(atmosphere.waterColor, atmosphere.waterColor.mul(2.2), upness.mul(0.6));
+
+    const total = mix(airTotal, waterFog, atmosphere.submerged);
+    const fogColor = mix(airColor, waterColor, atmosphere.submerged);
 
     return vec4(mix(output.rgb, fogColor, total), output.a);
   })();
@@ -248,8 +261,13 @@ export function createSky(ctx) {
     installShadowSetup(count);
   }
 
-  function update() {
+  function update(dt = 0.016) {
     const eye = ctx.player ? ctx.player.position : camera.position;
+
+    // snap the fog into "submerged" mode the moment the eye crosses the surface
+    const target = ctx.player?.headUnderwater ? 1 : 0;
+    const s = atmosphere.submerged.value;
+    atmosphere.submerged.value = Math.abs(target - s) < 0.02 ? target : s + (target - s) * Math.min(1, dt * 18);
 
     // CSMShadowNode binds itself to whichever camera built the first material;
     // make sure the cascades follow the player camera, not the water mirror

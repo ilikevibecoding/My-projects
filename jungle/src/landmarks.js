@@ -860,7 +860,9 @@ export function createLandmarks(ctx) {
     const dry = smoothstep(0.3, 1.8, positionWorld.y);
     const moss = smoothstep(0.2, 0.75, upness).mul(mossNoise).mul(dry);
     const wet = smoothstep(-0.4, 0.5, positionWorld.y).oneMinus();
+    // cool the rock toward the shoreline basalt so lagoon-mouth boulders match
     let albedo = mix(rock.rgb, mossTexture(), moss.mul(0.9));
+    albedo = albedo.mul(vec3(0.86, 0.9, 0.92));
     albedo = albedo.mul(mix(float(0.84), float(1.12), noiseXZ(0.07, 0.6)));
     albedo = albedo.mul(wet.mul(0.42).oneMinus());
     boulderMaterial.colorNode = albedo;

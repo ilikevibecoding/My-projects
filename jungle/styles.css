@@ -296,10 +296,10 @@ body {
   opacity: 0;
   transition: opacity 180ms ease;
   background:
-    radial-gradient(circle at 50% 65%, rgba(8, 60, 64, 0.18), rgba(4, 38, 46, 0.55) 85%),
-    linear-gradient(180deg, rgba(14, 96, 92, 0.32), rgba(6, 48, 52, 0.44));
-  backdrop-filter: blur(1.5px);
-  -webkit-backdrop-filter: blur(1.5px);
+    radial-gradient(circle at 50% 65%, rgba(8, 60, 64, 0.1), rgba(4, 38, 46, 0.3) 85%),
+    linear-gradient(180deg, rgba(14, 96, 92, 0.18), rgba(6, 48, 52, 0.26));
+  backdrop-filter: blur(0.5px);
+  -webkit-backdrop-filter: blur(0.5px);
 }
 
 body.is-underwater .underwater-tint {
