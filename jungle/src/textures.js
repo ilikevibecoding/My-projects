@@ -32,6 +32,41 @@ function heightTexture(canvas) {
   return texture;
 }
 
+// Pack a linear data field (height, caustics) into the alpha channel of a
+// painted tile so the ground shader reads both in one sample. WebGPU allows
+// only 16 sampled textures per shader stage (the terrain material alone was
+// at 17 + shadow maps and failed to build its pipeline), so every channel
+// counts. A 2D canvas stores premultiplied pixels — alpha < 1 would corrupt
+// the colour — so the pair is uploaded as a DataTexture instead, rows
+// reversed to match the flipY orientation of every CanvasTexture tile.
+function packAlphaTexture(colorCanvas, alphaField, { srgb = true } = {}) {
+  const size = colorCanvas.width;
+  const src = colorCanvas.getContext('2d').getImageData(0, 0, size, size).data;
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y += 1) {
+    const srcRow = (size - 1 - y) * size;
+    const dstRow = y * size;
+    for (let x = 0; x < size; x += 1) {
+      const s = (srcRow + x) * 4;
+      const d = (dstRow + x) * 4;
+      data[d] = src[s];
+      data[d + 1] = src[s + 1];
+      data[d + 2] = src[s + 2];
+      const a = alphaField[srcRow + x];
+      data[d + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255);
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+  texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 // Seamless speckles: discs that overlap a tile edge are repeated on the opposite
 // side so the texture wraps without a visible seam.
 function speckle(ctx, random, count, size, alpha, palette) {
@@ -999,7 +1034,8 @@ export function createDirtTextureSet(size = 1024) {
 
   const heights = readHeights(heightCanvas);
   bakeCavity(colorCanvas, heights, Math.round(4 * s), 1.6);
-  return { color: toTexture(colorCanvas), height: heightTexture(heightCanvas), heights, size };
+  // height rides in the albedo's alpha (color.a) — see packAlphaTexture
+  return { color: packAlphaTexture(colorCanvas, heights), height: heightTexture(heightCanvas), heights, size };
 }
 
 export function createDirtTexture() {
@@ -1095,7 +1131,7 @@ export function createLitterTextureSet(size = 1024) {
 
   const heights = readHeights(heightCanvas);
   bakeCavity(colorCanvas, heights, Math.round(3 * s), 1.4);
-  return { color: toTexture(colorCanvas), height: heightTexture(heightCanvas), heights, size };
+  return { color: packAlphaTexture(colorCanvas, heights), height: heightTexture(heightCanvas), heights, size };
 }
 
 export function createLitterTexture() {
@@ -1775,12 +1811,27 @@ export function createCausticsTexture(seed = 1414) {
 }
 
 export function createAllTextures({ grass = null } = {}) {
+  // the caustics web rides in the noise tile's alpha so the terrain shader
+  // (which already samples the noise everywhere) needs no extra texture unit
+  const noise = createNoiseTexture();
+  const caustics = createCausticsTexture();
+  const cSize = caustics.image.width;
+  const nSize = noise.image.width;
+  const causticsPixels = caustics.image.getContext('2d').getImageData(0, 0, cSize, cSize).data;
+  const causticsField = new Float32Array(nSize * nSize);
+  for (let y = 0; y < nSize; y += 1) {
+    const cy = Math.floor((y / nSize) * cSize);
+    for (let x = 0; x < nSize; x += 1) {
+      const cx = Math.floor((x / nSize) * cSize);
+      causticsField[y * nSize + x] = causticsPixels[(cy * cSize + cx) * 4] / 255;
+    }
+  }
   return {
     grass: grass ?? createGrassTexture(),
     sand: createSandTexture(),
     rock: createRockTexture(),
     moss: createMossTexture(),
-    noise: createNoiseTexture(),
+    noise: packAlphaTexture(noise.image, causticsField, { srgb: false }),
     bark: createBarkTexture(505),
     palmBark: createBarkTexture(515, { r: 124, g: 99, b: 70 }),
     canopy: createCanopyTexture(606),
@@ -1795,7 +1846,7 @@ export function createAllTextures({ grass = null } = {}) {
     softSprite: createSpriteTexture(),
     butterfly: createButterflyTexture(1313),
     butterflyB: createButterflyTexture(2313),
-    caustics: createCausticsTexture(),
+    caustics,
   };
 }
 

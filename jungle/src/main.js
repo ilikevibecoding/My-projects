@@ -96,17 +96,38 @@ async function init() {
   window.addEventListener('pagehide', () => {
     ctx.intentionalTeardown = true;
   });
+  const fallBackToWebGL = (why, detail) => {
+    if (ctx.fallingBack || ctx.intentionalTeardown) {
+      return;
+    }
+    ctx.fallingBack = true;
+    console.warn(`${why} — falling back to WebGL2`, detail);
+    const url = new URL(window.location.href);
+    url.searchParams.set('webgl', '');
+    window.location.replace(url.toString());
+  };
   const device = renderer.backend?.device;
   if (device?.lost && !isWebGLForced()) {
     device.lost.then((info) => {
-      if (info.reason !== 'destroyed' || ctx.intentionalTeardown) {
-        return;
+      if (info.reason === 'destroyed') {
+        fallBackToWebGL('WebGPU device lost', info.message);
       }
-      console.warn('WebGPU device lost — falling back to WebGL2', info.message);
-      const url = new URL(window.location.href);
-      url.searchParams.set('webgl', '');
-      window.location.replace(url.toString());
     });
+  }
+  if (renderer.backend?.isWebGPUBackend && !isWebGLForced()) {
+    // A pipeline that fails WebGPU validation (a material sampling more than
+    // the 16 textures a stage allows, a shader over a limit…) never throws: the
+    // render pass is silently invalid and the canvas stays black after the
+    // loading bar. three.js only reports it through console.error, so hook
+    // that and retry on WebGL 2, which has looser limits.
+    const originalError = console.error.bind(console);
+    console.error = (...args) => {
+      originalError(...args);
+      const text = args.map((a) => (a && a.message) || String(a)).join(' ');
+      if (/CreateRenderPipeline|CreateComputePipeline|Invalid PipelineLayout|exceeds the maximum per-stage limit/i.test(text)) {
+        fallBackToWebGL('WebGPU rejected a pipeline', text.slice(0, 200));
+      }
+    };
   }
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;

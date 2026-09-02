@@ -460,16 +460,22 @@ export function createTerrain(ctx) {
   // in over slow noise regions so the mud patches never repeat along a path
   const dirtUvR0 = vec2(worldXZ.y.negate(), worldXZ.x).mul(dirtScale * 1.13).add(vec2(0.37, 0.71));
   const bomb = smoothstep(0.42, 0.58, mottleMid);
-  const dirtHA0 = mix(texture(textures.dirtHeight, dirtUvA0).r, texture(textures.dirtHeight, dirtUvR0).r, bomb);
+  // the dirt tile carries its height in alpha (WebGPU caps a shader at 16
+  // sampled textures; this material must stay at 12 to leave room for the
+  // shadow cascades), so every dirt sample yields colour and relief together
+  const dirtHA0 = mix(texture(textures.dirt, dirtUvA0).a, texture(textures.dirt, dirtUvR0).a, bomb);
   const parallax = viewDir.xz.div(max(viewDir.y, 0.3)).mul(dirtHA0.sub(0.5)).mul(near.mul(0.0075));
   const dirtUvA = dirtUvA0.add(parallax);
   const dirtUvR = dirtUvR0.add(vec2(parallax.y.negate(), parallax.x));
   const dirtUvB = worldXZ.mul(0.83).add(0.31);
-  const dirtA = mix(texture(textures.dirt, dirtUvA), texture(textures.dirt, dirtUvR), bomb);
-  const dirtB = texture(textures.dirt, dirtUvB);
-  const dirtHA = mix(texture(textures.dirtHeight, dirtUvA).r, texture(textures.dirtHeight, dirtUvR).r, bomb);
-  const dirtHB = texture(textures.dirtHeight, dirtUvB).r;
-  const dirtHMacro = texture(textures.dirtHeight, worldXZ.mul(0.071).add(0.5)).r;
+  const dirtSA = texture(textures.dirt, dirtUvA);
+  const dirtSR = texture(textures.dirt, dirtUvR);
+  const dirtSB = texture(textures.dirt, dirtUvB);
+  const dirtA = mix(dirtSA.rgb, dirtSR.rgb, bomb);
+  const dirtB = dirtSB.rgb;
+  const dirtHA = mix(dirtSA.a, dirtSR.a, bomb);
+  const dirtHB = dirtSB.a;
+  const dirtHMacro = texture(textures.dirt, worldXZ.mul(0.071).add(0.5)).a;
   const fineMix = near.mul(0.3);
   let dirtTex = mix(dirtA, dirtB, fineMix);
   const dirtH = mix(dirtHA, dirtHB, near.mul(0.45));
@@ -483,10 +489,12 @@ export function createTerrain(ctx) {
   // read individually — composited by height (leaf on top, not a crossfade)
   const litterUvA = worldXZ.mul(0.22);
   const litterUvB = worldXZ.mul(0.11).add(0.43);
-  const litterA = texture(textures.litter, litterUvA);
-  const litterB = texture(textures.litter, litterUvB);
-  const litterHA = texture(textures.litterHeight, litterUvA).r;
-  const litterHB = texture(textures.litterHeight, litterUvB).r;
+  const litterSA = texture(textures.litter, litterUvA);
+  const litterSB = texture(textures.litter, litterUvB);
+  const litterA = litterSA.rgb;
+  const litterB = litterSB.rgb;
+  const litterHA = litterSA.a; // height in alpha, as with the dirt tile
+  const litterHB = litterSB.a;
   const bigLeaf = smoothstep(0.4, 0.5, litterHB).mul(near);
   let litterTex = mix(litterA, litterB, bigLeaf);
   // darker humus in the gaps between leaves
@@ -603,8 +611,9 @@ export function createTerrain(ctx) {
 
   // animated caustic light webs on everything below the waterline
   const underwaterMask = smoothstep(-0.6, 0.25, height).oneMinus().mul(shoreProximity);
-  const causticsA = texture(textures.caustics, worldXZ.mul(0.14).add(vec2(time.mul(0.021), time.mul(0.013)))).r;
-  const causticsB = texture(textures.caustics, worldXZ.mul(0.09).sub(vec2(time.mul(0.017), time.mul(-0.011)))).r;
+  // (the caustics web is packed into the noise tile's alpha channel)
+  const causticsA = texture(textures.noise, worldXZ.mul(0.14).add(vec2(time.mul(0.021), time.mul(0.013)))).a;
+  const causticsB = texture(textures.noise, worldXZ.mul(0.09).sub(vec2(time.mul(0.017), time.mul(-0.011)))).a;
   const caustics = causticsA.mul(causticsB).mul(3.4).add(causticsA.mul(0.35));
   albedo = albedo.add(caustics.mul(underwaterMask).mul(0.55));
   // wet sand darkening right above the waterline, breathing with the swash:
@@ -615,12 +624,15 @@ export function createTerrain(ctx) {
   const wetBand = smoothstep(float(0.25), wetTop, height).oneMinus().mul(float(1).sub(underwaterMask)).mul(shoreProximity).mul(mix(float(0.22), float(0.3), swash));
   albedo = albedo.mul(float(1).sub(wetBand));
 
-  material.colorNode = albedo;
+  material.colorNode = albedo.rgb;
 
   // normal maps blended with the same masks. Dirt combines its two octaves in
   // tangent space (sum the xy tilts) rather than crossfading the encoded maps.
-  const nGrass = texture(textures.grassNormal, grassUv).rgb;
-  const nSand = texture(textures.sandNormal, worldXZ.mul(0.15)).rgb;
+  // Grass and sand borrow the dirt relief map at their own scale (with the
+  // strength pulled down below) rather than spending two more texture units on
+  // maps that are mostly hidden under the blade grass and the wet-sand band.
+  const nGrass = texture(textures.dirtNormal, grassUv.mul(0.6).add(0.2)).rgb;
+  const nSand = texture(textures.dirtNormal, worldXZ.mul(0.15)).rgb;
   const nDirtA0 = texture(textures.dirtNormal, dirtUvA).rgb.mul(2.0).sub(1.0);
   // the rotated lookup's tilt has to be rotated back into the world uv frame
   const nDirtR0 = texture(textures.dirtNormal, dirtUvR).rgb.mul(2.0).sub(1.0);
@@ -649,13 +661,14 @@ export function createTerrain(ctx) {
   nBlend = mix(nBlend, nLitter, trailLitter.max(looseLeaves));
   nBlend = mix(nBlend, nSand, sandMask);
   nBlend = mix(nBlend, nRock, rockMask);
-  // relief strength: dirt 1.4 → 1.8 (edges rougher, the compacted centre and
-  // the ruts smoother), litter 1.5, rock 1.5 (the plate bevels need it to
-  // read as jointed stone), everything else as before
-  const normalStrength = float(0.9)
-    .add(trailBlend.mul(float(0.6).add(edge.mul(0.3)).sub(centre.mul(0.1)).sub(rut.mul(0.25))))
-    .add(litterMask.max(trailLitter).mul(0.6))
-    .add(rockMask.mul(0.6));
+  // relief strength: grass/sand 0.45 (the borrowed dirt relief is far stronger
+  // than the old dedicated maps), dirt 1.4 → 1.8 (edges rougher, the compacted
+  // centre and the ruts smoother), litter 1.5, rock 1.5 (the plate bevels need
+  // it to read as jointed stone)
+  const normalStrength = float(0.45)
+    .add(trailBlend.mul(float(1.05).add(edge.mul(0.3)).sub(centre.mul(0.1)).sub(rut.mul(0.25))))
+    .add(litterMask.max(trailLitter).mul(1.05))
+    .add(rockMask.mul(1.05));
   material.normalNode = normalMap(nBlend, vec2(normalStrength));
 
   // roughness: damp hollows and the puddle floors go glossy, the compacted
