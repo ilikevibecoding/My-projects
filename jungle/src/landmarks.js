@@ -43,6 +43,9 @@ import {
 import { WORLD } from './config.js';
 import { mulberry32, smoothstep as smoothstepJs, clamp as clampJs, lerp } from './noise.js';
 import { createNormalFromCanvas } from './textures.js';
+// the kapok's crown reuses the shell-tuft toolkit of the emergent trees
+import { shellCrown, foliageMaterial as tuftMaterial, applyVertex as applyTuftVertex, instanceStream } from './vegetation.js';
+import { createLeafClusterTexture } from './foliage-textures.js';
 
 const TAU = Math.PI * 2;
 const NONE = -Infinity;
@@ -2379,17 +2382,50 @@ export function createLandmarks(ctx) {
   }
 
   // ---- giant crown clusters ----
+  // Same shell tufts as the emergent trees in vegetation.js: one lumpy cluster
+  // of small leaf cards per crown spot (was 8.5 m crossed cards with a flat
+  // cap, which read as a bright green slab over the whole kapok).
   {
     const random = mulberry32(WORLD.seed + 4060);
-    const crownGeo = prepareFoliage(crossedCards(8.5, 6.6, 3, true), 0.78);
-    const crownMat = foliageMaterial(textures.canopy, { tintSpread: 0.14, lift: 1.1, wind: { strength: 0.35, speed: 0.42 } });
-    const crown = new THREE.InstancedMesh(crownGeo, crownMat, crownSpots.length);
+    const atlas = createLeafClusterTexture({
+      seed: 5101,
+      count: 1500,
+      lenRange: [12, 24],
+      shape: 'small',
+      highlight: 0.12,
+      edgeWobble: 0.3,
+      atlas: 2,
+      palettes: [['#1f4a1a', '#33722a'], ['#1d5222', '#3a8334'], ['#26561a', '#45852c'], ['#2a5f22', '#4c8f36']],
+    });
+    const tuftGeo = shellCrown({
+      blobs: [{ x: 0, y: 0, z: 0, rx: 3.0, ry: 2.0, rz: 3.0, count: 24, lobes: 3, lobeAmp: 0.25 }],
+      cardSize: [2.2, 4.0],
+      undersideThin: 0.3,
+      innerFrac: 0.2,
+      seed: 4061,
+      upFactor: 0.72,
+      spherical: 0.7,
+    });
+    const inst = instanceStream(Math.max(1, crownSpots.length));
+    const crownMat = tuftMaterial(atlas, {
+      tint: [0.92, 1.0, 0.88],
+      translucency: 0.4,
+      roughness: 0.68,
+      hueSpread: 0.12,
+      valueSpread: 0.14,
+      doubleSided: true,
+      cardVariation: 0.16,
+    });
+    // the landmark trunk is static, so only a whisper of sway plus per-card flutter
+    applyTuftVertex(crownMat, { wind: { strength: 0.04, speed: 0.32, uniformSway: true, cardFlutter: 0.14 }, inst });
+    const crown = new THREE.InstancedMesh(tuftGeo, crownMat, Math.max(1, crownSpots.length));
     crownSpots.forEach((c, i) => {
       dummy.position.set(c.x, c.y, c.z);
-      dummy.rotation.set((random() - 0.5) * 0.4, random() * TAU, (random() - 0.5) * 0.4);
+      dummy.rotation.set(0, random() * TAU, 0);
       dummy.scale.set(c.s, c.s * (0.8 + random() * 0.3), c.s);
       dummy.updateMatrix();
       crown.setMatrixAt(i, dummy.matrix);
+      inst.array.set([giant.x, giant.baseY, giant.z, 0], i * 4); // wind anchor = tree base (x, y, z, yaw)
     });
     register(crown, { castShadow: true, name: 'lm-giant-crown' });
   }
