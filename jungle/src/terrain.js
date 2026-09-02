@@ -20,6 +20,9 @@ import {
   sin,
   abs,
   pow,
+  max,
+  cameraPosition,
+  normalize,
 } from 'three/tsl';
 import { WORLD } from './config.js';
 import { createFbm2D, smoothstep as smoothstepJs, clamp as clampJs, lerp } from './noise.js';
@@ -327,24 +330,144 @@ export function createTerrain(ctx) {
     metalness: 0,
   });
 
+  // Second baked control map for the path profile (the 256² trail mask
+  // saturates across the whole walked width, so it cannot place a centre line
+  // or ruts): R = lateral distance to the trail centre line / 6 m, G = local
+  // hollow (how far the point sits below its 2.2 m ring — damp floors and
+  // puddles), B = fine slope. Height samples are expensive, so the hollow is
+  // computed on a 128² grid and bilinearly upsampled into the 1024² map.
+  function bakeTrailDetailMap() {
+    const res = 1024;
+    const hollowRes = 128;
+    const ring = 2.2;
+    const hollow = new Float32Array(hollowRes * hollowRes);
+    const slopeF = new Float32Array(hollowRes * hollowRes);
+    for (let iz = 0; iz < hollowRes; iz += 1) {
+      for (let ix = 0; ix < hollowRes; ix += 1) {
+        const x = (ix / (hollowRes - 1) - 0.5) * WORLD.size;
+        const z = (iz / (hollowRes - 1) - 0.5) * WORLD.size;
+        // only trail neighbourhoods need the hollow channel
+        if (trailDistance(x, z) > 9) continue;
+        const h = sampleHeight(x, z);
+        let avg = 0;
+        for (let k = 0; k < 6; k += 1) {
+          const a = (k / 6) * Math.PI * 2 + 0.3;
+          avg += sampleHeight(x + Math.cos(a) * ring, z + Math.sin(a) * ring);
+        }
+        avg /= 6;
+        hollow[iz * hollowRes + ix] = clampJs((avg - h) / 0.45, 0, 1);
+        const sx = sampleHeight(x + 1, z) - sampleHeight(x - 1, z);
+        const sz = sampleHeight(x, z + 1) - sampleHeight(x, z - 1);
+        slopeF[iz * hollowRes + ix] = clampJs(Math.hypot(sx, sz) * 0.5 / 0.6, 0, 1);
+      }
+    }
+    const fetch = (grid, u, v) => {
+      const fx = clampJs(u * (hollowRes - 1), 0, hollowRes - 1.001);
+      const fz = clampJs(v * (hollowRes - 1), 0, hollowRes - 1.001);
+      const x0 = Math.floor(fx);
+      const z0 = Math.floor(fz);
+      const tx = fx - x0;
+      const tz = fz - z0;
+      const a = grid[z0 * hollowRes + x0];
+      const b = grid[z0 * hollowRes + x0 + 1];
+      const c = grid[(z0 + 1) * hollowRes + x0];
+      const d = grid[(z0 + 1) * hollowRes + x0 + 1];
+      return lerp(lerp(a, b, tx), lerp(c, d, tx), tz);
+    };
+    const data = new Uint8Array(res * res * 4);
+    for (let iz = 0; iz < res; iz += 1) {
+      const v = iz / (res - 1);
+      const z = (v - 0.5) * WORLD.size;
+      for (let ix = 0; ix < res; ix += 1) {
+        const u = ix / (res - 1);
+        const x = (u - 0.5) * WORLD.size;
+        const o = (iz * res + ix) * 4;
+        data[o] = Math.round(clampJs(trailDistance(x, z) / 6, 0, 1) * 255);
+        data[o + 1] = Math.round(fetch(hollow, u, v) * 255);
+        data[o + 2] = Math.round(fetch(slopeF, u, v) * 255);
+        data[o + 3] = 255;
+      }
+    }
+    const tex = new THREE.DataTexture(data, res, res, THREE.RGBAFormat, THREE.UnsignedByteType);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    return tex;
+  }
+  const detailTex = bakeTrailDetailMap();
+
   const worldXZ = positionWorld.xz;
   const control = texture(controlTex, worldXZ.div(size).add(0.5));
   const trail = control.r;
   const canopy = control.g;
   const cavity = control.b;
   const shoreProximity = control.a;
+  const detail = texture(detailTex, worldXZ.div(size).add(0.5));
+  const lateral = detail.r;
+  const hollow = detail.g;
 
-  const grassTex = texture(textures.grass, worldXZ.mul(0.12));
-  const grassFar = texture(textures.grass, worldXZ.mul(0.021).add(0.37));
-  const sandTex = texture(textures.sand, worldXZ.mul(0.15));
-  const mossTex = texture(textures.moss, worldXZ.mul(0.08));
-  // two dirt octaves: the slow one breaks the 3.7 m tile on a long straight path
-  const dirtTex = mix(texture(textures.dirt, worldXZ.mul(0.27)), texture(textures.dirt, worldXZ.mul(0.083).add(0.5)), 0.35);
-  const litterTex = texture(textures.litter, worldXZ.mul(0.22));
+  // camera proximity: fine octaves and parallax only pay off within ~25 m
+  const toCamera = cameraPosition.sub(positionWorld);
+  const camDist = toCamera.length();
+  const near = smoothstep(14.0, 28.0, camDist).oneMinus();
+  const viewDir = normalize(toCamera);
+
   const mottle = texture(textures.noise, worldXZ.mul(0.012)).r;
   const mottleFine = texture(textures.noise, worldXZ.mul(0.05)).r;
   const mottleMid = texture(textures.noise, worldXZ.mul(0.027).add(0.5)).r;
   const mottleDamp = texture(textures.noise, worldXZ.mul(0.07).add(0.23)).r;
+  const mottleClose = texture(textures.noise, worldXZ.mul(0.19).add(0.61)).r;
+
+  // grass: base tile + far tile, a cool/warm two-tone drift so the floor is not one green
+  const grassUv = worldXZ.mul(0.12);
+  let grassTex = texture(textures.grass, grassUv);
+  const grassFar = texture(textures.grass, worldXZ.mul(0.021).add(0.37));
+  grassTex = mix(grassTex, grassFar, 0.3);
+  grassTex = grassTex.mul(mix(vec3(0.88, 1.0, 0.86), vec3(1.08, 1.0, 0.8), mottleMid));
+  const sandTex = texture(textures.sand, worldXZ.mul(0.15));
+  const mossTex = texture(textures.moss, worldXZ.mul(0.08));
+
+  // dirt: main octave (3.7 m tile) with a one-step parallax offset from its own
+  // height map, a fine octave (1.2 m) faded in near the camera, and a slow
+  // height-map octave (14 m) modulating tone so long straight paths never tile
+  const dirtScale = 0.27;
+  const dirtUvA0 = worldXZ.mul(dirtScale);
+  // anti-tiling: a second, rotated + offset lookup of the same tile is swapped
+  // in over slow noise regions so the mud patches never repeat along a path
+  const dirtUvR0 = vec2(worldXZ.y.negate(), worldXZ.x).mul(dirtScale * 1.13).add(vec2(0.37, 0.71));
+  const bomb = smoothstep(0.42, 0.58, mottleMid);
+  const dirtHA0 = mix(texture(textures.dirtHeight, dirtUvA0).r, texture(textures.dirtHeight, dirtUvR0).r, bomb);
+  const parallax = viewDir.xz.div(max(viewDir.y, 0.3)).mul(dirtHA0.sub(0.5)).mul(near.mul(0.0075));
+  const dirtUvA = dirtUvA0.add(parallax);
+  const dirtUvR = dirtUvR0.add(vec2(parallax.y.negate(), parallax.x));
+  const dirtUvB = worldXZ.mul(0.83).add(0.31);
+  const dirtA = mix(texture(textures.dirt, dirtUvA), texture(textures.dirt, dirtUvR), bomb);
+  const dirtB = texture(textures.dirt, dirtUvB);
+  const dirtHA = mix(texture(textures.dirtHeight, dirtUvA).r, texture(textures.dirtHeight, dirtUvR).r, bomb);
+  const dirtHB = texture(textures.dirtHeight, dirtUvB).r;
+  const dirtHMacro = texture(textures.dirtHeight, worldXZ.mul(0.071).add(0.5)).r;
+  const fineMix = near.mul(0.3);
+  let dirtTex = mix(dirtA, dirtB, fineMix);
+  const dirtH = mix(dirtHA, dirtHB, near.mul(0.45));
+  // shadowed cavities: the low parts of the relief sit in their own shade
+  const dirtCavity = smoothstep(0.14, 0.5, dirtH).oneMinus();
+  dirtTex = dirtTex.mul(dirtCavity.mul(0.32).oneMinus());
+  dirtTex = dirtTex.mul(smoothstep(0.55, 0.85, dirtH).mul(0.14).add(1.0));
+  dirtTex = dirtTex.mul(mix(float(0.86), float(1.14), dirtHMacro));
+
+  // leaf litter: 4.5 m tile, plus a 9 m tile whose leaves are big enough to
+  // read individually — composited by height (leaf on top, not a crossfade)
+  const litterUvA = worldXZ.mul(0.22);
+  const litterUvB = worldXZ.mul(0.11).add(0.43);
+  const litterA = texture(textures.litter, litterUvA);
+  const litterB = texture(textures.litter, litterUvB);
+  const litterHA = texture(textures.litterHeight, litterUvA).r;
+  const litterHB = texture(textures.litterHeight, litterUvB).r;
+  const bigLeaf = smoothstep(0.4, 0.5, litterHB).mul(near);
+  let litterTex = mix(litterA, litterB, bigLeaf);
+  // darker humus in the gaps between leaves
+  const litterH = max(litterHA, litterHB.mul(bigLeaf));
+  litterTex = litterTex.mul(mix(float(0.62), float(1.0), smoothstep(0.22, 0.48, litterH)));
 
   // triplanar rock so cliff faces don't stretch
   const triW = pow(abs(normalWorld), vec3(4.0));
@@ -380,7 +503,10 @@ export function createTerrain(ctx) {
   const sandMask = smoothstep(0.55, 1.9, height).oneMinus().mul(shoreProximity);
   const rockMask = smoothstep(0.16, 0.4, slope).max(smoothstep(11.5, 17.5, height).mul(smoothstep(0.05, 0.2, slope)));
   const mossMask = smoothstep(0.45, 0.72, mottle).mul(0.85);
-  const litterMask = smoothstep(0.3, 0.75, canopy).mul(smoothstep(0.3, 0.6, mottleMid.mul(0.5).add(0.5)))
+  // leaf litter piles up under the canopy — denser than before, patchy, and
+  // thickest where the canopy is closed
+  const litterMask = smoothstep(0.22, 0.7, canopy).mul(smoothstep(0.22, 0.6, mottleMid.mul(0.5).add(0.5)))
+    .mul(smoothstep(0.25, 0.55, mottleClose.mul(0.5).add(canopy.mul(0.5))))
     .mul(float(1).sub(sandMask))
     .mul(float(1).sub(rockMask));
   const trailBlend = trail.mul(smoothstep(0.2, 0.55, mottleFine.mul(0.6).add(0.4))).mul(float(1).sub(sandMask)).mul(float(1).sub(rockMask.mul(0.7)));
@@ -389,17 +515,42 @@ export function createTerrain(ctx) {
     .mul(smoothstep(0.42, 0.7, slope).oneMinus())
     .mul(smoothstep(2.0, 9.0, height).oneMinus());
 
+  // path profile from the lateral coordinate: a compacted, lighter, smoother
+  // centre; darker crumbly edges; two faint worn lines where feet fall
+  const wander = mottleFine.sub(0.5).mul(0.11).add(mottleClose.sub(0.5).mul(0.05));
+  const lateralW = lateral.add(wander);
+  const centre = smoothstep(0.1, 0.3, lateralW).oneMinus().mul(trailBlend);
+  const edge = smoothstep(0.16, 0.42, lateralW).mul(trailBlend);
+  const rutPos = float(0.125).add(mottleDamp.sub(0.5).mul(0.06));
+  const rut = smoothstep(0.0, 0.03, abs(lateral.add(mottleClose.sub(0.5).mul(0.03)).sub(rutPos))).oneMinus()
+    .mul(smoothstep(0.35, 0.7, mottleMid)).mul(trailBlend).mul(0.6);
+
   // albedo
-  let albedo = mix(grassTex, grassFar, 0.35);
+  let albedo = grassTex;
   albedo = mix(albedo, mossTex, mossMask);
   albedo = mix(albedo, litterTex, litterMask);
-  albedo = mix(albedo, dirtTex, trailBlend);
-  // a walked path is not one even colour: drifts of leaves blow onto it under
-  // the canopy, and hollows stay damp and dark after rain
-  const trailLitter = trailBlend.mul(smoothstep(0.35, 0.8, canopy)).mul(smoothstep(0.5, 0.72, mottleFine)).mul(0.7);
+  // worn spots: bare earth showing through the grass beside the path
+  const worn = smoothstep(0.02, 0.45, trail).mul(smoothstep(0.56, 0.7, mottleFine)).mul(float(1).sub(trailBlend)).mul(float(1).sub(sandMask)).mul(0.8);
+  albedo = mix(albedo, dirtTex.mul(0.9), worn);
+  // the path itself, shaped by the profile
+  let pathTex = dirtTex.mul(centre.mul(0.26).add(1.0)).mul(edge.mul(0.22).oneMinus()).mul(rut.mul(0.18).oneMinus());
+  // the compacted centre is smoother: lift most of the cavity shade there and
+  // pull the fine grit toward the flatter slow tone
+  pathTex = pathTex.mul(dirtCavity.mul(centre).mul(0.28).add(1.0));
+  pathTex = mix(pathTex, dirtA.mul(mix(float(0.9), float(1.14), dirtHMacro)).mul(1.12), centre.mul(0.3));
+  albedo = mix(albedo, pathTex, trailBlend);
+  // a walked path is not one even colour: leaves blow onto it under the canopy
+  // (thickest along the edges, individual big leaves near the camera), and
+  // hollows stay damp and dark after rain
+  const trailLitterBase = trailBlend.mul(smoothstep(0.3, 0.8, canopy)).mul(edge.mul(0.8).add(0.35));
+  const trailLitter = trailLitterBase.mul(smoothstep(0.5, 0.72, mottleFine)).mul(0.75);
   albedo = mix(albedo, litterTex, trailLitter);
-  const trailDamp = trailBlend.mul(smoothstep(0.62, 0.45, mottleDamp)).mul(smoothstep(0.3, 0.6, mottleMid));
-  albedo = albedo.mul(trailDamp.mul(0.3).oneMinus());
+  const looseLeaves = trailLitterBase.mul(smoothstep(0.42, 0.52, litterHB)).mul(smoothstep(0.35, 0.6, mottleClose)).mul(near).mul(0.9);
+  albedo = mix(albedo, litterB, looseLeaves);
+  const trailDamp = trailBlend.mul(
+    smoothstep(0.45, 0.62, mottleDamp).oneMinus().mul(smoothstep(0.3, 0.6, mottleMid)).max(smoothstep(0.2, 0.7, hollow).mul(0.9))
+  );
+  albedo = albedo.mul(trailDamp.mul(0.28).oneMinus());
   albedo = mix(albedo, sandTex, sandMask);
   let rockAlbedo = mix(rockTex, mossTex.mul(0.9), mossOnRock.mul(0.6));
   albedo = mix(albedo, rockAlbedo, rockMask);
@@ -422,25 +573,48 @@ export function createTerrain(ctx) {
 
   material.colorNode = albedo;
 
-  // normal maps blended with the same masks
-  const nGrass = texture(textures.grassNormal, worldXZ.mul(0.12)).rgb;
+  // normal maps blended with the same masks. Dirt combines its two octaves in
+  // tangent space (sum the xy tilts) rather than crossfading the encoded maps.
+  const nGrass = texture(textures.grassNormal, grassUv).rgb;
   const nSand = texture(textures.sandNormal, worldXZ.mul(0.15)).rgb;
-  const nDirt = texture(textures.dirtNormal, worldXZ.mul(0.27)).rgb;
-  const nLitter = texture(textures.litterNormal, worldXZ.mul(0.22)).rgb;
+  const nDirtA0 = texture(textures.dirtNormal, dirtUvA).rgb.mul(2.0).sub(1.0);
+  // the rotated lookup's tilt has to be rotated back into the world uv frame
+  const nDirtR0 = texture(textures.dirtNormal, dirtUvR).rgb.mul(2.0).sub(1.0);
+  const nDirtR = vec3(nDirtR0.y, nDirtR0.x.negate(), nDirtR0.z);
+  const nDirtA = mix(nDirtA0, nDirtR, bomb);
+  const nDirtB = texture(textures.dirtNormal, dirtUvB).rgb.mul(2.0).sub(1.0);
+  const nDirt = normalize(vec3(nDirtA.xy.add(nDirtB.xy.mul(near.mul(0.6))), nDirtA.z)).mul(0.5).add(0.5);
+  const nLitterA = texture(textures.litterNormal, litterUvA).rgb;
+  const nLitterB = texture(textures.litterNormal, litterUvB).rgb;
+  const nLitter = mix(nLitterA, nLitterB, bigLeaf);
   const nRock = texture(textures.rockNormal, positionWorld.xz.mul(rockScale)).rgb.mul(wY)
     .add(texture(textures.rockNormal, positionWorld.xy.mul(rockScale)).rgb.mul(wZ))
     .add(texture(textures.rockNormal, positionWorld.zy.mul(rockScale)).rgb.mul(wX));
   let nBlend = nGrass;
   nBlend = mix(nBlend, nLitter, litterMask);
-  nBlend = mix(nBlend, nDirt, trailBlend);
+  nBlend = mix(nBlend, nDirt, trailBlend.max(worn));
+  nBlend = mix(nBlend, nLitter, trailLitter.max(looseLeaves));
   nBlend = mix(nBlend, nSand, sandMask);
   nBlend = mix(nBlend, nRock, rockMask);
-  material.normalNode = normalMap(nBlend, vec2(0.9));
+  // relief strength: dirt 1.4 → 1.8 (edges rougher, the compacted centre and
+  // the ruts smoother), litter 1.5, everything else as before
+  const normalStrength = float(0.9)
+    .add(trailBlend.mul(float(0.6).add(edge.mul(0.3)).sub(centre.mul(0.1)).sub(rut.mul(0.25))))
+    .add(litterMask.max(trailLitter).mul(0.6))
+    .sub(rockMask.mul(0.2));
+  material.normalNode = normalMap(nBlend, vec2(normalStrength));
 
+  // roughness: damp hollows and the puddle floors go glossy, the compacted
+  // centre and ruts are a touch smoother than the crumbly edges, the deep
+  // cavities of the relief hold moisture
   material.roughnessNode = mix(float(0.95), float(0.8), sandMask)
     .sub(wetBand.mul(1.3))
     .sub(underwaterMask.mul(0.3))
-    .sub(trailDamp.mul(0.35))
+    .sub(trailDamp.mul(0.42))
+    .sub(rut.mul(0.1))
+    .sub(centre.mul(0.05))
+    .add(edge.mul(0.03))
+    .sub(dirtCavity.mul(trailBlend).mul(0.12))
     .add(rockMask.mul(0.02));
 
   const mesh = new THREE.Mesh(geometry, material);
