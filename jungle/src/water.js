@@ -1043,7 +1043,10 @@ export function createWater(ctx) {
     const grad = rippleGradient().mul(2.8);
     const detailFade = smoothstep(20, 150, dist).oneMinus();
     const dUV1 = xz.sub(flowOffset).mul(0.55).add(time.mul(vec2(0.026, 0.019)));
-    const dUV2 = xz.sub(flowOffset.mul(0.75)).mul(vec2(0.31, 0.27)).add(time.mul(vec2(-0.017, 0.023)));
+    // second octave rotated 37° so the two tiles never line up into a grid
+    const p2 = xz.sub(flowOffset.mul(0.75));
+    const rot2 = vec2(p2.x.mul(0.7986).sub(p2.y.mul(0.6018)), p2.x.mul(0.6018).add(p2.y.mul(0.7986)));
+    const dUV2 = rot2.mul(vec2(0.31, 0.27)).add(time.mul(vec2(-0.017, 0.023)));
     const d1 = texture(normalTex, dUV1).rg.mul(2).sub(1);
     const d2 = texture(normalTex, dUV2).rg.mul(2).sub(1);
     const detail = d1.mul(0.6).add(d2.mul(0.45)).mul(0.11).mul(detailFade).mul(river.mul(0.7).add(1));
@@ -1053,7 +1056,10 @@ export function createWater(ctx) {
 
     // ---- fresnel (Schlick, water F0) ----
     const cosT = clamp(abs(dot(viewDir, nFull)), 0, 1);
-    const fresnel = float(0.02).add(pow(float(1).sub(cosT), 5).mul(0.98)).min(0.9);
+    // a touch above physical F0 (0.02) with a softer exponent: real lagoons read
+    // their treeline at 30° because of skylight + micro-waves the sim can't
+    // resolve; without it the surface is flat turquoise paint at every angle
+    const fresnel = float(0.055).add(pow(float(1).sub(cosT), 4).mul(0.92)).min(0.9);
 
     // ---- reflection ----
     let refl;
@@ -1119,7 +1125,11 @@ export function createWater(ctx) {
     // ---- sun glints: sharp sparkle + soft sheen, both broken by the detail normal ----
     const R = reflect(viewDir.negate(), nFull);
     const sunDot = max(dot(R, sunDir), 0);
-    const glint = pow(sunDot, 400).mul(2.4).add(pow(sunDot, 56).mul(0.09));
+    // the sparkle is damped where the ripple sim has tilted the surface hard
+    // (a swimmer's wake) — every disturbed facet catching the sun at once made
+    // an HDR white splat — and capped so bloom cannot blow it out
+    const rippleDamp = smoothstep(0.25, 0.9, length(grad)).mul(0.75).oneMinus();
+    const glint = pow(sunDot, 400).mul(2.4).mul(rippleDamp).min(1.2).add(pow(sunDot, 56).mul(0.09));
 
     // ---- foam ----
     const lap = sin(time.mul(1.1).add(xz.x.mul(0.33)).add(xz.y.mul(0.21)))
@@ -1128,7 +1138,9 @@ export function createWater(ctx) {
     const edgeDepth = colDepth.add(lap.mul(0.07)).add(foamTexB.sub(0.5).mul(0.22));
     const shoreLine = smoothstep(0.0, 0.14, edgeDepth).oneMinus();
     const shoreBand = smoothstep(0.1, 0.55, edgeDepth).oneMinus().mul(foamPattern);
-    const shoreFoam = clamp(shoreLine.mul(0.85).add(shoreBand.mul(0.5)), 0, 1);
+    // the waterline itself is only a thin bright seam; the foam behind it is
+    // gated by the pattern so it breaks into rafts instead of a solid white belt
+    const shoreFoam = clamp(shoreLine.mul(foamPattern.mul(0.6).add(0.3)).add(shoreBand.mul(0.5)), 0, 1);
     // ripple crests whiten a little (steep slopes only — a swimmer's wake, not
     // a white disc around every splash)
     const crestFoam = smoothstep(0.32, 0.8, length(grad)).mul(0.22);
@@ -1538,10 +1550,13 @@ export function createWater(ctx) {
       return false;
     };
     const clump = (x, z) => {
-      const n = 2 + Math.floor(reedRandom() * 4);
+      const n = 3 + Math.floor(reedRandom() * 5);
       for (let k = 0; k < n; k += 1) {
-        const px = x + (reedRandom() - 0.5) * 1.6;
-        const pz = z + (reedRandom() - 0.5) * 1.6;
+        // disc footprint, denser at the centre (a square one read as a block)
+        const ca = reedRandom() * TAU;
+        const cr = Math.sqrt(reedRandom()) * 1.1;
+        const px = x + Math.cos(ca) * cr;
+        const pz = z + Math.sin(ca) * cr;
         const h = terrain.sampleHeight(px, pz);
         if (h < -0.55 || h > 0.5) continue;
         if (insideRock(px, pz)) continue;

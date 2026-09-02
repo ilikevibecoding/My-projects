@@ -21,6 +21,7 @@ import {
   texture,
   positionLocal,
   positionWorld,
+  positionGeometry,
   normalWorld,
   normalMap,
   float,
@@ -981,6 +982,10 @@ export function createLandmarks(ctx) {
     const seep = texture(textures.noise, vec2(positionWorld.x.add(positionWorld.z).mul(0.45), positionWorld.y.mul(0.03))).r;
     albedo = albedo.mul(mix(float(0.84), float(1.0), smoothstep(0.35, 0.7, seep)));
     albedo = albedo.mul(wet.mul(0.42).oneMinus());
+    // contact shading: the buried foot of a boulder sits in its own shadow and
+    // soil stain, which is what keeps it from reading as a pebble set on a table
+    const contact = smoothstep(-0.2, -0.72, positionGeometry.y);
+    albedo = albedo.mul(mix(vec3(1.0, 1.0, 1.0), vec3(0.62, 0.6, 0.56), contact));
     boulderMaterial.colorNode = albedo;
     boulderMaterial.emissiveNode = albedo.mul(0.06); // faint bounce: shaded faces keep their texture
     boulderMaterial.normalNode = normalMap(rockN, vec2(mix(float(1.35), float(0.4), moss)));
@@ -1255,6 +1260,28 @@ export function createLandmarks(ctx) {
       }
       const wedge = indexedGeometry(positions, uvs, gridIndices(S + 1, C));
       ensureOutward(wedge, (i, p, out) => out.copy(axisPts[Math.min(S, Math.floor(i / C))]));
+      // where the wedge runs into the bole its side normals are perpendicular
+      // to the trunk's radial ones, which shades as a hard crease; bend them
+      // toward the trunk normal over the first third so the root reads as one
+      // piece of wood growing out of the trunk
+      {
+        const nrm = wedge.attributes.normal;
+        const pos = wedge.attributes.position;
+        for (let i = 0; i < nrm.count; i += 1) {
+          const t = Math.min(S, Math.floor(i / C)) / S;
+          const f = 1 - smoothstepJs(0.0, 0.38, t);
+          if (f <= 0) continue;
+          const rx = pos.getX(i);
+          const rz = pos.getZ(i);
+          const rl = Math.hypot(rx, rz) || 1;
+          const nx = nrm.getX(i) * (1 - f) + (rx / rl) * f;
+          const ny = nrm.getY(i) * (1 - f) + 0.25 * f;
+          const nz = nrm.getZ(i) * (1 - f) + (rz / rl) * f;
+          const len2 = Math.hypot(nx, ny, nz) || 1;
+          nrm.setXYZ(i, nx / len2, ny / len2, nz / len2);
+        }
+        nrm.needsUpdate = true;
+      }
       withCap(wedge, 0);
       parts.push(wedge);
       buttresses.push({ angle, bend, len, hT, halfW, start });
@@ -1374,18 +1401,34 @@ export function createLandmarks(ctx) {
     // lianas: thin woody ropes, some reaching the ground and rooting
     for (const spec of lianaSpecs) {
       const pts = [];
-      const N = 9;
+      const N = 18;
       const groundHere = groundAt(gx + spec.x, gz + spec.z) - baseY;
       const maxLen = spec.y - groundHere + 0.4;
       const len = Math.min(spec.len, maxLen);
       const drift = (random() - 0.5) * 1.6;
       const driftZ = (random() - 0.5) * 1.6;
+      // every liana gets its own bow, a loose spiral and a couple of kinks, so
+      // the hanging ropes are not nine identical plucked strings
+      const bow = 0.2 + random() * 0.7;
+      const bowDir = random() * TAU;
+      const spiralR = 0.08 + random() * 0.22;
+      const spiralTurns = 1 + random() * 2.5;
+      const spiralPhase = random() * TAU;
+      const kinkF = 2 + Math.floor(random() * 3);
+      const kinkA = 0.05 + random() * 0.12;
+      const kinkPhase = random() * TAU;
       for (let i = 0; i < N; i += 1) {
         const t = i / (N - 1);
-        const sway = Math.sin(t * Math.PI) * 0.35;
-        pts.push(new THREE.Vector3(spec.x + drift * t + sway, spec.y - len * t, spec.z + driftZ * t + sway * 0.6));
+        const arc = Math.sin(t * Math.PI) * bow;
+        const sp = spiralPhase + t * TAU * spiralTurns;
+        const kink = Math.sin(t * Math.PI * kinkF + kinkPhase) * kinkA * len * 0.1;
+        pts.push(new THREE.Vector3(
+          spec.x + drift * t + Math.cos(bowDir) * arc + Math.cos(sp) * spiralR * t + kink,
+          spec.y - len * t,
+          spec.z + driftZ * t + Math.sin(bowDir) * arc + Math.sin(sp) * spiralR * t - kink * 0.6
+        ));
       }
-      const tube = tubeAlong(pts, (t) => spec.r * (1 - 0.35 * t), 5, { uRepeat: 1, vScale: 0.9 });
+      const tube = tubeAlong(pts, (t) => spec.r * (1 - 0.35 * t) * (1 + 0.25 * Math.sin(t * 19 + spiralPhase)), 5, { uRepeat: 1, vScale: 0.9 });
       withCap(tube, 0);
       parts.push(tube);
     }
@@ -2242,8 +2285,8 @@ export function createLandmarks(ctx) {
     // ---- instanced boulders: two silhouettes (rounded / blockier) alternated
     // so a field of them never repeats one shape at different scales ----
     const boulderGeos = [
-      boulderGeometry(WORLD.seed + 5, { cuts: 2, cutDepth: 0.14, lobes: 0.15 }),
-      boulderGeometry(WORLD.seed + 15, { cuts: 4, cutDepth: 0.2, lobes: 0.11, flatten: 0.78 }),
+      boulderGeometry(WORLD.seed + 5, { cuts: 3, cutDepth: 0.18, lobes: 0.15 }),
+      boulderGeometry(WORLD.seed + 15, { cuts: 5, cutDepth: 0.24, lobes: 0.11, flatten: 0.78 }),
     ];
     boulderGeos.forEach((boulderGeo, variant) => {
       const spots = boulderSpots.filter((_, i) => i % 2 === variant);

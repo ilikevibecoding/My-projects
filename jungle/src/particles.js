@@ -718,23 +718,41 @@ export function createParticles(ctx) {
   const px = () => player.position.x;
   const pz = () => player.position.z;
 
-  // Canopy trees: read back from the vegetation instances (read-only).
-  const trunks = ctx.vegetation?.meshes?.find((m) => m.name === 'tree-trunks') ?? null;
+  // Trees: read back from the vegetation trunk layers (read-only). The crown
+  // sits at the top of the trunk geometry; its radius is the species' crown
+  // half-width. Instance k of a layer is live while k < mesh.count, so the
+  // preset density is honoured per layer.
+  const TRUNK_LAYERS = [
+    { name: 'emergent-trunks', crownR: 5.6 },
+    { name: 'canopy-trunks', crownR: 3.8 },
+    { name: 'understory-trunks', crownR: 2.3 },
+  ];
+  const treeLayers = [];
   const trees = [];
-  if (trunks) {
+  {
     const m = new THREE.Matrix4();
     const p = new THREE.Vector3();
     const q = new THREE.Quaternion();
     const s = new THREE.Vector3();
-    for (let i = 0; i < trunks.instanceMatrix.count; i += 1) {
-      trunks.getMatrixAt(i, m);
-      m.decompose(p, q, s);
-      trees.push({ x: p.x, y: p.y, z: p.z, crownY: p.y + 11.4 * s.y, crownR: 4.4 * s.y });
+    for (const spec of TRUNK_LAYERS) {
+      const mesh = ctx.vegetation?.meshes?.find((mm) => mm.name === spec.name) ?? null;
+      if (!mesh) continue;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      const trunkTop = mesh.geometry.boundingBox.max.y;
+      const list = [];
+      for (let i = 0; i < mesh.instanceMatrix.count; i += 1) {
+        mesh.getMatrixAt(i, m);
+        m.decompose(p, q, s);
+        if (s.y < 0.01) continue;
+        list.push({ x: p.x, y: p.y, z: p.z, crownY: p.y + trunkTop * s.y * 0.92, crownR: spec.crownR * s.x });
+      }
+      treeLayers.push({ mesh, list });
+      trees.push(...list);
     }
   }
-  const activeTrees = () => (trunks ? Math.min(trees.length, trunks.count) : 0);
+  const activeTrees = () => treeLayers.reduce((n, l) => n + Math.min(l.list.length, l.mesh.count), 0);
   debug.trees = trees;
-  debug.trunks = trunks;
+  debug.trunks = treeLayers[0]?.mesh ?? null;
   const nearCache = { x: NaN, z: NaN, count: -1, list: [], close: [] };
   function refreshNear() {
     const x = px();
@@ -745,11 +763,14 @@ export function createParticles(ctx) {
     }
     const list = [];
     const close = [];
-    for (let i = 0; i < count; i += 1) {
-      const tr = trees[i];
-      const d = Math.hypot(tr.x - x, tr.z - z);
-      if (d < NEAR_RADIUS) list.push(tr);
-      if (d < 32) close.push(tr);
+    for (const layer of treeLayers) {
+      const n = Math.min(layer.list.length, layer.mesh.count);
+      for (let i = 0; i < n; i += 1) {
+        const tr = layer.list[i];
+        const d = Math.hypot(tr.x - x, tr.z - z);
+        if (d < NEAR_RADIUS) list.push(tr);
+        if (d < 32) close.push(tr);
+      }
     }
     Object.assign(nearCache, { x, z, count, list, close });
   }
@@ -1021,28 +1042,37 @@ export function createParticles(ctx) {
     });
     const d0 = instanceStream(FIREFLY_COUNT, true); // anchor xyz, size
     const d1 = instanceStream(FIREFLY_COUNT, true); // phaseA phaseB blinkRate brightness
+    // Fireflies only read as fireflies in deep shade: a glowing dot hanging in
+    // noon sunlight is just "a particle system". Candidates are drawn around
+    // nearby trees and kept only where the canopy closes over (density ≥ 0.55);
+    // a firefly that finds no shade is parked dark (size 0) until recycled.
+    const canopyAt = (x, z) => (terrain.canopyDensity ? terrain.canopyDensity(x, z) : 1);
     function place(i, random) {
       const list = treesClose();
-      let x;
-      let z;
-      if (list.length > 0) {
-        const tr = pick(list, random);
-        const a = random() * TAU;
-        const r = 0.8 + random() * 4.6;
-        x = tr.x + Math.cos(a) * r;
-        z = tr.z + Math.sin(a) * r;
-      } else {
-        const a = random() * TAU;
-        const r = 8 + random() * 22;
-        x = px() + Math.cos(a) * r;
-        z = pz() + Math.sin(a) * r;
+      let x = px();
+      let z = pz();
+      let shaded = false;
+      for (let k = 0; k < 8 && !shaded; k += 1) {
+        if (list.length > 0) {
+          const tr = pick(list, random);
+          const a = random() * TAU;
+          const r = 0.8 + random() * 4.6;
+          x = tr.x + Math.cos(a) * r;
+          z = tr.z + Math.sin(a) * r;
+        } else {
+          const a = random() * TAU;
+          const r = 8 + random() * 22;
+          x = px() + Math.cos(a) * r;
+          z = pz() + Math.sin(a) * r;
+        }
+        shaded = canopyAt(x, z) >= 0.55 && groundAt(x, z) > WORLD.waterLevel + 0.2;
       }
       const g = Math.max(groundAt(x, z), WORLD.waterLevel);
       const rate = 0.7 + random() * 1.1;
       // start in the dark part of the blink so respawns never pop
       const pa = (-Math.PI / 2 - uTime.value * rate) / 7 + Math.floor(random() * 4) * (TAU / 7);
-      d0.set(i, x, g + 0.4 + random() * 2.2, z, 0.22 + random() * 0.14);
-      d1.set(i, pa, random() * TAU, rate, 0.8 + random() * 0.5);
+      d0.set(i, x, g + 0.4 + random() * 2.2, z, shaded ? 0.16 + random() * 0.1 : 0);
+      d1.set(i, pa, random() * TAU, rate, 0.55 + random() * 0.35);
     }
     for (let i = 0; i < FIREFLY_COUNT; i += 1) place(i, placeRandom);
     d0.upload();
@@ -1067,7 +1097,7 @@ export function createParticles(ctx) {
     material.positionNode = center;
     material.scaleNode = D0.w.mul(blink.mul(0.5).add(0.7));
     const tex = texture(sprites.glow, uv());
-    material.colorNode = vec3(1.0, 0.93, 0.38).mul(tex.rgb).mul(3.0);
+    material.colorNode = vec3(1.0, 0.9, 0.34).mul(tex.rgb).mul(1.4);
     material.opacityNode = tex.a.mul(intensityV);
     let cursor = 0;
     updaters.push(() => {
@@ -1076,7 +1106,8 @@ export function createParticles(ctx) {
       for (let k = 0; k < 10; k += 1) {
         cursor = (cursor + 1) % n;
         const o = cursor * 4;
-        if (Math.hypot(d0.array[o] - px(), d0.array[o + 2] - pz()) > 42) {
+        // recycle when the player has moved on, and retry parked (unshaded) ones
+        if (d0.array[o + 3] === 0 || Math.hypot(d0.array[o] - px(), d0.array[o + 2] - pz()) > 42) {
           place(cursor, liveRandom);
           changed = true;
         }

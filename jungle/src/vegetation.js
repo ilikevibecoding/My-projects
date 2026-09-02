@@ -14,6 +14,7 @@ import {
   positionLocal,
   positionGeometry,
   positionWorld,
+  normalWorld,
   cameraPosition,
   vec2,
   vec3,
@@ -178,7 +179,12 @@ function foliageMaterial(map, {
     const viewDir = cameraPosition.sub(positionWorld).normalize();
     const backlight = viewDir.dot(sunDirUniform).negate().clamp(0, 1).pow(4);
     const underside = viewDir.y.negate().clamp(0, 1).mul(0.2);
-    const transmitted = backlight.add(underside).mul(translucency);
+    // energy-ish conservation: a card whose shading normal already faces the
+    // sun is being lit by reflection, so it transmits little; only the side
+    // turned away from the sun glows. Capped so translucency + direct + bloom
+    // can never stack a broadleaf into a white cut-out.
+    const facingSun = normalWorld.dot(sunDirUniform).clamp(0, 1);
+    const transmitted = backlight.add(underside).mul(translucency).mul(facingSun.mul(0.7).oneMinus()).min(0.32);
     // transmitted light is yellow-green, but kept below the lit albedo so leaves
     // stay leaf-green instead of turning lime whenever the sun is behind them
     material.emissiveNode = color.mul(vec3(0.7, 0.85, 0.35)).mul(transmitted);
@@ -201,7 +207,8 @@ function barkMaterial(map, normalTex, noiseTex, mossTex, {
   const material = new THREE.MeshStandardNodeMaterial({ map, roughness, metalness: 0 });
   const value = mix(float(1 - valueSpread), float(1 + valueSpread), hash(instanceIndex.add(11)));
   const hueAngle = hash(instanceIndex.add(29)).sub(0.5).mul(2 * hueSpread);
-  const bark = texture(map);
+  // per-instance V offset: neighbouring trunks no longer share ring phase
+  const bark = texture(map, uv().add(vec2(0, hash(instanceIndex.add(5)))));
   const y = positionGeometry.y; // pre-instance height above the trunk base (m at scale 1)
   const heightMix = smoothstep(0.0, gradientHeight, y);
   let color = hueRotate(bark.rgb, hueAngle).mul(mix(vec3(baseTint[0], baseTint[1], baseTint[2]), vec3(1 + lighten, 1 + lighten, 1 + lighten), heightMix));
@@ -214,7 +221,7 @@ function barkMaterial(map, normalTex, noiseTex, mossTex, {
   // faint sky bounce so the shaded side of a trunk keeps its colour under the
   // canopy instead of dropping to black
   material.emissiveNode = color.mul(vec3(0.05, 0.06, 0.07));
-  material.normalNode = normalMap(texture(normalTex).rgb, vec2(normalScale));
+  material.normalNode = normalMap(texture(normalTex, uv().add(vec2(0, hash(instanceIndex.add(5))))).rgb, vec2(normalScale));
   material.roughnessNode = mix(float(roughness), float(0.98), mossMask);
   return material;
 }
@@ -1339,7 +1346,8 @@ export function createVegetation(ctx) {
     0.6,
     0.55
   );
-  const frondMat = foliageMaterial(textures.palmFrond, { translucency: 0.4, roughness: 0.6, tint: [0.78, 0.9, 0.68], hueSpread: 0.08 });
+  // matte-ish and a shade darker: a glossy pale frond against the sky went white
+  const frondMat = foliageMaterial(textures.palmFrond, { translucency: 0.4, roughness: 0.74, tint: [0.7, 0.83, 0.6], hueSpread: 0.08 });
   applyVertex(frondMat, { wind: { strength: 0.4, speed: 0.8, heightRef: 4.6, heightPow: 1.2, flutter: 0.05 } });
   const palmTrunks = new THREE.InstancedMesh(palmTrunkGeo, palmBarkMat, Math.max(1, palmPlacements.length));
   const palmHeads = new THREE.InstancedMesh(frondGeo, frondMat, Math.max(1, palmPlacements.length));
@@ -1700,7 +1708,8 @@ export function createVegetation(ctx) {
       count: 3800,
       seed: 161,
       rule: (s, x, z) => {
-        if (!plantRule(s, { slopeMin: 0.55 })) return 0;
+        // 0.68 ≈ 47°: past that a shrub's downhill side hangs off the face
+        if (!plantRule(s, { slopeMin: 0.68 })) return 0;
         if ((s.canopy < 0.08 && s.water < 0.4 && s.cliff < 0.3) || s.zone.clearing > 0.5) return 0;
         if (!treeClear(x, z, 1.3)) return 0;
         const edge = 1 - Math.min(1, Math.abs(s.canopy - 0.4) * 2);
@@ -1714,8 +1723,8 @@ export function createVegetation(ctx) {
     }),
     scale: (p, rng) => 0.6 + rng() * 0.9,
     yJitter: 0.3,
-    sink: 0.1,
-    align: 0.35,
+    sink: 0.22,
+    align: 0.5,
     inst: bushInst,
   });
 
@@ -1884,9 +1893,9 @@ export function createVegetation(ctx) {
   grassGeoBase.translate(0, 0.4, 0);
   const grassGeo = prepareFoliage(grassGeoBase, 0.78);
   // olive tint so blades sit in the ground's grass albedo instead of glowing lime above it
-  const grassMat = foliageMaterial(textures.grassBlade, { translucency: 0.35, roughness: 0.8, fade: [55, 75], hueSpread: 0.1, valueSpread: 0.18, tint: [0.7, 0.8, 0.52], ao: [0, 0.65, 0.5] });
+  const grassMat = foliageMaterial(textures.grassBlade, { translucency: 0.35, roughness: 0.8, fade: [70, 95], hueSpread: 0.1, valueSpread: 0.18, tint: [0.66, 0.74, 0.54], ao: [0, 0.65, 0.5] });
   const grassInst = instanceStream(34000);
-  applyVertex(grassMat, { wind: { strength: 0.14, speed: 1.7, heightRef: 0.8, flutter: 0.05 }, fade: [55, 75], inst: grassInst });
+  applyVertex(grassMat, { wind: { strength: 0.14, speed: 1.7, heightRef: 0.8, flutter: 0.05 }, fade: [70, 95], inst: grassInst });
   buildSimple({
     name: 'grass',
     geometry: grassGeo,
@@ -1920,7 +1929,7 @@ export function createVegetation(ctx) {
   const tallGrassGeoBase = crossedCards(1.4, 1.75, 3);
   tallGrassGeoBase.translate(0, 0.82, 0);
   const tallGrassGeo = prepareFoliage(tallGrassGeoBase, 0.75);
-  const tallGrassMat = foliageMaterial(ft.tallGrass, { translucency: 0.5, roughness: 0.78, fade: [80, 110], hueSpread: 0.08, valueSpread: 0.16, tint: [0.8, 0.88, 0.66], ao: [0, 1.3, 0.45] });
+  const tallGrassMat = foliageMaterial(ft.tallGrass, { translucency: 0.5, roughness: 0.78, fade: [80, 110], hueSpread: 0.08, valueSpread: 0.16, tint: [0.76, 0.82, 0.66], ao: [0, 1.3, 0.45] });
   const tallGrassInst = instanceStream(4200);
   applyVertex(tallGrassMat, { wind: { strength: 0.24, speed: 1.3, heightRef: 1.6, heightPow: 1.3, flutter: 0.06 }, fade: [80, 110], inst: tallGrassInst });
   buildSimple({

@@ -29,7 +29,7 @@ export const WORLD = {
   gravity: 14.5,
 
   // Sun (bright tropical late morning)
-  sunElevation: 68, // degrees
+  sunElevation: 57, // degrees — high tropical sun, but low enough that trunks and cliffs get a lit and a shaded side
   sunAzimuth: 160, // degrees — high sun, slightly east so the falls get side light
 
   fogColor: 0xc2ddb6,
