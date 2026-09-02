@@ -212,20 +212,22 @@ export function createDirtTexture() {
   ctx.fillRect(0, 0, 512, 512);
 
   speckle(ctx, random, 3600, 3.5, 0.2, ['#8a6a48', '#4d3826', '#95784f', '#3f2d1e']);
-  // pebbles
-  for (let i = 0; i < 380; i += 1) {
+  // pebbles + grit (small, low-contrast — bright dots read as litter from eye height)
+  for (let i = 0; i < 520; i += 1) {
     const x = random() * 512;
     const y = random() * 512;
-    const r = 1.5 + random() * 4;
-    ctx.fillStyle = random() > 0.5 ? 'rgba(150, 140, 120, 0.55)' : 'rgba(70, 58, 44, 0.6)';
+    const r = 0.8 + random() * 2.2;
+    ctx.fillStyle = random() > 0.5 ? 'rgba(128, 116, 96, 0.4)' : 'rgba(66, 54, 40, 0.55)';
     ctx.beginPath();
     ctx.ellipse(x, y, r, r * (0.6 + random() * 0.4), random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255, 240, 210, 0.16)';
+    ctx.fillStyle = 'rgba(214, 196, 168, 0.1)';
     ctx.beginPath();
-    ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.4, 0, Math.PI * 2);
+    ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.35, 0, Math.PI * 2);
     ctx.fill();
   }
+  // packed-earth tonal patches + boot-worn darkening
+  speckle(ctx, random, 60, 70, 0.1, ['#5a4128', '#83654a', '#6e5238']);
   // faint root streaks
   for (let i = 0; i < 40; i += 1) {
     ctx.strokeStyle = `rgba(60, 42, 28, ${0.2 + random() * 0.2})`;

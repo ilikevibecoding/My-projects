@@ -82,6 +82,9 @@ export const QUALITY_PRESETS = {
     particleDensity: 0.35,
     fxaa: true,
     anisotropy: 2,
+    ao: false,
+    aoScale: 0.5,
+    shadowCascades: 0,
   },
   medium: {
     label: 'Medium',
@@ -99,6 +102,9 @@ export const QUALITY_PRESETS = {
     particleDensity: 0.6,
     fxaa: true,
     anisotropy: 4,
+    ao: false,
+    aoScale: 0.5,
+    shadowCascades: 0,
   },
   high: {
     label: 'High',
@@ -116,6 +122,9 @@ export const QUALITY_PRESETS = {
     particleDensity: 0.85,
     fxaa: true,
     anisotropy: 8,
+    ao: true,
+    aoScale: 0.5,
+    shadowCascades: 0,
   },
   ultra: {
     label: 'Ultra',
@@ -133,6 +142,9 @@ export const QUALITY_PRESETS = {
     particleDensity: 1,
     fxaa: true,
     anisotropy: 16,
+    ao: true,
+    aoScale: 1,
+    shadowCascades: 3,
   },
 };
 
