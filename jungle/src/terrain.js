@@ -135,6 +135,11 @@ export function createHeightSampler() {
     const cliff = cliffRamp * cliffFar * northness;
     h += cliff * WORLD.cliffHeight * notch;
     h += cliff * crags(x * 0.05, z * 0.05) * 3.6;
+    // ledges and buttresses on the wall itself: strongest mid-ramp where the
+    // face is steepest (4t(1-t) of the ramp), so the plateau and the shore stay smooth
+    const tRamp = clampJs((distL - (WORLD.lagoonRadius - 4)) / 34, 0, 1);
+    const faceN = 4 * tRamp * (1 - tRamp) * cliffFar * northness;
+    h += faceN * (crags(x * 0.22 + 2.3, z * 0.22) * 1.7 + crags(x * 0.42, z * 0.42 + 6.1) * 0.55);
 
     // --- east ridge: steep craggy west face toward the lagoon, gentle east back ---
     const ridgeCenter = ridge.x + Math.sin(z * 0.02) * 10;
@@ -143,14 +148,20 @@ export function createHeightSampler() {
     const ridgeZ = smoothstepJs(ridge.zFrom, ridge.zFrom + 40, z) * (1 - smoothstepJs(ridge.zTo - 40, ridge.zTo, z));
     const ridgeProfile = Math.pow(1 - smoothstepJs(0, ridgeW, Math.abs(dxr)), 1.35) * ridgeZ;
     h += ridgeProfile * ridge.height * (1 + crags(x * 0.03, z * 0.03) * 0.22);
-    // rocky crags on the west face
-    h += smoothstepJs(0.25, 0.7, ridgeProfile) * (dxr < 0 ? 1 : 0.3) * crags(x * 0.09, z * 0.09) * 2.2 * ridgeZ;
+    // rocky crags on the west face, plus tighter ledges where the face is steepest
+    const westFace = (dxr < 0 ? 1 : 0.3) * ridgeZ;
+    h += smoothstepJs(0.25, 0.7, ridgeProfile) * westFace * crags(x * 0.09, z * 0.09) * 2.2;
+    const faceR = smoothstepJs(0.12, 0.4, ridgeProfile) * (1 - smoothstepJs(0.6, 0.92, ridgeProfile)) * westFace;
+    h += faceR * crags(x * 0.24 + 4.7, z * 0.24 - 2.2) * 1.3;
 
     // --- west ravine: a shaded gully with steep sides ---
     const ravineCenter = ravine.x + Math.sin(z * 0.03) * ravine.wiggle;
     const ravineZ = smoothstepJs(ravine.zFrom, ravine.zFrom + 30, z) * (1 - smoothstepJs(ravine.zTo - 30, ravine.zTo, z));
     const gully = (1 - smoothstepJs(ravine.halfWidth * 0.25, ravine.halfWidth, Math.abs(x - ravineCenter))) * ravineZ;
     h -= gully * ravine.depth;
+    // broken rock on the gully walls (mid-slope only; the floor stays walkable)
+    const faceV = 4 * gully * (1 - gully) * ravineZ;
+    h += faceV * crags(x * 0.3 + 8.5, z * 0.3 + 3.3) * 0.8;
     // raised lips either side of the gully
     const lip = smoothstepJs(ravine.halfWidth * 0.6, ravine.halfWidth * 1.1, Math.abs(x - ravineCenter))
       * (1 - smoothstepJs(ravine.halfWidth * 1.3, ravine.halfWidth * 2.4, Math.abs(x - ravineCenter))) * ravineZ;
@@ -324,11 +335,13 @@ export function createTerrain(ctx) {
   const grassFar = texture(textures.grass, worldXZ.mul(0.021).add(0.37));
   const sandTex = texture(textures.sand, worldXZ.mul(0.15));
   const mossTex = texture(textures.moss, worldXZ.mul(0.08));
-  const dirtTex = texture(textures.dirt, worldXZ.mul(0.27));
+  // two dirt octaves: the slow one breaks the 3.7 m tile on a long straight path
+  const dirtTex = mix(texture(textures.dirt, worldXZ.mul(0.27)), texture(textures.dirt, worldXZ.mul(0.083).add(0.5)), 0.35);
   const litterTex = texture(textures.litter, worldXZ.mul(0.22));
   const mottle = texture(textures.noise, worldXZ.mul(0.012)).r;
   const mottleFine = texture(textures.noise, worldXZ.mul(0.05)).r;
   const mottleMid = texture(textures.noise, worldXZ.mul(0.027).add(0.5)).r;
+  const mottleDamp = texture(textures.noise, worldXZ.mul(0.07).add(0.23)).r;
 
   // triplanar rock so cliff faces don't stretch
   const triW = pow(abs(normalWorld), vec3(4.0));
@@ -378,6 +391,12 @@ export function createTerrain(ctx) {
   albedo = mix(albedo, mossTex, mossMask);
   albedo = mix(albedo, litterTex, litterMask);
   albedo = mix(albedo, dirtTex, trailBlend);
+  // a walked path is not one even colour: drifts of leaves blow onto it under
+  // the canopy, and hollows stay damp and dark after rain
+  const trailLitter = trailBlend.mul(smoothstep(0.35, 0.8, canopy)).mul(smoothstep(0.5, 0.72, mottleFine)).mul(0.7);
+  albedo = mix(albedo, litterTex, trailLitter);
+  const trailDamp = trailBlend.mul(smoothstep(0.62, 0.45, mottleDamp)).mul(smoothstep(0.3, 0.6, mottleMid));
+  albedo = albedo.mul(trailDamp.mul(0.3).oneMinus());
   albedo = mix(albedo, sandTex, sandMask);
   let rockAlbedo = mix(rockTex, mossTex.mul(0.9), mossOnRock.mul(0.6));
   albedo = mix(albedo, rockAlbedo, rockMask);
@@ -418,6 +437,7 @@ export function createTerrain(ctx) {
   material.roughnessNode = mix(float(0.95), float(0.8), sandMask)
     .sub(wetBand.mul(1.3))
     .sub(underwaterMask.mul(0.3))
+    .sub(trailDamp.mul(0.35))
     .add(rockMask.mul(0.02));
 
   const mesh = new THREE.Mesh(geometry, material);

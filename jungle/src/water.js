@@ -634,8 +634,10 @@ function makeRockGeometry(seed, { detail, scale, roughness, cuts, cutDepth }) {
       const over = p.dot(n) - d;
       if (over > 0) p.addScaledVector(n, -over);
     }
-    // position-driven displacement keeps shared vertices watertight
-    const n = fbmA(p.x * 1.6 + 7.1, p.y * 1.6 + p.z * 0.9) * 0.6 + fbmB(p.y * 3.1 + 3.3, p.z * 3.1 + p.x * 0.7) * 0.4;
+    // position-driven displacement keeps shared vertices watertight; the third
+    // octave is fine grit so the cleavage planes don't read as polished facets
+    const n = fbmA(p.x * 1.6 + 7.1, p.y * 1.6 + p.z * 0.9) * 0.55 + fbmB(p.y * 3.1 + 3.3, p.z * 3.1 + p.x * 0.7) * 0.3
+      + fbmB(p.z * 7.3 + 1.7, p.x * 7.1 - p.y * 2.9) * 0.15;
     const r = 1 + n * roughness;
     pos.setXYZ(i, p.x * r * scale[0], p.y * r * scale[1], p.z * r * scale[2]);
   }
@@ -657,9 +659,10 @@ function makeRockGeometry(seed, { detail, scale, roughness, cuts, cutDepth }) {
 // wake rocks and crest rocks — anything that must read as a smooth stone)
 function buildRockGeometries() {
   return [
-    makeRockGeometry(WORLD.seed + 31, { detail: 5, scale: [1.0, 0.8, 0.9], roughness: 0.16, cuts: 7, cutDepth: 0.3 }),
-    makeRockGeometry(WORLD.seed + 32, { detail: 5, scale: [1.3, 0.66, 0.85], roughness: 0.2, cuts: 6, cutDepth: 0.36 }),
-    makeRockGeometry(WORLD.seed + 33, { detail: 3, scale: [0.95, 0.9, 1.05], roughness: 0.22, cuts: 3, cutDepth: 0.12 }),
+    // water-worn: mostly rounded, two or three shallow cleavage planes each
+    makeRockGeometry(WORLD.seed + 31, { detail: 6, scale: [1.0, 0.8, 0.9], roughness: 0.2, cuts: 3, cutDepth: 0.2 }),
+    makeRockGeometry(WORLD.seed + 32, { detail: 6, scale: [1.3, 0.66, 0.85], roughness: 0.22, cuts: 3, cutDepth: 0.24 }),
+    makeRockGeometry(WORLD.seed + 33, { detail: 4, scale: [0.95, 0.9, 1.05], roughness: 0.24, cuts: 2, cutDepth: 0.12 }),
   ];
 }
 
@@ -684,13 +687,13 @@ function buildRockMaterial(rockTex, noiseTex, rockNormalTex = null) {
   albedo = albedo.mul(fine.mul(1.1).add(0.79));
   // cooler, slightly desaturated water-worn stone; per-instance tone spread
   const lum = dot(albedo, vec3(0.3, 0.59, 0.11));
-  albedo = mix(albedo, vec3(lum), 0.35).mul(vec3(0.8, 0.84, 0.88));
-  albedo = albedo.mul(mix(float(0.72), float(1.22), hash(instanceIndex.add(5))));
+  albedo = mix(albedo, vec3(lum), 0.3).mul(vec3(0.88, 0.9, 0.93));
+  albedo = albedo.mul(mix(float(0.78), float(1.2), hash(instanceIndex.add(5))));
   // crevice darkening from a coarser triplanar noise sample (fragment stage)
   const crev = texture(noiseTex, wp.xz.mul(0.9).add(wp.y.mul(0.37))).b.mul(wn.y)
     .add(texture(noiseTex, wp.zy.mul(0.9).add(0.31)).b.mul(wn.x))
     .add(texture(noiseTex, wp.xy.mul(0.9).add(0.62)).b.mul(wn.z));
-  albedo = albedo.mul(mix(float(0.7), float(1.08), smoothstep(0.3, 0.7, crev)));
+  albedo = albedo.mul(mix(float(0.78), float(1.08), smoothstep(0.3, 0.7, crev)));
   if (rockNormalTex) {
     const nx = texture(rockNormalTex, wp.zy.mul(s)).rgb.mul(wn.x)
       .add(texture(rockNormalTex, wp.xz.mul(s)).rgb.mul(wn.y))
@@ -707,10 +710,13 @@ function buildRockMaterial(rockTex, noiseTex, rockNormalTex = null) {
   // a faint algae-green cast so it never glows through the surface
   const wet = smoothstep(0.05, 0.6, wp.y).oneMinus();
   const submerged = smoothstep(-1.2, -0.05, wp.y).oneMinus();
-  const darken = mix(float(0.55), float(0.5), submerged);
+  const darken = mix(float(0.62), float(0.52), submerged);
   albedo = albedo.mul(mix(float(1), darken, wet)).mul(mix(vec3(1), vec3(0.82, 0.95, 0.74), submerged));
 
   material.colorNode = albedo;
+  // faint bounce so the shadow side of a shore boulder keeps its texture
+  // instead of crushing to a black silhouette against the bright water
+  material.emissiveNode = albedo.mul(0.06);
   material.roughnessNode = mix(float(0.95), float(0.5), wet);
   return material;
 }

@@ -1889,10 +1889,13 @@ export function createVegetation(ctx) {
       count: 34000,
       seed: 261,
       rule: (s, x, z) => {
-        if (s.h < 0.6 || s.ny < 0.55) return 0;
+        if (s.h < 0.6 || s.ny < 0.72) return 0;
         if (s.trail < WORLD.trailHalfWidth + 0.3) return 0;
         if (s.zone.ruins > 0.85) return 0;
         let w = (1 - s.canopy * 0.7) * (0.45 + 0.55 * clump(x, z, 0.11, -0.4, 0.4, clumpA));
+        // the terrain shader turns to bare rock over slope 0.16..0.4 — thin the
+        // turf out over the same range so blades never sprout from a cliff face
+        w *= 1 - sstep(0.16, 0.34, 1 - s.ny);
         w *= 1 + s.zone.clearing * 0.9;
         w *= 1 - s.zone.ravine * 0.5;
         w *= 1 - s.zone.rim * 0.45;
@@ -1922,7 +1925,7 @@ export function createVegetation(ctx) {
       count: 4200,
       seed: 271,
       rule: (s, x, z) => {
-        if (!plantRule(s, { slopeMin: 0.62, trailClear: 2.6, allowClearing: true, giantClear: 3 })) return 0;
+        if (!plantRule(s, { slopeMin: 0.74, trailClear: 2.6, allowClearing: true, giantClear: 3 })) return 0;
         if (!treeClear(x, z, 0.5)) return 0;
         // meadow: patchy so the clearing has waist-high drifts and open lawn
         if (s.zone.clearing > 0.2) return Math.min(1, (0.2 + s.zone.clearing * 0.7) * (0.35 + 0.65 * clump(x, z, 0.05, -0.3, 0.35, clumpA)));
@@ -1981,7 +1984,7 @@ export function createVegetation(ctx) {
       count: 6400,
       seed: 291,
       rule: (s, x, z) => {
-        if (!plantRule(s, { slopeMin: 0.6, trailClear: 2.6, giantClear: 3 })) return 0;
+        if (!plantRule(s, { slopeMin: 0.7, trailClear: 2.6, giantClear: 3 })) return 0;
         if (s.canopy < 0.3) return 0;
         return Math.min(1, s.canopy * (0.4 + 0.6 * clump(x, z, 0.1, -0.3, 0.4, clumpB)));
       },

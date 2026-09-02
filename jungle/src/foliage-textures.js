@@ -114,15 +114,25 @@ export function createLeafClusterTexture({
   squash = 0.92,
   shape = 'oval',
   highlight = 0.08,
+  edgeWobble = 0,
 } = {}) {
   const canvas = makeCanvas(size);
   const ctx = canvas.getContext('2d');
   const random = mulberry32(seed);
   ctx.clearRect(0, 0, size, size);
 
+  // lobed outline: the reach of the cluster varies with direction so the card
+  // never reads as a disc (or, on a wide card, as a box) once alpha-tested
+  const lobes = [[2 + Math.floor(random() * 2), random() * Math.PI * 2], [5 + Math.floor(random() * 3), random() * Math.PI * 2], [9 + Math.floor(random() * 4), random() * Math.PI * 2]];
+  const reach = (angle) => {
+    if (edgeWobble <= 0) return 1;
+    const w = 0.55 * Math.sin(lobes[0][0] * angle + lobes[0][1]) + 0.3 * Math.sin(lobes[1][0] * angle + lobes[1][1]) + 0.15 * Math.sin(lobes[2][0] * angle + lobes[2][1]);
+    return 1 - edgeWobble * (0.5 - 0.5 * w);
+  };
+
   for (let i = 0; i < count; i += 1) {
     const angle = random() * Math.PI * 2;
-    const radius = Math.pow(random(), radiusPow) * size * 0.46;
+    const radius = Math.pow(random(), radiusPow) * size * 0.46 * reach(angle);
     const x = size / 2 + Math.cos(angle) * radius;
     const y = size / 2 + Math.sin(angle) * radius * squash;
     const len = lenRange[0] + random() * (lenRange[1] - lenRange[0]);
@@ -421,9 +431,12 @@ export function createBushTexture(seed = 3606) {
     lenRange: [22, 40],
     shape: 'round',
     palettes: [['#2f6d21', '#4a9a30'], ['#3a7f28', '#63b13f'], ['#2b5e1d', '#4f9633'], ['#4c8f2c', '#79c04a']],
-    radiusPow: 0.62,
+    // thinner toward the rim and lobed, so shrubs read as sprays of branches
+    // rather than the green cubes the old disc gave on a 2.2 × 1.7 m card
+    radiusPow: 0.86,
     squash: 0.88,
     highlight: 0.12,
+    edgeWobble: 0.3,
   });
 }
 
@@ -899,6 +912,7 @@ export function createFoliageTextures() {
       palettes: [['#1f4a1a', '#33722a'], ['#1d5222', '#3a8334'], ['#26561a', '#45852c']],
       radiusPow: 0.85,
       highlight: 0.1,
+      edgeWobble: 0.14,
     }),
     // A: mid green, oval leaves
     canopyA: createLeafClusterTexture({
@@ -908,6 +922,7 @@ export function createFoliageTextures() {
       palettes: [['#2b661f', '#479634'], ['#33742a', '#55a63c'], ['#275d1c', '#458c36']],
       radiusPow: 0.8,
       highlight: 0.1,
+      edgeWobble: 0.2,
     }),
     // B: darker blue-green, rounder leaves (umbrella crowns)
     canopyB: createLeafClusterTexture({
@@ -918,6 +933,7 @@ export function createFoliageTextures() {
       palettes: [['#1c5228', '#327d3a'], ['#215a2b', '#3c8b45'], ['#184a20', '#2d7433']],
       radiusPow: 0.8,
       highlight: 0.08,
+      edgeWobble: 0.2,
     }),
     // C: fine olive foliage (layered crowns) — small leaves read as a different
     // texture scale from A/B without turning into starbursts on the flat caps
@@ -929,6 +945,7 @@ export function createFoliageTextures() {
       palettes: [['#3a6b22', '#5c9236'], ['#456f24', '#6d9c3a'], ['#2f5f1d', '#4f8a2e']],
       radiusPow: 0.8,
       highlight: 0.07,
+      edgeWobble: 0.18,
     }),
     canopyUnderstory: createLeafClusterTexture({
       seed: 5303,
@@ -939,6 +956,7 @@ export function createFoliageTextures() {
       radiusPow: 0.72,
       squash: 0.85,
       highlight: 0.08,
+      edgeWobble: 0.24,
     }),
     bush: createBushTexture(),
     // stems / trunks

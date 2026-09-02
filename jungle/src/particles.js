@@ -1273,7 +1273,9 @@ export function createParticles(ctx) {
       s.pitch = 0;
       s.roll = 0;
       s.variant = Math.floor(random() * 4);
-      s.size = 0.22 + random() * 0.16;
+      // 10–20 cm blades: any larger and a leaf 10 m out reads as a green blob
+      // against the sky from the overlook
+      s.size = 0.15 + random() * 0.13;
       s.wobble = 0.6 + random() * 0.8;
       s.state = 'fall';
       s.timer = 0;

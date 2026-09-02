@@ -16,7 +16,7 @@
 // risers 0.31 m (walkable). `places` lists authored positions for debugging.
 
 import * as THREE from 'three/webgpu';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   texture,
   positionLocal,
@@ -74,18 +74,23 @@ function toTexture(canvas, { srgb = true } = {}) {
 
 // Tooled masonry: gray-beige stone with chisel bands, pitting, hairline cracks,
 // lichen and a dark mortar border (each block face maps to the full tile).
-function createStoneTexture(seed = 4101) {
+function createStoneTexture(seed = 4101, { border = true } = {}) {
   const size = 512;
   const canvas = makeCanvas(size);
   const ctx = canvas.getContext('2d');
   const random = mulberry32(seed);
 
-  const base = ctx.createLinearGradient(0, 0, size, size);
-  base.addColorStop(0, '#9a9384');
-  base.addColorStop(0.5, '#a49c8a');
-  base.addColorStop(1, '#908978');
-  ctx.fillStyle = base;
+  // flat base (a gradient would seam when the tile repeats on a carved post)
+  ctx.fillStyle = border ? '#9e9786' : '#9a9384';
   ctx.fillRect(0, 0, size, size);
+  if (border) {
+    const base = ctx.createLinearGradient(0, 0, size, size);
+    base.addColorStop(0, 'rgba(154, 147, 132, 0.9)');
+    base.addColorStop(0.5, 'rgba(164, 156, 138, 0.9)');
+    base.addColorStop(1, 'rgba(144, 137, 120, 0.9)');
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, size, size);
+  }
 
   // grain
   for (let i = 0; i < 5200; i += 1) {
@@ -156,13 +161,15 @@ function createStoneTexture(seed = 4101) {
     }
   }
 
-  // mortar border: soft dark rim so every block face reads as a separate stone
-  ctx.strokeStyle = 'rgba(70, 66, 56, 0.55)';
-  ctx.lineWidth = 56;
-  ctx.strokeRect(0, 0, size, size);
-  ctx.strokeStyle = 'rgba(58, 54, 45, 0.95)';
-  ctx.lineWidth = 30;
-  ctx.strokeRect(0, 0, size, size);
+  if (border) {
+    // mortar border: soft dark rim so every block face reads as a separate stone
+    ctx.strokeStyle = 'rgba(70, 66, 56, 0.55)';
+    ctx.lineWidth = 56;
+    ctx.strokeRect(0, 0, size, size);
+    ctx.strokeStyle = 'rgba(58, 54, 45, 0.95)';
+    ctx.lineWidth = 30;
+    ctx.strokeRect(0, 0, size, size);
+  }
 
   return toTexture(canvas);
 }
@@ -471,41 +478,102 @@ function posHash(x, y, z, seed = 0) {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-// Boulder: jittered icosahedron, slightly flattened, faceted. Top ≈ +0.95.
-function boulderGeometry(seed = 1) {
-  const geometry = new THREE.IcosahedronGeometry(1, 2);
+// Boulder: welded icosphere (so the normals average across faces instead of
+// showing every triangle), slightly flattened, with three displacement bands —
+// low-frequency lobes for the silhouette, a mid band for humps and hollows, and
+// per-vertex grit — plus a couple of shallow cleavage planes. Top ≈ +0.95.
+function boulderGeometry(seed = 1, { detail = 5, cuts = 2, cutDepth = 0.14, lobes = 0.15, grit = 0.02, flatten = 0.82 } = {}) {
+  let geometry = new THREE.IcosahedronGeometry(1, detail);
+  geometry.deleteAttribute('uv');
+  geometry.deleteAttribute('normal');
+  geometry = mergeVertices(geometry, 1e-4);
+  const random = mulberry32(seed);
+  const planes = [];
+  for (let i = 0; i < cuts; i += 1) {
+    const n = new THREE.Vector3(random() - 0.5, (random() - 0.5) * 0.6, random() - 0.5).normalize();
+    planes.push({ n, d: 1 - cutDepth * (0.4 + random() * 0.6) });
+  }
+  const phase = random() * TAU;
   const pos = geometry.attributes.position;
+  const p = new THREE.Vector3();
   for (let i = 0; i < pos.count; i += 1) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const z = pos.getZ(i);
-    const h = posHash(x, y, z, seed);
-    const low = 1 + 0.16 * Math.sin(2.3 * x + 1.1 + seed) * Math.sin(1.9 * z - 0.6) + 0.1 * Math.sin(3.1 * y + 2.0);
-    const s = low * (0.9 + h * 0.2);
-    pos.setXYZ(i, x * s, y * s * 0.82, z * s);
+    p.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    for (const { n, d } of planes) {
+      const over = p.dot(n) - d;
+      if (over > 0) p.addScaledVector(n, -over);
+    }
+    const low = Math.sin(2.3 * p.x + 1.1 + phase) * Math.sin(1.9 * p.z - 0.6) + 0.6 * Math.sin(3.1 * p.y + 2.0 + phase) * Math.cos(2.2 * p.x - 0.7);
+    const mid = Math.sin(5.7 * p.x + 2.1 * p.y + phase) * Math.sin(4.9 * p.z - 1.3 * p.y + 0.4);
+    const fine = posHash(p.x, p.y, p.z, seed) - 0.5;
+    const r = 1 + lobes * low + 0.05 * mid + grit * fine;
+    pos.setXYZ(i, p.x * r, p.y * r * flatten, p.z * r);
   }
   pos.needsUpdate = true;
   geometry.computeVertexNormals();
+  // spherical uvs: the triplanar material only needs a tangent frame for its
+  // normal map, so the atan seam is harmless
+  const uvArr = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i += 1) {
+    uvArr[i * 2] = Math.atan2(pos.getZ(i), pos.getX(i)) / TAU + 0.5;
+    uvArr[i * 2 + 1] = pos.getY(i) * 0.5 + 0.5;
+  }
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
   return geometry;
 }
 
-// Standing stone: tapered, jittered, faceted slab (unit: 1 wide, 1 tall, 1 deep; base at y=0).
+// Standing stone (unit: 1 wide, 1 tall, 1 deep; base at y = 0): a tapered
+// rounded-slab lathe with a belly, noise-broken edges and a domed, slightly
+// tilted top. Built as one welded grid so it shades smoothly, unlike the box it
+// replaces, whose 12 flat faces read as a concrete post from the overlook.
 function monolithGeometry(seed = 2) {
-  const geometry = new THREE.BoxGeometry(1, 1, 1, 2, 5, 2);
-  const pos = geometry.attributes.position;
-  for (let i = 0; i < pos.count; i += 1) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const z = pos.getZ(i);
-    const t = y + 0.5; // 0 bottom → 1 top
-    const taper = 1 - 0.28 * t;
-    const h1 = posHash(x, y, z, seed) - 0.5;
-    const h2 = posHash(z, x, y, seed + 7) - 0.5;
-    const h3 = posHash(y, z, x, seed + 13) - 0.5;
-    pos.setXYZ(i, x * taper + h1 * 0.09 + Math.sin(t * 6 + seed) * 0.03, t + h2 * 0.05, z * taper + h3 * 0.09);
+  const random = mulberry32(seed);
+  const radial = 30;
+  const cols = radial + 1;
+  const bodyRows = 18;
+  const capRows = 4;
+  const rows = bodyRows + capRows + 1;
+  const positions = [];
+  const uvs = [];
+  const phase = random() * TAU;
+  const lobes = [];
+  for (let k = 0; k < 3; k += 1) lobes.push([1 + Math.floor(random() * 3), random() * TAU, 0.035 + random() * 0.045]);
+  const tiltA = random() * TAU;
+  const capProfile = [0.86, 0.62, 0.3, 0.001];
+  for (let i = 0; i < rows; i += 1) {
+    const body = Math.min(i, bodyRows) / bodyRows;
+    const capT = i > bodyRows ? (i - bodyRows) / capRows : 0;
+    const taper = (1 - 0.3 * body) * (1 + 0.07 * Math.sin(body * Math.PI));
+    const capR = i > bodyRows ? capProfile[i - bodyRows - 1] : 1;
+    for (let j = 0; j <= radial; j += 1) {
+      const a = (j / radial) * TAU;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      // superellipse (n = 3) cross-section → a rounded slab, not a cylinder
+      const n = 3;
+      const rr = 0.5 / Math.pow(Math.pow(Math.abs(ca), n) + Math.pow(Math.abs(sa), n), 1 / n);
+      let bump = 0;
+      for (const [f, ph, amp] of lobes) bump += amp * Math.sin(f * a + ph + body * 2.5);
+      bump += 0.03 * Math.sin(a * 7 + body * 9 + phase) * Math.sin(body * 5 + 1) + 0.012 * Math.sin(a * 13 - body * 17 + phase);
+      const r = Math.max(0.001, (rr * taper + bump) * capR);
+      // the dome leans a little so the top isn't a perfect lathe cap
+      const y = body + capT * 0.07 * (1 - capT * 0.4) + 0.02 * capT * Math.cos(a - tiltA);
+      positions.push(ca * r, y, sa * r);
+      uvs.push(j / radial, body + capT * 0.1);
+    }
   }
-  pos.needsUpdate = true;
-  geometry.computeVertexNormals();
+  const indices = gridIndices(rows, cols, [], true);
+  // bottom cap (faces -y) so a stone standing on a hummock never shows its inside
+  const centerIndex = positions.length / 3;
+  positions.push(0, -0.02, 0);
+  uvs.push(0.5, 0.5);
+  const ringStart = positions.length / 3;
+  for (let j = 0; j <= radial; j += 1) {
+    positions.push(positions[j * 3], positions[j * 3 + 1], positions[j * 3 + 2]);
+    uvs.push(0.5, 0.5);
+  }
+  for (let j = 0; j < radial; j += 1) indices.push(centerIndex, ringStart + j, ringStart + j + 1);
+  const geometry = indexedGeometry(positions, uvs, indices);
+  weldSeamNormals(geometry, rows, cols);
   return geometry;
 }
 
@@ -770,8 +838,10 @@ export function createLandmarks(ctx) {
   // ------------------------------------------------------------ textures
   const stoneTex = createStoneTexture();
   const stoneNormal = createNormalFromCanvas(stoneTex, 2.4, 1);
+  const carvedTex = createStoneTexture(4103, { border: false });
+  const carvedNormal = createNormalFromCanvas(carvedTex, 2.0, 1);
   const ropeTex = createRopeTexture();
-  ownTextures.push(stoneTex, stoneNormal, ropeTex);
+  ownTextures.push(stoneTex, stoneNormal, carvedTex, carvedNormal, ropeTex);
 
   // ------------------------------------------------------------ shared TSL pieces
   const upness = normalWorld.y;
@@ -845,6 +915,29 @@ export function createLandmarks(ctx) {
     stoneMaterial.roughnessNode = mix(float(0.88), float(0.98), moss);
   }
 
+  // ---- waymarker lanterns: carved from one weathered block, sampled triplanar
+  // in world space. (The masonry tile above frames every face in dark mortar,
+  // which on a 26 cm post turned the whole thing into a black plastic box.) ----
+  const lanternMaterial = new THREE.MeshStandardNodeMaterial({ roughness: 0.9, metalness: 0 });
+  {
+    const triW = pow(abs(normalWorld), vec3(4.0));
+    const triSum = triW.x.add(triW.y).add(triW.z);
+    const sc = 0.8;
+    const sample = (tex) => texture(tex, positionWorld.xz.mul(sc)).mul(triW.y.div(triSum))
+      .add(texture(tex, positionWorld.xy.mul(sc)).mul(triW.z.div(triSum)))
+      .add(texture(tex, positionWorld.zy.mul(sc)).mul(triW.x.div(triSum)));
+    const stone = sample(carvedTex).rgb;
+    const mossTop = smoothstep(0.25, 0.8, upness).mul(smoothstep(0.32, 0.6, noiseXZ(0.9)));
+    const lichen = smoothstep(0.55, 0.8, noiseVert(0.7)).mul(0.45);
+    const moss = clamp(mossTop.add(lichen), 0, 1);
+    let albedo = mix(stone, mossTexture().mul(0.95), moss.mul(0.85));
+    albedo = albedo.mul(mix(float(0.88), float(1.08), noiseVert(0.35)));
+    lanternMaterial.colorNode = albedo;
+    lanternMaterial.emissiveNode = albedo.mul(0.06);
+    lanternMaterial.normalNode = normalMap(sample(carvedNormal).rgb, vec2(mix(float(0.7), float(0.2), moss)));
+    lanternMaterial.roughnessNode = mix(float(0.88), float(0.98), moss);
+  }
+
   // ---- boulders: triplanar rock + rockNormal, moss on top, wet below the waterline ----
   const boulderMaterial = new THREE.MeshStandardNodeMaterial({ roughness: 0.94, metalness: 0 });
   {
@@ -853,16 +946,24 @@ export function createLandmarks(ctx) {
     const wX = triW.x.div(triSum);
     const wY = triW.y.div(triSum);
     const wZ = triW.z.div(triSum);
-    const sc = 0.14;
+    // ~4 m plates: a boulder is a few metres across, so the terrain's 7 m tile
+    // would leave it one featureless plate
+    const sc = 0.26;
     let rock = texture(textures.rock, positionWorld.xz.mul(sc)).mul(wY)
       .add(texture(textures.rock, positionWorld.xy.mul(sc)).mul(wZ))
       .add(texture(textures.rock, positionWorld.zy.mul(sc)).mul(wX));
     // finer second octave keeps the joints crisp when the player stands on one
-    const scFine = 0.55;
+    const scFine = 1.0;
     const rockFine = texture(textures.rock, positionWorld.xz.mul(scFine).add(0.41)).mul(wY)
       .add(texture(textures.rock, positionWorld.xy.mul(scFine).add(0.41)).mul(wZ))
       .add(texture(textures.rock, positionWorld.zy.mul(scFine).add(0.41)).mul(wX));
     rock = rock.mul(rockFine.mul(1.1).add(0.79));
+    // crevice darkening from a coarse noise sample so the big smooth faces
+    // still carry hollows and ridges between the texture's joints
+    const crev = texture(textures.noise, positionWorld.xz.mul(0.7).add(positionWorld.y.mul(0.31))).b.mul(wY)
+      .add(texture(textures.noise, positionWorld.zy.mul(0.7).add(0.27)).b.mul(wX))
+      .add(texture(textures.noise, positionWorld.xy.mul(0.7).add(0.58)).b.mul(wZ));
+    rock = rock.mul(mix(float(0.76), float(1.1), smoothstep(0.3, 0.7, crev)));
     const rockN = texture(textures.rockNormal, positionWorld.xz.mul(sc)).rgb.mul(wY)
       .add(texture(textures.rockNormal, positionWorld.xy.mul(sc)).rgb.mul(wZ))
       .add(texture(textures.rockNormal, positionWorld.zy.mul(sc)).rgb.mul(wX));
@@ -870,13 +971,19 @@ export function createLandmarks(ctx) {
     const dry = smoothstep(0.3, 1.8, positionWorld.y);
     const moss = smoothstep(0.2, 0.75, upness).mul(mossNoise).mul(dry);
     const wet = smoothstep(-0.4, 0.5, positionWorld.y).oneMinus();
-    // cool the rock toward the shoreline basalt so lagoon-mouth boulders match
+    // cool the rock toward the shoreline basalt so lagoon-mouth boulders match;
+    // darker than the tile so a sunlit standing stone doesn't blow out to white
     let albedo = mix(rock.rgb, mossTexture(), moss.mul(0.9));
-    albedo = albedo.mul(vec3(0.86, 0.9, 0.92));
+    albedo = albedo.mul(vec3(0.7, 0.73, 0.76));
     albedo = albedo.mul(mix(float(0.84), float(1.12), noiseXZ(0.07, 0.6)));
+    // weathering bands + darker seep streaks running down the faces
+    albedo = albedo.mul(mix(float(0.86), float(1.1), noiseVert(0.16)));
+    const seep = texture(textures.noise, vec2(positionWorld.x.add(positionWorld.z).mul(0.45), positionWorld.y.mul(0.03))).r;
+    albedo = albedo.mul(mix(float(0.84), float(1.0), smoothstep(0.35, 0.7, seep)));
     albedo = albedo.mul(wet.mul(0.42).oneMinus());
     boulderMaterial.colorNode = albedo;
-    boulderMaterial.normalNode = normalMap(rockN, vec2(mix(float(1.0), float(0.3), moss)));
+    boulderMaterial.emissiveNode = albedo.mul(0.06); // faint bounce: shaded faces keep their texture
+    boulderMaterial.normalNode = normalMap(rockN, vec2(mix(float(1.35), float(0.4), moss)));
     boulderMaterial.roughnessNode = mix(float(0.95), float(0.99), moss).sub(wet.mul(0.5));
   }
 
@@ -2059,7 +2166,7 @@ export function createLandmarks(ctx) {
         if (chosen.every((p) => Math.hypot(p.x - c.x, p.z - c.z) > 3.2)) chosen.push(c);
       }
       for (const c of chosen) {
-        const s = 0.45 + random() * 1.1 + c.steep * 1.6;
+        const s = 0.42 + random() * 0.95 + c.steep * 1.2;
         groundedBoulder(c.x, c.z, s * (0.85 + random() * 0.5), s * (0.7 + random() * 0.3), s * (0.85 + random() * 0.5), { embed: 0.18 + random() * 0.08 });
       }
     }
@@ -2119,21 +2226,29 @@ export function createLandmarks(ctx) {
     steppingStones(0, 3, 5);
     steppingStones(1, 4, 6);
 
-    // ---- instanced boulders ----
-    const boulderGeo = boulderGeometry(WORLD.seed + 5);
-    const boulders = new THREE.InstancedMesh(boulderGeo, boulderMaterial, boulderSpots.length);
-    boulderSpots.forEach((b, i) => {
-      dummy.position.set(b.x, b.y, b.z);
-      if (b.tilt > 0) {
-        alignToSlope(b.x, b.z, b.yaw, b.tilt);
-      } else {
-        dummy.quaternion.setFromAxisAngle(UP, b.yaw);
-      }
-      dummy.scale.set(b.sx, b.sy, b.sz);
-      dummy.updateMatrix();
-      boulders.setMatrixAt(i, dummy.matrix);
+    // ---- instanced boulders: two silhouettes (rounded / blockier) alternated
+    // so a field of them never repeats one shape at different scales ----
+    const boulderGeos = [
+      boulderGeometry(WORLD.seed + 5, { cuts: 2, cutDepth: 0.14, lobes: 0.15 }),
+      boulderGeometry(WORLD.seed + 15, { cuts: 4, cutDepth: 0.2, lobes: 0.11, flatten: 0.78 }),
+    ];
+    boulderGeos.forEach((boulderGeo, variant) => {
+      const spots = boulderSpots.filter((_, i) => i % 2 === variant);
+      if (spots.length === 0) return;
+      const boulders = new THREE.InstancedMesh(boulderGeo, boulderMaterial, spots.length);
+      spots.forEach((b, i) => {
+        dummy.position.set(b.x, b.y, b.z);
+        if (b.tilt > 0) {
+          alignToSlope(b.x, b.z, b.yaw, b.tilt);
+        } else {
+          dummy.quaternion.setFromAxisAngle(UP, b.yaw);
+        }
+        dummy.scale.set(b.sx, b.sy, b.sz);
+        dummy.updateMatrix();
+        boulders.setMatrixAt(i, dummy.matrix);
+      });
+      register(boulders, { castShadow: true, cull: false, name: `lm-boulders-${variant}` });
     });
-    register(boulders, { castShadow: true, cull: false, name: 'lm-boulders' });
 
     const monoGeo = monolithGeometry(WORLD.seed + 6);
     const monoliths = new THREE.InstancedMesh(monoGeo, boulderMaterial, monolithSpots.length);
@@ -2173,7 +2288,7 @@ export function createLandmarks(ctx) {
       walk.discs.push({ x, z, r: 0.42, y: g + 1.9 });
     }
     const lanternGeo = lanternGeometry();
-    const lanterns = new THREE.InstancedMesh(lanternGeo, stoneMaterial, lanternSpots.length);
+    const lanterns = new THREE.InstancedMesh(lanternGeo, lanternMaterial, lanternSpots.length);
     lanternSpots.forEach((l, i) => {
       dummy.position.set(l.x, l.y, l.z);
       alignToSlope(l.x, l.z, l.yaw, 0.5);
