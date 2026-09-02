@@ -26,6 +26,9 @@ import {
 } from 'three/tsl';
 import { WORLD } from './config.js';
 import { createFbm2D, smoothstep as smoothstepJs, clamp as clampJs, lerp } from './noise.js';
+// water.js imports riverCenterX from here; the cycle is safe because both
+// sides only touch the other's exports inside functions, never at load time
+import { swashNode } from './water.js';
 
 // River center line: winding path heading south (+z) out of the lagoon.
 export function riverCenterX(z) {
@@ -578,8 +581,12 @@ export function createTerrain(ctx) {
   const causticsB = texture(textures.caustics, worldXZ.mul(0.09).sub(vec2(time.mul(0.017), time.mul(-0.011)))).r;
   const caustics = causticsA.mul(causticsB).mul(3.4).add(causticsA.mul(0.35));
   albedo = albedo.add(caustics.mul(underwaterMask).mul(0.55));
-  // wet sand darkening right above the waterline
-  const wetBand = smoothstep(0.25, 0.85, height).oneMinus().mul(float(1).sub(underwaterMask)).mul(shoreProximity).mul(0.26);
+  // wet sand darkening right above the waterline, breathing with the swash:
+  // the band climbs the beach on the run-up and darkens slightly, then recedes
+  // (same swell phase and clock as the water's swash foam)
+  const swash = swashNode(worldXZ); // 0 retreated … 1 run-up
+  const wetTop = float(0.79).add(swash.mul(0.18));
+  const wetBand = smoothstep(float(0.25), wetTop, height).oneMinus().mul(float(1).sub(underwaterMask)).mul(shoreProximity).mul(mix(float(0.22), float(0.3), swash));
   albedo = albedo.mul(float(1).sub(wetBand));
 
   material.colorNode = albedo;

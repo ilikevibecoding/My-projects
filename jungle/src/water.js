@@ -50,6 +50,8 @@ import {
   floor,
   fract,
   normalMap,
+  atan,
+  varying,
 } from 'three/tsl';
 import { WORLD } from './config.js';
 import { mulberry32, createFbm2D, smoothstep as smoothstepJs, clamp as clampJs } from './noise.js';
@@ -58,28 +60,250 @@ import { GROUND_COVER_LAYER } from './vegetation.js';
 
 const TAU = Math.PI * 2;
 
-// Analytic waves — mirrored in JS so floating props can ride them on the CPU.
-const WAVES = [
-  { dirX: 0.8, dirZ: 0.6, freq: 0.5, amp: 0.05, speed: 0.9 },
-  { dirX: -0.62, dirZ: 0.78, freq: 1.13, amp: 0.027, speed: 1.4 },
-  { dirX: 0.16, dirZ: -0.99, freq: 2.31, amp: 0.013, speed: 1.9 },
-];
+// ---------------------------------------------------------------------------
+// Analytic wave field (Gerstner), mirrored in JS so floating props, the
+// swimmer and the particles ride exactly the surface the GPU draws.
+//
+// Wind heading matches vegetation.js (WIND_HEADING = 0.7 rad) so the swells
+// run with the trees' sway. Two long swells carry the silhouette, three
+// short wind ripples carry the surface texture. `sharp` is the Gerstner
+// horizontal displacement expressed as k·A·Q (0 = pure sine, 1 = cusp); the
+// sum stays well under 1 so the surface never loops over itself.
+// ---------------------------------------------------------------------------
 
-export function waveHeightAt(x, z, t) {
-  let h = 0;
-  for (const w of WAVES) {
-    h += w.amp * Math.sin((x * w.dirX + z * w.dirZ) * w.freq + t * w.speed);
+const WIND_HEADING = 0.7;
+const rotDir = (a) => [Math.cos(WIND_HEADING + a), Math.sin(WIND_HEADING + a)];
+const WAVES = [
+  { dir: rotDir(0.0), length: 12.0, amp: 0.08, sharp: 0.08, speed: 2.05, damp: [0.0, 7.0], swell: true },
+  { dir: rotDir(-0.55), length: 7.4, amp: 0.05, sharp: 0.075, speed: 2.75, damp: [-0.5, 5.5], swell: true },
+  { dir: rotDir(0.5), length: 3.9, amp: 0.02, sharp: 0.065, speed: 3.95, damp: [-0.6, 3.0], swell: false },
+  { dir: rotDir(-0.2), length: 2.4, amp: 0.012, sharp: 0.06, speed: 5.05, damp: [-0.6, 2.0], swell: false },
+  { dir: rotDir(0.95), length: 1.5, amp: 0.007, sharp: 0.055, speed: 6.4, damp: [-0.6, 1.5], swell: false },
+].map((w) => {
+  const k = TAU / w.length;
+  return { ...w, k, horiz: w.sharp / k, kx: w.dir[0] * k, kz: w.dir[1] * k };
+});
+const SWELL = WAVES[0];
+const WAVE_AMP_TOTAL = WAVES.reduce((a, w) => a + w.amp, 0);
+// run-up: the swell crest pushes a thin sheet of water up the beach
+const RUNUP = { amp: 0.07, reach: 4.0 };
+// The wave clock is the app clock (ctx.time), not the renderer's `time` node,
+// so the CPU mirror (leaves, particles, swimmer) never drifts from the GPU
+// surface when frames are long. Set every frame by createWater().update.
+const uWaveTime = uniform(0);
+
+// Analytic shoreline fitted to the live terrain by createWater (Fourier series
+// of the lagoon waterline radius vs. angle, and of each river bank's offset
+// from the centreline vs. z). Both the vertex stage (which cannot sample the
+// depth bake) and the fragment stage damp the waves with this same function,
+// so displacement and shading always agree. Null until createWater runs.
+let shoreFit = null;
+
+function shoreDistanceJs(x, z) {
+  if (!shoreFit) return 100;
+  const { lagoon, lagoonCoef, riverZ0, riverSpan, leftCoef, rightCoef } = shoreFit;
+  const dx = x - lagoon.x;
+  const dz = z - lagoon.z;
+  const theta = Math.atan2(dz, dx);
+  let r = lagoonCoef[0];
+  for (let n = 1; n < lagoonCoef.length; n += 2) {
+    const h = (n + 1) / 2;
+    r += lagoonCoef[n] * Math.cos(h * theta) + lagoonCoef[n + 1] * Math.sin(h * theta);
   }
-  return h;
+  const distL = r - Math.hypot(dx, dz);
+  const u = ((z - riverZ0) / riverSpan) * TAU;
+  let hl = leftCoef[0];
+  let hr = rightCoef[0];
+  for (let n = 1; n < leftCoef.length; n += 2) {
+    const h = (n + 1) / 2;
+    const c = Math.cos(h * u);
+    const s = Math.sin(h * u);
+    hl += leftCoef[n] * c + leftCoef[n + 1] * s;
+    hr += rightCoef[n] * c + rightCoef[n + 1] * s;
+  }
+  const cx = riverCenterX(z);
+  let distR = Math.min(hl - (cx - x), hr - (x - cx));
+  distR -= Math.max(0, lagoon.z + 8 - z) * 0.6;
+  return Math.max(distL, distR);
 }
 
-// TSL twin of waveHeightAt (vertex-stage safe: pure math, no texture reads).
-function waveHeightNode(xz) {
-  let h = float(0);
+function waveDampJs(w, shoreDist) {
+  return smoothstepJs(w.damp[0], w.damp[1], shoreDist);
+}
+
+export function waveHeightAt(x, z, t) {
+  const sd = shoreDistanceJs(x, z);
+  // Gerstner: the surface point that ends up at (x,z) started slightly
+  // up-wave of it — one fixed-point step recovers its rest position
+  let ox = 0;
+  let oz = 0;
   for (const w of WAVES) {
-    h = h.add(sin(xz.x.mul(w.dirX).add(xz.y.mul(w.dirZ)).mul(w.freq).add(time.mul(w.speed))).mul(w.amp));
+    const a = w.horiz * waveDampJs(w, sd);
+    const c = Math.cos(x * w.kx + z * w.kz - t * w.speed) * a;
+    ox += c * w.dir[0];
+    oz += c * w.dir[1];
   }
-  return h;
+  const x0 = x - ox;
+  const z0 = z - oz;
+  let h = 0;
+  for (const w of WAVES) {
+    h += w.amp * waveDampJs(w, sd) * Math.sin(x0 * w.kx + z0 * w.kz - t * w.speed);
+  }
+  const swell = Math.sin(x0 * SWELL.kx + z0 * SWELL.kz - t * SWELL.speed);
+  const runup = Math.pow(Math.max(swell, 0), 1.5) * RUNUP.amp * (1 - smoothstepJs(0, RUNUP.reach, sd));
+  return h + runup;
+}
+
+// TSL twins (vertex-stage safe: pure math, no texture reads) --------------
+
+function shoreDistanceNode(xz) {
+  const { lagoon, lagoonCoef, riverZ0, riverSpan, leftCoef, rightCoef } = shoreFit;
+  const d = xz.sub(vec2(lagoon.x, lagoon.z));
+  const theta = atan(d.y, d.x);
+  let r = float(lagoonCoef[0]);
+  for (let n = 1; n < lagoonCoef.length; n += 2) {
+    const h = (n + 1) / 2;
+    r = r.add(cos(theta.mul(h)).mul(lagoonCoef[n])).add(sin(theta.mul(h)).mul(lagoonCoef[n + 1]));
+  }
+  const distL = r.sub(length(d));
+  const u = xz.y.sub(riverZ0).div(riverSpan).mul(TAU);
+  let hl = float(leftCoef[0]);
+  let hr = float(rightCoef[0]);
+  for (let n = 1; n < leftCoef.length; n += 2) {
+    const h = (n + 1) / 2;
+    const c = cos(u.mul(h));
+    const s = sin(u.mul(h));
+    hl = hl.add(c.mul(leftCoef[n])).add(s.mul(leftCoef[n + 1]));
+    hr = hr.add(c.mul(rightCoef[n])).add(s.mul(rightCoef[n + 1]));
+  }
+  const cx = sin(xz.y.mul(0.024)).mul(16).add(sin(xz.y.mul(0.061).add(1.7)).mul(7)); // riverCenterX
+  const distR = min(hl.sub(cx.sub(xz.x)), hr.sub(xz.x.sub(cx))).sub(max(float(lagoon.z + 8).sub(xz.y), 0).mul(0.6));
+  return max(distL, distR);
+}
+
+// Full Gerstner evaluation at a rest position. Returns the vertical height,
+// the horizontal displacement, the analytic slope of the displaced surface
+// (for the fragment normal), the crest factor and the swell phase that
+// drives the swash. `distFade` (fragment only) removes waves shorter than a
+// few pixels from the normal so the far lagoon does not shimmer.
+function waveFieldNode(xz, { distFade = null, shoreDist = null } = {}) {
+  const sd = shoreDist || shoreDistanceNode(xz);
+  let h = float(0);
+  let ox = float(0);
+  let oz = float(0);
+  let sx = float(0);
+  let sz = float(0);
+  let sharpen = float(0);
+  let swellPhase = null;
+  for (const w of WAVES) {
+    let a = smoothstep(w.damp[0], w.damp[1], sd);
+    if (distFade) a = a.mul(smoothstep(w.length * 9, w.length * 40, distFade).oneMinus());
+    const phase = xz.x.mul(w.kx).add(xz.y.mul(w.kz)).sub(uWaveTime.mul(w.speed));
+    if (w === SWELL) swellPhase = phase;
+    const s = sin(phase);
+    const c = cos(phase);
+    h = h.add(s.mul(a.mul(w.amp)));
+    ox = ox.add(c.mul(a.mul(w.horiz * w.dir[0])));
+    oz = oz.add(c.mul(a.mul(w.horiz * w.dir[1])));
+    // d(height)/d(x,z) and the Gerstner crest sharpening term (1 - Σ Q k A sin)
+    sx = sx.add(c.mul(a.mul(w.amp * w.kx)));
+    sz = sz.add(c.mul(a.mul(w.amp * w.kz)));
+    sharpen = sharpen.add(s.mul(a.mul(w.sharp)));
+  }
+  const runup = pow(max(sin(swellPhase), 0), 1.5).mul(RUNUP.amp).mul(smoothstep(0, RUNUP.reach, sd).oneMinus());
+  const ny = float(1).sub(sharpen).max(0.35);
+  return {
+    h: h.add(runup),
+    offset: vec2(ox, oz),
+    slope: vec2(sx, sz).div(ny),
+    crest: h.div(WAVE_AMP_TOTAL),
+    swellPhase,
+    shoreDist: sd,
+  };
+}
+
+function waveHeightNode(xz) {
+  return waveFieldNode(xz).h;
+}
+
+// Swell-driven swash (0 = fully retreated, 1 = fully run up) at a world xz.
+// Exported so the terrain's wet-sand band can breathe with the same waves.
+export function swashNode(xz) {
+  const phase = xz.x.mul(SWELL.kx).add(xz.y.mul(SWELL.kz)).sub(uWaveTime.mul(SWELL.speed));
+  return sin(phase).mul(0.5).add(0.5);
+}
+
+// Fit the analytic shoreline to the terrain: lagoon waterline radius per angle
+// and each river bank's offset from the centreline per z, as truncated Fourier
+// series (Lanczos-damped so gaps such as the river mouth do not ring).
+function fitShoreline(terrain) {
+  const lagoon = WORLD.lagoonCenter;
+  const R = WORLD.lagoonRadius;
+  const fourier = (samples, harmonics) => {
+    const M = samples.length;
+    const coef = [samples.reduce((a, b) => a + b, 0) / M];
+    for (let n = 1; n <= harmonics; n += 1) {
+      let a = 0;
+      let b = 0;
+      for (let j = 0; j < M; j += 1) {
+        const u = (j / M) * TAU;
+        a += samples[j] * Math.cos(n * u);
+        b += samples[j] * Math.sin(n * u);
+      }
+      const sigma = Math.sin((Math.PI * n) / (harmonics + 1)) / ((Math.PI * n) / (harmonics + 1));
+      coef.push((2 / M) * a * sigma, (2 / M) * b * sigma);
+    }
+    return coef;
+  };
+
+  const ringSamples = 96;
+  const ring = [];
+  for (let i = 0; i < ringSamples; i += 1) {
+    const a = (i / ringSamples) * TAU;
+    let edge = R + 12;
+    for (let r = R - 12; r < R + 12; r += 0.25) {
+      if (terrain.sampleHeight(lagoon.x + Math.cos(a) * r, lagoon.z + Math.sin(a) * r) >= WORLD.waterLevel) {
+        edge = r;
+        break;
+      }
+    }
+    ring.push(edge);
+  }
+
+  const riverZ0 = lagoon.z;
+  const riverSpan = WORLD.size / 2 - lagoon.z + 20; // z range the series is periodic over
+  const bankSamples = 60;
+  const left = [];
+  const right = [];
+  for (let i = 0; i < bankSamples; i += 1) {
+    const z = riverZ0 + (i / bankSamples) * riverSpan;
+    const cx = riverCenterX(z);
+    let l = WORLD.riverHalfWidth + 8;
+    let r = WORLD.riverHalfWidth + 8;
+    for (let d = 0; d < WORLD.riverHalfWidth + 8; d += 0.25) {
+      if (terrain.sampleHeight(cx - d, z) >= WORLD.waterLevel) {
+        l = d;
+        break;
+      }
+    }
+    for (let d = 0; d < WORLD.riverHalfWidth + 8; d += 0.25) {
+      if (terrain.sampleHeight(cx + d, z) >= WORLD.waterLevel) {
+        r = d;
+        break;
+      }
+    }
+    left.push(l);
+    right.push(r);
+  }
+
+  return {
+    lagoon: { x: lagoon.x, z: lagoon.z },
+    lagoonCoef: fourier(ring, 8),
+    riverZ0,
+    riverSpan,
+    leftCoef: fourier(left, 5),
+    rightCoef: fourier(right, 5),
+  };
 }
 
 // pow() with a negative base is undefined in GLSL — square explicitly.
@@ -187,6 +411,177 @@ function createRippleNormalTexture(size = 256) {
   return finishTexture(new THREE.CanvasTexture(canvas));
 }
 
+// Tileable wind-ripple normal map: anisotropic — the sine directions cluster
+// within ±35° of +u so, once the uv is rotated to the wind heading, the
+// crests run across the wind the way real wind ripples do. Integer
+// frequencies keep it seamless; a slight crest-sharpening (sin → skewed)
+// makes the ripples read as water rather than corrugated glass.
+function createWaveNormalTexture(size = 256) {
+  const canvas = makeCanvas(size);
+  const ctx = canvas.getContext('2d');
+  const image = ctx.createImageData(size, size);
+  const random = mulberry32(WORLD.seed + 1302);
+  const waves = [];
+  for (let i = 0; i < 22; i += 1) {
+    const angle = (random() - 0.5) * 1.22;
+    const freq = 3 + Math.floor(random() * 11);
+    const fx = Math.max(1, Math.round(Math.cos(angle) * freq));
+    const fy = Math.round(Math.sin(angle) * freq);
+    waves.push({ fx, fy, phase: random() * TAU, amp: (0.5 + random() * 0.5) / Math.max(1, Math.hypot(fx, fy) * 0.3) });
+  }
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      let dx = 0;
+      let dy = 0;
+      for (const w of waves) {
+        const arg = ((x * w.fx + y * w.fy) / size) * TAU + w.phase;
+        // derivative of a skewed sine: sin(a) + 0.35·sin(2a)/2 → sharper crests, flatter troughs
+        const c = (Math.cos(arg) + 0.35 * Math.cos(2 * arg)) * w.amp;
+        dx += c * w.fx;
+        dy += c * w.fy;
+      }
+      const idx = (y * size + x) * 4;
+      image.data[idx] = Math.round(clampJs(dx * 0.05 + 0.5, 0, 1) * 255);
+      image.data[idx + 1] = Math.round(clampJs(dy * 0.05 + 0.5, 0, 1) * 255);
+      image.data[idx + 2] = 255;
+      image.data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  return finishTexture(new THREE.CanvasTexture(canvas));
+}
+
+// Tileable foam texture.
+//   R = foam sheets: soft fbm patches carrying a Worley cell-wall network
+//       (bright bubble films around darker cells) — connected and lacy, so a
+//       rising threshold fragments it into rafts instead of confetti
+//   G = streaks: strongly anisotropic noise, drawn out along +u
+//   B = fine bubble speckle (the last bubbles left when a swash dissolves)
+//   A = low-frequency fbm for breaking up bands
+// The Worley lattices are jittered grids so they wrap exactly; the fbm
+// channels wrap via 4-corner blending.
+function createFoamTexture(size = 256) {
+  // a DataTexture, not a canvas: the alpha channel carries data and a 2D
+  // canvas would premultiply (and quantize) the colour channels by it
+  const image = { data: new Uint8Array(size * size * 4) };
+  const random = mulberry32(WORLD.seed + 1601);
+  const fbmPatch = createFbm2D(WORLD.seed + 1602, { octaves: 4, gain: 0.55 });
+  const fbmStreak = createFbm2D(WORLD.seed + 1603, { octaves: 4, gain: 0.5 });
+  const fbmLow = createFbm2D(WORLD.seed + 1604, { octaves: 3, gain: 0.5 });
+
+  const tileable = (fbm, x, y, sx, sy) => {
+    const s = size;
+    const f = (px, py) => fbm(px * sx, py * sy);
+    const wx = x / s;
+    const wy = y / s;
+    return (
+      f(x, y) * (1 - wx) * (1 - wy) +
+      f(x - s, y) * wx * (1 - wy) +
+      f(x, y - s) * (1 - wx) * wy +
+      f(x - s, y - s) * wx * wy
+    );
+  };
+
+  // jittered lattice of bubbles; `cells` must divide the size for seamless wrap
+  const makeBubbleField = (cells, rMin, rMax) => {
+    const cell = size / cells;
+    const centers = [];
+    for (let j = 0; j < cells; j += 1) {
+      for (let i = 0; i < cells; i += 1) {
+        centers.push({
+          x: (i + 0.15 + random() * 0.7) * cell,
+          y: (j + 0.15 + random() * 0.7) * cell,
+          r: cell * (rMin + random() * (rMax - rMin)),
+        });
+      }
+    }
+    const field = new Float32Array(size * size);
+    for (const c of centers) {
+      const reach = Math.ceil(c.r + 1);
+      for (let y = Math.floor(c.y - reach); y <= Math.ceil(c.y + reach); y += 1) {
+        for (let x = Math.floor(c.x - reach); x <= Math.ceil(c.x + reach); x += 1) {
+          const d = Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y);
+          if (d > c.r) continue;
+          // bright rim, softer centre — a bubble seen from above
+          const rim = 1 - smoothstepJs(c.r * 0.55, c.r, d);
+          const v = 0.55 + 0.45 * (1 - rim) * smoothstepJs(0, c.r * 0.35, d) + 0.25 * rim;
+          const xi = ((x % size) + size) % size;
+          const yi = ((y % size) + size) % size;
+          const k = yi * size + xi;
+          field[k] = Math.max(field[k], Math.min(1, v));
+        }
+      }
+    }
+    return field;
+  };
+  const speckle = makeBubbleField(64, 0.22, 0.5);
+
+  // Worley cell-wall network: bright where the two nearest cell centres are
+  // equidistant (the film between two bubbles), dark inside the cells
+  const makeWallField = (cells) => {
+    const cell = size / cells;
+    const centers = [];
+    for (let j = 0; j < cells; j += 1) {
+      for (let i = 0; i < cells; i += 1) {
+        centers.push([(i + 0.1 + random() * 0.8) * cell, (j + 0.1 + random() * 0.8) * cell]);
+      }
+    }
+    const field = new Float32Array(size * size);
+    for (let y = 0; y < size; y += 1) {
+      const cj = Math.floor(y / cell);
+      for (let x = 0; x < size; x += 1) {
+        const ci = Math.floor(x / cell);
+        let f1 = Infinity;
+        let f2 = Infinity;
+        for (let dj = -1; dj <= 1; dj += 1) {
+          for (let di = -1; di <= 1; di += 1) {
+            const ni = (ci + di + cells) % cells;
+            const nj = (cj + dj + cells) % cells;
+            const c = centers[nj * cells + ni];
+            // wrap the centre next to this pixel
+            const cx = c[0] + (ci + di - ni) * cell;
+            const cy = c[1] + (cj + dj - nj) * cell;
+            const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+            if (d < f1) {
+              f2 = f1;
+              f1 = d;
+            } else if (d < f2) {
+              f2 = d;
+            }
+          }
+        }
+        const wall = 1 - smoothstepJs(0.0, cell * 0.28, f2 - f1);
+        const cellShade = smoothstepJs(cell * 0.15, cell * 0.55, f1) * 0.25;
+        field[y * size + x] = 0.42 + 0.58 * wall + cellShade;
+      }
+    }
+    return field;
+  };
+  // two cell scales: small films inside larger rafts, so the lace is not one
+  // uniform honeycomb
+  const wallsFine = makeWallField(28);
+  const wallsCoarse = makeWallField(11);
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const idx = (y * size + x) * 4;
+      const k = y * size + x;
+      const patch = tileable(fbmPatch, x, y, 0.03, 0.03) * 0.62 + 0.5;
+      // soft sheet mask: broad, connected, with ragged edges
+      const sheet = smoothstepJs(0.28, 0.7, patch);
+      const foamSheet = sheet * wallsFine[k] * (0.72 + 0.28 * wallsCoarse[k]);
+      const streak = tileable(fbmStreak, x, y, 0.012, 0.11) * 0.7 + 0.5;
+      const low = tileable(fbmLow, x, y, 0.014, 0.014) * 0.62 + 0.5;
+      image.data[idx] = Math.round(clampJs(foamSheet, 0, 1) * 255);
+      image.data[idx + 1] = Math.round(clampJs(streak, 0, 1) * 255);
+      image.data[idx + 2] = Math.round(clampJs(speckle[k] * 0.85 + patch * 0.15, 0, 1) * 255);
+      image.data[idx + 3] = Math.round(clampJs(low, 0, 1) * 255);
+    }
+  }
+  const tex = new THREE.DataTexture(image.data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+  return finishTexture(tex);
+}
+
 // Reed / cattail clump card: thin stalks, a few brown seed heads, leaf blades.
 function createReedTexture() {
   const canvas = makeCanvas(128, 512);
@@ -262,19 +657,20 @@ function createRippleSim(renderer, size) {
 
   // Uninitialized render targets contain garbage which the wave equation then
   // treats as real water state — write flat zeros into both first.
-  {
-    const zeroMaterial = new THREE.NodeMaterial();
-    zeroMaterial.fragmentNode = vec4(0, 0, 0, 1);
-    const zeroQuad = new THREE.QuadMesh(zeroMaterial);
+  const zeroMaterial = new THREE.NodeMaterial();
+  zeroMaterial.fragmentNode = vec4(0, 0, 0, 1);
+  const zeroQuad = new THREE.QuadMesh(zeroMaterial);
+  function zeroFill(targets) {
     const prevRT = renderer.getRenderTarget();
-    for (const rt of [rtA, rtB]) {
+    for (const rt of targets) {
       renderer.setRenderTarget(rt);
       zeroQuad.render(renderer);
     }
     renderer.setRenderTarget(prevRT);
   }
+  zeroFill([rtA, rtB]);
 
-  const texel = 1 / size;
+  const texel = uniform(1 / size);
   const prevTexture = texture(rtA.texture);
   const uCenter = uniform(new THREE.Vector2(0, 0));
   const uPrevCenter = uniform(new THREE.Vector2(0, 0));
@@ -295,9 +691,9 @@ function createRippleSim(renderer, size) {
     const u = uv().add(shift);
 
     const center = prevTexture.sample(u);
-    const hL = prevTexture.sample(u.add(vec2(-texel, 0))).r;
+    const hL = prevTexture.sample(u.sub(vec2(texel, 0))).r;
     const hR = prevTexture.sample(u.add(vec2(texel, 0))).r;
-    const hD = prevTexture.sample(u.add(vec2(0, -texel))).r;
+    const hD = prevTexture.sample(u.sub(vec2(0, texel))).r;
     const hU = prevTexture.sample(u.add(vec2(0, texel))).r;
 
     const laplacian = hL.add(hR).add(hD).add(hU).mul(0.25).sub(center.r);
@@ -330,12 +726,27 @@ function createRippleSim(renderer, size) {
   const pending = [];
   const center = new THREE.Vector2(0, 0);
   const prevCenter = new THREE.Vector2(0, 0);
-  const snap = RIPPLE_DOMAIN / size;
+  let snap = RIPPLE_DOMAIN / size;
 
   function addImpulse(x, z, strength, radius = 0.55) {
     if (pending.length < 16) {
       pending.push({ x, z, strength, radius });
     }
+  }
+
+  // preset change: rebuild the ping-pong pair at the new resolution (the
+  // surface material keeps sampling `prevTexture`, whose value we swap)
+  function resize(newSize) {
+    if (newSize === api.size) return;
+    rtA.dispose();
+    rtB.dispose();
+    rtA = new THREE.RenderTarget(newSize, newSize, options);
+    rtB = new THREE.RenderTarget(newSize, newSize, options);
+    zeroFill([rtA, rtB]);
+    texel.value = 1 / newSize;
+    snap = RIPPLE_DOMAIN / newSize;
+    prevTexture.value = rtA.texture;
+    api.size = newSize;
   }
 
   function update(playerPos) {
@@ -366,18 +777,21 @@ function createRippleSim(renderer, size) {
     prevTexture.value = rtA.texture;
   }
 
-  return {
+  const api = {
     update,
     addImpulse,
+    resize,
     textureNode: prevTexture,
     centerUniform: uCenter,
     size,
   };
+  return api;
 }
 
 // ---------------------------------------------------------------------------
 // terrain bake: R = terrain height (m), G = river mask, B = river flow dir x,
-// A = lagoon mask. Half-float so the shoreline foam has no height banding.
+// A = contact-foam mask (stamped later, once the boulders and reeds are
+// placed). Half-float so the shoreline foam has no height banding.
 // ---------------------------------------------------------------------------
 
 function bakeTerrainData(terrain) {
@@ -398,13 +812,11 @@ function bakeTerrainData(terrain) {
         river = smoothstepJs(WORLD.riverHalfWidth + 5, WORLD.riverHalfWidth - 4, dx) * smoothstepJs(-8, 24, z);
         flowX = (riverCenterX(z + 1) - riverCenterX(z - 1)) * 0.5;
       }
-      const dist = Math.hypot(x - lagoon.x, z - lagoon.z);
-      const lagoonMask = smoothstepJs(WORLD.lagoonRadius + 4, WORLD.lagoonRadius - 6, dist);
       const idx = (iz * size + ix) * 4;
       data[idx] = toHalf(h);
       data[idx + 1] = toHalf(river);
       data[idx + 2] = toHalf(flowX);
-      data[idx + 3] = toHalf(lagoonMask);
+      data[idx + 3] = 0;
     }
   }
   const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.HalfFloatType);
@@ -412,7 +824,29 @@ function bakeTerrainData(terrain) {
   tex.magFilter = THREE.LinearFilter;
   tex.generateMipmaps = false;
   tex.needsUpdate = true;
-  return tex;
+
+  // soft discs of "something breaks the surface here" → contact foam
+  const stampContact = (spots) => {
+    const texel = WORLD.size / size;
+    for (const s of spots) {
+      const rOuter = s.radius;
+      const cx = (s.x / WORLD.size + 0.5) * size - 0.5;
+      const cz = (s.z / WORLD.size + 0.5) * size - 0.5;
+      const reach = Math.ceil(rOuter / texel) + 1;
+      for (let iz = Math.max(0, Math.floor(cz - reach)); iz <= Math.min(size - 1, Math.ceil(cz + reach)); iz += 1) {
+        for (let ix = Math.max(0, Math.floor(cx - reach)); ix <= Math.min(size - 1, Math.ceil(cx + reach)); ix += 1) {
+          const d = Math.hypot(ix - cx, iz - cz) * texel;
+          const v = (1 - smoothstepJs(rOuter * 0.25, rOuter, d)) * s.strength;
+          if (v <= 0) continue;
+          const idx = (iz * size + ix) * 4 + 3;
+          const prev = THREE.DataUtils.fromHalfFloat(data[idx]);
+          data[idx] = toHalf(Math.min(1, prev + v * (1 - prev)));
+        }
+      }
+    }
+    tex.needsUpdate = true;
+  };
+  return { tex, stampContact };
 }
 
 // ---------------------------------------------------------------------------
@@ -806,8 +1240,12 @@ function buildLilyMaterial() {
   const col = attribute('aColor', 'vec3');
   const hasFlower = step(instanceIndex.toFloat().mod(4.0), 0.5);
   const keep = float(1).sub(part.mul(float(1).sub(hasFlower)));
-  // pads ride the analytic waves (positionLocal is already instance-transformed here)
-  material.positionNode = positionLocal.add(vec3(0, waveHeightNode(positionLocal.xz), 0)).mul(keep);
+  // pads ride the analytic waves. The positionNode runs before the instance
+  // matrix in this three.js build, so the wave is sampled at the pad's world
+  // spot (aBase = x, z, scale) and the lift is pre-divided by the instance
+  // scale so it comes out as metres after the matrix is applied.
+  const base = attribute('aBase', 'vec4');
+  material.positionNode = positionLocal.add(vec3(0, waveHeightNode(base.xy).div(base.z), 0)).mul(keep);
 
   const u = uv().x;
   const r = uv().y;
@@ -900,12 +1338,22 @@ export function createWater(ctx) {
 
   const noiseTex = createWaterNoiseTexture();
   const normalTex = createRippleNormalTexture();
+  const waveNormalTex = createWaveNormalTexture();
+  const foamTex = createFoamTexture();
   const reedTex = createReedTexture();
-  const ownTextures = [noiseTex, normalTex, reedTex];
+  const ownTextures = [noiseTex, normalTex, waveNormalTex, foamTex, reedTex];
+
+  // the analytic shoreline every wave term damps against (see waveFieldNode)
+  shoreFit = fitShoreline(terrain);
 
   const ripple = createRippleSim(renderer, 256);
-  const bakeTex = bakeTerrainData(terrain);
+  const { tex: bakeTex, stampContact } = bakeTerrainData(terrain);
   const sunDir = uniform(ctx.sky.sunDirection.clone());
+  // preset knobs read by the surface shader: x = detail octaves (0..2), y = foam detail (0/1)
+  const uDetail = uniform(new THREE.Vector2(2, 1));
+  // global swell phase (radians, 0..2π) for modules that want a scalar
+  // (the spatially varying version is swashNode(xz))
+  const uSwashPhase = uniform(0);
 
   // ---------------- waterfall profiles (fitted to the live terrain) ----------------
   const mainHalfWidth = 5.2;
@@ -926,7 +1374,6 @@ export function createWater(ctx) {
   // Boil of the plunge pools: two radial swells per fall, decaying away from the
   // impact. Pure math from uniforms, so it is safe in the vertex stage (true
   // silhouette heave) and its analytic slope feeds the fragment normal.
-  // Wavelengths stay ≥ 4.6 m — the 1.56 m surface quads can't carry finer.
   function plungeHeave(xz) {
     let h = float(0);
     let slope = vec2(0, 0);
@@ -982,9 +1429,17 @@ export function createWater(ctx) {
       side: THREE.DoubleSide,
       depthWrite: true,
     });
-    material.positionNode = positionLocal.add(vec3(0, waveHeightNode(positionLocal.xz).add(plungeHeave(positionLocal.xz).h), 0));
+
+    // ---- vertex: Gerstner displacement + plunge heave, all analytic ----
+    const wv = waveFieldNode(positionGeometry.xz);
+    material.positionNode = positionLocal.add(vec3(wv.offset.x, wv.h.add(plungeHeave(positionGeometry.xz).h), wv.offset.y));
+    // shoreline distance is smooth over metres → interpolate it from the vertices
+    const shoreDist = varying(wv.shoreDist);
 
     const P = positionWorld;
+    // rest-position xz (pre-displacement, interpolated): every wave term is
+    // evaluated here so the fragment normal matches the displaced silhouette
+    const xz0 = positionGeometry.xz;
     const xz = P.xz;
     const toCam = cameraPosition.sub(P);
     const dist = length(toCam);
@@ -992,23 +1447,49 @@ export function createWater(ctx) {
     // 1 when the camera is below the surface
     const under = step(cameraPosition.y, float(WORLD.waterLevel - 0.03));
 
-    // ---- terrain bake: column depth, river mask + flow ----
+    // ---- terrain bake: column depth, river mask + flow, contact mask ----
     const bake = bakeSample(xz);
     const colDepth = float(WORLD.waterLevel).sub(bake.r);
     const river = bake.g;
+    const contact = bake.a;
     const flowDir = vec2(bake.b, 1).mul(river);
     const flowOffset = flowDir.mul(time.mul(0.65)); // world meters the river pattern has travelled
+    // Horizontal distance from the waterline, slope-normalised: the banks here
+    // drop ~0.85 m per metre under water, so any band defined in depth is a
+    // few pixels wide from eye level. Foam is a surface phenomenon — it needs
+    // to be defined in metres along the surface.
+    const bakeE = 0.8;
+    const bedDx = bakeSample(xz.add(vec2(bakeE, 0))).r.sub(bakeSample(xz.sub(vec2(bakeE, 0))).r).div(2 * bakeE);
+    const bedDz = bakeSample(xz.add(vec2(0, bakeE))).r.sub(bakeSample(xz.sub(vec2(0, bakeE))).r).div(2 * bakeE);
+    const bedSlope = length(vec2(bedDx, bedDz)).max(0.12);
+    const shoreM = colDepth.max(0).div(bedSlope);
 
-    // ---- foam noise (shared by several terms) ----
+    // ---- wave field (fragment): slope for the normal, crest for the tint,
+    // swell phase for the swash. Short waves fade from the normal with distance.
+    const wave = waveFieldNode(xz0, { distFade: dist, shoreDist });
+    const swell = sin(wave.swellPhase); // -1 trough … +1 crest at the shore
+    const swellAdv = cos(wave.swellPhase); // > 0 while the water is rising
+
+    // ---- noise (shared by several terms) ----
     const foamTexA = texture(noiseTex, xz.sub(flowOffset.mul(1.2)).mul(0.19).add(time.mul(vec2(0.012, -0.009)))).r;
     const foamTexB = texture(noiseTex, xz.sub(flowOffset.mul(0.9)).mul(0.41).add(time.mul(vec2(-0.02, 0.015)))).r;
-    const foamPattern = smoothstep(0.47, 0.78, foamTexA.mul(0.55).add(foamTexB.mul(0.45)));
     const streakTex = texture(noiseTex, xz.sub(flowOffset.mul(1.5)).mul(vec2(0.5, 0.11))).g;
-    // fine bubble speckle: foam is a mass of bubbles with grey-teal gaps, never flat white
     const bubbleTex = texture(noiseTex, xz.mul(0.8).add(time.mul(vec2(0.05, -0.03)))).g;
+    // foam texture: R clusters, G streaks, B speckle, A low-frequency breakup
+    const windVec = vec2(SWELL.dir[0], SWELL.dir[1]);
+    const foamDrift = flowOffset.mul(1.1).add(windVec.mul(time.mul(0.1)));
+    const fmA = texture(foamTex, xz.sub(foamDrift).mul(0.36));
+    const fmB = texture(foamTex, xz.sub(foamDrift.mul(0.6)).mul(0.95).add(vec2(0.37, 0.11)));
+    const clusters = fmA.r;
+    const speckle = fmB.b;
+    const breakup = texture(foamTex, xz.mul(0.045).add(time.mul(vec2(0.004, 0.003)))).a;
+    // shore-parallel coordinate (lagoon: arc length; river: z) for foam lines
+    const dl = xz.sub(vec2(lagoon.x, lagoon.z));
+    const along = mix(abs(atan(dl.y, dl.x)).mul(48), xz.y, smoothstep(0.2, 0.8, river));
+    const shoreStreak = texture(foamTex, vec2(along.mul(0.05).add(time.mul(0.012)), shoreM.mul(0.16).add(breakup.mul(0.35)))).g;
 
     // ---- plunge pools: boil heave (shared with the vertex stage), churn that
-    // stays patterned right at the impact, rings and foam drifting outward ----
+    // stays patterned right at the impact, rings and rafts fanning out ----
     const heave = plungeHeave(xz);
     let ringSlope = heave.slope;
     let fallFoam = float(0);
@@ -1017,43 +1498,143 @@ export function createWater(ctx) {
       const r = length(d).max(0.001);
       const R = imp.z;
       const radial = d.div(r);
-      const falloff = smoothstep(R.mul(0.35), R.mul(1.35), r).oneMinus();
+      // the churn fans out away from the cliff (+z), so the reach is longer there
+      const fan = float(1).add(smoothstep(-0.4, 0.9, radial.y).mul(1.1));
+      const rEff = r.div(fan);
+      const falloff = smoothstep(R.mul(0.35), R.mul(1.35), rEff).oneMinus();
+      const raftZone = smoothstep(R.mul(0.9), R.mul(2.7), rEff).oneMinus().mul(smoothstep(R.mul(0.3), R.mul(1.1), rEff));
       const ringPhase = r.mul(2.2).sub(time.mul(2.4)).add(foamTexB.mul(2.0));
       const rings = smoothstep(0.62, 0.95, sin(ringPhase).mul(0.5).add(0.5));
       // foam rafts carried away from the impact along the radial direction
       const drift = texture(noiseTex, xz.mul(0.55).sub(radial.mul(time.mul(0.6)))).r;
       const churn = smoothstep(0.3, 0.78, foamTexA.mul(0.35).add(drift.mul(0.4)).add(foamTexB.mul(0.25)).add(falloff.mul(0.2)));
-      fallFoam = fallFoam.add(falloff.mul(churn.mul(0.8).add(rings.mul(0.4))).mul(imp.w));
+      const rafts = smoothstep(0.5, 0.82, drift.mul(0.5).add(clusters.mul(0.5))).mul(raftZone).mul(0.6);
+      fallFoam = fallFoam.add(falloff.mul(churn.mul(0.8).add(rings.mul(0.4))).add(rafts).mul(imp.w));
       ringSlope = ringSlope.add(radial.mul(cos(ringPhase)).mul(falloff).mul(0.12).mul(imp.w));
     }
 
-    // ---- normals: analytic waves + ripple sim + fine scrolling detail ----
-    let dhdx = float(0);
-    let dhdz = float(0);
-    for (const w of WAVES) {
-      const phase = xz.x.mul(w.dirX).add(xz.y.mul(w.dirZ)).mul(w.freq).add(time.mul(w.speed));
-      const slope = cos(phase).mul(w.amp * w.freq);
-      dhdx = dhdx.add(slope.mul(w.dirX));
-      dhdz = dhdz.add(slope.mul(w.dirZ));
-    }
+    // ---- normals: Gerstner slope + ripple sim + three scrolling detail octaves ----
     const grad = rippleGradient().mul(2.8);
     const detailFade = smoothstep(20, 150, dist).oneMinus();
-    const dUV1 = xz.sub(flowOffset).mul(0.55).add(time.mul(vec2(0.026, 0.019)));
-    const dUV2 = xz.sub(flowOffset.mul(0.75)).mul(vec2(0.31, 0.27)).add(time.mul(vec2(-0.017, 0.023)));
-    const d1 = texture(normalTex, dUV1).rg.mul(2).sub(1);
-    const d2 = texture(normalTex, dUV2).rg.mul(2).sub(1);
-    const detail = d1.mul(0.6).add(d2.mul(0.45)).mul(0.11).mul(detailFade).mul(river.mul(0.7).add(1));
-    const baseSlope = vec2(dhdx.add(grad.x).add(ringSlope.x), dhdz.add(grad.y).add(ringSlope.y));
+    const nearFade = smoothstep(6, 40, dist).oneMinus();
+    const octave2 = step(0.5, uDetail.x);
+    const octave3 = step(1.5, uDetail.x);
+    // wind-aligned frames for the anisotropic ripple texture (wind → +u)
+    const rotUV = (p, a) => {
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      return vec2(p.x.mul(c).add(p.y.mul(s)), p.y.mul(c).sub(p.x.mul(s)));
+    };
+    const w1 = rotUV(xz.sub(flowOffset), WIND_HEADING);
+    const w2 = rotUV(xz.sub(flowOffset.mul(0.8)), WIND_HEADING + 0.55);
+    // 3.3 m ripples travelling downwind at ~0.45 m/s; 1.2 m ripples a little faster; 0.5 m capillaries
+    const o1 = texture(waveNormalTex, w1.mul(0.3).sub(vec2(time.mul(0.135), time.mul(0.008)))).rg.mul(2).sub(1);
+    const o2 = texture(waveNormalTex, w2.mul(0.85).sub(vec2(time.mul(0.5), time.mul(-0.02)))).rg.mul(2).sub(1);
+    const o3 = texture(normalTex, xz.sub(flowOffset.mul(0.6)).mul(2.1).add(time.mul(vec2(0.05, -0.035)))).rg.mul(2).sub(1);
+    // rotate the texture-space slopes back into world xz
+    const unrot = (v, a) => {
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      return vec2(v.x.mul(c).sub(v.y.mul(s)), v.x.mul(s).add(v.y.mul(c)));
+    };
+    const detail = unrot(o1, WIND_HEADING)
+      .mul(0.55)
+      .add(unrot(o2, WIND_HEADING + 0.55).mul(0.35).mul(octave2))
+      .add(o3.mul(0.3).mul(nearFade).mul(octave3))
+      .mul(0.1)
+      .mul(detailFade)
+      .mul(river.mul(0.6).add(1));
+    const baseSlope = wave.slope.add(grad).add(ringSlope);
     const fullSlope = baseSlope.add(detail);
     const nFull = normalize(vec3(fullSlope.x.negate(), 1, fullSlope.y.negate()));
+    const chop = clamp(length(detail).mul(3).add(length(grad).mul(0.5)), 0, 1);
 
-    // ---- fresnel (Schlick, water F0) ----
-    const cosT = clamp(abs(dot(viewDir, nFull)), 0, 1);
-    const fresnel = float(0.02).add(pow(float(1).sub(cosT), 5).mul(0.98)).min(0.9);
+    // ---- foam ----
+    // Swash: the swell drives a sheet of foam up the beach and back. At high
+    // water the foam is bunched in a dense band against the waterline; as the
+    // water falls it spreads seaward, thins, and its bubbles pop (the pop
+    // threshold rises), until the next crest brings a fresh lacy front in.
+    const runup = swell.mul(0.5).add(0.5);
+    const edgeJitter = clusters.sub(0.5).mul(0.5).add(breakup.sub(0.5).mul(0.7));
+    // seaward edge of the swash foam, metres from the waterline: 1 m at high
+    // water, spreading to 2 m as the water falls (+ lacy jitter)
+    const edgeM = float(1.0).add(runup.oneMinus().mul(1.0)).add(edgeJitter);
+    const inBand = smoothstep(edgeM.add(0.05), edgeM.add(0.7), shoreM).oneMinus();
+    const density = smoothstep(-0.7, 0.7, swellAdv).mul(0.5).add(0.5); // 0.5 dissolving … 1 fresh
+    const popThreshold = float(0.6).sub(density.mul(0.42));
+    const bubbleMass = clusters.mul(0.85).add(speckle.mul(0.15));
+    const swashBody = inBand.mul(smoothstep(popThreshold, popThreshold.add(0.3), bubbleMass));
+    // lacy leading edge: a thin bright rim at the seaward edge, torn by the streak texture
+    const lip = exp(sq(shoreM.sub(edgeM).div(0.2)).negate()).mul(smoothstep(0.3, 0.7, fmB.g.mul(0.6).add(clusters.mul(0.4))));
+    // thin film clinging to the very waterline
+    const film = smoothstep(0.0, 0.45, shoreM).oneMinus().mul(0.7).mul(density);
+    const shoreOnly = smoothstep(0.0, 4.5, shoreM).oneMinus();
+    const swash = clamp(swashBody.mul(0.85).add(lip.mul(0.85)).add(film), 0, 1).mul(shoreOnly);
+    // persistent foam lines in the shallows: bands parallel to the shore,
+    // broken by low-frequency noise so they never read as contour lines
+    const lineA = exp(sq(shoreM.sub(2.7).div(0.4)).negate());
+    const lineB = exp(sq(shoreM.sub(4.4).div(0.55)).negate()).mul(0.6);
+    const lines = lineA
+      .add(lineB)
+      .mul(smoothstep(0.45, 0.7, breakup))
+      .mul(smoothstep(0.5, 0.82, shoreStreak))
+      .mul(smoothstep(0.3, 0.6, clusters.mul(0.7).add(speckle.mul(0.3))))
+      .mul(0.75)
+      .mul(uDetail.y);
+    // contact foam where boulders and reeds break the surface, pulsing with the swell
+    const contactFoam = contact
+      .mul(smoothstep(0.22, 0.62, clusters.mul(0.6).add(bubbleTex.mul(0.4)).add(swell.mul(0.1))))
+      .mul(0.9);
+    // ripple crests whiten a little (steep slopes only — a swimmer's wake, not
+    // a white disc around every splash)
+    const crestFoam = smoothstep(0.32, 0.8, length(grad)).mul(0.22);
+    // lazy-river foam lines: thin, broken, sparse (the channel is slow water —
+    // the white water belongs behind the wake rocks, not everywhere)
+    const riverStreak = river
+      .mul(smoothstep(0.64, 0.9, streakTex))
+      .mul(smoothstep(0.35, 0.65, foamTexB))
+      .mul(0.16)
+      .mul(smoothstep(0.3, 1.2, colDepth));
+    let wakeFoam = float(0);
+    for (const wake of wakeUniforms) {
+      const d = xz.sub(wake.xy);
+      const flowN = normalize(vec2(bake.b, 1));
+      const along2 = dot(d, flowN);
+      const across = dot(d, vec2(flowN.y.negate(), flowN.x));
+      const r = wake.z;
+      const width = r.mul(0.65).add(along2.max(0).mul(0.22));
+      const tail = exp(sq(across.div(width)).negate())
+        .mul(smoothstep(r.mul(-0.6), r.mul(0.3), along2))
+        .mul(smoothstep(r.mul(0.6), r.mul(5.0), along2).oneMinus());
+      const bow = exp(sq(length(d).sub(r.mul(1.15)).div(r.mul(0.35))).negate()).mul(smoothstep(r.mul(-1.2), r.mul(0.2), along2).oneMinus()).mul(0.6);
+      wakeFoam = wakeFoam.add(tail.add(bow).mul(wake.w).mul(foamTexB.mul(0.7).add(0.55)));
+    }
+    const foam = clamp(swash.add(lines).add(contactFoam).add(crestFoam).add(fallFoam).add(riverStreak).add(wakeFoam), 0, 1);
+    // bubble mass: white rafts with grey-teal gaps (dense foam closes the gaps)
+    const bubbles = smoothstep(0.3, 0.72, bubbleTex.mul(0.45).add(clusters.mul(0.3)).add(foamTexB.mul(0.25)).add(foam.mul(0.25)));
+    const foamColor = mix(vec3(0.6, 0.72, 0.74), vec3(0.96, 0.99, 0.98), bubbles);
+    // soft and slightly translucent — thin foam lets the water show through
+    const foamAlpha = foam.mul(foam.mul(0.35).add(0.6)).min(0.92);
+
+    // ---- fresnel (Schlick, water F0, roughness-aware: chop and foam pull
+    // the grazing reflection down toward the tinted depth) ----
+    // Fresnel is evaluated on a flattened normal: Schlick's (1-cosθ)^5 is so
+    // steep at grazing angles that a per-pixel 8° ripple tilt would erase the
+    // mirror, whereas real ripples average out over a pixel with distance.
+    const flatten = mix(float(0.5), float(0.18), smoothstep(10, 80, dist));
+    const nFres = normalize(vec3(fullSlope.x.mul(flatten).negate(), 1, fullSlope.y.mul(flatten).negate()));
+    const cosT = clamp(abs(dot(viewDir, nFres)), 0, 1);
+    const rough = clamp(float(0.03).add(chop.mul(0.1)).add(foam.mul(0.4)), 0, 1);
+    const fresnel = float(0.02).add(rough.oneMinus().sub(0.02).max(0).mul(pow(float(1).sub(cosT), 5))).min(0.9);
 
     // ---- reflection ----
     let refl;
     if (reflectionNode) {
+      // the mirror is distorted by the true surface slope (waves + detail):
+      // a 2° tilt swings a reflected tree several pixels, which is what
+      // separates rippled water from a sheet of glass
+      const mirrorSlope = wave.slope.add(grad).mul(0.17).add(detail.mul(0.06));
+      reflectionNode.uvNode = reflectionNode.uvNode.add(mirrorSlope);
       refl = reflectionNode.rgb;
     } else {
       // cheap sky-gradient reflection for Low/Medium
@@ -1065,8 +1646,8 @@ export function createWater(ctx) {
     // soft knee: keep tree reflections crisp (they sit below the knee), but
     // compress the HDR sky glare hard — otherwise the whole far lagoon reads
     // as a sheet of white after tone mapping
-    const over = max(refl.sub(0.75), 0);
-    refl = min(refl, vec3(0.75)).add(over.div(over.add(1.3)).mul(0.4));
+    const over = max(refl.sub(0.7), 0);
+    refl = min(refl, vec3(0.7)).add(over.div(over.add(1.2)).mul(0.36));
 
     // ---- transmission: refracted scene, absorbed along BOTH legs of the light
     // path (sun → bed → eye). The bed is lit as if in air by a hot sun, so
@@ -1111,52 +1692,29 @@ export function createWater(ctx) {
       const depthFactor = clamp(colDepth.div(3.2), 0, 1);
       transmitted = mix(shallowColor, deepColor, depthFactor);
     }
+    // wave crests are thinner water: a touch lighter, and when the sun is
+    // behind them a green-blue subsurface glow shows through the crest
+    const crest = smoothstep(0.1, 0.75, wave.crest);
+    const sunHoriz = vec2(sunDir.x, sunDir.z).div(length(vec2(sunDir.x, sunDir.z)).max(0.05));
+    const backlit = smoothstep(-0.3, 0.7, dot(viewDir.xz.negate(), sunHoriz));
+    const crestGlow = vec3(0.09, 0.3, 0.26).mul(backlit).add(vec3(0.02, 0.05, 0.045));
+    transmitted = transmitted.add(crestGlow.mul(crest).mul(smoothstep(8, 70, dist).oneMinus().mul(0.7).add(0.3)).mul(fresnel.oneMinus()));
 
-    // ---- sun glints: sharp sparkle + soft sheen, both broken by the detail normal ----
+    // ---- sun glints: sharp sparkle + soft sheen, both broken by the detail
+    // normal, plus micro-glints from two fast capillary layers that twinkle ----
     const R = reflect(viewDir.negate(), nFull);
     const sunDot = max(dot(R, sunDir), 0);
     const glint = pow(sunDot, 400).mul(2.4).add(pow(sunDot, 56).mul(0.09));
-
-    // ---- foam ----
-    const lap = sin(time.mul(1.1).add(xz.x.mul(0.33)).add(xz.y.mul(0.21)))
-      .mul(0.5)
-      .add(sin(time.mul(0.63).add(foamTexA.mul(6.28))).mul(0.5));
-    const edgeDepth = colDepth.add(lap.mul(0.07)).add(foamTexB.sub(0.5).mul(0.22));
-    const shoreLine = smoothstep(0.0, 0.14, edgeDepth).oneMinus();
-    const shoreBand = smoothstep(0.1, 0.55, edgeDepth).oneMinus().mul(foamPattern);
-    const shoreFoam = clamp(shoreLine.mul(0.85).add(shoreBand.mul(0.5)), 0, 1);
-    // ripple crests whiten a little (steep slopes only — a swimmer's wake, not
-    // a white disc around every splash)
-    const crestFoam = smoothstep(0.32, 0.8, length(grad)).mul(0.22);
-    // lazy-river foam lines: thin, broken, sparse (the channel is slow water —
-    // the white water belongs behind the wake rocks, not everywhere)
-    const riverStreak = river
-      .mul(smoothstep(0.64, 0.9, streakTex))
-      .mul(smoothstep(0.35, 0.65, foamTexB))
-      .mul(0.16)
-      .mul(smoothstep(0.3, 1.2, colDepth));
-    let wakeFoam = float(0);
-    for (const wake of wakeUniforms) {
-      const d = xz.sub(wake.xy);
-      const flowN = normalize(vec2(bake.b, 1));
-      const along = dot(d, flowN);
-      const across = dot(d, vec2(flowN.y.negate(), flowN.x));
-      const r = wake.z;
-      const width = r.mul(0.65).add(along.max(0).mul(0.22));
-      const tail = exp(sq(across.div(width)).negate())
-        .mul(smoothstep(r.mul(-0.6), r.mul(0.3), along))
-        .mul(smoothstep(r.mul(0.6), r.mul(5.0), along).oneMinus());
-      const bow = exp(sq(length(d).sub(r.mul(1.15)).div(r.mul(0.35))).negate()).mul(smoothstep(r.mul(-1.2), r.mul(0.2), along).oneMinus()).mul(0.6);
-      wakeFoam = wakeFoam.add(tail.add(bow).mul(wake.w).mul(foamTexB.mul(0.7).add(0.55)));
-    }
-    const foam = clamp(shoreFoam.add(crestFoam).add(fallFoam).add(riverStreak).add(wakeFoam), 0, 1);
-    // bubble mass: white rafts with grey-teal gaps (dense foam closes the gaps)
-    const bubbles = smoothstep(0.3, 0.72, bubbleTex.mul(0.7).add(foamTexB.mul(0.3)).add(foam.mul(0.25)));
-    const foamColor = mix(vec3(0.6, 0.72, 0.74), vec3(0.96, 0.99, 0.98), bubbles);
+    const sp = texture(normalTex, xz.mul(3.7).add(time.mul(vec2(0.23, -0.17)))).rg.mul(2).sub(1)
+      .add(texture(normalTex, xz.mul(5.3).sub(time.mul(vec2(0.19, 0.21)))).rg.mul(2).sub(1));
+    const sparkSlope = fullSlope.add(sp.mul(0.28));
+    const nSpark = normalize(vec3(sparkSlope.x.negate(), 1, sparkSlope.y.negate()));
+    const sparkDot = max(dot(reflect(viewDir.negate(), nSpark), sunDir), 0);
+    const sparkle = smoothstep(0.9965, 0.9997, sparkDot).mul(2.2).mul(smoothstep(6, 45, dist).oneMinus()).mul(octave3);
 
     // ---- above-water shading ----
-    let above = mix(transmitted, refl, fresnel).add(glint.mul(foam.oneMinus()));
-    above = mix(above, foamColor, foam);
+    let above = mix(transmitted, refl, fresnel).add(glint.add(sparkle).mul(foam.oneMinus()));
+    above = mix(above, foamColor, foamAlpha);
 
     // ---- below-water shading: Snell's window, TIR mirror, sun shimmer ----
     const nDown = nFull.negate();
@@ -1197,18 +1755,23 @@ export function createWater(ctx) {
     // visualization hooks for headless debugging
     material.userData.debugNodes = {
       foam: vec3(foam),
+      swash: vec3(swash),
+      lines: vec3(lines),
+      contact: vec3(contactFoam),
       fallFoam: vec3(fallFoam),
-      shoreFoam: vec3(shoreFoam),
       crestFoam: vec3(crestFoam),
       wakeFoam: vec3(wakeFoam),
       riverStreak: vec3(riverStreak),
       ripple: vec3(ripple.textureNode.sample(rippleUV(worldXZ)).r.mul(4).add(0.5)),
       heave: vec3(heave.h.mul(4).add(0.5)),
+      waveH: vec3(wave.h.mul(3).add(0.5)),
+      shoreDist: vec3(clamp(shoreDist.div(10), 0, 1)),
       caustic: vec3(causticWeb.mul(causticFade)),
       normal: nFull.mul(0.5).add(0.5),
       depth: vec3(clamp(colDepth.div(5), 0, 1)),
+      shoreM: vec3(clamp(shoreM.div(6), 0, 1)),
       river: vec3(river),
-      glint: vec3(glint),
+      glint: vec3(glint.add(sparkle)),
       scene: sceneColor || vec3(0),
       transmitted,
       refl,
@@ -1225,12 +1788,82 @@ export function createWater(ctx) {
     wakeUniforms.push(uniform(new THREE.Vector4(0, 0, 1, 0)));
   }
 
-  // ---------------- water surface ----------------
-  // 1.56 m quads: enough for the analytic waves and the plunge-pool heave
-  const surfaceGeo = new THREE.PlaneGeometry(WORLD.size, WORLD.size, 256, 256);
-  surfaceGeo.rotateX(-Math.PI / 2);
+  // ---------------- water surface geometry ----------------
+  // One indexed grid, one draw call, two densities: 0.625 m cells wherever the
+  // plane can actually be seen (inside the fitted shoreline plus a margin, or
+  // over any terrain below the waterline) and 5 m cells elsewhere, where the
+  // terrain hides it. Fine and coarse blocks only meet under dry land, so
+  // their T-junctions can never show.
+  function buildSurfaceGeometry() {
+    const BLOCK = 5;
+    const SUB = 8;
+    const blocks = Math.round(WORLD.size / BLOCK);
+    const fineN = blocks * SUB;
+    const half = WORLD.size / 2;
+    const vertexIndex = new Map();
+    const positions = [];
+    const normals = [];
+    const uvs = [];
+    const index = [];
+    const vert = (ix, iz) => {
+      const key = ix * (fineN + 1) + iz;
+      let idx = vertexIndex.get(key);
+      if (idx === undefined) {
+        idx = positions.length / 3;
+        vertexIndex.set(key, idx);
+        positions.push(-half + (ix / fineN) * WORLD.size, 0, -half + (iz / fineN) * WORLD.size);
+        normals.push(0, 1, 0);
+        uvs.push(ix / fineN, 1 - iz / fineN);
+      }
+      return idx;
+    };
+    const quad = (ix0, iz0, ix1, iz1) => {
+      const a = vert(ix0, iz0);
+      const b = vert(ix1, iz0);
+      const c = vert(ix0, iz1);
+      const d = vert(ix1, iz1);
+      index.push(a, c, b, b, c, d);
+    };
+    const probes = [[0, 0], [1, 0], [0, 1], [1, 1], [0.5, 0.5], [0.5, 0], [0, 0.5], [1, 0.5], [0.5, 1]];
+    const isFine = (bx, bz) => {
+      for (const [fx, fz] of probes) {
+        const x = -half + (bx + fx) * BLOCK;
+        const z = -half + (bz + fz) * BLOCK;
+        if (shoreDistanceJs(x, z) > -6) return true;
+        if (terrain.sampleHeight(x, z) < WORLD.waterLevel + 0.5) return true;
+      }
+      return false;
+    };
+    let fineBlocks = 0;
+    for (let bz = 0; bz < blocks; bz += 1) {
+      for (let bx = 0; bx < blocks; bx += 1) {
+        const ix0 = bx * SUB;
+        const iz0 = bz * SUB;
+        if (isFine(bx, bz)) {
+          fineBlocks += 1;
+          for (let j = 0; j < SUB; j += 1) {
+            for (let i = 0; i < SUB; i += 1) {
+              quad(ix0 + i, iz0 + j, ix0 + i + 1, iz0 + j + 1);
+            }
+          }
+        } else {
+          quad(ix0, iz0, ix0 + SUB, iz0 + SUB);
+        }
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(index);
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), WORLD.size);
+    geo.userData.fineBlocks = fineBlocks;
+    return geo;
+  }
+  const surfaceGeo = buildSurfaceGeometry();
 
-  // planar reflection target (only rendered on High/Ultra)
+  // planar reflection target (only rendered on High/Ultra); its uv is
+  // distorted inside buildSurfaceMaterial with the surface slope
   const reflection = reflector({ resolutionScale: 0.5 });
   reflection.target.rotateX(-Math.PI / 2);
   reflection.target.position.set(0, WORLD.waterLevel, 0);
@@ -1240,21 +1873,6 @@ export function createWater(ctx) {
     // thousands of ground-cover cards are unreadable in a rippled half-res
     // reflection, so leave them out of that pass
     reflection.reflector.getVirtualCamera(ctx.camera).layers.disable(GROUND_COVER_LAYER);
-  }
-  {
-    // distort the mirror with the wave + detail slope
-    let dhdx = float(0);
-    let dhdz = float(0);
-    for (const w of WAVES) {
-      const phase = worldXZ.x.mul(w.dirX).add(worldXZ.y.mul(w.dirZ)).mul(w.freq).add(time.mul(w.speed));
-      const slope = cos(phase).mul(w.amp * w.freq);
-      dhdx = dhdx.add(slope.mul(w.dirX));
-      dhdz = dhdz.add(slope.mul(w.dirZ));
-    }
-    const d1 = texture(normalTex, worldXZ.mul(0.55).add(time.mul(vec2(0.026, 0.019)))).rg.mul(2).sub(1);
-    const grad = rippleGradient().mul(2.8);
-    const slope = vec2(dhdx.add(grad.x).add(d1.x.mul(0.06)), dhdz.add(grad.y).add(d1.y.mul(0.06)));
-    reflection.uvNode = reflection.uvNode.add(slope.mul(0.09));
   }
 
   const materialWithReflection = buildSurfaceMaterial({ reflectionNode: reflection, refraction: true });
@@ -1474,13 +2092,18 @@ export function createWater(ctx) {
     }
   }
   const lilies = new THREE.InstancedMesh(buildLilyGeometry(), buildLilyMaterial(), Math.max(1, lilySpots.length));
+  const lilyBase = new Float32Array(Math.max(1, lilySpots.length) * 4).fill(1);
   lilySpots.forEach((p, i) => {
     dummy.position.set(p.x, WORLD.waterLevel + 0.015, p.z);
     dummy.rotation.set(0, p.yaw, 0);
     dummy.scale.setScalar(p.s);
     dummy.updateMatrix();
     lilies.setMatrixAt(i, dummy.matrix);
+    lilyBase[i * 4] = p.x;
+    lilyBase[i * 4 + 1] = p.z;
+    lilyBase[i * 4 + 2] = p.s;
   });
+  lilies.geometry.setAttribute('aBase', new THREE.InstancedBufferAttribute(lilyBase, 4));
   lilies.instanceMatrix.needsUpdate = true;
   lilies.frustumCulled = false;
   lilies.receiveShadow = true;
@@ -1554,6 +2177,22 @@ export function createWater(ctx) {
   reeds.receiveShadow = true;
   reeds.name = 'reeds';
   scene.add(reeds);
+
+  // contact foam: everything that pokes through the surface near the shore
+  // (boulders whose tops clear the water, reed clumps, wake rocks)
+  {
+    const contacts = [];
+    for (const r of rockSpots) {
+      const top = r.h + r.s * 1.1;
+      if (top < WORLD.waterLevel - 0.1 || r.h > WORLD.waterLevel + 0.9) continue;
+      const wet = clampJs((top - WORLD.waterLevel) / 0.6, 0.35, 1) * clampJs((WORLD.waterLevel + 0.9 - r.h) / 0.5, 0, 1);
+      contacts.push({ x: r.x, z: r.z, radius: r.s * 1.2 + 0.8, strength: 0.9 * wet });
+    }
+    for (const p of reedSpots) {
+      contacts.push({ x: p.x, z: p.z, radius: p.s * 0.55 + 0.45, strength: 0.45 });
+    }
+    stampContact(contacts);
+  }
 
   // ---------------- floating leaves ----------------
   const leafGeo = new THREE.PlaneGeometry(0.5, 0.34);
@@ -1630,6 +2269,8 @@ export function createWater(ctx) {
     wasInWater = inWater;
 
     ripple.update(player.position);
+    uWaveTime.value = t;
+    uSwashPhase.value = (t * SWELL.speed) % TAU;
 
     // floating leaves bob on the analytic waves
     for (let i = 0; i < floaters.length; i += 1) {
@@ -1659,6 +2300,12 @@ export function createWater(ctx) {
     surface.material = useReflection ? materialWithReflection : materialCheap;
     reflection.target.visible = useReflection;
     reflection.resolutionScale = preset.reflectionSize >= 1024 ? 0.75 : 0.5;
+    ripple.resize(preset.rippleSimSize || 256);
+    // detail octaves: Low keeps only the wind ripples, Medium adds the second
+    // octave, High/Ultra add capillaries + micro-glints; shallows foam lines
+    // are dropped on Low
+    const level = preset.vegetationDensity < 0.5 ? 0 : preset.vegetationDensity < 0.8 ? 1 : 2;
+    uDetail.value.set(level, level > 0 ? 1 : 0);
     const density = Math.max(0.35, preset.vegetationDensity);
     lilies.count = Math.max(1, Math.round(lilySpots.length * density));
     reeds.count = Math.max(1, Math.round(reedSpots.length * density));
@@ -1672,6 +2319,14 @@ export function createWater(ctx) {
     ripple,
     update,
     applyQuality,
+    // analytic wave field shared with the CPU side
+    waveHeightAt,
+    shoreDistance: shoreDistanceJs,
+    // the swell phase the swash foam follows — terrain.js can call swashNode(xz)
+    // (exported from this module) to make the wet-sand band breathe with it
+    swashNode,
+    swashPhase: uSwashPhase,
+    swell: { dir: SWELL.dir.slice(), wavelength: SWELL.length, speed: SWELL.speed },
     // exposed for the particles agent / debugging
     waterfall,
     falls: { main: mainFall, side: sideFall },
@@ -1680,5 +2335,6 @@ export function createWater(ctx) {
     wakes: wakeUniforms,
     lilies,
     reeds,
+    stats: { fineBlocks: surfaceGeo.userData.fineBlocks, triangles: surfaceGeo.index.count / 3 },
   };
 }

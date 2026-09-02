@@ -16,6 +16,7 @@
 import * as THREE from 'three/webgpu';
 import { WORLD } from './config.js';
 import { clamp, lerp, smoothstep } from './noise.js';
+import { waveHeightAt } from './water.js';
 
 const DEG = Math.PI / 180;
 
@@ -318,7 +319,8 @@ export function createPlayer(ctx) {
   const downhill = new THREE.Vector2();
 
   function floatFeetY() {
-    return WORLD.waterLevel - WORLD.eyeHeight + FEEL.floatEyeAbove;
+    // ride the swells: the buoyancy tracker chases this, so the bob is damped
+    return WORLD.waterLevel - WORLD.eyeHeight + FEEL.floatEyeAbove + waveHeightAt(position.x, position.z, ctx.time || 0);
   }
 
   // Same classification the terrain shader uses for its splat masks
