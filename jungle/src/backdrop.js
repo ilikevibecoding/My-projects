@@ -18,11 +18,13 @@ export function createBackdrop(ctx) {
   const { scene, textures } = ctx;
   const group = new THREE.Group();
   group.name = 'backdrop';
-  const fogColor = new THREE.Color(WORLD.fogColor);
+  // distant ridges fade toward the atmosphere's blue-grey, not the warm valley fog
+  const fogColor = new THREE.Color(0.66, 0.77, 0.79);
 
   RINGS.forEach((ring, ringIndex) => {
     const ridge = createFbm2D(WORLD.seed + 500 + ringIndex * 13, { octaves: 4 });
     const bumps = createFbm2D(WORLD.seed + 600 + ringIndex * 7, { octaves: 2 });
+    const crowns = createFbm2D(WORLD.seed + 700 + ringIndex * 5, { octaves: 1 });
     const rows = 6;
     const cols = ring.segments;
     const positions = new Float32Array((rows + 1) * (cols + 1) * 3);
@@ -33,10 +35,14 @@ export function createBackdrop(ctx) {
       const angle = (c / cols) * Math.PI * 2;
       const cosA = Math.cos(angle);
       const sinA = Math.sin(angle);
-      // ridgeline: broad peaks + finer "canopy" crenellation along the crest
+      // ridgeline: broad peaks + finer "canopy" crenellation along the crest,
+      // plus individual emergent crowns on the nearest ring so the skyline
+      // reads as forest rather than as a smooth hill
       const broad = ridge(cosA * 2.4 + ringIndex, sinA * 2.4) * 0.5 + 0.5;
       const fine = bumps(cosA * 22, sinA * 22) * 0.5 + 0.5;
-      const crest = ring.baseHeight + ring.ridgeHeight * (0.35 + broad * 0.65) + fine * ring.ridgeHeight * 0.12;
+      const crownAmp = ringIndex === 0 ? 0.28 : ringIndex === 1 ? 0.14 : 0.06;
+      const crown = Math.pow(Math.max(0, crowns(cosA * 95, sinA * 95)), 1.6);
+      const crest = ring.baseHeight + ring.ridgeHeight * (0.35 + broad * 0.65) + fine * ring.ridgeHeight * 0.2 + crown * ring.ridgeHeight * crownAmp;
       // radius wobble so the ring isn't a perfect circle
       const r = ring.radius * (1 + (ridge(cosA * 1.3 + 9, sinA * 1.3) * 0.08));
       for (let rIdx = 0; rIdx <= rows; rIdx += 1) {

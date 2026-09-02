@@ -135,59 +135,179 @@ export function createSandTexture() {
   return toTexture(canvas);
 }
 
+// Tileable multi-octave value noise on a wrapping lattice (integer cell counts
+// per tile so every octave tiles exactly). Returns Float32Array in [0, 1].
+function tileableFbm(size, seed, { octaves = 5, baseCells = 4, gain = 0.5, contrast = 1.5 } = {}) {
+  const random = mulberry32(seed);
+  const out = new Float32Array(size * size);
+  let amp = 1;
+  let cells = baseCells;
+  let norm = 0;
+  for (let o = 0; o < octaves; o += 1) {
+    const lattice = new Float32Array(cells * cells);
+    for (let i = 0; i < lattice.length; i += 1) lattice[i] = random();
+    const scale = cells / size;
+    for (let y = 0; y < size; y += 1) {
+      const v = y * scale;
+      const j0 = Math.floor(v);
+      const j1 = (j0 + 1) % cells;
+      const fv = v - j0;
+      const sv = fv * fv * fv * (fv * (fv * 6 - 15) + 10);
+      for (let x = 0; x < size; x += 1) {
+        const u = x * scale;
+        const i0 = Math.floor(u);
+        const i1 = (i0 + 1) % cells;
+        const fu = u - i0;
+        const su = fu * fu * fu * (fu * (fu * 6 - 15) + 10);
+        const a = lattice[j0 * cells + i0];
+        const b = lattice[j0 * cells + i1];
+        const c = lattice[j1 * cells + i0];
+        const d = lattice[j1 * cells + i1];
+        const top = a + (b - a) * su;
+        const bottom = c + (d - c) * su;
+        out[y * size + x] += amp * (top + (bottom - top) * sv);
+      }
+    }
+    norm += amp;
+    amp *= gain;
+    cells *= 2;
+  }
+  for (let i = 0; i < out.length; i += 1) {
+    const v = 0.5 + (out[i] / norm - 0.5) * contrast;
+    out[i] = v < 0 ? 0 : v > 1 ? 1 : v;
+  }
+  return out;
+}
+
+// Wrapping Voronoi: per pixel the nearest-seed distance (f1), the second
+// nearest (f2, so f2 - f1 is a crack field) and the nearest cell id.
+function voronoiField(size, cells, seed, jitter = 0.95) {
+  const random = mulberry32(seed);
+  const seeds = new Float32Array(cells * cells * 2);
+  for (let j = 0; j < cells; j += 1) {
+    for (let i = 0; i < cells; i += 1) {
+      seeds[(j * cells + i) * 2] = i + 0.5 + (random() - 0.5) * jitter;
+      seeds[(j * cells + i) * 2 + 1] = j + 0.5 + (random() - 0.5) * jitter;
+    }
+  }
+  const f1 = new Float32Array(size * size);
+  const f2 = new Float32Array(size * size);
+  const id = new Uint16Array(size * size);
+  const scale = cells / size;
+  for (let y = 0; y < size; y += 1) {
+    const v = y * scale;
+    const cj = Math.floor(v);
+    for (let x = 0; x < size; x += 1) {
+      const u = x * scale;
+      const ci = Math.floor(u);
+      let best = Infinity;
+      let second = Infinity;
+      let bestId = 0;
+      for (let dj = -1; dj <= 1; dj += 1) {
+        const jj = (cj + dj + cells) % cells;
+        for (let di = -1; di <= 1; di += 1) {
+          const ii = (ci + di + cells) % cells;
+          const k = jj * cells + ii;
+          // seed position in the (possibly wrapped) neighbour cell
+          const sx = seeds[k * 2] + (ci + di - ii);
+          const sy = seeds[k * 2 + 1] + (cj + dj - jj);
+          const d = Math.hypot(u - sx, v - sy);
+          if (d < best) {
+            second = best;
+            best = d;
+            bestId = k;
+          } else if (d < second) {
+            second = d;
+          }
+        }
+      }
+      const p = y * size + x;
+      f1[p] = best;
+      f2[p] = second;
+      id[p] = bestId;
+    }
+  }
+  return { f1, f2, id, cells };
+}
+
+// Weathered jointed rock: fracture plates (two Voronoi scales) with dark
+// cracks and a light chiselled edge, per-plate tone, grain, lichen and faint
+// sedimentary banding. Written per pixel so it tiles exactly.
 export function createRockTexture() {
-  const canvas = makeCanvas(512);
+  const size = 512;
+  const canvas = makeCanvas(size);
   const ctx = canvas.getContext('2d');
   const random = mulberry32(303);
+  const image = ctx.createImageData(size, size);
+  const data = image.data;
 
-  ctx.fillStyle = '#707264';
-  ctx.fillRect(0, 0, 512, 512);
-  speckle(ctx, random, 40, 120, 0.2, ['#6a6c60', '#7b7d70', '#5f6154', '#7e8072']);
+  const plates = voronoiField(size, 5, 3031, 0.95);
+  const fine = voronoiField(size, 12, 3032, 1.0);
+  const grain = tileableFbm(size, 3033, { octaves: 6, baseCells: 8, contrast: 1.7 });
+  const mottle = tileableFbm(size, 3034, { octaves: 3, baseCells: 2, contrast: 1.4 });
+  const lichenField = tileableFbm(size, 3035, { octaves: 4, baseCells: 6, contrast: 2.2 });
+  // fractures are partial: this field fades joints in and out along their length
+  const crackMask = tileableFbm(size, 3036, { octaves: 4, baseCells: 5, contrast: 1.8 });
+  const plateTone = new Float32Array(plates.cells * plates.cells);
+  for (let i = 0; i < plateTone.length; i += 1) plateTone[i] = 0.92 + random() * 0.16;
+  const fineTone = new Float32Array(fine.cells * fine.cells);
+  for (let i = 0; i < fineTone.length; i += 1) fineTone[i] = 0.95 + random() * 0.1;
 
-  // large tonal plates (weathered blocks) then fine grain
-  speckle(ctx, random, 90, 60, 0.16, ['#8a8c7c', '#55584b', '#74776a', '#8f8a78']);
-  speckle(ctx, random, 2400, 7, 0.14, ['#8d9080', '#565a4c', '#9aa08c', '#4c5044']);
-  speckle(ctx, random, 6000, 1.6, 0.22, ['#a0a394', '#3e4238', '#8a8d7e']);
-
-  // strata cracks with a light edge (chiselled look)
-  for (let i = 0; i < 48; i += 1) {
-    const y0 = random() * 512;
-    const width = 1 + random() * 2.2;
-    const points = [];
-    let y = y0;
-    for (let x = 0; x <= 512; x += 24) {
-      y += (random() - 0.5) * 14;
-      points.push([x, y]);
+  const base = [0x72, 0x74, 0x6c];
+  const warm = [0x82, 0x7a, 0x68];
+  const cool = [0x62, 0x6a, 0x6c];
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const p = y * size + x;
+      const crackW = plates.f2[p] - plates.f1[p];
+      const fineW = fine.f2[p] - fine.f1[p];
+      // cracks: dark core, light lip on the upper-left side (the "chisel"),
+      // both gated by the crack mask so the joint network is broken up
+      const cm = crackMask[p];
+      const gate = Math.min(1, Math.max(0, (cm - 0.38) / 0.3));
+      const gateFine = Math.min(1, Math.max(0, (cm - 0.5) / 0.3));
+      const crack = Math.max(0, 1 - crackW / 0.05) * gate;
+      const fineCrack = Math.max(0, 1 - fineW / 0.075) * 0.5 * gateFine;
+      const pUp = ((y - 2 + size) % size) * size + ((x - 2 + size) % size);
+      const lip = Math.max(0, 1 - (plates.f2[pUp] - plates.f1[pUp]) / 0.05) * gate * (1 - crack);
+      const tone = plateTone[plates.id[p]] * fineTone[fine.id[p]];
+      const g = grain[p];
+      const m = mottle[p];
+      // sedimentary banding, gently warped by the mottle field
+      const band = 0.5 + 0.5 * Math.sin((y / size) * Math.PI * 2 * 9 + m * 4.5);
+      let shade = tone * (0.84 + g * 0.32) * (0.9 + m * 0.2) * (0.96 + band * 0.06);
+      shade *= 1 - crack * crack * 0.42 - fineCrack * fineCrack * 0.28;
+      shade += lip * 0.08;
+      // warm/cool drift between plates
+      const t = m;
+      let r = (base[0] * (1 - t) + warm[0] * t) * 0.5 + cool[0] * 0.5 * (1 - t) + base[0] * 0.5 * t;
+      let gg = (base[1] * (1 - t) + warm[1] * t) * 0.5 + cool[1] * 0.5 * (1 - t) + base[1] * 0.5 * t;
+      let b = (base[2] * (1 - t) + warm[2] * t) * 0.5 + cool[2] * 0.5 * (1 - t) + base[2] * 0.5 * t;
+      r *= shade;
+      gg *= shade;
+      b *= shade;
+      // lichen: pale grey-green crusts on the plates, rust in the seams
+      const lichen = Math.min(0.7, Math.max(0, lichenField[p] - 0.74) * 2.6) * (1 - crack);
+      if (lichen > 0) {
+        r = r * (1 - lichen) + 0x96 * lichen;
+        gg = gg * (1 - lichen) + 0x9a * lichen;
+        b = b * (1 - lichen) + 0x7c * lichen;
+      }
+      const rust = crack * Math.max(0, m - 0.55) * 1.2;
+      r = r * (1 - rust) + 0x8a * rust;
+      gg = gg * (1 - rust) + 0x5e * rust;
+      b = b * (1 - rust) + 0x3a * rust;
+      const o = p * 4;
+      data[o] = r < 0 ? 0 : r > 255 ? 255 : r;
+      data[o + 1] = gg < 0 ? 0 : gg > 255 ? 255 : gg;
+      data[o + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
+      data[o + 3] = 255;
     }
-    ctx.strokeStyle = 'rgba(190, 192, 176, 0.16)';
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    points.forEach(([x, py], k) => (k === 0 ? ctx.moveTo(x, py - width) : ctx.lineTo(x, py - width)));
-    ctx.stroke();
-    ctx.strokeStyle = `rgba(34, 38, 30, ${0.24 + random() * 0.22})`;
-    ctx.beginPath();
-    points.forEach(([x, py], k) => (k === 0 ? ctx.moveTo(x, py) : ctx.lineTo(x, py)));
-    ctx.stroke();
   }
-  // vertical fissures
-  for (let i = 0; i < 18; i += 1) {
-    const x0 = random() * 512;
-    ctx.strokeStyle = `rgba(30, 34, 28, ${0.2 + random() * 0.2})`;
-    ctx.lineWidth = 0.8 + random() * 1.6;
-    ctx.beginPath();
-    let x = x0;
-    ctx.moveTo(x, 0);
-    for (let y = 0; y <= 512; y += 20) {
-      x += (random() - 0.5) * 10;
-      ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  }
+  ctx.putImageData(image, 0, 0);
 
-  // lichen + mossy patches in crevices
-  speckle(ctx, random, 260, 9, 0.12, ['#4d6b35', '#3c5829']);
-  speckle(ctx, random, 420, 5, 0.16, ['#9aa06a', '#c9c98a', '#7e8a55']);
-  speckle(ctx, random, 160, 3.5, 0.2, ['#c98d5a', '#a8683c']);
+  // a few moss cushions in the seams (wrapped discs)
+  speckle(ctx, random, 220, 7, 0.14, ['#4d6b35', '#3c5829']);
 
   return toTexture(canvas);
 }
@@ -210,40 +330,78 @@ export function createDirtTexture() {
   const ctx = canvas.getContext('2d');
   const random = mulberry32(606);
 
-  ctx.fillStyle = '#6f5238';
+  ctx.fillStyle = '#6a4e36';
   ctx.fillRect(0, 0, 512, 512);
-  speckle(ctx, random, 40, 120, 0.22, ['#6b4f36', '#7a5b3e', '#5e452f', '#7c6044']);
+  // soft, out-of-focus tonal drift (damp / dry / iron-red patches) — blurred so
+  // it reads as packed earth rather than as painted discs. ctx.filter is a
+  // no-op where unsupported, which just leaves the blobs a little crisper.
+  ctx.filter = 'blur(7px)';
+  speckle(ctx, random, 70, 110, 0.3, ['#5b4230', '#7a5a3d', '#59412c', '#7e6146', '#6d4a30']);
+  ctx.filter = 'blur(3px)';
+  speckle(ctx, random, 220, 34, 0.24, ['#4f3826', '#82634a', '#6a5038', '#5f4a34']);
+  ctx.filter = 'none';
 
-  speckle(ctx, random, 3600, 3.5, 0.2, ['#8a6a48', '#4d3826', '#95784f', '#3f2d1e']);
-  // pebbles + grit (small, low-contrast — bright dots read as litter from eye height)
-  for (let i = 0; i < 520; i += 1) {
+  // clods + fine grit (low contrast: bright dots read as litter from eye height)
+  speckle(ctx, random, 900, 9, 0.16, ['#7c5e42', '#4a3524', '#85684a']);
+  speckle(ctx, random, 5200, 2.6, 0.18, ['#8a6a48', '#4d3826', '#95784f', '#3f2d1e']);
+  speckle(ctx, random, 9000, 1.2, 0.2, ['#9a7c58', '#3c2b1d', '#7a5c40']);
+
+  // half-buried pebbles with a shadow underneath and a small highlight on top
+  for (let i = 0; i < 380; i += 1) {
     const x = random() * 512;
     const y = random() * 512;
-    const r = 0.8 + random() * 2.2;
-    ctx.fillStyle = random() > 0.5 ? 'rgba(128, 116, 96, 0.4)' : 'rgba(66, 54, 40, 0.55)';
+    const r = 0.9 + random() * 2.4;
+    const rot = random() * Math.PI;
+    ctx.fillStyle = 'rgba(40, 28, 18, 0.35)';
     ctx.beginPath();
-    ctx.ellipse(x, y, r, r * (0.6 + random() * 0.4), random() * Math.PI, 0, Math.PI * 2);
+    ctx.ellipse(x + 0.6, y + 1.0, r * 1.05, r * 0.7, rot, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(214, 196, 168, 0.1)';
+    ctx.fillStyle = random() > 0.55 ? 'rgba(126, 112, 92, 0.6)' : 'rgba(92, 76, 58, 0.65)';
     ctx.beginPath();
-    ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.35, 0, Math.PI * 2);
+    ctx.ellipse(x, y, r, r * (0.6 + random() * 0.4), rot, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(214, 196, 168, 0.14)';
+    ctx.beginPath();
+    ctx.arc(x - r * 0.3, y - r * 0.35, r * 0.32, 0, Math.PI * 2);
     ctx.fill();
   }
-  // packed-earth tonal patches + boot-worn darkening
-  speckle(ctx, random, 60, 70, 0.1, ['#5a4128', '#83654a', '#6e5238']);
-  // faint root streaks
-  for (let i = 0; i < 40; i += 1) {
-    ctx.strokeStyle = `rgba(60, 42, 28, ${0.2 + random() * 0.2})`;
-    ctx.lineWidth = 1.5 + random() * 3;
+
+  // a scatter of leaf fragments blown onto the path
+  const bits = ['rgba(138, 96, 46, 0.55)', 'rgba(96, 70, 34, 0.6)', 'rgba(160, 124, 60, 0.45)', 'rgba(74, 90, 40, 0.5)'];
+  for (let i = 0; i < 150; i += 1) {
+    const x = random() * 512;
+    const y = random() * 512;
+    const len = 2 + random() * 4.5;
+    ctx.fillStyle = bits[Math.floor(random() * bits.length)];
     ctx.beginPath();
-    let x = random() * 512;
-    let y = random() * 512;
-    ctx.moveTo(x, y);
-    for (let s = 0; s < 6; s += 1) {
-      x += (random() - 0.5) * 60;
-      y += (random() - 0.5) * 60;
-      ctx.lineTo(x, y);
-    }
+    ctx.ellipse(x, y, len, len * 0.4, random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // surface roots: a few smooth, low-contrast fibres (kept off the tile edge)
+  for (let i = 0; i < 14; i += 1) {
+    const x0 = 40 + random() * 432;
+    const y0 = 40 + random() * 432;
+    const angle = random() * Math.PI * 2;
+    const len = 60 + random() * 120;
+    const bend = (random() - 0.5) * 80;
+    const x1 = x0 + Math.cos(angle) * len;
+    const y1 = y0 + Math.sin(angle) * len;
+    const cx = (x0 + x1) / 2 - Math.sin(angle) * bend;
+    const cy = (y0 + y1) / 2 + Math.cos(angle) * bend;
+    const w = 1.6 + random() * 2.4;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = `rgba(48, 34, 22, ${0.14 + random() * 0.12})`;
+    ctx.lineWidth = w + 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.quadraticCurveTo(cx, cy, x1, y1);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(122, 96, 66, ${0.16 + random() * 0.12})`;
+    ctx.lineWidth = w * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0 - 0.6);
+    ctx.quadraticCurveTo(cx, cy - 0.6, x1, y1 - 0.6);
     ctx.stroke();
   }
 
@@ -360,41 +518,23 @@ export function createNormalFromCanvas(sourceTexture, strength = 2.0, blur = 1) 
 }
 
 // Tileable monochrome noise — sampled in shaders for terrain mottling.
-export function createNoiseTexture(size = 256, seed = 808) {
+export function createNoiseTexture(size = 512, seed = 808) {
   const canvas = makeCanvas(size);
   const ctx = canvas.getContext('2d');
-  const random = mulberry32(seed);
   const image = ctx.createImageData(size, size);
-
-  // Low-frequency blobby noise: sum of a few random cosine waves (tileable).
-  const waves = [];
-  for (let i = 0; i < 7; i += 1) {
-    waves.push({
-      fx: Math.round(1 + random() * 4),
-      fy: Math.round(1 + random() * 4),
-      phase: random() * Math.PI * 2,
-      amp: 0.4 + random() * 0.6,
-    });
+  // Blobby, non-periodic-looking tileable FBM. Shaders sample this at every
+  // scale from whole-map mottling to boulder moss, so it must have detail at
+  // every octave and no plane-wave structure (a cosine sum reads as stripes
+  // whenever it is thresholded).
+  const field = tileableFbm(size, seed, { octaves: 6, baseCells: 3, gain: 0.55, contrast: 1.45 });
+  for (let i = 0; i < size * size; i += 1) {
+    const byte = Math.round(field[i] * 255);
+    const idx = i * 4;
+    image.data[idx] = byte;
+    image.data[idx + 1] = byte;
+    image.data[idx + 2] = byte;
+    image.data[idx + 3] = 255;
   }
-
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      let v = 0;
-      let norm = 0;
-      for (const w of waves) {
-        v += w.amp * Math.cos(((x * w.fx + y * w.fy) / size) * Math.PI * 2 + w.phase);
-        norm += w.amp;
-      }
-      v = v / norm; // [-1, 1]
-      const byte = Math.round((v * 0.5 + 0.5) * 255);
-      const idx = (y * size + x) * 4;
-      image.data[idx] = byte;
-      image.data[idx + 1] = byte;
-      image.data[idx + 2] = byte;
-      image.data[idx + 3] = 255;
-    }
-  }
-
   ctx.putImageData(image, 0, 0);
   return toTexture(canvas, { srgb: false });
 }

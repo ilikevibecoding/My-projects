@@ -49,10 +49,12 @@ import {
   step,
   floor,
   fract,
+  normalMap,
 } from 'three/tsl';
 import { WORLD } from './config.js';
 import { mulberry32, createFbm2D, smoothstep as smoothstepJs, clamp as clampJs } from './noise.js';
 import { riverCenterX } from './terrain.js';
+import { GROUND_COVER_LAYER } from './vegetation.js';
 
 const TAU = Math.PI * 2;
 
@@ -639,6 +641,14 @@ function makeRockGeometry(seed, { detail, scale, roughness, cuts, cutDepth }) {
   }
   pos.needsUpdate = true;
   geo.computeVertexNormals();
+  // spherical uvs: the triplanar material only needs them for the tangent
+  // frame of its normal map, so the atan seam is harmless
+  const uvArr = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i += 1) {
+    uvArr[i * 2] = Math.atan2(pos.getZ(i), pos.getX(i)) / TAU + 0.5;
+    uvArr[i * 2 + 1] = pos.getY(i) * 0.5 + 0.5;
+  }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 1000);
   return geo;
 }
@@ -653,7 +663,7 @@ function buildRockGeometries() {
   ];
 }
 
-function buildRockMaterial(rockTex, noiseTex) {
+function buildRockMaterial(rockTex, noiseTex, rockNormalTex = null) {
   const material = new THREE.MeshStandardNodeMaterial({ roughness: 0.95, metalness: 0 });
 
   // triplanar rock albedo (world space, so instance scale never stretches it)
@@ -661,22 +671,32 @@ function buildRockMaterial(rockTex, noiseTex) {
   const n = normalWorld;
   const w = pow(abs(n), vec3(4));
   const wn = w.div(w.x.add(w.y).add(w.z).max(1e-4));
-  const s = 0.32;
+  const s = 0.2;
   const tx = texture(rockTex, wp.zy.mul(s)).rgb;
   const ty = texture(rockTex, wp.xz.mul(s)).rgb;
   const tz = texture(rockTex, wp.xy.mul(s)).rgb;
   let albedo = tx.mul(wn.x).add(ty.mul(wn.y)).add(tz.mul(wn.z));
-  // the shared rock albedo is a mid, low-contrast weathered stone; river and
-  // shore boulders want darker, cooler, punchier basalt-like tones
+  // finer octave so the joints hold up when the player wades right up to one
+  const sf = 0.7;
+  const fine = texture(rockTex, wp.zy.mul(sf).add(0.43)).rgb.mul(wn.x)
+    .add(texture(rockTex, wp.xz.mul(sf).add(0.43)).rgb.mul(wn.y))
+    .add(texture(rockTex, wp.xy.mul(sf).add(0.43)).rgb.mul(wn.z));
+  albedo = albedo.mul(fine.mul(1.1).add(0.79));
+  // cooler, slightly desaturated water-worn stone; per-instance tone spread
   const lum = dot(albedo, vec3(0.3, 0.59, 0.11));
-  albedo = mix(albedo, vec3(lum), 0.5);
-  albedo = mix(albedo, albedo.mul(albedo).mul(2.2), 0.5).mul(vec3(0.64, 0.68, 0.72));
-  albedo = albedo.mul(mix(float(0.7), float(1.25), hash(instanceIndex.add(5))));
+  albedo = mix(albedo, vec3(lum), 0.35).mul(vec3(0.8, 0.84, 0.88));
+  albedo = albedo.mul(mix(float(0.72), float(1.22), hash(instanceIndex.add(5))));
   // crevice darkening from a coarser triplanar noise sample (fragment stage)
   const crev = texture(noiseTex, wp.xz.mul(0.9).add(wp.y.mul(0.37))).b.mul(wn.y)
     .add(texture(noiseTex, wp.zy.mul(0.9).add(0.31)).b.mul(wn.x))
     .add(texture(noiseTex, wp.xy.mul(0.9).add(0.62)).b.mul(wn.z));
-  albedo = albedo.mul(mix(float(0.62), float(1.08), smoothstep(0.3, 0.7, crev)));
+  albedo = albedo.mul(mix(float(0.7), float(1.08), smoothstep(0.3, 0.7, crev)));
+  if (rockNormalTex) {
+    const nx = texture(rockNormalTex, wp.zy.mul(s)).rgb.mul(wn.x)
+      .add(texture(rockNormalTex, wp.xz.mul(s)).rgb.mul(wn.y))
+      .add(texture(rockNormalTex, wp.xy.mul(s)).rgb.mul(wn.z));
+    material.normalNode = normalMap(nx, vec2(0.8));
+  }
 
   // moss on the sunward tops of dry rocks
   const mossNoise = texture(noiseTex, wp.xz.mul(0.35).add(hash(instanceIndex.add(9)))).r;
@@ -1209,6 +1229,12 @@ export function createWater(ctx) {
   reflection.target.rotateX(-Math.PI / 2);
   reflection.target.position.set(0, WORLD.waterLevel, 0);
   scene.add(reflection.target);
+  if (ctx.camera) {
+    // the mirror clones the main camera (and so its layer mask); tens of
+    // thousands of ground-cover cards are unreadable in a rippled half-res
+    // reflection, so leave them out of that pass
+    reflection.reflector.getVirtualCamera(ctx.camera).layers.disable(GROUND_COVER_LAYER);
+  }
   {
     // distort the mirror with the wave + detail slope
     let dhdx = float(0);
@@ -1266,7 +1292,7 @@ export function createWater(ctx) {
 
   // ---------------- rocks ----------------
   const rockGeos = buildRockGeometries();
-  const rockMat = buildRockMaterial(textures.rock, noiseTex);
+  const rockMat = buildRockMaterial(textures.rock, noiseTex, textures.rockNormal ?? null);
   const rockSpots = [];
   const rockRandom = mulberry32(WORLD.seed + 778);
 
@@ -1459,6 +1485,16 @@ export function createWater(ctx) {
   const reedSpots = [];
   {
     const reedRandom = mulberry32(WORLD.seed + 780);
+    const insideRock = (px, pz) => {
+      for (const r of rockSpots) {
+        if (r.s < 0.45) continue;
+        const rr = r.s * 1.15;
+        const dx = px - r.x;
+        const dz = pz - r.z;
+        if (dx * dx + dz * dz < rr * rr) return true;
+      }
+      return false;
+    };
     const clump = (x, z) => {
       const n = 2 + Math.floor(reedRandom() * 4);
       for (let k = 0; k < n; k += 1) {
@@ -1466,6 +1502,7 @@ export function createWater(ctx) {
         const pz = z + (reedRandom() - 0.5) * 1.6;
         const h = terrain.sampleHeight(px, pz);
         if (h < -0.55 || h > 0.5) continue;
+        if (insideRock(px, pz)) continue;
         reedSpots.push({ x: px, z: pz, h, s: 0.7 + reedRandom() * 0.7, yaw: reedRandom() * TAU });
       }
     };
@@ -1633,6 +1670,7 @@ export function createWater(ctx) {
     waterfall,
     falls: { main: mainFall, side: sideFall },
     rocks,
+    rockSpots,
     wakes: wakeUniforms,
     lilies,
     reeds,

@@ -780,6 +780,72 @@ export function createVegetation(ctx) {
     }
     return best;
   }
+  // ---------- landmark keep-out ----------
+  // Authored set pieces (fallen logs, the river bridge, ruin stairs, root
+  // arches, the sentinel snag) and the waterfall's spray column must not have
+  // trunks growing through them. Distances are to the shape's surface, so a
+  // rule can ask for a trunk-radius clearance.
+  const keepDiscs = [];
+  const keepCapsules = [];
+  const keepFns = [];
+  {
+    const lm = ctx.landmarks;
+    const w = lm?.walkables;
+    if (w) {
+      for (const d of w.discs) keepDiscs.push({ x: d.x, z: d.z, r: d.r });
+      for (const c of w.capsules) keepCapsules.push({ ax: c.ax, az: c.az, bx: c.bx, bz: c.bz, r: c.r });
+      for (const e of w.ellipsoids) keepDiscs.push({ x: e.x, z: e.z, r: Math.max(e.sx, e.sz) });
+      for (const st of w.stairs) {
+        const end = st.start + st.depth * st.count;
+        keepCapsules.push({
+          ax: st.x + st.dx * st.start,
+          az: st.z + st.dz * st.start,
+          bx: st.x + st.dx * end,
+          bz: st.z + st.dz * end,
+          r: st.halfWidth + 0.6,
+        });
+      }
+      for (const fn of w.custom) keepFns.push(fn);
+    }
+    const p = lm?.places;
+    if (p) {
+      if (p.snag) keepDiscs.push({ x: p.snag.x, z: p.snag.z, r: 8 });
+      for (const a of p.arches ?? []) keepDiscs.push({ x: a.x, z: a.z, r: 5 });
+      if (p.bridge) {
+        keepDiscs.push({ x: p.bridge.westX, z: p.bridge.z, r: 4 });
+        keepDiscs.push({ x: p.bridge.eastX, z: p.bridge.z, r: 4 });
+      }
+    }
+    // waterfall sheets + plunge pool
+    keepCapsules.push({
+      ax: WORLD.waterfallX,
+      az: WORLD.waterfallZ - 6,
+      bx: WORLD.waterfallX,
+      bz: WORLD.waterfallZ + 26,
+      r: 9,
+    });
+  }
+  function keepOutDistance(x, z) {
+    let best = Infinity;
+    for (const d of keepDiscs) {
+      const dd = Math.hypot(x - d.x, z - d.z) - d.r;
+      if (dd < best) best = dd;
+    }
+    for (const c of keepCapsules) {
+      const vx = c.bx - c.ax;
+      const vz = c.bz - c.az;
+      const t = clampJs(((x - c.ax) * vx + (z - c.az) * vz) / (vx * vx + vz * vz || 1e-6), 0, 1);
+      const dd = Math.hypot(x - (c.ax + vx * t), z - (c.az + vz * t)) - c.r;
+      if (dd < best) best = dd;
+    }
+    if (best > 0) {
+      for (const fn of keepFns) {
+        if (Number.isFinite(fn(x, z))) return 0;
+      }
+    }
+    return best;
+  }
+
   function sampleAt(x, z) {
     const zone = terrain.zonesAt(x, z);
     const h = field.height(x, z);
@@ -798,6 +864,12 @@ export function createVegetation(ctx) {
       // steep wet rock above the lagoon (the waterfall amphitheatre) and the
       // ravine walls: too steep for trees, so clinging cover has to dress them
       cliff: (1 - sstep(0.62, 0.9, ny)) * Math.max(water > 0.2 && h > 2 ? 1 : 0, zone.ravine, zone.terrace * 0.6),
+      // lazy: only woody layers pay for the landmark distance test
+      get keepOut() {
+        const v = keepOutDistance(x, z);
+        Object.defineProperty(this, 'keepOut', { value: v });
+        return v;
+      },
     };
   }
   // patchiness helpers (0..1)
@@ -964,6 +1036,7 @@ export function createVegetation(ctx) {
     if (s.giant < giantClear) return 0;
     if (s.spawn < 9) return 0;
     if (s.water > 0.6 && s.h < 1.8) return 0; // sandy shore
+    if (s.keepOut < 2.5) return 0;
     const slopeLimit = s.zone.rim > 0.4 ? 0.7 : slopeMin;
     if (s.ny < slopeLimit) return 0;
     return 1;
@@ -1234,7 +1307,7 @@ export function createVegetation(ctx) {
       if (s.h < 0.55 || s.h > 6.5) return 0;
       if (s.ny < 0.8 || s.trail < 3.5 || s.giant < 12 || s.spawn < 8) return 0;
       if (s.zone.ruins > 0.6 || s.zone.overlook > 0.5) return 0;
-      if (s.canopy > 0.75) return 0;
+      if (s.canopy > 0.75 || s.keepOut < 2.0) return 0;
       const clearingEdge = s.zone.clearing > 0.12 && s.zone.clearing < 0.6 ? 0.7 : 0;
       const w = Math.max(s.water * 1.2 * (0.5 + 0.5 * clump(x, z, 0.05, -0.3, 0.3, clumpC)), clearingEdge);
       return w > 0.2 ? Math.min(1, w) : 0;
@@ -1305,7 +1378,7 @@ export function createVegetation(ctx) {
     rule: (s, x, z) => {
       if (s.h < 0.9 || s.ny < 0.72 || s.trail < 3 || s.giant < 8 || s.spawn < 7) return 0;
       if (s.zone.clearing > 0.5 || s.zone.ruins > 0.7 || s.zone.overlook > 0.5) return 0;
-      if (s.canopy < 0.3) return 0;
+      if (s.canopy < 0.3 || s.keepOut < 1.5) return 0;
       return Math.min(1, s.canopy * (0.35 + 0.65 * clump(x, z, 0.06, -0.2, 0.45, clumpC)));
     },
     spacing: { hash: plantHash, dist: 2.6, radius: 0.3, also: { hash: treeHash, dist: 1.4 } },
@@ -1350,6 +1423,7 @@ export function createVegetation(ctx) {
       if (s.zone.clearing > 0.45 || s.zone.ruins > 0.6 || s.zone.overlook > 0.5) return false;
       if (s.trail < 3.0 || s.giant < 10) return false;
       if (s.water > 0.7 && s.h < 1.4) return false;
+      if (s.keepOut < 1.2) return false;
       return true;
     };
     const addClump = (cx, cz, n, radius) => {
@@ -1403,7 +1477,7 @@ export function createVegetation(ctx) {
       rule: (s) => {
         if (s.h < 1.0 || s.ny < 0.8 || s.trail < 8 || s.giant < 20 || s.spawn < 25) return 0;
         if (s.zone.clearing > 0.2 || s.zone.ravine > 0.2 || s.zone.ruins > 0.3 || s.zone.overlook > 0.3 || s.zone.rim > 0.3) return 0;
-        if (s.canopy < 0.15 || s.canopy > 0.75 || s.water > 0.5) return 0;
+        if (s.canopy < 0.15 || s.canopy > 0.75 || s.water > 0.5 || s.keepOut < 8) return 0;
         return 1;
       },
       spacing: { hash: plantHash, dist: 30 },
@@ -1469,6 +1543,7 @@ export function createVegetation(ctx) {
     if (!allowClearing && s.zone.clearing > 0.6) return false;
     if (!allowRuins && s.zone.ruins > 0.75) return false;
     if (s.zone.overlook > 0.85) return false;
+    if (s.keepOut < 0.6) return false;
     return true;
   };
   const treeClear = (x, z, d) => !treeHash.tooClose(x, z, d);
@@ -2123,11 +2198,56 @@ export function createVegetation(ctx) {
   const built = stats();
   console.info(`[vegetation] ${built.drawCalls} layers, ${built.triangles.toLocaleString()} tris @ full density, built in ${(performance.now() - t0).toFixed(0)} ms`);
 
+  // Post-hoc cull for props that only exist after the flora is planted (the
+  // water module's shore boulders): any instance standing inside a disc is
+  // collapsed to zero scale, so reeds and taro never sprout out of a rock.
+  function cullNear(discs) {
+    if (!discs?.length) return 0;
+    const cell = 4;
+    const grid = new Map();
+    for (const d of discs) {
+      const r = d.r ?? 1;
+      for (let gx = Math.floor((d.x - r) / cell); gx <= Math.floor((d.x + r) / cell); gx += 1) {
+        for (let gz = Math.floor((d.z - r) / cell); gz <= Math.floor((d.z + r) / cell); gz += 1) {
+          const key = `${gx},${gz}`;
+          let list = grid.get(key);
+          if (!list) grid.set(key, (list = []));
+          list.push(d);
+        }
+      }
+    }
+    let culled = 0;
+    for (const { mesh } of layers) {
+      const arr = mesh.instanceMatrix.array;
+      let touched = false;
+      for (let i = 0; i < mesh.instanceMatrix.count; i += 1) {
+        const o = i * 16;
+        const x = arr[o + 12];
+        const z = arr[o + 14];
+        const list = grid.get(`${Math.floor(x / cell)},${Math.floor(z / cell)}`);
+        if (!list) continue;
+        for (const d of list) {
+          const dx = x - d.x;
+          const dz = z - d.z;
+          if (dx * dx + dz * dz < (d.r ?? 1) * (d.r ?? 1)) {
+            for (let k = 0; k < 12; k += 1) arr[o + k] = 0;
+            culled += 1;
+            touched = true;
+            break;
+          }
+        }
+      }
+      if (touched) mesh.instanceMatrix.needsUpdate = true;
+    }
+    return culled;
+  }
+
   return {
     meshes,
     layers,
     stats,
     applyQuality,
+    cullNear,
     update() {
       if (ctx.sky?.sunDirection) {
         sunDirUniform.value.copy(ctx.sky.sunDirection);

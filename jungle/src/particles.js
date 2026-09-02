@@ -38,6 +38,11 @@ import {
   mix,
   smoothstep,
   step,
+  positionWorld,
+  normalize,
+  dot,
+  max,
+  pow,
 } from 'three/tsl';
 import { WORLD } from './config.js';
 import { mulberry32, smoothstep as smoothstepJs, clamp as clampJs } from './noise.js';
@@ -688,6 +693,8 @@ export function createParticles(ctx) {
   // ---------- global wind / gusts ----------
   const wind = { gust: 0, time: 0, dirX: 1, dirZ: 0, angle: 0.6 };
   const uTime = uniform(0);
+  const uSunDir = uniform(new THREE.Vector3(0, 1, 0));
+  if (ctx.sky?.sunDirection) uSunDir.value.copy(ctx.sky.sunDirection);
   const uWind = uniform(0); // gust-integrated drift time
   const uGust = uniform(0);
   const uBoost = uniform(1); // debug/tuning multiplier for the glow systems
@@ -1235,6 +1242,11 @@ export function createParticles(ctx) {
     const brightV = varying(hash(instanceIndex.add(41)).mul(0.3).add(0.8));
     leafMat.colorNode = tex.rgb.mul(brightV);
     leafMat.opacityNode = tex.a;
+    // thin leaves transmit light: glow when seen against the sun, and never
+    // drop to a black chip against the bright sky
+    const toEye = normalize(cameraPosition.sub(positionWorld));
+    const backlit = pow(max(dot(toEye.negate(), uSunDir), 0), 3).mul(0.9);
+    leafMat.emissiveNode = tex.rgb.mul(brightV).mul(backlit.add(0.16));
 
     const leaves = Array.from({ length: LEAF_COUNT }, (_, i) => ({
       state: 'wait', timer: placeRandom() * 9, x: 0, y: 0, z: 0, vy: 0.7, spin: 0, yaw: 0, pitch: 0, roll: 0,

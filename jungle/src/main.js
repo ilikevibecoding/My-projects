@@ -133,14 +133,15 @@ async function init() {
     ctx.sky = createSky(ctx);
   });
 
-  await loadStep(0.55, 'growing the jungle', () => {
-    ctx.vegetation = createVegetation(ctx);
-    ctx.updatables.push(ctx.vegetation);
-  });
-
-  await loadStep(0.62, 'raising the ruins', () => {
+  // landmarks first: vegetation keeps its trunks clear of their footprints
+  await loadStep(0.5, 'raising the ruins', () => {
     ctx.landmarks = createLandmarks(ctx);
     ctx.updatables.push(ctx.landmarks);
+  });
+
+  await loadStep(0.58, 'growing the jungle', () => {
+    ctx.vegetation = createVegetation(ctx);
+    ctx.updatables.push(ctx.vegetation);
   });
 
   await loadStep(0.7, 'waking the player', () => {
@@ -151,6 +152,8 @@ async function init() {
   await loadStep(0.8, 'filling the lagoon', () => {
     ctx.water = createWater(ctx);
     ctx.updatables.push(ctx.water);
+    // shore boulders are placed by the water module, after planting
+    ctx.vegetation?.cullNear?.((ctx.water.rockSpots ?? []).filter((r) => r.s >= 0.45).map((r) => ({ x: r.x, z: r.z, r: r.s * 1.05 })));
   });
 
   await loadStep(0.9, 'releasing the butterflies', () => {

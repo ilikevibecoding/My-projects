@@ -793,7 +793,9 @@ export function createLandmarks(ctx) {
   function makeBarkMaterial({ pale = 0, bleach = 0, mossScale = 1, bounce = 0 } = {}) {
     const material = new THREE.MeshStandardNodeMaterial({ roughness: 0.93, metalness: 0 });
     const cap = attribute('aCap', 'float');
-    let barkTex = texture(textures.bark, uv()).rgb;
+    // two bark octaves: the second, slower one breaks the periodic banding that
+    // a single tile shows on a 30 m trunk
+    let barkTex = mix(texture(textures.bark, uv()).rgb, texture(textures.bark, uv().mul(vec2(0.53, 0.37)).add(0.29)).rgb, 0.4);
     if (pale > 0) {
       barkTex = mix(barkTex, vec3(0.66, 0.6, 0.5).mul(barkTex.mul(2.2).add(0.35)), pale);
     }
@@ -814,6 +816,8 @@ export function createLandmarks(ctx) {
     const grain = vec3(0.5, 0.38, 0.26).mul(rings.mul(0.35).add(0.72)).mul(mix(float(0.8), float(1.1), noiseXZ(0.9)));
     albedo = mix(albedo, grain, cap);
     albedo = albedo.mul(mix(float(0.84), float(1.1), noiseXZ(0.05, 0.3)));
+    // slow tonal drift up the trunk (xz-only noise is constant along a vertical bole)
+    albedo = albedo.mul(mix(float(0.86), float(1.12), noiseVert(0.045)));
     material.colorNode = albedo;
     if (bounce > 0) material.emissiveNode = albedo.mul(bounce);
     material.normalNode = normalMap(texture(textures.barkNormal, uv()).rgb, vec2(mix(float(0.95), float(0.25), moss.max(cap))));
@@ -849,14 +853,20 @@ export function createLandmarks(ctx) {
     const wX = triW.x.div(triSum);
     const wY = triW.y.div(triSum);
     const wZ = triW.z.div(triSum);
-    const sc = 0.32;
-    const rock = texture(textures.rock, positionWorld.xz.mul(sc)).mul(wY)
+    const sc = 0.14;
+    let rock = texture(textures.rock, positionWorld.xz.mul(sc)).mul(wY)
       .add(texture(textures.rock, positionWorld.xy.mul(sc)).mul(wZ))
       .add(texture(textures.rock, positionWorld.zy.mul(sc)).mul(wX));
+    // finer second octave keeps the joints crisp when the player stands on one
+    const scFine = 0.55;
+    const rockFine = texture(textures.rock, positionWorld.xz.mul(scFine).add(0.41)).mul(wY)
+      .add(texture(textures.rock, positionWorld.xy.mul(scFine).add(0.41)).mul(wZ))
+      .add(texture(textures.rock, positionWorld.zy.mul(scFine).add(0.41)).mul(wX));
+    rock = rock.mul(rockFine.mul(1.1).add(0.79));
     const rockN = texture(textures.rockNormal, positionWorld.xz.mul(sc)).rgb.mul(wY)
       .add(texture(textures.rockNormal, positionWorld.xy.mul(sc)).rgb.mul(wZ))
       .add(texture(textures.rockNormal, positionWorld.zy.mul(sc)).rgb.mul(wX));
-    const mossNoise = smoothstep(0.36, 0.62, noiseXZ(0.33).mul(0.6).add(noiseVert(0.2).mul(0.4)));
+    const mossNoise = smoothstep(0.42, 0.66, noiseXZ(0.11).mul(0.6).add(noiseVert(0.08).mul(0.4)));
     const dry = smoothstep(0.3, 1.8, positionWorld.y);
     const moss = smoothstep(0.2, 0.75, upness).mul(mossNoise).mul(dry);
     const wet = smoothstep(-0.4, 0.5, positionWorld.y).oneMinus();

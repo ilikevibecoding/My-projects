@@ -159,7 +159,16 @@ export function createHeightSampler() {
     // --- NE terraces: quantize the cliff shoulder into stepped rock shelves ---
     const terraceMask = radialMask(x, z, terraces.x, terraces.z, terraces.radius * 0.45, terraces.radius);
     if (terraceMask > 0.001) {
-      const stepped = Math.floor((h + 0.7) / terraces.step) * terraces.step + crags(x * 0.12, z * 0.12) * 0.35;
+      // warp the contour so shelf edges wander instead of following the smooth
+      // base height, and give each riser a short talus ramp rather than a
+      // vertical wall the mesh can't resolve
+      const warp = crags(x * 0.07 + 3.1, z * 0.07 - 1.7) * 1.3;
+      const q = (h + 0.7 + warp) / terraces.step;
+      const k = Math.floor(q);
+      const f = q - k;
+      const riser = smoothstepJs(0.74, 1.0, f);
+      const talus = (1 - smoothstepJs(0.0, 0.3, f)) * 0.22;
+      const stepped = (k + riser) * terraces.step - 0.7 + talus + crags(x * 0.12, z * 0.12) * 0.35;
       h = lerp(h, stepped, terraceMask * 0.85);
     }
 
@@ -332,11 +341,21 @@ export function createTerrain(ctx) {
   const rockTexXY = texture(textures.rock, positionWorld.xy.mul(rockScale));
   const rockTexZY = texture(textures.rock, positionWorld.zy.mul(rockScale));
   let rockTex = rockTexXZ.mul(wY).add(rockTexXY.mul(wZ)).add(rockTexZY.mul(wX));
-  // horizontal strata banding + darker wet streaks running down the faces
-  const strata = sin(positionWorld.y.mul(1.35).add(mottleMid.mul(2.4))).mul(0.5).add(0.5);
-  rockTex = rockTex.mul(mix(float(0.82), float(1.08), strata));
+  // second, finer triplanar octave so the joints stay crisp up close
+  const rockDetailScale = 0.31;
+  const rockDetail = texture(textures.rock, positionWorld.xz.mul(rockDetailScale).add(0.37)).mul(wY)
+    .add(texture(textures.rock, positionWorld.xy.mul(rockDetailScale).add(0.37)).mul(wZ))
+    .add(texture(textures.rock, positionWorld.zy.mul(rockDetailScale).add(0.37)).mul(wX));
+  // (linear-space mean of the tile is ~0.19, so this is a unity-gain modulation)
+  rockTex = rockTex.mul(rockDetail.mul(1.1).add(0.79));
+  // gentle sedimentary ledges (7 m period), a slow macro tone drift across the
+  // face, and darker wet streaks running down it
+  const strata = sin(positionWorld.y.mul(0.9).add(mottleMid.mul(3.0))).mul(0.5).add(0.5);
+  rockTex = rockTex.mul(mix(float(0.9), float(1.05), strata));
+  const ledges = texture(textures.noise, vec2(positionWorld.x.add(positionWorld.z).mul(0.02), positionWorld.y.mul(0.09))).r;
+  rockTex = rockTex.mul(mix(float(0.84), float(1.12), ledges));
   const streaks = texture(textures.noise, vec2(positionWorld.x.add(positionWorld.z).mul(0.05), positionWorld.y.mul(0.006))).r;
-  rockTex = rockTex.mul(mix(float(0.78), float(1.0), smoothstep(0.35, 0.7, streaks)));
+  rockTex = rockTex.mul(mix(float(0.82), float(1.0), smoothstep(0.35, 0.7, streaks)));
 
   const height = positionWorld.y;
   const slope = clamp(float(1).sub(normalWorld.y), 0, 1);
