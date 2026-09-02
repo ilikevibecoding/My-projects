@@ -2136,6 +2136,19 @@ export function createLandmarks(ctx) {
         const s = 0.5 + random() * 0.8;
         groundedBoulder(x, z, s * (0.9 + random() * 0.4), s * 0.8, s * (0.9 + random() * 0.4));
       }
+      // rubble across the trampled top: the trail ends in a 5 m dirt disc that
+      // otherwise reads as a bare stage. Too small to collide with. (Own RNG so
+      // the tuned boulder fields downstream keep their layout.)
+      const rubbleRandom = mulberry32(WORLD.seed + 4041);
+      for (let i = 0; i < 26; i += 1) {
+        const a = rubbleRandom() * TAU;
+        const d = 0.8 + Math.sqrt(rubbleRandom()) * 7.5;
+        const x = ox + Math.cos(a) * d;
+        const z = oz + Math.sin(a) * d;
+        if (Math.hypot(x - sx, z - sz) < 2.2) continue;
+        const s = 0.1 + rubbleRandom() * 0.22;
+        groundedBoulder(x, z, s * (0.9 + rubbleRandom() * 0.7), s * (0.5 + rubbleRandom() * 0.4), s * (0.9 + rubbleRandom() * 0.7), { embed: 0.4 + rubbleRandom() * 0.15, yaw: rubbleRandom() * TAU });
+      }
     }
 
     // ---- terrace risers: boulder fields where the shelves step ----

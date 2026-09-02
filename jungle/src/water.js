@@ -806,8 +806,12 @@ function buildLilyMaterial() {
   const col = attribute('aColor', 'vec3');
   const hasFlower = step(instanceIndex.toFloat().mod(4.0), 0.5);
   const keep = float(1).sub(part.mul(float(1).sub(hasFlower)));
-  // pads ride the analytic waves (positionLocal is already instance-transformed here)
-  material.positionNode = positionLocal.add(vec3(0, waveHeightNode(positionLocal.xz), 0)).mul(keep);
+  // pads ride the analytic waves. The positionNode runs before the instance
+  // matrix in this three.js build, so the wave is sampled at the pad's world
+  // spot (aBase = x, z, scale) and the lift is pre-divided by the instance
+  // scale so it comes out as metres after the matrix is applied.
+  const base = attribute('aBase', 'vec4');
+  material.positionNode = positionLocal.add(vec3(0, waveHeightNode(base.xy).div(base.z), 0)).mul(keep);
 
   const u = uv().x;
   const r = uv().y;
@@ -1474,13 +1478,18 @@ export function createWater(ctx) {
     }
   }
   const lilies = new THREE.InstancedMesh(buildLilyGeometry(), buildLilyMaterial(), Math.max(1, lilySpots.length));
+  const lilyBase = new Float32Array(Math.max(1, lilySpots.length) * 4).fill(1);
   lilySpots.forEach((p, i) => {
     dummy.position.set(p.x, WORLD.waterLevel + 0.015, p.z);
     dummy.rotation.set(0, p.yaw, 0);
     dummy.scale.setScalar(p.s);
     dummy.updateMatrix();
     lilies.setMatrixAt(i, dummy.matrix);
+    lilyBase[i * 4] = p.x;
+    lilyBase[i * 4 + 1] = p.z;
+    lilyBase[i * 4 + 2] = p.s;
   });
+  lilies.geometry.setAttribute('aBase', new THREE.InstancedBufferAttribute(lilyBase, 4));
   lilies.instanceMatrix.needsUpdate = true;
   lilies.frustumCulled = false;
   lilies.receiveShadow = true;

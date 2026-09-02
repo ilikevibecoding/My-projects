@@ -57,10 +57,12 @@ function gustEnvelope(wx, wz) {
   return smoothstep(-1.0, 1.2, front.add(ripple.mul(0.45))).mul(0.85).add(0.15);
 }
 
-// World-space sway offset. Phase comes from the instance's world position so a
-// trunk and its crown clusters move together; amplitude grows with the
-// pre-instance local height (positionGeometry) — trunks barely move at the
-// base, tips swing, leaf cards flutter on top.
+// Sway offset. NOTE: in this three.js build a material's positionNode runs on
+// the *pre-instance* local position (the instance matrix is applied after it),
+// so everything here is in the plant's own space. The phase therefore comes
+// from the instance's world base (the `inst` stream) when a layer has one, so
+// a gust front still travels across the map; layers without a stream fall
+// back to a per-instance hash plus the local position (per-branch variation).
 function windDisplacement({
   strength = 0.16,
   speed = 1.1,
@@ -70,8 +72,8 @@ function windDisplacement({
   uniformSway = false,
   flutter = 0,
   phaseScale = 0.13,
-} = {}) {
-  const wp = positionLocal; // already instance-transformed (meshes sit at the origin)
+}, worldBase = null) {
+  const wp = worldBase || positionLocal;
   const phase = wp.x.mul(phaseScale).add(wp.z.mul(phaseScale * 0.77)).add(hash(instanceIndex).mul(0.7));
   const t = time.mul(speed).add(phase);
   const gust = sin(t).add(sin(t.mul(1.71).add(1.3)).mul(0.5)).add(sin(t.mul(3.13).add(2.2)).mul(0.27));
@@ -99,17 +101,20 @@ function windDisplacement({
 }
 
 // Vertex stage: wind + optional far-distance collapse toward the instance base
-// (so faded-out cards stop producing fragments at all).
+// (so faded-out cards stop producing fragments at all). The collapse scales
+// the local geometry toward its own origin — the plant's pivot — because the
+// instance matrix is applied after this node; mixing toward the world base
+// here would land half-faded plants at M·base, i.e. floating in the sky.
 function applyVertex(material, { wind = null, fade = null, inst = null } = {}) {
   let pos = positionLocal;
+  const base = inst ? inst.node.xyz : null;
   if (wind) {
-    pos = pos.add(windDisplacement(wind));
+    pos = pos.add(windDisplacement(wind, base));
   }
   if (fade && inst) {
-    const base = inst.node.xyz;
     const dist = base.sub(cameraPosition).length();
     const keep = smoothstep(fade[0], fade[1], dist).oneMinus();
-    pos = mix(base, pos, keep);
+    pos = pos.mul(keep);
   }
   material.positionNode = pos;
 }
@@ -1766,7 +1771,9 @@ export function createVegetation(ctx) {
       spacing: { hash: plantHash, dist: 0.9, radius: 0.2 },
       maxTries: 90000,
     }),
-    scale: (p, rng) => 0.85 + rng() * 0.9,
+    // crevice ferns on a steep face are small tufts; a full-size rosette
+    // tilted off a wall reads as a plant glued onto it
+    scale: (p, rng) => (0.85 + rng() * 0.9) * (0.55 + 0.45 * sstep(0.55, 0.85, p.s.ny)),
     align: 0.6,
     inst: fernInst,
   });

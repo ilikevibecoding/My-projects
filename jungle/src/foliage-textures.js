@@ -930,9 +930,12 @@ export function createFoliageTextures() {
       count: 1200,
       lenRange: [15, 30],
       shape: 'round',
-      palettes: [['#1c5228', '#327d3a'], ['#215a2b', '#3c8b45'], ['#184a20', '#2d7433']],
+      // kept a step lighter than it "should" be: the wide domed cap is seen
+      // almost edge-on from the ground and top-down from the overlook, where a
+      // dark palette collapses into one flat slate-green plate
+      palettes: [['#245f2f', '#42904a'], ['#29682f', '#4c9c52'], ['#20562a', '#3d8743']],
       radiusPow: 0.8,
-      highlight: 0.08,
+      highlight: 0.11,
       edgeWobble: 0.2,
     }),
     // C: fine olive foliage (layered crowns) — small leaves read as a different
