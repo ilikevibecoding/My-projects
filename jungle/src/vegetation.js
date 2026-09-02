@@ -31,10 +31,15 @@ import {
   cross,
   uv,
   instancedBufferAttribute,
+  attribute,
+  normalGeometry,
+  normalViewGeometry,
+  positionViewDirection,
 } from 'three/tsl';
 import { WORLD } from './config.js';
 import { mulberry32, createFbm2D, smoothstep as sstep, clamp as clampJs, lerp } from './noise.js';
-import { createFoliageTextures } from './foliage-textures.js';
+import { createFoliageTextures, leafAtlasCell } from './foliage-textures.js';
+import { GRASS_DISC_FADE } from './grass.js';
 
 const TAU = Math.PI * 2;
 const WIND_HEADING = 0.7; // radians — dominant wind direction on the xz plane
@@ -44,6 +49,10 @@ export const GROUND_COVER_LAYER = 1;
 
 // Sun direction shared by every leaf material (back-lit translucency).
 const sunDirUniform = uniform(new THREE.Vector3(0.3, 0.9, 0.3));
+// Player-eye position for the crown LOD. Deliberately NOT `cameraPosition`:
+// that node is the shadow camera during the shadow pass (150 m away), so the
+// crowns would cast the shadow of a different LOD than the one being drawn.
+const viewPosUniform = uniform(new THREE.Vector3());
 
 // =====================================================================
 // TSL: wind, tint, translucency, fade
@@ -57,10 +66,15 @@ function gustEnvelope(wx, wz) {
   return smoothstep(-1.0, 1.2, front.add(ripple.mul(0.45))).mul(0.85).add(0.15);
 }
 
-// World-space sway offset. Phase comes from the instance's world position so a
-// trunk and its crown clusters move together; amplitude grows with the
-// pre-instance local height (positionGeometry) — trunks barely move at the
-// base, tips swing, leaf cards flutter on top.
+// Sway offset in GEOMETRY space. In r184 the material's positionNode runs
+// before the instance matrix is applied, so positionLocal here is the raw
+// authored vertex, not a world position. Layers that carry an instance
+// stream pass `anchor` (world base / crown centre) so the gust front and the
+// phase come from where the plant stands — a trunk and its crown share one
+// anchor and move together — and `yaw` so the world wind heading can be
+// rotated back into the instance's frame; amplitude grows with the authored
+// height (positionGeometry) — trunks barely move at the base, tips swing,
+// leaf cards flutter on top.
 function windDisplacement({
   strength = 0.16,
   speed = 1.1,
@@ -69,10 +83,23 @@ function windDisplacement({
   pivotTop = false,
   uniformSway = false,
   flutter = 0,
+  cardFlutter = 0,
   phaseScale = 0.13,
+  anchor = null,
+  yaw = null,
+  heightFloor = 0, // sway the whole geometry by at least this share (a head riding a swaying trunk tip)
 } = {}) {
-  const wp = positionLocal; // already instance-transformed (meshes sit at the origin)
-  const phase = wp.x.mul(phaseScale).add(wp.z.mul(phaseScale * 0.77)).add(hash(instanceIndex).mul(0.7));
+  const wp = anchor ?? positionLocal;
+  // per-plant jitter: from the anchor when there is one (a trunk layer and its
+  // crown layers have different instance indices but the same anchor, so
+  // they must not key off instanceIndex), else from the instance index
+  const jitter = anchor
+    ? sin(wp.x.mul(12.9898).add(wp.z.mul(78.233))).mul(43758.5453).fract()
+    : hash(instanceIndex);
+  const jitterB = anchor
+    ? sin(wp.x.mul(39.346).add(wp.z.mul(11.135))).mul(24634.6345).fract()
+    : hash(instanceIndex.add(77));
+  const phase = wp.x.mul(phaseScale).add(wp.z.mul(phaseScale * 0.77)).add(jitter.mul(0.7));
   const t = time.mul(speed).add(phase);
   const gust = sin(t).add(sin(t.mul(1.71).add(1.3)).mul(0.5)).add(sin(t.mul(3.13).add(2.2)).mul(0.27));
   const env = gustEnvelope(wp.x, wp.z);
@@ -83,10 +110,19 @@ function windDisplacement({
   } else {
     const raw = pivotTop ? positionGeometry.y.negate().div(heightRef) : positionGeometry.y.div(heightRef);
     heightFactor = raw.clamp(0, 1).pow(heightPow);
+    if (heightFloor > 0) {
+      heightFactor = heightFactor.mul(1 - heightFloor).add(heightFloor);
+    }
   }
 
   const sway = gust.mul(strength).mul(heightFactor).mul(env);
-  const dir = float(WIND_HEADING).add(hash(instanceIndex.add(77)).sub(0.5).mul(1.1));
+  // world heading of this plant's sway; rotated into the instance frame below
+  let dir = float(WIND_HEADING).add(jitterB.sub(0.5).mul(1.1));
+  if (yaw) {
+    // instance = T · Ry(yaw) · S maps a geometry heading θ to world heading
+    // θ − yaw, so the geometry heading for a world heading is θ + yaw
+    dir = dir.add(yaw);
+  }
   let offset = vec3(sway.mul(cos(dir)), 0, sway.mul(sin(dir)));
   if (flutter > 0) {
     const f = sin(time.mul(5.3).add(phase.mul(2.3)).add(positionGeometry.y.mul(3.1)))
@@ -95,21 +131,63 @@ function windDisplacement({
       .mul(env.mul(0.7).add(0.3));
     offset = offset.add(vec3(f.mul(cos(dir.add(1.5))), f.mul(0.35), f.mul(sin(dir.add(1.5)))));
   }
+  if (cardFlutter > 0) {
+    // shell-crown cards: every leaf tuft bobs on its own phase (baked per
+    // card in `cardData.y`) along its facing direction, on top of the whole
+    // crown's sway — the "thousand small motions" that a solid mass of leaves
+    // shows in a breeze. The core proxy cards (cardData.x = 1) stay still.
+    const card = attribute('cardData', 'vec2');
+    const cp = card.y.mul(TAU);
+    const f = sin(time.mul(3.7).add(cp).add(phase.mul(1.6)))
+      .add(sin(time.mul(6.1).add(cp.mul(2.3)).add(1.1)).mul(0.45))
+      .mul(cardFlutter)
+      .mul(env.mul(0.75).add(0.25))
+      .mul(card.x.oneMinus());
+    offset = offset.add(normalGeometry.mul(f)).add(vec3(0, f.mul(0.4), 0));
+  }
   return offset;
 }
 
-// Vertex stage: wind + optional far-distance collapse toward the instance base
-// (so faded-out cards stop producing fragments at all).
-function applyVertex(material, { wind = null, fade = null, inst = null } = {}) {
+// Vertex stage: wind + optional far-distance collapse toward the instance
+// origin (so faded-out cards stop producing fragments at all). Everything here
+// happens in geometry space — the instance matrix is applied afterwards — so
+// "collapse toward the base / crown centre" is a plain scale about the
+// authored origin, and the world position needed for distances comes from the
+// layer's instance stream (`inst`: x, y, z, yaw).
+//
+// `lod` (shell crowns): the geometry origin is the crown centre. Past
+// `lod.near` the shell cards shrink toward it — fully degenerate by `lod.far`,
+// so a far crown costs no fragments for its 60–150 cards — while the handful
+// of big core proxy cards (cardData.x = 1) grow from `lod.coreScale` (tucked
+// inside the shell, where they fill the interior) to full size and take over
+// the silhouette. Within `lod.close` of the player the core collapses
+// entirely: a big flat card is exactly what must never be in the player's
+// face, and up close the shell is dense enough on its own. Both LODs are
+// always in the one draw call.
+function applyVertex(material, { wind = null, fade = null, fadeIn = null, inst = null, lod = null } = {}) {
   let pos = positionLocal;
   if (wind) {
-    pos = pos.add(windDisplacement(wind));
+    pos = pos.add(windDisplacement(inst ? { ...wind, anchor: inst.node.xyz, yaw: inst.node.w } : wind));
+  }
+  if (lod && inst) {
+    const dist = inst.node.xyz.sub(viewPosUniform).length();
+    const far = smoothstep(lod.near, lod.far, dist);
+    const close = lod.close ?? [10, 24];
+    const nearFade = smoothstep(close[0], close[1], dist);
+    const isCore = attribute('cardData', 'vec2').x;
+    const kShell = far.oneMinus();
+    const kCore = mix(float(lod.coreScale).mul(nearFade), float(1), far);
+    pos = pos.mul(mix(kShell, kCore, isCore));
   }
   if (fade && inst) {
-    const base = inst.node.xyz;
-    const dist = base.sub(cameraPosition).length();
-    const keep = smoothstep(fade[0], fade[1], dist).oneMinus();
-    pos = mix(base, pos, keep);
+    const dist = inst.node.xyz.sub(cameraPosition).length();
+    let keep = smoothstep(fade[0], fade[1], dist).oneMinus();
+    if (fadeIn) {
+      // far-only filler layers grow in where the streamed near-field grass
+      // disc (grass.js) dissolves, so the two systems hand over seamlessly
+      keep = keep.mul(smoothstep(fadeIn[0], fadeIn[1], dist));
+    }
+    pos = pos.mul(keep);
   }
   material.positionNode = pos;
 }
@@ -139,31 +217,62 @@ function foliageMaterial(map, {
   valueSpread = 0.12,
   translucency = 0.45,
   fade = null,
+  fadeIn = null, // [start, end]: alpha grows in past this distance (far-only filler layers)
   alphaTest = 0.42,
   ao = null, // [yLow, yHigh, darkness]: occlusion gradient over the pre-instance local height
+  vertexTint = false, // multiply by the geometry's `color` attribute (dead fronds, crown shafts)
+  doubleSided = false, // render both faces with the authored normal instead of a flipped geometry copy
+  cardVariation = 0, // ± value spread per shell card (from cardData.y) so neighbouring tufts differ
 } = {}) {
   const material = new THREE.MeshStandardNodeMaterial({
     map,
-    side: THREE.FrontSide, // geometry carries a flipped-winding copy instead
+    side: doubleSided ? THREE.DoubleSide : THREE.FrontSide, // FrontSide: geometry carries a flipped-winding copy instead
     roughness,
     metalness: 0,
     alphaTest,
   });
+  if (doubleSided) {
+    // NodeMaterial applies the back-face normal flip only to the default
+    // normal path; an explicit normalNode is used as authored, so both faces
+    // of a card light with the same shading-proxy normal — what the
+    // flipped-copy trick achieves, at half the triangles.
+    material.normalNode = normalViewGeometry;
+  }
   const { value, hueAngle, tint: tintNode } = perInstanceTint(hueSpread, valueSpread, tint);
   const mapColor = texture(map);
   let color = hueRotate(mapColor.rgb, hueAngle).mul(value).mul(tintNode);
+  if (vertexTint) {
+    color = color.mul(attribute('color', 'vec3'));
+  }
+  if (cardVariation > 0) {
+    // tuft-to-tuft value variation: some clusters sit in the shade of their
+    // neighbours, some catch the light — decorrelated from the flutter phase
+    const card = attribute('cardData', 'vec2');
+    const r = card.y.mul(7.13).fract();
+    color = color.mul(mix(float(1 - cardVariation), float(1 + cardVariation), r));
+  }
   if (ao) {
     // cheap self-occlusion: the base of a clump / the underside of a crown sits
     // in its own shade, tips and the top catch the light
     const occlusion = mix(float(1 - ao[2]), float(1), smoothstep(ao[0], ao[1], positionGeometry.y));
     color = color.mul(occlusion);
   }
+  let backShade = null;
+  if (doubleSided) {
+    // A card seen from behind its shading normal is the far side of the
+    // crown or the top of the crown seen from underneath — the leaves whose
+    // lit side faces away. Darken those so the interior reads as shade.
+    const facing = normalViewGeometry.dot(positionViewDirection);
+    backShade = smoothstep(-0.35, 0.2, facing);
+    color = color.mul(mix(float(0.66), float(1), backShade));
+  }
   material.colorNode = color;
 
   let alpha = mapColor.a;
-  if (fade) {
+  if (fade || fadeIn) {
     const dist = positionWorld.sub(cameraPosition).length();
-    alpha = alpha.mul(smoothstep(fade[0], fade[1], dist).oneMinus());
+    if (fade) alpha = alpha.mul(smoothstep(fade[0], fade[1], dist).oneMinus());
+    if (fadeIn) alpha = alpha.mul(smoothstep(fadeIn[0], fadeIn[1], dist));
   }
   material.opacityNode = alpha;
 
@@ -173,7 +282,11 @@ function foliageMaterial(map, {
     const viewDir = cameraPosition.sub(positionWorld).normalize();
     const backlight = viewDir.dot(sunDirUniform).negate().clamp(0, 1).pow(4);
     const underside = viewDir.y.negate().clamp(0, 1).mul(0.2);
-    const transmitted = backlight.add(underside).mul(translucency);
+    let transmitted = backlight.add(underside).mul(translucency);
+    if (backShade) {
+      // the shaded back of a leaf is where the sun shines *through* it
+      transmitted = transmitted.mul(mix(float(1.6), float(1), backShade));
+    }
     // transmitted light is yellow-green, but kept below the lit albedo so leaves
     // stay leaf-green instead of turning lime whenever the sun is behind them
     material.emissiveNode = color.mul(vec3(0.7, 0.85, 0.35)).mul(transmitted);
@@ -214,7 +327,8 @@ function barkMaterial(map, normalTex, noiseTex, mossTex, {
   return material;
 }
 
-// Per-instance vec4 stream (base x, y, z, scale) for fade collapse.
+// Per-instance vec4 stream (world anchor x, y, z, yaw) read by the vertex
+// stage for distance LOD / fade and for world-anchored wind.
 function instanceStream(count) {
   const array = new Float32Array(count * 4);
   const attribute = new THREE.InstancedBufferAttribute(array, 4);
@@ -233,14 +347,14 @@ function instanceStream(count) {
 // from the clump's centre by `spherical`, so a crown / bush shades like a
 // rounded volume — lit on the sun side, darker on the far side — instead of
 // every card receiving the same flat light.
-function prepareFoliage(geometry, upFactor = 0.7, spherical = 0, centerFrac = 0.35) {
+function prepareFoliage(geometry, upFactor = 0.7, spherical = 0, centerFrac = 0.35, center = null, flip = true) {
   const normal = geometry.attributes.normal;
   const pos = geometry.attributes.position;
   geometry.computeBoundingBox();
   const bb = geometry.boundingBox;
-  const cx = (bb.min.x + bb.max.x) * 0.5;
-  const cy = bb.min.y + (bb.max.y - bb.min.y) * centerFrac; // centre sits low: the underside is the shaded part
-  const cz = (bb.min.z + bb.max.z) * 0.5;
+  const cx = center ? center[0] : (bb.min.x + bb.max.x) * 0.5;
+  const cy = center ? center[1] : bb.min.y + (bb.max.y - bb.min.y) * centerFrac; // centre sits low: the underside is the shaded part
+  const cz = center ? center[2] : (bb.min.z + bb.max.z) * 0.5;
   for (let i = 0; i < normal.count; i += 1) {
     let tx = 0;
     let ty = 1;
@@ -265,6 +379,9 @@ function prepareFoliage(geometry, upFactor = 0.7, spherical = 0, centerFrac = 0.
     normal.setXYZ(i, nx / len, ny / len, nz / len);
   }
   normal.needsUpdate = true;
+  if (!flip) {
+    return geometry; // paired with foliageMaterial({ doubleSided: true })
+  }
 
   const flipped = geometry.clone();
   if (flipped.index) {
@@ -338,74 +455,240 @@ function crossedCards(width, height, cards = 2, horizontalCap = false) {
   return merged;
 }
 
-// Crown "puff" geometries — several silhouettes so a forest never reads as
-// rows of the same broccoli.
-function crownCluster(type, w, h) {
+// Add the per-card vertex stream the crown shaders read: cardData = (isCore,
+// phase) and, for tinted foliage, a flat colour.
+function addCardData(geometry, isCore, phase) {
+  const n = geometry.attributes.position.count;
+  const data = new Float32Array(n * 2);
+  for (let i = 0; i < n; i += 1) {
+    data[i * 2] = isCore;
+    data[i * 2 + 1] = phase;
+  }
+  geometry.setAttribute('cardData', new THREE.Float32BufferAttribute(data, 2));
+  return geometry;
+}
+function addFlatColor(geometry, r, g, b) {
+  const n = geometry.attributes.position.count;
+  const data = new Float32Array(n * 3);
+  for (let i = 0; i < n; i += 1) {
+    data[i * 3] = r;
+    data[i * 3 + 1] = g;
+    data[i * 3 + 2] = b;
+  }
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(data, 3));
+  return geometry;
+}
+
+// Remap a card's 0..1 uvs into one cell of the 2 × 2 leaf-cluster atlas,
+// optionally mirrored in u so the same tuft never repeats side by side.
+function atlasUv(geometry, cell, mirror) {
+  const [u0, v0] = leafAtlasCell(cell);
+  const uvAttr = geometry.attributes.uv;
+  for (let i = 0; i < uvAttr.count; i += 1) {
+    const u = mirror ? 1 - uvAttr.getX(i) : uvAttr.getX(i);
+    uvAttr.setXY(i, u0 + u * 0.5, v0 + uvAttr.getY(i) * 0.5);
+  }
+}
+
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
+const tmpV3a = new THREE.Vector3();
+const tmpV3b = new THREE.Vector3();
+const tmpQa = new THREE.Quaternion();
+const tmpQb = new THREE.Quaternion();
+
+// Volumetric shell crown. The crown is a set of lumpy ellipsoid "blobs" —
+// one per major limb tip plus a main dome — and every blob is dressed with
+// small leaf-cluster cards sitting on (and a little inside) its surface,
+// each card facing outward from its blob with a random roll. Seen from any
+// side the player looks *at* tuft faces, never along card edges; walking past
+// gives parallax between the near and far shell; from below the sparse, dark
+// underside shows sky through gaps between tufts. Shading normals are blended
+// toward the crown centre's outward direction so the mass still lights as one
+// rounded volume. A few large core proxy cards (cardData.x = 1) sit inside at
+// `coreScale` — they fill the interior when near and take over at distance
+// (see applyVertex `lod`). Returns geometry with cardData + uvs into the atlas.
+function shellCrown({
+  blobs, // [{ x, y, z, rx, ry, rz, count, lobes = 4, lobeAmp = 0.22, size = 1 }]
+  center = [0, 0, 0], // shading + LOD centre in crown space (becomes the origin)
+  cardSize = [1.4, 2.4],
+  seed = 1,
+  undersideThin = 0.35, // probability of dropping a card that faces straight down
+  bottomFlatten = 0.72, // ry multiplier below the blob's equator
+  shadeBias = 0.7, // how strongly inner / underside cards pick the shaded atlas cell
+  innerFrac = 0.22, // share of cards pulled deep inside the blob (shaded filler)
+  tiltJitter = 0.65, // large: on the silhouette some cards must still face the viewer instead of all sitting edge-on
+  aspectJitter = 0.3,
+  core = null, // { w, h, y, cap: bool }: big proxy cards centred on `center`
+  upFactor = 0.72,
+  spherical = 0.8,
+}) {
+  const rnd = mulberry32(seed);
   const parts = [];
-  const cap = (size, y, tiltX = 0, tiltZ = 0) => {
-    const p = new THREE.PlaneGeometry(size, size);
-    p.rotateX(-Math.PI / 2 + tiltX);
-    p.rotateZ(tiltZ);
-    p.translate(0, y, 0);
-    return p;
+  const [ccx, ccy, ccz] = center;
+  const randomDir = (out) => {
+    const zc = rnd() * 2 - 1;
+    const a = rnd() * TAU;
+    const r = Math.sqrt(Math.max(0, 1 - zc * zc));
+    return out.set(Math.cos(a) * r, zc, Math.sin(a) * r);
   };
-  // Octagonal fan whose rim sags below the centre: the big top layer of a
-  // crown reads as a shallow dome from the side (curved silhouette, drooping
-  // fringe) instead of a razor-edged plate. 8 tris instead of 2, so only the
-  // widest cap of each crown type uses it.
-  const dome = (size, y, sag, tiltX = 0, tiltZ = 0) => {
-    const r = size * 0.5;
-    const positions = [0, 0, 0];
-    const uvs = [0.5, 0.5];
-    const indices = [];
-    for (let i = 0; i < 8; i += 1) {
-      const a = (i / 8) * TAU + Math.PI / 8;
-      positions.push(Math.cos(a) * r, -sag, Math.sin(a) * r);
-      uvs.push(0.5 + Math.cos(a) * 0.5, 0.5 + Math.sin(a) * 0.5);
-      indices.push(0, 1 + ((i + 1) % 8), 1 + i);
+  for (const blob of blobs) {
+    const { x: bx, y: by, z: bz, rx, ry, rz, count } = blob;
+    const lobeCount = blob.lobes ?? 4;
+    const lobeAmp = blob.lobeAmp ?? 0.22;
+    const sizeScale = blob.size ?? 1;
+    const lobeDirs = [];
+    for (let l = 0; l < lobeCount; l += 1) {
+      const d = randomDir(new THREE.Vector3());
+      d.y = Math.abs(d.y) * 0.6 + 0.1; // lobes bulge up and sideways, not down
+      lobeDirs.push(d.normalize());
     }
-    const p = new THREE.BufferGeometry();
-    p.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    p.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    p.setIndex(indices);
-    p.computeVertexNormals();
-    p.rotateX(tiltX);
-    p.rotateZ(tiltZ);
-    p.translate(0, y, 0);
-    return p;
-  };
-  const vertical = (pw, ph, yaw, y = 0) => {
-    const p = new THREE.PlaneGeometry(pw, ph);
-    p.rotateY(yaw);
-    p.translate(0, y, 0);
-    return p;
-  };
-  switch (type) {
-    case 'umbrella':
-      // flat-topped species: one domed top layer, a tilted second layer that
-      // crosses it (edges never run parallel), and three side cards for body
-      parts.push(dome(w * 1.3, h * 0.36, h * 0.24, 0.1, 0.05), cap(w * 0.9, h * 0.04, -0.2, 0.3));
-      parts.push(vertical(w * 0.9, h * 0.82, 0.2, -h * 0.08), vertical(w * 0.9, h * 0.82, 0.2 + Math.PI / 3, -h * 0.08), vertical(w * 0.9, h * 0.82, 0.2 + (2 * Math.PI) / 3, -h * 0.08));
-      break;
-    case 'layered':
-      parts.push(dome(w * 1.15, -h * 0.2, h * 0.16, 0.1, -0.06), cap(w * 0.85, h * 0.06, -0.14, 0.18), cap(w * 0.55, h * 0.32, 0.1, -0.15));
-      parts.push(vertical(w * 0.8, h * 0.95, 0.3), vertical(w * 0.8, h * 0.95, 0.3 + Math.PI / 2));
-      break;
-    case 'sparse':
-      parts.push(vertical(w, h, 0), vertical(w, h, Math.PI / 2), cap(w * 0.8, h * 0.15, 0.25));
-      break;
-    case 'wide':
-      parts.push(dome(w * 1.4, h * 0.32, h * 0.22, 0.06, 0.04), cap(w * 1.0, -h * 0.05, -0.16, 0.22));
-      parts.push(vertical(w, h * 0.75, 0, -h * 0.05), vertical(w, h * 0.75, Math.PI / 3, -h * 0.05), vertical(w, h * 0.75, (2 * Math.PI) / 3, -h * 0.05));
-      break;
-    case 'round':
-    default:
-      parts.push(vertical(w, h, 0), vertical(w, h, Math.PI / 3), vertical(w, h, (2 * Math.PI) / 3), cap(w * 0.95, h * 0.22));
-      break;
+    let placed = 0;
+    let guard = 0;
+    while (placed < count && guard < count * 6) {
+      guard += 1;
+      const dir = randomDir(tmpV3a);
+      // sparser underside: light comes from above, the lower crown is open
+      if (dir.y < 0 && rnd() < undersideThin * Math.pow(-dir.y, 0.7)) continue;
+      let lobe = 0;
+      for (const ld of lobeDirs) {
+        lobe = Math.max(lobe, Math.pow(Math.max(0, dir.dot(ld)), 3));
+      }
+      // most cards on the shell (lobed); a share sits deep inside so the
+      // crown has a dark interior behind the gaps instead of sky
+      const inner = rnd() < innerFrac;
+      const rf = (inner ? 0.45 + 0.3 * rnd() : 0.82 + 0.18 * Math.pow(rnd(), 0.6)) * (1 + lobeAmp * lobe);
+      const yScale = dir.y < 0 ? ry * bottomFlatten : ry;
+      const px = bx + dir.x * rx * rf;
+      const py = by + dir.y * yScale * rf;
+      const pz = bz + dir.z * rz * rf;
+
+      // card faces outward from its blob, jittered, then rolled
+      const n = tmpV3b.set(dir.x / rx, dir.y / yScale, dir.z / rz).normalize();
+      n.x += (rnd() - 0.5) * tiltJitter;
+      n.y += (rnd() - 0.5) * tiltJitter;
+      n.z += (rnd() - 0.5) * tiltJitter;
+      n.normalize();
+      const s = (cardSize[0] + rnd() * (cardSize[1] - cardSize[0])) * sizeScale;
+      const aspect = 1 + (rnd() - 0.5) * aspectJitter;
+      const card = new THREE.PlaneGeometry(s * aspect, s / aspect);
+      tmpQa.setFromUnitVectors(Z_AXIS, n);
+      tmpQb.setFromAxisAngle(Z_AXIS, rnd() * TAU);
+      tmpQa.multiply(tmpQb);
+      card.applyQuaternion(tmpQa);
+      card.translate(px - ccx, py - ccy, pz - ccz);
+
+      // atlas cell: cards low in the crown or tucked inside are in shade
+      const relY = (py - ccy) / Math.max(0.5, ry);
+      let shade = 0;
+      if (inner) shade += 1.1;
+      else if (rf < 0.88) shade += 0.4;
+      if (relY < -0.25) shade += 0.7;
+      else if (relY < 0.15) shade += 0.25;
+      const cell = rnd() < shade * shadeBias ? 2 : [0, 1, 3][Math.floor(rnd() * 3)];
+      atlasUv(card, cell, rnd() < 0.5);
+      addCardData(card, 0, rnd());
+      parts.push(card);
+      placed += 1;
+    }
+  }
+  if (core) {
+    // three crossed vertical cards; no horizontal cap by default — seen from
+    // under the tree a cap is exactly the "flat pancake" a card crown must
+    // never show, and the first-person player never looks straight down
+    const { w, h, y = 0, cap = false } = core;
+    const coreParts = [];
+    for (let i = 0; i < 3; i += 1) {
+      const p = new THREE.PlaneGeometry(w, h);
+      p.rotateY((i / 3) * Math.PI + 0.2);
+      coreParts.push(p);
+    }
+    if (cap) {
+      const p = new THREE.PlaneGeometry(w * 0.9, w * 0.9);
+      p.rotateX(-Math.PI / 2 + 0.08);
+      p.translate(0, h * 0.18, 0);
+      coreParts.push(p);
+    }
+    coreParts.forEach((p, i) => {
+      p.translate(0, y, 0);
+      atlasUv(p, [0, 1, 3, 1][i], i % 2 === 1);
+      addCardData(p, 1, rnd());
+      // authored at full size; the vertex stage shrinks them to `coreScale`
+      // when the crown is near — so they must be centred on the LOD origin
+      parts.push(p);
+    });
   }
   const merged = mergeGeometries(parts);
   parts.forEach((p) => p.dispose());
-  return merged;
+  // no flipped copy: crown materials are doubleSided with the authored normal
+  return prepareFoliage(merged, upFactor, spherical, 0.4, [0, 0, 0], false);
+}
+
+// Tapered branch tube that sweeps upward as it goes (low-poly: `sides` × `segs`).
+// Returns the geometry plus the tip position / direction for crown blobs and
+// secondary twigs. Rings use parallel-transported frames so the tube never twists.
+function branchTube({ start, dir, length, radius, tipRadius = 0.3, sides = 6, segs = 2, curl = 0.35, uvV = 2.4, uvU = null }) {
+  const positions = [];
+  const uvs = [];
+  const indices = [];
+  const dirV = new THREE.Vector3(dir[0], dir[1], dir[2]).normalize();
+  const p = new THREE.Vector3(start[0], start[1], start[2]);
+  const tangent = dirV.clone();
+  const normal = new THREE.Vector3();
+  const binormal = new THREE.Vector3();
+  // initial normal: anything perpendicular to the tangent
+  normal.set(0, 1, 0);
+  if (Math.abs(tangent.y) > 0.9) normal.set(1, 0, 0);
+  normal.addScaledVector(tangent, -normal.dot(tangent)).normalize();
+  const uRepeat = uvU ?? Math.max(1, Math.round((TAU * radius) / 0.7));
+  const step = length / segs;
+  let arc = 0;
+  const axis = [];
+  for (let k = 0; k <= segs; k += 1) {
+    const t = k / segs;
+    if (k > 0) {
+      // bend toward up as the branch runs out
+      tangent.set(dirV.x, dirV.y + curl * t, dirV.z).normalize();
+      p.addScaledVector(tangent, step);
+      arc += step;
+      normal.addScaledVector(tangent, -normal.dot(tangent)).normalize();
+    }
+    binormal.crossVectors(tangent, normal);
+    const r = radius * lerp(1, tipRadius, t);
+    axis.push([p.x, p.y, p.z, tangent.x, tangent.y, tangent.z, r]);
+    for (let i = 0; i <= sides; i += 1) {
+      const a = (i / sides) * TAU;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      positions.push(p.x + (normal.x * ca + binormal.x * sa) * r, p.y + (normal.y * ca + binormal.y * sa) * r, p.z + (normal.z * ca + binormal.z * sa) * r);
+      uvs.push((i / sides) * uRepeat, arc / uvV);
+    }
+  }
+  for (let k = 0; k < segs; k += 1) {
+    for (let i = 0; i < sides; i += 1) {
+      const a = k * (sides + 1) + i;
+      const b = a + 1;
+      const c = a + sides + 1;
+      const d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const nrm = geometry.attributes.normal;
+  for (let k = 0; k <= segs; k += 1) {
+    const a = k * (sides + 1);
+    const b = a + sides;
+    const nx = (nrm.getX(a) + nrm.getX(b)) * 0.5;
+    const ny = (nrm.getY(a) + nrm.getY(b)) * 0.5;
+    const nz = (nrm.getZ(a) + nrm.getZ(b)) * 0.5;
+    nrm.setXYZ(a, nx, ny, nz);
+    nrm.setXYZ(b, nx, ny, nz);
+  }
+  const last = axis[axis.length - 1];
+  return { geometry, tip: [last[0], last[1], last[2]], tipDir: [last[3], last[4], last[5]], axis };
 }
 
 // Authored trunk: tapered lathe with base flare, optional buttress lobes,
@@ -424,7 +707,10 @@ function buildTrunk({
   lobeSharp = 2.5,
   wobble = 0,
   taperPow = 1.0,
-  branches = [],
+  branches = [], // { t, yaw, tilt, length, radius, curl?, twigs? }
+  branchSides = 6,
+  branchSegs = 2,
+  twigSides = 5,
   seed = 1,
   uvV = 2.4,
 }) {
@@ -494,35 +780,49 @@ function buildTrunk({
   }
   nrm.needsUpdate = true;
 
+  // Primary limbs: tapered tubes that leave the upper trunk and sweep upward
+  // into the crown, each with a couple of secondary twigs so the branch
+  // structure keeps going where the leaf shell begins.
   const parts = [trunk];
   const branchTips = [];
   const branchBases = [];
   const branchDirs = [];
+  const branchTipDirs = [];
   for (const br of branches) {
-    const { t, yaw, tilt, length, radius } = br;
+    const { t, yaw, tilt, length, radius, curl = 0.45, twigs = 2 } = br;
     const [cx, y0, cz] = centerAt(t);
     const rTrunk = radiusAt(t);
     const dir = [Math.sin(tilt) * Math.sin(yaw), Math.cos(tilt), Math.sin(tilt) * Math.cos(yaw)];
-    const start = [cx + dir[0] * rTrunk * 0.5, y0, cz + dir[2] * rTrunk * 0.5];
-    const geo = new THREE.CylinderGeometry(radius * 0.35, radius, length, 5, 1, true);
-    geo.translate(0, length / 2, 0);
-    geo.rotateX(tilt);
-    geo.rotateY(yaw);
-    geo.translate(start[0], start[1], start[2]);
-    const uvAttr = geo.attributes.uv;
-    for (let i = 0; i < uvAttr.count; i += 1) {
-      uvAttr.setXY(i, uvAttr.getX(i), uvAttr.getY(i) * (length / uvV));
-    }
-    parts.push(geo);
+    const start = [cx + dir[0] * rTrunk * 0.45, y0, cz + dir[2] * rTrunk * 0.45];
+    const tube = branchTube({ start, dir, length, radius, tipRadius: 0.32, sides: branchSides, segs: branchSegs, curl, uvV });
+    parts.push(tube.geometry);
     branchBases.push(start);
     branchDirs.push(dir);
-    branchTips.push([start[0] + dir[0] * length, start[1] + dir[1] * length, start[2] + dir[2] * length]);
+    branchTips.push(tube.tip);
+    branchTipDirs.push(tube.tipDir);
+    for (let k = 0; k < twigs; k += 1) {
+      // twig leaves the limb at 55–85 % of its run, swung ±50–80° to the side
+      const along = 0.55 + (k / Math.max(1, twigs - 1)) * 0.3 + (rnd() - 0.5) * 0.08;
+      const seg = Math.min(tube.axis.length - 2, Math.floor(along * branchSegs));
+      const f = along * branchSegs - seg;
+      const a0 = tube.axis[seg];
+      const a1 = tube.axis[seg + 1];
+      const origin = [lerp(a0[0], a1[0], f), lerp(a0[1], a1[1], f), lerp(a0[2], a1[2], f)];
+      const side = k % 2 === 0 ? 1 : -1;
+      const swing = side * (0.9 + rnd() * 0.5);
+      const dx = a1[3];
+      const dz = a1[5];
+      const tdir = [dx * Math.cos(swing) - dz * Math.sin(swing), a1[4] * 0.6 + 0.35, dx * Math.sin(swing) + dz * Math.cos(swing)];
+      const tr = lerp(a0[6], a1[6], f);
+      const twig = branchTube({ start: origin, dir: tdir, length: length * (0.34 + rnd() * 0.16), radius: tr * 0.55, tipRadius: 0.3, sides: twigSides, segs: 1, curl: 0.5, uvV, uvU: 1 });
+      parts.push(twig.geometry);
+    }
   }
   const geometry = parts.length > 1 ? mergeGeometries(parts) : trunk;
   if (parts.length > 1) {
     parts.forEach((p) => p.dispose());
   }
-  return { geometry, branchTips, branchBases, branchDirs, top: centers[rings], radiusAt, centerAt, height };
+  return { geometry, branchTips, branchBases, branchDirs, branchTipDirs, top: centers[rings], radiusAt, centerAt, height };
 }
 
 // Leaning cylinder (palms, bamboo): bends toward +x, ring ridges optional.
@@ -742,6 +1042,9 @@ export function createVegetation(ctx) {
   const ft = createFoliageTextures();
   if (ctx.sky?.sunDirection) {
     sunDirUniform.value.copy(ctx.sky.sunDirection);
+  }
+  if (ctx.camera) {
+    viewPosUniform.value.copy(ctx.camera.position);
   }
 
   const half = WORLD.size / 2 - 6;
@@ -987,17 +1290,17 @@ export function createVegetation(ctx) {
       const sy = s * (1 + (rng() - 0.5) * yJitter);
       dummy.position.set(p.x, p.y - sink, p.z);
       dummy.scale.set(s, sy, s);
+      let yaw;
       if (align > 0) {
         field.normal(p.x, p.z, tmpNormal);
         tmpQuat.setFromUnitVectors(upVec, tmpNormal);
         tmpQuat2.identity().slerp(tmpQuat, align);
-        dummy.quaternion.setFromAxisAngle(upVec, rng() * TAU).premultiply(tmpQuat2);
+        yaw = rng() * TAU;
+        dummy.quaternion.setFromAxisAngle(upVec, yaw).premultiply(tmpQuat2);
       } else {
-        dummy.rotation.set(
-          randomTilt ? (rng() - 0.5) * randomTilt : 0,
-          rng() * TAU,
-          randomTilt ? (rng() - 0.5) * randomTilt : 0
-        );
+        const tiltX = randomTilt ? (rng() - 0.5) * randomTilt : 0;
+        yaw = rng() * TAU;
+        dummy.rotation.set(tiltX, yaw, randomTilt ? (rng() - 0.5) * randomTilt : 0);
       }
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
@@ -1006,7 +1309,7 @@ export function createVegetation(ctx) {
         inst.array[o] = p.x;
         inst.array[o + 1] = p.y - sink;
         inst.array[o + 2] = p.z;
-        inst.array[o + 3] = s;
+        inst.array[o + 3] = yaw;
       }
     });
     if (placements.length === 0) {
@@ -1015,15 +1318,13 @@ export function createVegetation(ctx) {
     return register(mesh, { castShadow, densityKey });
   }
 
-  // tree-local → world (instance = T · Ry(yaw) · S)
+  // tree-local → world (instance = T · Ry(yaw) · S: scale first, then yaw)
   function treeToWorld(tree, lx, ly, lz) {
     const c = Math.cos(tree.yaw);
     const s = Math.sin(tree.yaw);
-    return [
-      tree.x + (lx * c + lz * s) * tree.sx,
-      tree.y + ly * tree.s,
-      tree.z + (-lx * s + lz * c) * tree.sz,
-    ];
+    const x = lx * tree.sx;
+    const z = lz * tree.sz;
+    return [tree.x + x * c + z * s, tree.y + ly * tree.s, tree.z - x * s + z * c];
   }
 
   // Common tree rejection rules (walkable trails, landmarks, water, cliffs).
@@ -1048,6 +1349,43 @@ export function createVegetation(ctx) {
   const bigTrees = []; // for lianas / epiphytes / orchids
   const barkNoise = textures.noise;
 
+  // One crown per tree, sharing the tree's exact instance transform so the
+  // crown blobs sit on the limb tips of the trunk geometry they were authored
+  // around. `crownOrigin` is the crown-space centre in trunk space.
+  function buildCrownLayer(name, crowns, geometry, material, ownerLayer, inst, { castShadow = true } = {}) {
+    const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, crowns.length));
+    mesh.name = name;
+    crowns.forEach((c, i) => {
+      setMatrix(mesh, i, c.x, c.y, c.z, 0, c.yaw, 0, c.sx, c.sy, c.sz);
+      // anchor = the tree's base, bit-identical to the trunk layer's stream,
+      // so trunk and crown evaluate the same wind phase
+      writeAnchor(inst, i, c.ax, c.ay, c.az, c.yaw);
+    });
+    if (crowns.length === 0) setMatrix(mesh, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
+    return register(mesh, { castShadow, gate: gateFromOwners(crowns, ownerLayer.maxCount) });
+  }
+  // world placement of a tree's crown instance (crown origin transformed like the trunk)
+  function crownInstance(tree, origin, owner) {
+    const [x, y, z] = treeToWorld(tree, origin[0], origin[1], origin[2]);
+    return { x, y, z, yaw: tree.yaw, sx: tree.sx, sy: tree.s, sz: tree.sz, owner, ax: tree.x, ay: tree.y, az: tree.z };
+  }
+  function writeAnchor(inst, i, x, y, z, yaw) {
+    const o = i * 4;
+    inst.array[o] = x;
+    inst.array[o + 1] = y;
+    inst.array[o + 2] = z;
+    inst.array[o + 3] = yaw;
+  }
+  // Crown blobs around a trunk's limb tips: one tuft-ball a little past every
+  // tip (the limb visibly carries into it) plus the main dome over the top.
+  function limbBlobs(trunk, { tipR, tipCount, tipLift = 0.3, push = 0.6, size = 1, lobes = 3 }) {
+    return trunk.branchTips.map((tip, b) => {
+      const d = trunk.branchTipDirs[b];
+      return { x: tip[0] + d[0] * push, y: tip[1] + d[1] * push + tipLift, z: tip[2] + d[2] * push, rx: tipR[0], ry: tipR[1], rz: tipR[2], count: tipCount, size, lobes, lobeAmp: 0.25 };
+    });
+  }
+  const CROWN_LOD = { near: 120, far: 155, coreScale: 0.72 };
+
   // ---------- emergent giants (25–32 m, buttressed) ----------
   const emergentTrunk = buildTrunk({
     height: 24,
@@ -1064,12 +1402,15 @@ export function createVegetation(ctx) {
     wobble: 0.35,
     taperPow: 0.9,
     seed: 41,
+    branchSides: 6,
+    branchSegs: 3,
     branches: [
-      { t: 0.6, yaw: 0.2, tilt: 1.1, length: 6.8, radius: 0.34 },
-      { t: 0.68, yaw: 1.55, tilt: 1.05, length: 6.2, radius: 0.32 },
-      { t: 0.76, yaw: 2.9, tilt: 1.0, length: 5.8, radius: 0.3 },
-      { t: 0.84, yaw: 4.2, tilt: 0.95, length: 5.2, radius: 0.27 },
-      { t: 0.9, yaw: 5.4, tilt: 0.85, length: 4.6, radius: 0.24 },
+      { t: 0.64, yaw: 0.2, tilt: 1.12, length: 6.8, radius: 0.36, curl: 0.55 },
+      { t: 0.71, yaw: 1.55, tilt: 1.06, length: 6.4, radius: 0.33, curl: 0.5 },
+      { t: 0.78, yaw: 2.9, tilt: 1.0, length: 6.0, radius: 0.31, curl: 0.5 },
+      { t: 0.85, yaw: 4.2, tilt: 0.92, length: 5.4, radius: 0.28, curl: 0.45 },
+      { t: 0.91, yaw: 5.4, tilt: 0.82, length: 4.8, radius: 0.25, curl: 0.4 },
+      { t: 0.96, yaw: 3.6, tilt: 0.55, length: 3.4, radius: 0.22, curl: 0.3, twigs: 1 },
     ],
   });
   const emergentPlacements = scatter({
@@ -1091,60 +1432,61 @@ export function createVegetation(ctx) {
     gradientHeight: 12,
     normalScale: 0.9,
   });
-  applyVertex(emergentBarkMat, { wind: { strength: 0.06, speed: 0.32, heightRef: 24, heightPow: 2.2 } });
+  // trunk streams carry the same world anchor as the crown so both sway in phase
+  const emergentTrunkInst = instanceStream(Math.max(1, emergentPlacements.length));
+  applyVertex(emergentBarkMat, { wind: { strength: 0.1, speed: 0.32, heightRef: 24, heightPow: 2.2 }, inst: emergentTrunkInst });
   const emergentTrunks = new THREE.InstancedMesh(emergentTrunk.geometry, emergentBarkMat, Math.max(1, emergentPlacements.length));
   emergentTrunks.name = 'emergent-trunks';
-  const emergentClusters = [];
+  // crown origin: a little above the trunk top, where the limbs converge
+  const emergentCrownOrigin = [emergentTrunk.top[0], emergentTrunk.top[1] + 0.8, emergentTrunk.top[2]];
+  const emergentCrowns = [];
   {
     const rng = mulberry32(WORLD.seed + 102);
     emergentPlacements.forEach((p, i) => {
       const s = 1.05 + rng() * 0.3; // 25–32 m
       const tree = { x: p.x, y: p.y - 0.4, z: p.z, yaw: rng() * TAU, s, sx: s * (0.92 + rng() * 0.16), sz: s * (0.92 + rng() * 0.16), kind: 'emergent', index: i, trunk: emergentTrunk };
       setMatrix(emergentTrunks, i, tree.x, tree.y, tree.z, 0, tree.yaw, 0, tree.sx, tree.s, tree.sz);
+      writeAnchor(emergentTrunkInst, i, tree.x, tree.y, tree.z, tree.yaw);
       bigTrees.push(tree);
-      // crown: 5 branch tips, top, 4 fillers — 10 clusters per tree (constant for quality scaling)
-      const local = [];
-      emergentTrunk.branchTips.forEach((tip, b) => {
-        const dir = emergentTrunk.branchDirs[b];
-        local.push({ x: tip[0] + dir[0] * 1.2, y: tip[1] + dir[1] * 0.4 + 0.3, z: tip[2] + dir[2] * 1.2, cs: 1.0 });
-      });
-      local.push({ x: emergentTrunk.top[0], y: emergentTrunk.top[1] + 1.4, z: emergentTrunk.top[2], cs: 1.05 });
-      for (let f = 0; f < 4; f += 1) {
-        const a = rng() * TAU;
-        const rad = 3 + rng() * 2.5;
-        local.push({ x: Math.cos(a) * rad, y: emergentTrunk.top[1] - 2.5 - rng() * 2, z: Math.sin(a) * rad, cs: 0.85 + rng() * 0.2 });
-      }
-      local.forEach((c) => {
-        const [wx, wy, wz] = treeToWorld(tree, c.x + (rng() - 0.5) * 0.8, c.y + (rng() - 0.5) * 0.8, c.z + (rng() - 0.5) * 0.8);
-        emergentClusters.push({ x: wx, y: wy, z: wz, s: c.cs * s * (0.9 + rng() * 0.25), owner: i, tilt: (rng() - 0.5) * 0.3 });
-      });
+      emergentCrowns.push(crownInstance(tree, emergentCrownOrigin, i));
     });
     if (emergentPlacements.length === 0) setMatrix(emergentTrunks, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
   }
   const emergentTrunkLayer = register(emergentTrunks, { castShadow: true });
 
-  function buildCrownLayer(name, clusters, geometry, material, ownerLayer, { castShadow = true } = {}) {
-    const rng = mulberry32(WORLD.seed + 7 + name.length * 13);
-    const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, clusters.length));
-    mesh.name = name;
-    clusters.forEach((c, i) => {
-      setMatrix(mesh, i, c.x, c.y, c.z, c.tilt ?? (rng() - 0.5) * 0.3, rng() * TAU, (rng() - 0.5) * 0.3, c.s, c.s * (0.85 + rng() * 0.3), c.s);
-    });
-    if (clusters.length === 0) setMatrix(mesh, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
-    return register(mesh, { castShadow, gate: gateFromOwners(clusters, ownerLayer.maxCount) });
-  }
+  // broad, flat-topped emergent crown: a tuft-ball on each of the six limb
+  // tips, a wide shallow dome over the top, two fillers under the dome
+  const emergentCrownGeo = shellCrown({
+    seed: 4101,
+    center: emergentCrownOrigin,
+    blobs: [
+      ...limbBlobs(emergentTrunk, { tipR: [3.2, 2.2, 3.2], tipCount: 24, push: 0.8, size: 1.0, lobes: 3 }),
+      { x: emergentTrunk.top[0], y: emergentTrunk.top[1] + 2.0, z: emergentTrunk.top[2], rx: 6.0, ry: 2.8, rz: 6.0, count: 96, lobes: 5, lobeAmp: 0.2, size: 1.12 },
+      // fillers knit the limb tufts to the dome so the crown reads as one mass
+      { x: emergentTrunk.top[0] + 3.2, y: emergentTrunk.top[1] - 1.8, z: emergentTrunk.top[2] - 2.6, rx: 3.0, ry: 1.9, rz: 3.0, count: 12, lobes: 2, size: 0.95 },
+      { x: emergentTrunk.top[0] - 3.4, y: emergentTrunk.top[1] - 1.4, z: emergentTrunk.top[2] + 2.4, rx: 3.0, ry: 1.9, rz: 3.0, count: 12, lobes: 2, size: 0.95 },
+      { x: emergentTrunk.top[0] - 1.0, y: emergentTrunk.top[1] - 2.6, z: emergentTrunk.top[2] - 3.6, rx: 2.8, ry: 1.8, rz: 2.8, count: 10, lobes: 2, size: 0.95 },
+    ],
+    cardSize: [2.2, 4.0],
+    undersideThin: 0.3,
+    innerFrac: 0.2,
+    core: { w: 16.0, h: 9.0, y: 1.0 },
+    upFactor: 0.72,
+    spherical: 0.7,
+  });
+  const emergentCrownInst = instanceStream(Math.max(1, emergentCrowns.length));
+  const emergentCrownMat = foliageMaterial(ft.canopyEmergent, { tint: [0.92, 1.0, 0.88], translucency: 0.4, roughness: 0.68, hueSpread: 0.12, valueSpread: 0.14, ao: [-4.5, 2.5, 0.22], doubleSided: true, cardVariation: 0.16 });
+  // crown sway = the trunk's top sway (same anchor, strength, speed) so the
+  // limbs stay inside their tufts; the flutter is the crown's own motion
+  applyVertex(emergentCrownMat, { wind: { strength: 0.1, speed: 0.32, uniformSway: true, cardFlutter: 0.14 }, lod: CROWN_LOD, inst: emergentCrownInst });
+  buildCrownLayer('emergent-crowns', emergentCrowns, emergentCrownGeo, emergentCrownMat, emergentTrunkLayer, emergentCrownInst);
 
-  const emergentCrownGeo = prepareFoliage(crownCluster('wide', 10.5, 6.2), 0.7, 0.6, 0.28);
-  const emergentCrownMat = foliageMaterial(ft.canopyEmergent, { tint: [0.9, 1.0, 0.88], translucency: 0.4, roughness: 0.68, ao: [-2.6, 1.6, 0.3] });
-  applyVertex(emergentCrownMat, { wind: { strength: 0.45, speed: 0.4, uniformSway: true, flutter: 0.05 } });
-  buildCrownLayer('emergent-crowns', emergentClusters, emergentCrownGeo, emergentCrownMat, emergentTrunkLayer);
-
-  // ---------- medium canopy trees (12–18 m), 3 crown species ----------
-  const mediumTrunk = buildTrunk({
+  // ---------- medium canopy trees (12–18 m), 2 trunk variants × 3 crown species ----------
+  const mediumTrunkBase = {
     height: 12,
     radiusBase: 0.5,
-    radiusTop: 0.22,
-    radial: 8,
+    radiusTop: 0.2,
+    radial: 9,
     rings: 5,
     flareStart: 0.15,
     flarePow: 2.0,
@@ -1153,13 +1495,34 @@ export function createVegetation(ctx) {
     lobeAmp: 0.5,
     lobeSharp: 2.0,
     wobble: 0.28,
-    seed: 43,
-    branches: [
-      { t: 0.64, yaw: 0.4, tilt: 0.8, length: 3.4, radius: 0.17 },
-      { t: 0.76, yaw: 2.5, tilt: 0.75, length: 3.1, radius: 0.15 },
-      { t: 0.87, yaw: 4.6, tilt: 0.7, length: 2.7, radius: 0.13 },
-    ],
-  });
+    branchSides: 5,
+    branchSegs: 2,
+    twigSides: 4,
+  };
+  const mediumTrunks = [
+    buildTrunk({
+      ...mediumTrunkBase,
+      seed: 43,
+      branches: [
+        { t: 0.6, yaw: 0.4, tilt: 0.9, length: 3.6, radius: 0.18, curl: 0.5 },
+        { t: 0.7, yaw: 2.3, tilt: 0.82, length: 3.3, radius: 0.16, curl: 0.5 },
+        { t: 0.8, yaw: 4.1, tilt: 0.78, length: 3.0, radius: 0.15, curl: 0.45, twigs: 1 },
+        { t: 0.9, yaw: 5.5, tilt: 0.6, length: 2.5, radius: 0.13, curl: 0.35, twigs: 1 },
+      ],
+    }),
+    buildTrunk({
+      ...mediumTrunkBase,
+      seed: 44,
+      wobble: 0.34,
+      branches: [
+        { t: 0.55, yaw: 1.2, tilt: 1.0, length: 3.8, radius: 0.19, curl: 0.55 },
+        { t: 0.68, yaw: 3.4, tilt: 0.85, length: 3.4, radius: 0.16, curl: 0.5 },
+        { t: 0.78, yaw: 5.2, tilt: 0.75, length: 3.0, radius: 0.15, curl: 0.45, twigs: 1 },
+        { t: 0.88, yaw: 0.2, tilt: 0.7, length: 2.7, radius: 0.14, curl: 0.4, twigs: 1 },
+        { t: 0.95, yaw: 2.6, tilt: 0.45, length: 2.0, radius: 0.11, curl: 0.3, twigs: 1 },
+      ],
+    }),
+  ];
   const mediumPlacements = scatter({
     count: 1500,
     seed: 111,
@@ -1176,77 +1539,149 @@ export function createVegetation(ctx) {
     spacing: { hash: treeHash, dist: 4.6, radius: 0.7 },
     maxTries: 120000,
   });
-  const mediumBarkMat = barkMaterial(ft.canopyBark, ft.canopyBarkNormal, barkNoise, textures.moss, {
-    mossHeight: 3.2,
-    mossStrength: 0.8,
-    normalScale: 0.85,
-  });
-  applyVertex(mediumBarkMat, { wind: { strength: 0.07, speed: 0.4, heightRef: 12, heightPow: 2.0 } });
-  const mediumTrunks = new THREE.InstancedMesh(mediumTrunk.geometry, mediumBarkMat, Math.max(1, mediumPlacements.length));
-  mediumTrunks.name = 'canopy-trunks';
-  const mediumClusters = [[], [], []];
-  {
-    const rng = mulberry32(WORLD.seed + 112);
-    mediumPlacements.forEach((p, i) => {
+  // one bark material per trunk variant: each carries its own anchor stream
+  const mediumBarkMat = (inst) => {
+    const mat = barkMaterial(ft.canopyBark, ft.canopyBarkNormal, barkNoise, textures.moss, {
+      mossHeight: 3.2,
+      mossStrength: 0.8,
+      normalScale: 0.85,
+    });
+    applyVertex(mat, { wind: { strength: 0.13, speed: 0.4, heightRef: 12, heightPow: 2.0 }, inst });
+    return mat;
+  };
+  // species chosen by a slow noise so the forest has patches of one kind with
+  // stragglers of the others — neighbours differ, but not like a checkerboard
+  const speciesAt = (x, z, r) => {
+    if (r < 0.28) return Math.floor(r / 0.28 * 3) % 3;
+    const v = clumpC(x * 0.018 + 31.7, z * 0.018 - 12.3);
+    return v < -0.09 ? 0 : v < 0.09 ? 1 : 2;
+  };
+  const mediumByVariant = [[], []]; // placements split across the two trunk variants
+  mediumPlacements.forEach((p, i) => mediumByVariant[i % 2].push(p));
+  const mediumTrunkLayers = [];
+  const mediumCrowns = [[[], [], []], [[], [], []]]; // [variant][species] → crown instances
+  const mediumCrownOrigins = mediumTrunks.map((t) => [t.top[0], t.top[1] + 0.6, t.top[2]]);
+  mediumByVariant.forEach((placements, variant) => {
+    const trunk = mediumTrunks[variant];
+    const trunkInst = instanceStream(Math.max(1, placements.length));
+    const mesh = new THREE.InstancedMesh(trunk.geometry, mediumBarkMat(trunkInst), Math.max(1, placements.length));
+    mesh.name = `canopy-trunks-${variant === 0 ? 'a' : 'b'}`;
+    const rng = mulberry32(WORLD.seed + 112 + variant);
+    placements.forEach((p, i) => {
       const rim = p.s.zone.rim;
       const s = (1.0 + rng() * 0.5) * (1 + rim * 0.22); // 12–18 m, taller on the rim
-      const tree = { x: p.x, y: p.y - 0.3, z: p.z, yaw: rng() * TAU, s, sx: s * (0.9 + rng() * 0.2), sz: s * (0.9 + rng() * 0.2), kind: 'medium', index: i, trunk: mediumTrunk };
-      setMatrix(mediumTrunks, i, tree.x, tree.y, tree.z, 0, tree.yaw, 0, tree.sx, tree.s, tree.sz);
+      const tree = { x: p.x, y: p.y - 0.3, z: p.z, yaw: rng() * TAU, s, sx: s * (0.9 + rng() * 0.2), sz: s * (0.9 + rng() * 0.2), kind: 'medium', index: i, variant, trunk };
+      setMatrix(mesh, i, tree.x, tree.y, tree.z, 0, tree.yaw, 0, tree.sx, tree.s, tree.sz);
+      writeAnchor(trunkInst, i, tree.x, tree.y, tree.z, tree.yaw);
       bigTrees.push(tree);
-      const variant = i % 3;
-      const wide = variant === 1 ? 1.25 : 1.0; // umbrella species spreads wider
-      const local = [];
-      mediumTrunk.branchTips.forEach((tip, b) => {
-        const dir = mediumTrunk.branchDirs[b];
-        local.push({ x: (tip[0] + dir[0] * 0.5) * wide, y: tip[1] + dir[1] * 0.3 + 0.2, z: (tip[2] + dir[2] * 0.5) * wide, cs: 1.0 });
-      });
-      local.push({ x: mediumTrunk.top[0], y: mediumTrunk.top[1] + (variant === 1 ? 0.3 : 0.9), z: mediumTrunk.top[2], cs: variant === 1 ? 1.15 : 1.05 });
-      // three fillers spread around the crown so neighbouring crowns knit together
-      const a0 = rng() * TAU;
-      for (let f = 0; f < 3; f += 1) {
-        const a = a0 + (f / 3) * TAU + (rng() - 0.5) * 0.8;
-        const rad = (2.4 + rng() * 1.3) * wide;
-        local.push({ x: Math.cos(a) * rad, y: mediumTrunk.top[1] - 1.0 - rng() * 1.4, z: Math.sin(a) * rad, cs: 0.85 + rng() * 0.2 });
-      }
-      local.forEach((c) => {
-        const [wx, wy, wz] = treeToWorld(tree, c.x + (rng() - 0.5) * 0.7, c.y + (rng() - 0.5) * 0.6, c.z + (rng() - 0.5) * 0.7);
-        mediumClusters[variant].push({ x: wx, y: wy, z: wz, s: c.cs * s * (0.9 + rng() * 0.25), owner: i, tilt: (rng() - 0.5) * (variant === 1 ? 0.24 : 0.35) });
-      });
+      const species = speciesAt(p.x, p.z, rng());
+      mediumCrowns[variant][species].push(crownInstance(tree, mediumCrownOrigins[variant], i));
     });
-    if (mediumPlacements.length === 0) setMatrix(mediumTrunks, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
-  }
-  const mediumTrunkLayer = register(mediumTrunks, { castShadow: true });
-
-  // cap-heavy species get a softer, lower-centred shading proxy so their wide
-  // top layers don't split into a lit half and a black half
-  const mediumCrownSpecs = [
-    { name: 'canopy-round', type: 'round', map: ft.canopyA, w: 8.0, h: 5.8, tint: [1, 1, 1], spherical: 0.75, center: 0.35 },
-    { name: 'canopy-umbrella', type: 'umbrella', map: ft.canopyB, w: 7.6, h: 5.2, tint: [0.94, 1.0, 0.96], spherical: 0.55, center: 0.22 },
-    { name: 'canopy-layered', type: 'layered', map: ft.canopyC, w: 7.4, h: 6.0, tint: [1.0, 1.0, 0.9], spherical: 0.65, center: 0.3 },
-  ];
-  mediumCrownSpecs.forEach((spec, v) => {
-    const geo = prepareFoliage(crownCluster(spec.type, spec.w, spec.h), 0.7, spec.spherical, spec.center);
-    const mat = foliageMaterial(spec.map, { tint: spec.tint, translucency: 0.45, roughness: 0.7, hueSpread: 0.14, ao: [-spec.h * 0.45, spec.h * 0.25, 0.3] });
-    applyVertex(mat, { wind: { strength: 0.38 + v * 0.03, speed: 0.48 - v * 0.03, uniformSway: true, flutter: 0.06 } });
-    buildCrownLayer(spec.name, mediumClusters[v], geo, mat, mediumTrunkLayer);
+    if (placements.length === 0) setMatrix(mesh, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
+    mediumTrunkLayers.push(register(mesh, { castShadow: true }));
   });
 
-  // ---------- understory trees (5–8 m, sparse crowns) ----------
-  const understoryTrunk = buildTrunk({
+  // Three crown habits. All are limb-tip tuft balls + a main dome; the habit
+  // is in the dome proportions: round, wide-and-flat (umbrella), or stacked
+  // tiers (layered) with a smaller upper dome.
+  const mediumCrownSpecs = [
+    {
+      name: 'canopy-round',
+      map: ft.canopyA,
+      tint: [1, 1, 1],
+      cardSize: [1.5, 3.1],
+      blobs: (trunk) => [
+        ...limbBlobs(trunk, { tipR: [2.0, 1.6, 2.0], tipCount: 14, push: 0.5, lobes: 3 }),
+        { x: trunk.top[0], y: trunk.top[1] + 1.3, z: trunk.top[2], rx: 3.8, ry: 3.0, rz: 3.8, count: 64, lobes: 4, lobeAmp: 0.24 },
+      ],
+      core: () => ({ w: 9.0, h: 6.4, y: 0.4 }),
+      undersideThin: 0.28,
+      spherical: 0.8,
+    },
+    {
+      name: 'canopy-umbrella',
+      map: ft.canopyB,
+      tint: [0.94, 1.0, 0.96],
+      cardSize: [1.7, 3.3],
+      blobs: (trunk) => [
+        ...limbBlobs(trunk, { tipR: [2.5, 1.2, 2.5], tipCount: 14, push: 0.9, tipLift: 0.5, lobes: 3 }),
+        { x: trunk.top[0], y: trunk.top[1] + 0.7, z: trunk.top[2], rx: 5.0, ry: 1.8, rz: 5.0, count: 64, lobes: 5, lobeAmp: 0.18 },
+      ],
+      core: () => ({ w: 11.0, h: 3.6, y: 0.1 }),
+      undersideThin: 0.4,
+      bottomFlatten: 0.6,
+      spherical: 0.6,
+    },
+    {
+      name: 'canopy-layered',
+      map: ft.canopyC,
+      tint: [1.0, 1.0, 0.9],
+      cardSize: [1.4, 2.9],
+      blobs: (trunk) => [
+        ...limbBlobs(trunk, { tipR: [1.9, 1.3, 1.9], tipCount: 12, push: 0.4, lobes: 3 }),
+        { x: trunk.top[0], y: trunk.top[1] - 1.4, z: trunk.top[2], rx: 3.7, ry: 1.4, rz: 3.7, count: 38, lobes: 4, lobeAmp: 0.2 },
+        { x: trunk.top[0] + 0.3, y: trunk.top[1] + 1.9, z: trunk.top[2] - 0.2, rx: 2.4, ry: 1.6, rz: 2.4, count: 30, lobes: 3, lobeAmp: 0.22 },
+      ],
+      core: () => ({ w: 8.4, h: 7.2, y: 0.2 }),
+      undersideThin: 0.28,
+      spherical: 0.7,
+    },
+  ];
+  mediumCrownSpecs.forEach((spec, species) => {
+    mediumTrunks.forEach((trunk, variant) => {
+      const crowns = mediumCrowns[variant][species];
+      const geo = shellCrown({
+        seed: 4200 + species * 10 + variant,
+        center: mediumCrownOrigins[variant],
+        blobs: spec.blobs(trunk),
+        cardSize: spec.cardSize,
+        undersideThin: spec.undersideThin,
+        bottomFlatten: spec.bottomFlatten ?? 0.72,
+        core: spec.core(),
+        spherical: spec.spherical,
+      });
+      const inst = instanceStream(Math.max(1, crowns.length));
+      const mat = foliageMaterial(spec.map, { tint: spec.tint, translucency: 0.45, roughness: 0.7, hueSpread: 0.14, valueSpread: 0.18, ao: [-3.2, 1.6, 0.32], doubleSided: true, cardVariation: 0.18 });
+      applyVertex(mat, { wind: { strength: 0.13, speed: 0.4, uniformSway: true, cardFlutter: 0.11 + species * 0.015 }, lod: CROWN_LOD, inst });
+      buildCrownLayer(`${spec.name}-${variant === 0 ? 'a' : 'b'}`, crowns, geo, mat, mediumTrunkLayers[variant], inst);
+    });
+  });
+
+  // ---------- understory trees (5–8 m, sparse crowns), 2 variants ----------
+  const understoryTrunkBase = {
     height: 6,
     radiusBase: 0.16,
-    radiusTop: 0.07,
+    radiusTop: 0.06,
     radial: 6,
     rings: 3,
     flareStart: 0.12,
     flareAmount: 0.4,
     wobble: 0.18,
-    seed: 45,
-    branches: [
-      { t: 0.7, yaw: 0.9, tilt: 0.85, length: 1.9, radius: 0.07 },
-      { t: 0.84, yaw: 3.6, tilt: 0.8, length: 1.6, radius: 0.06 },
-    ],
-  });
+    branchSides: 4,
+    branchSegs: 2,
+    twigSides: 4,
+  };
+  const understoryTrunks = [
+    buildTrunk({
+      ...understoryTrunkBase,
+      seed: 45,
+      branches: [
+        { t: 0.62, yaw: 0.9, tilt: 0.95, length: 2.0, radius: 0.07, curl: 0.5, twigs: 1 },
+        { t: 0.78, yaw: 3.0, tilt: 0.85, length: 1.8, radius: 0.06, curl: 0.45, twigs: 1 },
+        { t: 0.9, yaw: 5.0, tilt: 0.7, length: 1.5, radius: 0.05, curl: 0.4, twigs: 1 },
+      ],
+    }),
+    buildTrunk({
+      ...understoryTrunkBase,
+      seed: 46,
+      wobble: 0.24,
+      branches: [
+        { t: 0.55, yaw: 2.2, tilt: 1.05, length: 2.2, radius: 0.075, curl: 0.55, twigs: 1 },
+        { t: 0.72, yaw: 4.4, tilt: 0.9, length: 1.9, radius: 0.065, curl: 0.5, twigs: 1 },
+        { t: 0.86, yaw: 0.3, tilt: 0.75, length: 1.6, radius: 0.055, curl: 0.4, twigs: 1 },
+      ],
+    }),
+  ];
   const understoryPlacements = scatter({
     count: 1150,
     seed: 121,
@@ -1261,39 +1696,56 @@ export function createVegetation(ctx) {
     spacing: { hash: treeHash, dist: 3, radius: 0.25 },
     maxTries: 70000,
   });
-  const understoryBarkMat = barkMaterial(ft.understoryBark, ft.understoryBarkNormal, barkNoise, textures.moss, {
-    mossHeight: 1.6,
-    mossStrength: 0.6,
-    gradientHeight: 4,
-    baseTint: [0.84, 0.88, 0.74],
-  });
-  applyVertex(understoryBarkMat, { wind: { strength: 0.08, speed: 0.6, heightRef: 6, heightPow: 1.8 } });
-  const understoryTrunks = new THREE.InstancedMesh(understoryTrunk.geometry, understoryBarkMat, Math.max(1, understoryPlacements.length));
-  understoryTrunks.name = 'understory-trunks';
-  const understoryClusters = [];
-  {
-    const rng = mulberry32(WORLD.seed + 122);
-    understoryPlacements.forEach((p, i) => {
+  const understoryBarkMat = (inst) => {
+    const mat = barkMaterial(ft.understoryBark, ft.understoryBarkNormal, barkNoise, textures.moss, {
+      mossHeight: 1.6,
+      mossStrength: 0.6,
+      gradientHeight: 4,
+      baseTint: [0.84, 0.88, 0.74],
+    });
+    applyVertex(mat, { wind: { strength: 0.12, speed: 0.6, heightRef: 6, heightPow: 1.8 }, inst });
+    return mat;
+  };
+  const understoryByVariant = [[], []];
+  understoryPlacements.forEach((p, i) => understoryByVariant[i % 2].push(p));
+  understoryByVariant.forEach((placements, variant) => {
+    const trunk = understoryTrunks[variant];
+    const trunkInst = instanceStream(Math.max(1, placements.length));
+    const mesh = new THREE.InstancedMesh(trunk.geometry, understoryBarkMat(trunkInst), Math.max(1, placements.length));
+    mesh.name = `understory-trunks-${variant === 0 ? 'a' : 'b'}`;
+    const origin = [trunk.top[0], trunk.top[1] + 0.4, trunk.top[2]];
+    const crowns = [];
+    const rng = mulberry32(WORLD.seed + 122 + variant);
+    placements.forEach((p, i) => {
       const s = 0.85 + rng() * 0.5; // 5–8 m
       const tree = { x: p.x, y: p.y - 0.15, z: p.z, yaw: rng() * TAU, s, sx: s * (0.9 + rng() * 0.2), sz: s * (0.9 + rng() * 0.2) };
-      setMatrix(understoryTrunks, i, tree.x, tree.y, tree.z, 0, tree.yaw, 0, tree.sx, tree.s, tree.sz);
-      const local = understoryTrunk.branchTips.map((tip, b) => {
-        const dir = understoryTrunk.branchDirs[b];
-        return { x: tip[0] + dir[0] * 0.4, y: tip[1] + 0.2, z: tip[2] + dir[2] * 0.4, cs: 0.9 };
-      });
-      local.push({ x: understoryTrunk.top[0], y: understoryTrunk.top[1] + 0.6, z: understoryTrunk.top[2], cs: 1.0 });
-      local.forEach((c) => {
-        const [wx, wy, wz] = treeToWorld(tree, c.x, c.y, c.z);
-        understoryClusters.push({ x: wx, y: wy, z: wz, s: c.cs * s * (0.9 + rng() * 0.3), owner: i, tilt: (rng() - 0.5) * 0.4 });
-      });
+      setMatrix(mesh, i, tree.x, tree.y, tree.z, 0, tree.yaw, 0, tree.sx, tree.s, tree.sz);
+      writeAnchor(trunkInst, i, tree.x, tree.y, tree.z, tree.yaw);
+      crowns.push(crownInstance(tree, origin, i));
     });
-    if (understoryPlacements.length === 0) setMatrix(understoryTrunks, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
-  }
-  const understoryTrunkLayer = register(understoryTrunks, { castShadow: true });
-  const understoryCrownGeo = prepareFoliage(crownCluster('sparse', 3.6, 2.9), 0.68, 0.7);
-  const understoryCrownMat = foliageMaterial(ft.canopyUnderstory, { tint: [0.96, 1.0, 0.9], translucency: 0.45, roughness: 0.66, hueSpread: 0.13, ao: [-1.4, 1.0, 0.28] });
-  applyVertex(understoryCrownMat, { wind: { strength: 0.22, speed: 0.7, uniformSway: true, flutter: 0.06 } });
-  buildCrownLayer('understory-crowns', understoryClusters, understoryCrownGeo, understoryCrownMat, understoryTrunkLayer);
+    if (placements.length === 0) setMatrix(mesh, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
+    const trunkLayer = register(mesh, { castShadow: true });
+    // open, sparse crown: small tuft-balls on the three limbs and a loose top
+    const geo = shellCrown({
+      seed: 4300 + variant,
+      center: origin,
+      blobs: [
+        ...limbBlobs(trunk, { tipR: [1.2, 0.95, 1.2], tipCount: 9, push: 0.35, tipLift: 0.15, lobes: 2 }),
+        { x: trunk.top[0], y: trunk.top[1] + 0.9, z: trunk.top[2], rx: 1.9, ry: 1.45, rz: 1.9, count: 19, lobes: 3, lobeAmp: 0.25 },
+      ],
+      cardSize: [1.3, 1.9],
+      undersideThin: 0.4,
+      shadeBias: 0.6,
+      innerFrac: 0.15,
+      core: { w: 4.4, h: 3.4, y: 0.2 },
+      spherical: 0.75,
+    });
+    const inst = instanceStream(Math.max(1, crowns.length));
+    // one material per variant: each carries its own instance stream
+    const mat = foliageMaterial(ft.canopyUnderstory, { tint: [0.96, 1.0, 0.9], translucency: 0.45, roughness: 0.66, hueSpread: 0.13, valueSpread: 0.15, ao: [-1.6, 0.9, 0.3], doubleSided: true, cardVariation: 0.16 });
+    applyVertex(mat, { wind: { strength: 0.12, speed: 0.6, uniformSway: true, cardFlutter: 0.08 }, lod: { near: 90, far: 125, coreScale: 0.6 }, inst });
+    buildCrownLayer(`understory-crowns-${variant === 0 ? 'a' : 'b'}`, crowns, geo, mat, trunkLayer, inst);
+  });
 
   // =====================================================================
   // PALMS
@@ -1322,20 +1774,46 @@ export function createVegetation(ctx) {
     baseTint: [0.8, 0.82, 0.7],
     normalScale: 0.7,
   });
-  applyVertex(palmBarkMat, { wind: { strength: 0.16, speed: 0.6, heightRef: 11, heightPow: 2.2 } });
+  // trunk and head carry the same anchor (and each its own yaw) so the head
+  // rides the swaying trunk tip instead of sliding off it
+  const palmTrunkInst = instanceStream(Math.max(1, palmPlacements.length));
+  const palmHeadInst = instanceStream(Math.max(1, palmPlacements.length));
+  applyVertex(palmBarkMat, { wind: { strength: 0.16, speed: 0.6, heightRef: 11, heightPow: 2.2 }, inst: palmTrunkInst });
   // coconut crown: a few young fronds still rising, most arching over and the
-  // oldest hanging — a rounded mop rather than a flat star from the vistas
-  const frondGeo = prepareFoliage(
-    mergeGeometries([
+  // oldest hanging — a rounded mop rather than a flat star from the vistas.
+  // Under them a smooth green crown-shaft where the trunk ends, and two or
+  // three dead brown fronds hanging down the trunk (vertex-tinted so they
+  // share the frond map and draw call).
+  const frondGeo = (() => {
+    const live = mergeGeometries([
       radialCards(() => bentCard(1.4, 4.4, 0.62, 5, 0.4), 5, { startTilt: 0.5, tiltJitter: 0.3, yawJitter: 0.7, seed: 7, lift: 0.15 }),
-      radialCards(() => bentCard(1.5, 4.8, 0.55, 5, 0.35), 8, { startTilt: 1.05, tiltJitter: 0.35, yawJitter: 0.5, seed: 8 }),
-      radialCards(() => bentCard(1.3, 4.0, 0.3, 4, 0.3), 4, { startTilt: 1.55, tiltJitter: 0.3, yawJitter: 0.8, seed: 9, lift: -0.2 }),
-    ]),
-    0.6,
-    0.55
-  );
-  const frondMat = foliageMaterial(textures.palmFrond, { translucency: 0.4, roughness: 0.6, tint: [0.78, 0.9, 0.68], hueSpread: 0.08 });
-  applyVertex(frondMat, { wind: { strength: 0.4, speed: 0.8, heightRef: 4.6, heightPow: 1.2, flutter: 0.05 } });
+      radialCards(() => bentCard(1.5, 4.8, 0.6, 5, 0.35), 8, { startTilt: 1.05, tiltJitter: 0.35, yawJitter: 0.5, seed: 8 }),
+      radialCards(() => bentCard(1.3, 4.0, 0.5, 5, 0.3), 5, { startTilt: 1.7, tiltJitter: 0.3, yawJitter: 0.8, seed: 9, lift: -0.2 }),
+    ]);
+    addFlatColor(live, 1, 1, 1);
+    // dead fronds: hang almost straight down, hugging the trunk, browned
+    const dead = radialCards(() => bentCard(1.1, 3.4, 0.12, 3, 0.35), 3, { startTilt: 2.55, tiltJitter: 0.25, yawJitter: 1.4, seed: 10, lift: -0.35 });
+    addFlatColor(dead, 0.66, 0.5, 0.3);
+    // crown-shaft: a short tapered sleeve over the trunk tip, mapped to the
+    // rachis strip of the frond texture so it reads as smooth green stem
+    const shaft = new THREE.CylinderGeometry(0.2, 0.34, 1.5, 7, 1, true);
+    shaft.translate(0, -0.55, 0);
+    const shaftUv = shaft.attributes.uv;
+    for (let i = 0; i < shaftUv.count; i += 1) {
+      shaftUv.setXY(i, 0.492 + shaftUv.getX(i) * 0.016, 0.15 + shaftUv.getY(i) * 0.7);
+    }
+    addFlatColor(shaft, 0.85, 0.92, 0.7);
+    const merged = mergeGeometries([live, dead, shaft]);
+    live.dispose();
+    dead.dispose();
+    shaft.dispose();
+    return prepareFoliage(merged, 0.6, 0.55);
+  })();
+  // tint pulled down and an occlusion ramp over frond height: the rising young
+  // fronds are sunlit, the arching old ones sit under them in shade
+  const frondMat = foliageMaterial(textures.palmFrond, { translucency: 0.32, roughness: 0.62, tint: [0.66, 0.8, 0.56], hueSpread: 0.08, valueSpread: 0.14, vertexTint: true, ao: [-1.5, 2.5, 0.3] });
+  // heightFloor 0.4 × 0.4 = 0.16: the head's base moves exactly like the trunk tip
+  applyVertex(frondMat, { wind: { strength: 0.4, speed: 0.6, heightRef: 4.6, heightPow: 1.2, flutter: 0.05, heightFloor: 0.4 }, inst: palmHeadInst });
   const palmTrunks = new THREE.InstancedMesh(palmTrunkGeo, palmBarkMat, Math.max(1, palmPlacements.length));
   const palmHeads = new THREE.InstancedMesh(frondGeo, frondMat, Math.max(1, palmPlacements.length));
   palmTrunks.name = 'palm-trunks';
@@ -1346,8 +1824,11 @@ export function createVegetation(ctx) {
       const s = 0.7 + rng() * 0.5;
       const yaw = rng() * TAU;
       setMatrix(palmTrunks, i, p.x, p.y - 0.25, p.z, 0, yaw, 0, s, s, s);
+      writeAnchor(palmTrunkInst, i, p.x, p.y - 0.25, p.z, yaw);
       // trunk tip (2.4, 11, 0) rotated by yaw
-      setMatrix(palmHeads, i, p.x + Math.cos(yaw) * 2.35 * s, p.y - 0.25 + 10.9 * s, p.z - Math.sin(yaw) * 2.35 * s, 0, rng() * TAU, 0, s * 1.05, s * 1.05, s * 1.05);
+      const headYaw = rng() * TAU;
+      setMatrix(palmHeads, i, p.x + Math.cos(yaw) * 2.35 * s, p.y - 0.25 + 10.9 * s, p.z - Math.sin(yaw) * 2.35 * s, 0, headYaw, 0, s * 1.05, s * 1.05, s * 1.05);
+      writeAnchor(palmHeadInst, i, p.x, p.y - 0.25, p.z, headYaw);
     });
     if (palmPlacements.length === 0) {
       setMatrix(palmTrunks, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
@@ -1550,7 +2031,16 @@ export function createVegetation(ctx) {
 
   // ---------- tree ferns (ravine) ----------
   const treeFernTrunkGeo = curvedCylinder({ radiusTop: 0.14, radiusBottom: 0.22, height: 2.6, radial: 6, rings: 3, lean: 0.2, ridge: 0.08, ridgeFreq: 7, uvV: 1.4 });
-  const treeFernCrownGeo = prepareFoliage(radialCards(() => bentCard(1.1, 2.6, 0.78, 4, 0.2), 8, { startTilt: 1.0, tiltJitter: 0.4, yawJitter: 0.5, seed: 31 }), 0.62, 0.5);
+  // two tiers of arching fronds (young ones held up, old ones drooping) so
+  // the crown is a rounded shuttlecock, not a flat star
+  const treeFernCrownGeo = prepareFoliage(
+    mergeGeometries([
+      radialCards(() => bentCard(0.9, 2.2, 0.55, 5, 0.25), 5, { startTilt: 0.62, tiltJitter: 0.35, yawJitter: 0.8, seed: 31, lift: 0.1 }),
+      radialCards(() => bentCard(1.1, 2.7, 0.85, 5, 0.2), 8, { startTilt: 1.12, tiltJitter: 0.4, yawJitter: 0.5, seed: 32 }),
+    ]),
+    0.62,
+    0.5
+  );
   const treeFernPlacements = scatter({
     count: 240,
     seed: 221,
@@ -1564,7 +2054,8 @@ export function createVegetation(ctx) {
     maxTries: 60000,
   });
   const treeFernTrunkMat = barkMaterial(ft.treeFernBark, ft.treeFernBarkNormal, barkNoise, textures.moss, { mossHeight: 1.5, mossStrength: 0.7, gradientHeight: 3, normalScale: 0.9 });
-  const treeFernCrownMat = foliageMaterial(ft.treeFernFrond, { translucency: 0.6, roughness: 0.7, tint: [0.95, 1.0, 0.9] });
+  // kept well below the canopy greens: a shade plant, not a lime lantern
+  const treeFernCrownMat = foliageMaterial(ft.treeFernFrond, { translucency: 0.35, roughness: 0.74, tint: [0.68, 0.8, 0.6], valueSpread: 0.16, ao: [0, 1.4, 0.3] });
   applyVertex(treeFernCrownMat, { wind: { strength: 0.2, speed: 0.9, heightRef: 2.6, heightPow: 1.2, flutter: 0.04 } });
   const treeFernTrunks = new THREE.InstancedMesh(treeFernTrunkGeo, treeFernTrunkMat, Math.max(1, treeFernPlacements.length));
   const treeFernCrowns = new THREE.InstancedMesh(treeFernCrownGeo, treeFernCrownMat, Math.max(1, treeFernPlacements.length));
@@ -1766,7 +2257,9 @@ export function createVegetation(ctx) {
       spacing: { hash: plantHash, dist: 0.9, radius: 0.2 },
       maxTries: 90000,
     }),
-    scale: (p, rng) => 0.85 + rng() * 0.9,
+    // crevice ferns on a steep face are small tufts; a full-size rosette
+    // tilted off a wall reads as a plant glued onto it
+    scale: (p, rng) => (0.85 + rng() * 0.9) * (0.55 + 0.45 * sstep(0.55, 0.85, p.s.ny)),
     align: 0.6,
     inst: fernInst,
   });
@@ -1876,17 +2369,22 @@ export function createVegetation(ctx) {
   const grassGeoBase = crossedCards(1.35, 0.9, 2);
   grassGeoBase.translate(0, 0.4, 0);
   const grassGeo = prepareFoliage(grassGeoBase, 0.78);
-  // olive tint so blades sit in the ground's grass albedo instead of glowing lime above it
-  const grassMat = foliageMaterial(textures.grassBlade, { translucency: 0.35, roughness: 0.8, fade: [55, 75], hueSpread: 0.1, valueSpread: 0.18, tint: [0.7, 0.8, 0.52], ao: [0, 0.65, 0.5] });
-  const grassInst = instanceStream(34000);
-  applyVertex(grassMat, { wind: { strength: 0.14, speed: 1.7, heightRef: 0.8, flutter: 0.05 }, fade: [55, 75], inst: grassInst });
+  // Far-only filler: the near field belongs to the streamed Bezier-blade tufts
+  // in grass.js, so these crossed cards only grow in where that disc dissolves
+  // (GRASS_DISC_FADE follows the preset) and carry the turf out to ~125 m.
+  // Olive tint so blades sit in the ground's grass albedo instead of glowing
+  // lime above it.
+  const grassHandover = [GRASS_DISC_FADE.start, GRASS_DISC_FADE.end];
+  const grassMat = foliageMaterial(textures.grassBlade, { translucency: 0.35, roughness: 0.8, fade: [95, 125], fadeIn: grassHandover, hueSpread: 0.1, valueSpread: 0.18, tint: [0.7, 0.8, 0.52], ao: [0, 0.65, 0.5] });
+  const grassInst = instanceStream(16000);
+  applyVertex(grassMat, { wind: { strength: 0.14, speed: 1.7, heightRef: 0.8, flutter: 0.05 }, fade: [95, 125], fadeIn: grassHandover, inst: grassInst });
   buildSimple({
     name: 'grass',
     geometry: grassGeo,
     material: grassMat,
     seed: 262,
     placements: scatter({
-      count: 34000,
+      count: 16000,
       seed: 261,
       rule: (s, x, z) => {
         if (s.h < 0.6 || s.ny < 0.72) return 0;
@@ -1904,7 +2402,7 @@ export function createVegetation(ctx) {
       },
       maxTries: 400000,
     }),
-    scale: (p, rng) => 0.65 + rng() * 1.05,
+    scale: (p, rng) => 0.55 + rng() * 0.6,
     sink: 0.12,
     densityKey: 'grass',
     inst: grassInst,
@@ -2040,7 +2538,7 @@ export function createVegetation(ctx) {
     t.gate = gateOf(t.index, emergentTrunkLayer.maxCount);
   });
   mediums.forEach((t) => {
-    t.gate = gateOf(t.index, mediumTrunkLayer.maxCount);
+    t.gate = gateOf(t.index, mediumTrunkLayers[t.variant].maxCount);
   });
 
   function attachmentLayer(name, items, geometry, material, { castShadow = false } = {}) {
@@ -2255,6 +2753,15 @@ export function createVegetation(ctx) {
       if (ctx.sky?.sunDirection) {
         sunDirUniform.value.copy(ctx.sky.sunDirection);
       }
+      if (ctx.camera) {
+        viewPosUniform.value.copy(ctx.camera.position);
+      }
     },
   };
 }
+
+// Crown toolkit for other modules that place trees (the landmark kapok):
+// build a shell crown geometry, wrap a leaf atlas in the crown material, and
+// give the material a per-instance anchor stream so its LOD / wind match the
+// vegetation crowns. The atlas comes from createLeafClusterTexture({atlas: 2}).
+export { shellCrown, foliageMaterial, applyVertex, instanceStream };

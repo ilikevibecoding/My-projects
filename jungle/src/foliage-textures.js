@@ -37,12 +37,22 @@ function gradient(ctx, x0, y0, x1, y1, c0, c1) {
   return g;
 }
 
+// '#rrggbb' or 'rgb(r, g, b)' → [r, g, b] (so mixes can be chained)
+function parseColor(c) {
+  if (c[0] === '#') {
+    const p = parseInt(c.slice(1), 16);
+    return [(p >> 16) & 255, (p >> 8) & 255, p & 255];
+  }
+  const m = c.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : [0, 0, 0];
+}
+
 function mixHex(a, b, t) {
-  const pa = parseInt(a.slice(1), 16);
-  const pb = parseInt(b.slice(1), 16);
-  const r = Math.round(((pa >> 16) & 255) * (1 - t) + ((pb >> 16) & 255) * t);
-  const g = Math.round(((pa >> 8) & 255) * (1 - t) + ((pb >> 8) & 255) * t);
-  const bl = Math.round((pa & 255) * (1 - t) + (pb & 255) * t);
+  const pa = parseColor(a);
+  const pb = parseColor(b);
+  const r = Math.round(pa[0] * (1 - t) + pb[0] * t);
+  const g = Math.round(pa[1] * (1 - t) + pb[1] * t);
+  const bl = Math.round(pa[2] * (1 - t) + pb[2] * t);
   return `rgb(${r}, ${g}, ${bl})`;
 }
 
@@ -100,9 +110,190 @@ function roundOff(ctx, size, inner = 0.3, hold = 0.82) {
 
 // ---------- leaf clusters (tree crowns, bushes) ----------
 
+// One leaf cluster painted into `ctx` (a size × size canvas). Leaves are
+// sorted back-to-front: the deep ones are drawn first, dark and desaturated
+// (they sit in the shade of the leaves above), every leaf drops a soft shadow
+// onto whatever was already painted underneath it (source-atop, so the
+// transparent background never picks it up), and the front / rim leaves come
+// last — lighter, yellower where the sun grazes the tuft, with a sheen. The
+// result reads as a tuft with depth instead of flat confetti.
+//   mode 'lit'   — sunlit tuft (outer crown)
+//   mode 'shade' — occluded tuft (inner crown / underside): darker, bluer,
+//                  lower contrast, no rim light
+function paintLeafCluster(ctx, random, {
+  size,
+  count,
+  lenRange,
+  aspect,
+  palettes,
+  squash,
+  shape,
+  highlight,
+  edgeWobble,
+  mode,
+  depth,
+  rim,
+}) {
+  // lobed outline: the reach of the cluster varies with direction so the card
+  // never reads as a disc (or, on a wide card, as a box) once alpha-tested
+  const lobes = [[2 + Math.floor(random() * 2), random() * Math.PI * 2], [5 + Math.floor(random() * 3), random() * Math.PI * 2], [9 + Math.floor(random() * 4), random() * Math.PI * 2]];
+  const reach = (angle) => {
+    if (edgeWobble <= 0) return 1;
+    const w = 0.55 * Math.sin(lobes[0][0] * angle + lobes[0][1]) + 0.3 * Math.sin(lobes[1][0] * angle + lobes[1][1]) + 0.15 * Math.sin(lobes[2][0] * angle + lobes[2][1]);
+    return 1 - edgeWobble * (0.5 - 0.5 * w);
+  };
+  const shade = mode === 'shade';
+  const shadeColor = shade ? '#06170b' : '#0c2814';
+  const rimColor = '#d8e37a';
+  // The tuft is 3–5 sub-clumps (a twig's worth of leaves each), some sitting
+  // forward and some behind, so it has internal lumps with dark seams between
+  // them instead of an even carpet of leaves — the structure that still reads
+  // when the card is 30 m away and the individual leaves are gone.
+  const clumpCount = 3 + Math.floor(random() * 3);
+  const clumps = [];
+  for (let k = 0; k < clumpCount; k += 1) {
+    const a = (k / clumpCount) * Math.PI * 2 + random() * 1.2;
+    const dist = 0.26 + random() * 0.3;
+    clumps.push({ x: Math.cos(a) * dist, y: Math.sin(a) * dist, r: 0.42 + random() * 0.2, depth: (random() - 0.5) * 0.5, w: 0.7 + random() * 0.8 });
+  }
+  // one clump straddles the centre so the tuft never has a hole in the middle
+  clumps.push({ x: (random() - 0.5) * 0.1, y: (random() - 0.5) * 0.1, r: 0.48, depth: -0.12, w: 1.1 });
+  const totalW = clumps.reduce((s, c) => s + c.w, 0);
+  const pickClump = () => {
+    let t = random() * totalW;
+    for (const c of clumps) {
+      t -= c.w;
+      if (t <= 0) return c;
+    }
+    return clumps[clumps.length - 1];
+  };
+  const leaves = [];
+  for (let i = 0; i < count; i += 1) {
+    const c = pickClump();
+    const a = random() * Math.PI * 2;
+    const rr = Math.pow(random(), 0.7) * c.r;
+    let x = c.x + Math.cos(a) * rr;
+    let y = c.y + Math.sin(a) * rr;
+    const angle = Math.atan2(y, x);
+    let rf = Math.hypot(x, y);
+    const limit = reach(angle) * (0.96 + random() * 0.08);
+    if (rf > limit) {
+      // fold leaves that fell outside the lobed outline back onto its edge
+      const k = limit / rf;
+      x *= k;
+      y *= k;
+      rf = limit;
+    }
+    // depth: the middle of a clump bulges toward the viewer, its edge curls
+    // away; whole clumps sit forward or back; a little noise on top
+    let d = 0.4 * (rr / c.r) + 0.4 * Math.pow(random(), 0.85) + 0.2 + c.depth + rf * 0.12;
+    d = Math.min(1, Math.max(0, d));
+    if (shade) d = 0.45 + d * 0.55;
+    leaves.push({
+      x: size / 2 + x * size * 0.46,
+      y: size / 2 + y * size * 0.46 * squash,
+      rf,
+      d,
+      len: lenRange[0] + random() * (lenRange[1] - lenRange[0]),
+      rot: random() * Math.PI * 2,
+      palette: palettes[Math.floor(random() * palettes.length)],
+      wj: 0.85 + random() * 0.3,
+      pairs: 3 + Math.floor(random() * 3),
+    });
+  }
+  leaves.sort((a, b) => b.d - a.d);
+
+  const shadowLeaf = (x, y, len, wid, rot, alpha, bulge) => {
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.translate(x + len * 0.09, y + len * 0.11);
+    ctx.rotate(rot);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(6, 22, 8, 1)';
+    leafPath(ctx, len * 1.08, wid * 1.25, bulge);
+    ctx.fill();
+    ctx.restore();
+  };
+  const sheenLeaf = (x, y, len, wid, rot, alpha, bulge) => {
+    ctx.save();
+    ctx.translate(x - len * 0.05, y - len * 0.06);
+    ctx.rotate(rot);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(255, 252, 225, 1)';
+    leafPath(ctx, len * 0.62, wid * 0.42, bulge);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  for (const leaf of leaves) {
+    const { x, y, rf, d, len, rot, palette, wj } = leaf;
+    // leaves toward the top of the cluster catch more light
+    const lift = 1 - y / size;
+    const front = 1 - d;
+    let c0 = palette[0];
+    let c1 = palette[1];
+    // deep leaves: darker / bluer with the contrast pulled in — the deepest
+    // go nearly to the shade colour so the seams between clumps read as holes
+    const dark = Math.min(1, Math.pow(d, 1.3) * (depth + 0.35) * (shade ? 1.3 : 1));
+    c0 = mixHex(c0, shadeColor, dark);
+    c1 = mixHex(c1, shadeColor, dark * 0.9);
+    if (!shade) {
+      c0 = mixHex(c0, '#ffffff', highlight * lift * front);
+      c1 = mixHex(c1, '#ffffff', highlight * lift * 1.6 * front);
+      // rim light: the silhouette leaves are back-lit and go yellow-green
+      const rimT = Math.max(0, rf - 0.62) / 0.38 * rim * front;
+      c1 = mixHex(c1, rimColor, rimT);
+      c0 = mixHex(c0, rimColor, rimT * 0.4);
+    } else {
+      // occluded tuft: cooler and flatter, only a hint of sky on the top leaves
+      c0 = mixHex(c0, '#0a2a1c', 0.3);
+      c1 = mixHex(c1, '#183d24', 0.3);
+      c1 = mixHex(c1, '#5f8a4a', 0.08 * lift);
+    }
+    const bulge = shape === 'round' ? 0.72 : 0.55;
+    if (shape === 'compound') {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.strokeStyle = 'rgba(60, 90, 30, 0.9)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(0, len * 0.5);
+      ctx.lineTo(0, -len * 0.5);
+      ctx.stroke();
+      for (let p = 0; p < leaf.pairs; p += 1) {
+        const t = (p + 0.5) / leaf.pairs;
+        const py = len * 0.5 - t * len;
+        const ll = len * 0.34 * (1 - t * 0.35);
+        for (const side of [-1, 1]) {
+          drawLeaf(ctx, side * ll * 0.45, py, ll, ll * 0.4, side * 1.15, c0, c1, { midrib: false });
+        }
+      }
+      ctx.restore();
+    } else {
+      const wid = len * (shape === 'round' ? 0.72 : shape === 'small' ? 0.5 : aspect) * wj;
+      if (front > 0.25) {
+        shadowLeaf(x, y, len, wid, rot, 0.22 + 0.3 * front, bulge);
+      }
+      drawLeaf(ctx, x, y, len, wid, rot, c0, c1, { bulge, midrib: len > 10, veins: len > 22 && front > 0.5 ? 2 : 0, ribColor: d > 0.5 ? 'rgba(10, 30, 10, 0.5)' : 'rgba(150, 190, 110, 0.4)' });
+      if (!shade && front > 0.72 && len > 9) {
+        sheenLeaf(x, y, len, wid, rot, 0.1 + 0.18 * (front - 0.72) * 3.5, bulge);
+      }
+    }
+  }
+  roundOff(ctx, size);
+}
+
 // Dense cluster of leaves with an organic round silhouette. `shape` picks the
 // leaf style: 'oval' (generic), 'round' (bush), 'small' (emergent crown),
 // 'compound' (pinnate leaflets on stems).
+//
+// `atlas: 2` paints a 2 × 2 atlas of variants instead of one cluster — cells
+// (u,v from the bottom-left): 0 = lit, palette set A · 1 = lit, palette set B
+// · 2 = shaded / occluded tuft · 3 = lit, warm palette. Crown cards pick a
+// cell by where they sit in the crown (see vegetation.js `shellCrown`), so the
+// outside of a crown shows sunlit tufts and the underside / interior shows
+// the dark ones — the single strongest depth cue a card crown can give.
 export function createLeafClusterTexture({
   seed = 1,
   size = 512,
@@ -115,62 +306,52 @@ export function createLeafClusterTexture({
   shape = 'oval',
   highlight = 0.08,
   edgeWobble = 0,
+  atlas = 1,
+  depth = 0.55,
+  rim = 0.22,
 } = {}) {
-  const canvas = makeCanvas(size);
-  const ctx = canvas.getContext('2d');
   const random = mulberry32(seed);
-  ctx.clearRect(0, 0, size, size);
-
-  // lobed outline: the reach of the cluster varies with direction so the card
-  // never reads as a disc (or, on a wide card, as a box) once alpha-tested
-  const lobes = [[2 + Math.floor(random() * 2), random() * Math.PI * 2], [5 + Math.floor(random() * 3), random() * Math.PI * 2], [9 + Math.floor(random() * 4), random() * Math.PI * 2]];
-  const reach = (angle) => {
-    if (edgeWobble <= 0) return 1;
-    const w = 0.55 * Math.sin(lobes[0][0] * angle + lobes[0][1]) + 0.3 * Math.sin(lobes[1][0] * angle + lobes[1][1]) + 0.15 * Math.sin(lobes[2][0] * angle + lobes[2][1]);
-    return 1 - edgeWobble * (0.5 - 0.5 * w);
-  };
-
-  for (let i = 0; i < count; i += 1) {
-    const angle = random() * Math.PI * 2;
-    const radius = Math.pow(random(), radiusPow) * size * 0.46 * reach(angle);
-    const x = size / 2 + Math.cos(angle) * radius;
-    const y = size / 2 + Math.sin(angle) * radius * squash;
-    const len = lenRange[0] + random() * (lenRange[1] - lenRange[0]);
-    const rot = random() * Math.PI * 2;
-    const palette = palettes[Math.floor(random() * palettes.length)];
-    // leaves toward the top of the cluster catch more light
-    const lift = 1 - y / size;
-    const c0 = mixHex(palette[0], '#ffffff', highlight * lift);
-    const c1 = mixHex(palette[1], '#ffffff', highlight * lift * 1.6);
-
-    if (shape === 'compound') {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(rot);
-      ctx.strokeStyle = 'rgba(60, 90, 30, 0.9)';
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(0, len * 0.5);
-      ctx.lineTo(0, -len * 0.5);
-      ctx.stroke();
-      const pairs = 3 + Math.floor(random() * 3);
-      for (let p = 0; p < pairs; p += 1) {
-        const t = (p + 0.5) / pairs;
-        const py = len * 0.5 - t * len;
-        const ll = len * 0.34 * (1 - t * 0.35);
-        for (const side of [-1, 1]) {
-          drawLeaf(ctx, side * ll * 0.45, py, ll, ll * 0.4, side * 1.15, c0, c1, { midrib: false });
-        }
-      }
-      ctx.restore();
-    } else {
-      const wid = len * (shape === 'round' ? 0.72 : shape === 'small' ? 0.5 : aspect) * (0.85 + random() * 0.3);
-      drawLeaf(ctx, x, y, len, wid, rot, c0, c1, { bulge: shape === 'round' ? 0.72 : 0.55, midrib: len > 10 });
-    }
+  const base = { size, count, lenRange, aspect, palettes, radiusPow, squash, shape, highlight, edgeWobble, depth, rim };
+  if (atlas <= 1) {
+    const canvas = makeCanvas(size);
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+    paintLeafCluster(ctx, random, { ...base, mode: 'lit' });
+    return toTexture(canvas);
   }
 
-  roundOff(ctx, size);
+  const canvas = makeCanvas(size * 2);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size * 2, size * 2);
+  const cell = makeCanvas(size);
+  const cellCtx = cell.getContext('2d');
+  // palette sets: A = first half, B = second half (or all when there are few),
+  // warm = every palette pushed toward yellow-olive
+  const half = Math.max(1, Math.floor(palettes.length / 2));
+  const setA = palettes.slice(0, Math.max(1, palettes.length - half));
+  const setB = palettes.length > 1 ? palettes.slice(palettes.length - half) : palettes;
+  const warm = palettes.map(([a, b]) => [mixHex(a, '#6f7a1c', 0.22), mixHex(b, '#b9c23a', 0.28)]);
+  const cells = [
+    { mode: 'lit', palettes: setA },
+    { mode: 'lit', palettes: setB, highlight: highlight * 1.3 },
+    { mode: 'shade', palettes, count: Math.round(count * 0.9) },
+    { mode: 'lit', palettes: warm, rim: rim * 1.2 },
+  ];
+  cells.forEach((c, index) => {
+    cellCtx.clearRect(0, 0, size, size);
+    paintLeafCluster(cellCtx, random, { ...base, ...c });
+    // atlas cell (index % 2, floor(index / 2)) counted from the bottom-left in
+    // uv space → canvas row is flipped
+    const ix = index % 2;
+    const iy = 1 - Math.floor(index / 2);
+    ctx.drawImage(cell, ix * size, iy * size);
+  });
   return toTexture(canvas);
+}
+
+// uv offset of atlas cell `index` (0..3) in a 2 × 2 leaf-cluster atlas.
+export function leafAtlasCell(index) {
+  return [(index % 2) * 0.5, Math.floor(index / 2) * 0.5];
 }
 
 // ---------- bamboo ----------
@@ -904,59 +1085,68 @@ export function createFoliageTextures() {
     // tree crowns — dense clusters (few see-through holes) so the canopy closes
     // into a continuous sea from the vistas; three distinct palettes so
     // neighbouring trees read as different species
+    // Every crown map is a 2 × 2 atlas (lit A / lit B / shaded / warm) — the
+    // shell crowns pick the cell per card. Cards are ~1.5–3 m, so the leaves
+    // are drawn large enough to still read as leaves from under the tree.
     canopyEmergent: createLeafClusterTexture({
       seed: 5101,
-      count: 2600,
-      lenRange: [7, 15],
+      count: 1500,
+      lenRange: [12, 24],
       shape: 'small',
-      palettes: [['#1f4a1a', '#33722a'], ['#1d5222', '#3a8334'], ['#26561a', '#45852c']],
+      palettes: [['#1f4a1a', '#33722a'], ['#1d5222', '#3a8334'], ['#26561a', '#45852c'], ['#2a5f22', '#4c8f36']],
       radiusPow: 0.85,
-      highlight: 0.1,
-      edgeWobble: 0.14,
+      highlight: 0.12,
+      edgeWobble: 0.3,
+      atlas: 2,
     }),
     // A: mid green, oval leaves
     canopyA: createLeafClusterTexture({
       seed: 5111,
-      count: 1500,
-      lenRange: [13, 28],
-      palettes: [['#2b661f', '#479634'], ['#33742a', '#55a63c'], ['#275d1c', '#458c36']],
+      count: 720,
+      lenRange: [22, 44],
+      // a touch olive: under direct sun the lit tops otherwise lean lime
+      palettes: [['#2e6424', '#4c9038'], ['#367130', '#589e44'], ['#2a5b22', '#48883a'], ['#32682a', '#509540']],
       radiusPow: 0.8,
-      highlight: 0.1,
-      edgeWobble: 0.2,
+      highlight: 0.12,
+      edgeWobble: 0.34,
+      atlas: 2,
     }),
     // B: darker blue-green, rounder leaves (umbrella crowns)
     canopyB: createLeafClusterTexture({
       seed: 5122,
-      count: 1200,
-      lenRange: [15, 30],
+      count: 560,
+      lenRange: [26, 48],
       shape: 'round',
-      palettes: [['#1c5228', '#327d3a'], ['#215a2b', '#3c8b45'], ['#184a20', '#2d7433']],
+      palettes: [['#1c5228', '#327d3a'], ['#215a2b', '#3c8b45'], ['#184a20', '#2d7433'], ['#205530', '#388546']],
       radiusPow: 0.8,
-      highlight: 0.08,
-      edgeWobble: 0.2,
+      highlight: 0.1,
+      edgeWobble: 0.32,
+      atlas: 2,
     }),
     // C: fine olive foliage (layered crowns) — small leaves read as a different
-    // texture scale from A/B without turning into starbursts on the flat caps
+    // texture scale from A/B
     canopyC: createLeafClusterTexture({
       seed: 5202,
-      count: 2300,
-      lenRange: [8, 17],
+      count: 1300,
+      lenRange: [13, 26],
       shape: 'small',
-      palettes: [['#3a6b22', '#5c9236'], ['#456f24', '#6d9c3a'], ['#2f5f1d', '#4f8a2e']],
+      palettes: [['#3a6b22', '#5c9236'], ['#456f24', '#6d9c3a'], ['#2f5f1d', '#4f8a2e'], ['#3c7024', '#649a38']],
       radiusPow: 0.8,
-      highlight: 0.07,
-      edgeWobble: 0.18,
+      highlight: 0.09,
+      edgeWobble: 0.3,
+      atlas: 2,
     }),
     canopyUnderstory: createLeafClusterTexture({
       seed: 5303,
-      count: 420,
-      lenRange: [24, 46],
+      count: 300,
+      lenRange: [34, 66],
       aspect: 0.5,
-      palettes: [['#2f6e22', '#4f9a35'], ['#377a28', '#5da63c'], ['#2a5f1f', '#458c2f']],
+      palettes: [['#2f6e22', '#4f9a35'], ['#377a28', '#5da63c'], ['#2a5f1f', '#458c2f'], ['#33702a', '#5aa040']],
       radiusPow: 0.72,
       squash: 0.85,
-      highlight: 0.08,
-      edgeWobble: 0.24,
+      highlight: 0.1,
+      edgeWobble: 0.4,
+      atlas: 2,
     }),
     bush: createBushTexture(),
     // stems / trunks
