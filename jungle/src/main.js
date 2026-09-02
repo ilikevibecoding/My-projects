@@ -10,6 +10,8 @@ import { createSky } from './sky.js';
 import { createInput } from './input.js';
 import { createPlayer } from './player.js';
 import { createVegetation } from './vegetation.js';
+import { createGrass } from './grass.js';
+import { createGroundDetail } from './ground-detail.js';
 import { createLandmarks } from './landmarks.js';
 import { createWater } from './water.js';
 import { createParticles } from './particles.js';
@@ -59,6 +61,8 @@ function applyQuality(name) {
   ctx.renderer.setSize(window.innerWidth, window.innerHeight);
   ctx.sky?.applyQuality(preset);
   ctx.vegetation?.applyQuality(preset);
+  ctx.grass?.applyQuality?.(preset);
+  ctx.groundDetail?.applyQuality?.(preset);
   ctx.landmarks?.applyQuality(preset);
   ctx.water?.applyQuality(preset);
   ctx.particles?.applyQuality(preset);
@@ -142,6 +146,13 @@ async function init() {
   await loadStep(0.58, 'growing the jungle', () => {
     ctx.vegetation = createVegetation(ctx);
     ctx.updatables.push(ctx.vegetation);
+  });
+
+  await loadStep(0.64, 'seeding the undergrowth', () => {
+    ctx.grass = createGrass(ctx);
+    ctx.updatables.push(ctx.grass);
+    ctx.groundDetail = createGroundDetail(ctx);
+    ctx.updatables.push(ctx.groundDetail);
   });
 
   await loadStep(0.7, 'waking the player', () => {
