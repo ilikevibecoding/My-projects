@@ -490,7 +490,7 @@ export function createTerrain(ctx) {
   // gentle sedimentary ledges (7 m period), a slow macro tone drift across the
   // face, and darker wet streaks running down it
   const strata = sin(positionWorld.y.mul(0.9).add(mottleMid.mul(3.0))).mul(0.5).add(0.5);
-  rockTex = rockTex.mul(mix(float(0.9), float(1.05), strata));
+  rockTex = rockTex.mul(mix(float(0.83), float(0.99), strata));
   const ledges = texture(textures.noise, vec2(positionWorld.x.add(positionWorld.z).mul(0.02), positionWorld.y.mul(0.09))).r;
   rockTex = rockTex.mul(mix(float(0.84), float(1.12), ledges));
   const streaks = texture(textures.noise, vec2(positionWorld.x.add(positionWorld.z).mul(0.05), positionWorld.y.mul(0.006))).r;
@@ -514,6 +514,15 @@ export function createTerrain(ctx) {
   const mossOnRock = smoothstep(0.55, 0.75, mottle)
     .mul(smoothstep(0.42, 0.7, slope).oneMinus())
     .mul(smoothstep(2.0, 9.0, height).oneMinus());
+  // up on the terraces and the ridge the shelves are dry: lichen crusts and
+  // thin moss in the hollows instead of the valley's wet carpet
+  const lichenOnRock = smoothstep(0.52, 0.68, mottleFine)
+    .mul(smoothstep(0.3, 0.6, slope).oneMinus())
+    .mul(smoothstep(8.0, 12.0, height))
+    .mul(smoothstep(0.35, 0.65, mottleMid));
+  // rain runs down the steep faces and leaves dark mineral streaks
+  const faceStreaks = smoothstep(0.45, 0.8, slope)
+    .mul(smoothstep(0.42, 0.62, texture(textures.noise, vec2(positionWorld.x.add(positionWorld.z.mul(0.7)).mul(0.11), positionWorld.y.mul(0.012))).r));
 
   // path profile from the lateral coordinate: a compacted, lighter, smoother
   // centre; darker crumbly edges; two faint worn lines where feet fall
@@ -553,6 +562,8 @@ export function createTerrain(ctx) {
   albedo = albedo.mul(trailDamp.mul(0.28).oneMinus());
   albedo = mix(albedo, sandTex, sandMask);
   let rockAlbedo = mix(rockTex, mossTex.mul(0.9), mossOnRock.mul(0.6));
+  rockAlbedo = mix(rockAlbedo, mossTex.mul(vec3(0.95, 0.9, 0.7)), lichenOnRock.mul(0.45));
+  rockAlbedo = rockAlbedo.mul(faceStreaks.mul(0.28).oneMinus());
   albedo = mix(albedo, rockAlbedo, rockMask);
   // large-scale tonal variation so the floor never tiles visibly
   albedo = albedo.mul(mix(float(0.8), float(1.12), mottle));
@@ -587,9 +598,18 @@ export function createTerrain(ctx) {
   const nLitterA = texture(textures.litterNormal, litterUvA).rgb;
   const nLitterB = texture(textures.litterNormal, litterUvB).rgb;
   const nLitter = mix(nLitterA, nLitterB, bigLeaf);
-  const nRock = texture(textures.rockNormal, positionWorld.xz.mul(rockScale)).rgb.mul(wY)
+  const nRockCoarse = texture(textures.rockNormal, positionWorld.xz.mul(rockScale)).rgb.mul(wY)
     .add(texture(textures.rockNormal, positionWorld.xy.mul(rockScale)).rgb.mul(wZ))
     .add(texture(textures.rockNormal, positionWorld.zy.mul(rockScale)).rgb.mul(wX));
+  // the 17 m tile alone leaves a riser looking like troweled plaster at arm's
+  // length, so the fine octave's joints are folded in ("whiteout" blend:
+  // add the slopes, multiply the heights)
+  const nRockFine = texture(textures.rockNormal, positionWorld.xz.mul(rockDetailScale).add(0.37)).rgb.mul(wY)
+    .add(texture(textures.rockNormal, positionWorld.xy.mul(rockDetailScale).add(0.37)).rgb.mul(wZ))
+    .add(texture(textures.rockNormal, positionWorld.zy.mul(rockDetailScale).add(0.37)).rgb.mul(wX));
+  const nC = nRockCoarse.mul(2).sub(1);
+  const nF = nRockFine.mul(2).sub(1);
+  const nRock = normalize(vec3(nC.xy.add(nF.xy.mul(0.7)), nC.z.mul(nF.z))).mul(0.5).add(0.5);
   let nBlend = nGrass;
   nBlend = mix(nBlend, nLitter, litterMask);
   nBlend = mix(nBlend, nDirt, trailBlend.max(worn));
@@ -597,11 +617,12 @@ export function createTerrain(ctx) {
   nBlend = mix(nBlend, nSand, sandMask);
   nBlend = mix(nBlend, nRock, rockMask);
   // relief strength: dirt 1.4 → 1.8 (edges rougher, the compacted centre and
-  // the ruts smoother), litter 1.5, everything else as before
+  // the ruts smoother), litter 1.5, rock 1.5 (the plate bevels need it to
+  // read as jointed stone), everything else as before
   const normalStrength = float(0.9)
     .add(trailBlend.mul(float(0.6).add(edge.mul(0.3)).sub(centre.mul(0.1)).sub(rut.mul(0.25))))
     .add(litterMask.max(trailLitter).mul(0.6))
-    .sub(rockMask.mul(0.2));
+    .add(rockMask.mul(0.6));
   material.normalNode = normalMap(nBlend, vec2(normalStrength));
 
   // roughness: damp hollows and the puddle floors go glossy, the compacted

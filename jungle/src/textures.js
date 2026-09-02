@@ -650,6 +650,19 @@ export function createRockTexture() {
   const fineTone = new Float32Array(fine.cells * fine.cells);
   for (let i = 0; i < fineTone.length; i += 1) fineTone[i] = 0.95 + random() * 0.1;
 
+  // A real height field for the normal map (the albedo's luminance only
+  // yields the thin crack grooves, which is why cliff faces read as troweled
+  // plaster): each plate bulges and bevels down into its joints, the finer
+  // plates add smaller bevels, grain and mottle add roughness.
+  const heightCanvas = makeCanvas(size);
+  const heightCtx = heightCanvas.getContext('2d');
+  const heightImage = heightCtx.createImageData(size, size);
+  const heightData = heightImage.data;
+  const smooth01 = (a, b, v) => {
+    const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
+
   const base = [0x72, 0x74, 0x6c];
   const warm = [0x82, 0x7a, 0x68];
   const cool = [0x62, 0x6a, 0x6c];
@@ -665,6 +678,17 @@ export function createRockTexture() {
       const gateFine = Math.min(1, Math.max(0, (cm - 0.5) / 0.3));
       const crack = Math.max(0, 1 - crackW / 0.05) * gate;
       const fineCrack = Math.max(0, 1 - fineW / 0.075) * 0.5 * gateFine;
+      {
+        const bevel = 1 - (1 - smooth01(0, 0.26, crackW)) * (0.35 + 0.65 * gate);
+        const fineBevel = 1 - (1 - smooth01(0, 0.3, fineW)) * (0.3 + 0.7 * gateFine);
+        const hgt = bevel * 0.42 + fineBevel * 0.13 + grain[p] * 0.26 + mottle[p] * 0.19;
+        const hv = Math.round(Math.min(1, Math.max(0, hgt)) * 255);
+        const ho = p * 4;
+        heightData[ho] = hv;
+        heightData[ho + 1] = hv;
+        heightData[ho + 2] = hv;
+        heightData[ho + 3] = 255;
+      }
       const pUp = ((y - 2 + size) % size) * size + ((x - 2 + size) % size);
       const lip = Math.max(0, 1 - (plates.f2[pUp] - plates.f1[pUp]) / 0.05) * gate * (1 - crack);
       const tone = plateTone[plates.id[p]] * fineTone[fine.id[p]];
@@ -706,7 +730,10 @@ export function createRockTexture() {
   // a few moss cushions in the seams (wrapped discs)
   speckle(ctx, random, 220, 7, 0.14, ['#4d6b35', '#3c5829']);
 
-  return toTexture(canvas);
+  heightCtx.putImageData(heightImage, 0, 0);
+  const tex = toTexture(canvas);
+  tex.userData.height = toTexture(heightCanvas, { srgb: false });
+  return tex;
 }
 
 export function createMossTexture() {
@@ -1762,7 +1789,8 @@ export function createAllTexturesWithNormals() {
   for (const key of ['grass', 'dirt', 'litter', 'grassHeight', 'dirtHeight', 'litterHeight']) {
     textures[key].anisotropy = 4;
   }
-  textures.rockNormal = createNormalFromCanvas(textures.rock, 3.2, 1);
+  // the rock ships its own height field (plate bevels, not just crack grooves)
+  textures.rockNormal = createNormalFromCanvas(textures.rock.userData.height || textures.rock, 9.0, 1);
   textures.sandNormal = createNormalFromCanvas(textures.sand, 1.4, 1);
   textures.dirtNormal = createNormalFromHeights(dirt.heights, dirt.size, 7.0, 1);
   textures.litterNormal = createNormalFromHeights(litter.heights, litter.size, 6.0, 1);

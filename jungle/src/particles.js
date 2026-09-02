@@ -1272,10 +1272,12 @@ export function createParticles(ctx) {
       s.yaw = random() * TAU;
       s.pitch = 0;
       s.roll = 0;
-      s.variant = Math.floor(random() * 4);
-      // 10–20 cm blades: any larger and a leaf 10 m out reads as a green blob
-      // against the sky from the overlook
-      s.size = 0.15 + random() * 0.13;
+      // mostly senescent leaves (yellow / dry / red-tinged): live green ones
+      // rarely let go, and a shower of bright green chips against the sky is
+      // the first thing that reads as "particle system" from the overlook
+      s.variant = random() < 0.22 ? 0 : 1 + Math.floor(random() * 3);
+      // 10–20 cm blades: any larger and a leaf 10 m out reads as a blob
+      s.size = 0.12 + random() * 0.12;
       s.wobble = 0.6 + random() * 0.8;
       s.state = 'fall';
       s.timer = 0;
