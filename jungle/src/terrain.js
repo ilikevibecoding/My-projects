@@ -289,7 +289,10 @@ function bakeControlMap(sampleHeight, canopyDensity) {
       avg /= 4;
       const cavity = clampJs((avg - h) / 3.2, 0, 1);
       const o = (iz * size + ix) * 4;
-      data[o] = Math.round(trailMask(x, z) * 255);
+      // R is a soft trail *profile* (1 on the centre line → 0 at the verge),
+      // not the binary mask, so the shader can tell the trodden core from the
+      // edges; trailMask() itself stays the placement rule for plants
+      data[o] = Math.round((1 - smoothstepJs(0, WORLD.trailHalfWidth + 2.6, trailDistance(x, z))) * 255);
       data[o + 1] = Math.round(canopyDensity(x, z) * 255);
       data[o + 2] = Math.round(cavity * 255);
       data[o + 3] = Math.round(waterProximity(x, z) * 255);
@@ -330,7 +333,10 @@ export function createTerrain(ctx) {
 
   const worldXZ = positionWorld.xz;
   const control = texture(controlTex, worldXZ.div(size).add(0.5));
-  const trail = control.r;
+  // profile 0.53 ≈ the trail half-width, so this reproduces the old hard mask
+  const trail = smoothstep(0.0, 0.53, control.r);
+  // the trodden centre: compacted, damper, swept clean of litter and pebbles
+  const trailCore = smoothstep(0.6, 0.92, control.r);
   const canopy = control.g;
   const cavity = control.b;
   const shoreProximity = control.a;
@@ -406,10 +412,15 @@ export function createTerrain(ctx) {
   albedo = mix(albedo, dirtTex, trailBlend);
   // a walked path is not one even colour: drifts of leaves blow onto it under
   // the canopy, and hollows stay damp and dark after rain
-  const trailLitter = trailBlend.mul(smoothstep(0.35, 0.8, canopy)).mul(smoothstep(0.5, 0.72, mottleFine)).mul(0.7);
+  const trailLitter = trailBlend.mul(smoothstep(0.35, 0.8, canopy)).mul(smoothstep(0.5, 0.72, mottleFine)).mul(0.7)
+    .mul(trailCore.mul(0.8).oneMinus());
   albedo = mix(albedo, litterTex, trailLitter);
   const trailDamp = trailBlend.mul(smoothstep(0.62, 0.45, mottleDamp)).mul(smoothstep(0.3, 0.6, mottleMid));
   albedo = albedo.mul(trailDamp.mul(0.3).oneMinus());
+  // feet compact the centre line into a darker, slightly redder band whose
+  // edge wanders with the fine mottle so it never reads as a painted stripe
+  const coreBand = trailCore.mul(smoothstep(0.3, 0.7, mottleFine.mul(0.5).add(0.5))).mul(trailBlend);
+  albedo = albedo.mul(mix(vec3(1.0, 1.0, 1.0), vec3(0.86, 0.8, 0.76), coreBand));
   albedo = mix(albedo, sandTex, sandMask);
   let rockAlbedo = mix(rockTex, mossTex.mul(0.9), mossOnRock.mul(0.6));
   rockAlbedo = mix(rockAlbedo, mossTex.mul(vec3(0.95, 0.9, 0.7)), lichenOnRock.mul(0.45));
@@ -462,6 +473,7 @@ export function createTerrain(ctx) {
     .sub(wetBand.mul(1.3))
     .sub(underwaterMask.mul(0.3))
     .sub(trailDamp.mul(0.35))
+    .sub(coreBand.mul(0.08))
     .add(rockMask.mul(0.02));
 
   const mesh = new THREE.Mesh(geometry, material);
