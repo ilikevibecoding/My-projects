@@ -62,6 +62,7 @@ function applyQuality(name) {
   ctx.landmarks?.applyQuality(preset);
   ctx.water?.applyQuality(preset);
   ctx.particles?.applyQuality(preset);
+  ctx.audio?.applyQuality?.(preset);
   ctx.post?.applyQuality(preset);
   ctx.hud.setActiveQuality(name);
 }
