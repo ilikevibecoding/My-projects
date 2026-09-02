@@ -140,6 +140,7 @@ function foliageMaterial(map, {
   translucency = 0.45,
   fade = null,
   alphaTest = 0.42,
+  ao = null, // [yLow, yHigh, darkness]: occlusion gradient over the pre-instance local height
 } = {}) {
   const material = new THREE.MeshStandardNodeMaterial({
     map,
@@ -150,7 +151,13 @@ function foliageMaterial(map, {
   });
   const { value, hueAngle, tint: tintNode } = perInstanceTint(hueSpread, valueSpread, tint);
   const mapColor = texture(map);
-  const color = hueRotate(mapColor.rgb, hueAngle).mul(value).mul(tintNode);
+  let color = hueRotate(mapColor.rgb, hueAngle).mul(value).mul(tintNode);
+  if (ao) {
+    // cheap self-occlusion: the base of a clump / the underside of a crown sits
+    // in its own shade, tips and the top catch the light
+    const occlusion = mix(float(1 - ao[2]), float(1), smoothstep(ao[0], ao[1], positionGeometry.y));
+    color = color.mul(occlusion);
+  }
   material.colorNode = color;
 
   let alpha = mapColor.a;
@@ -219,15 +226,41 @@ function instanceStream(count) {
 // geometry helpers
 // =====================================================================
 
-// Foliage cards: soften normals toward straight-up (so leaves take light like
-// the ground does), then bake a flipped-winding copy so both sides render as
-// front faces with the authored normals — no dark backfaces, no DoubleSide.
-function prepareFoliage(geometry, upFactor = 0.7) {
+// Foliage cards: soften normals toward a shading proxy, then bake a
+// flipped-winding copy so both sides render as front faces with the authored
+// normals — no dark backfaces, no DoubleSide. The proxy is straight-up
+// (leaves take light like the ground does) blended with the outward direction
+// from the clump's centre by `spherical`, so a crown / bush shades like a
+// rounded volume — lit on the sun side, darker on the far side — instead of
+// every card receiving the same flat light.
+function prepareFoliage(geometry, upFactor = 0.7, spherical = 0) {
   const normal = geometry.attributes.normal;
+  const pos = geometry.attributes.position;
+  geometry.computeBoundingBox();
+  const bb = geometry.boundingBox;
+  const cx = (bb.min.x + bb.max.x) * 0.5;
+  const cy = bb.min.y + (bb.max.y - bb.min.y) * 0.35; // centre sits low: the underside is the shaded part
+  const cz = (bb.min.z + bb.max.z) * 0.5;
   for (let i = 0; i < normal.count; i += 1) {
-    const nx = normal.getX(i) * (1 - upFactor);
-    const ny = Math.abs(normal.getY(i)) * (1 - upFactor) + upFactor;
-    const nz = normal.getZ(i) * (1 - upFactor);
+    let tx = 0;
+    let ty = 1;
+    let tz = 0;
+    if (spherical > 0) {
+      const rx = pos.getX(i) - cx;
+      const ry = pos.getY(i) - cy;
+      const rz = pos.getZ(i) - cz;
+      const rl = Math.hypot(rx, ry, rz) || 1;
+      tx = (rx / rl) * spherical;
+      ty = (ry / rl) * spherical + (1 - spherical);
+      tz = (rz / rl) * spherical;
+      const tl = Math.hypot(tx, ty, tz) || 1;
+      tx /= tl;
+      ty /= tl;
+      tz /= tl;
+    }
+    const nx = normal.getX(i) * (1 - upFactor) + tx * upFactor;
+    const ny = Math.abs(normal.getY(i)) * (1 - upFactor) + ty * upFactor;
+    const nz = normal.getZ(i) * (1 - upFactor) + tz * upFactor;
     const len = Math.hypot(nx, ny, nz) || 1;
     normal.setXYZ(i, nx / len, ny / len, nz / len);
   }
@@ -1001,8 +1034,8 @@ export function createVegetation(ctx) {
     return register(mesh, { castShadow, gate: gateFromOwners(clusters, ownerLayer.maxCount) });
   }
 
-  const emergentCrownGeo = prepareFoliage(crownCluster('wide', 10.5, 6.2), 0.6);
-  const emergentCrownMat = foliageMaterial(ft.canopyEmergent, { tint: [0.9, 1.0, 0.88], translucency: 0.4, roughness: 0.68 });
+  const emergentCrownGeo = prepareFoliage(crownCluster('wide', 10.5, 6.2), 0.7, 0.75);
+  const emergentCrownMat = foliageMaterial(ft.canopyEmergent, { tint: [0.9, 1.0, 0.88], translucency: 0.4, roughness: 0.68, ao: [-2.6, 1.6, 0.3] });
   applyVertex(emergentCrownMat, { wind: { strength: 0.45, speed: 0.4, uniformSway: true, flutter: 0.05 } });
   buildCrownLayer('emergent-crowns', emergentClusters, emergentCrownGeo, emergentCrownMat, emergentTrunkLayer);
 
@@ -1090,8 +1123,8 @@ export function createVegetation(ctx) {
     { name: 'canopy-layered', type: 'layered', map: ft.canopyC, w: 7.4, h: 6.0, tint: [1.0, 1.0, 0.9] },
   ];
   mediumCrownSpecs.forEach((spec, v) => {
-    const geo = prepareFoliage(crownCluster(spec.type, spec.w, spec.h), 0.62);
-    const mat = foliageMaterial(spec.map, { tint: spec.tint, translucency: 0.45, roughness: 0.7, hueSpread: 0.14 });
+    const geo = prepareFoliage(crownCluster(spec.type, spec.w, spec.h), 0.7, 0.75);
+    const mat = foliageMaterial(spec.map, { tint: spec.tint, translucency: 0.45, roughness: 0.7, hueSpread: 0.14, ao: [-spec.h * 0.45, spec.h * 0.25, 0.3] });
     applyVertex(mat, { wind: { strength: 0.38 + v * 0.03, speed: 0.48 - v * 0.03, uniformSway: true, flutter: 0.06 } });
     buildCrownLayer(spec.name, mediumClusters[v], geo, mat, mediumTrunkLayer);
   });
@@ -1155,8 +1188,8 @@ export function createVegetation(ctx) {
     if (understoryPlacements.length === 0) setMatrix(understoryTrunks, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
   }
   const understoryTrunkLayer = register(understoryTrunks, { castShadow: true });
-  const understoryCrownGeo = prepareFoliage(crownCluster('sparse', 3.6, 2.9), 0.6);
-  const understoryCrownMat = foliageMaterial(ft.canopyUnderstory, { tint: [0.96, 1.0, 0.9], translucency: 0.5, roughness: 0.66, hueSpread: 0.13 });
+  const understoryCrownGeo = prepareFoliage(crownCluster('sparse', 3.6, 2.9), 0.68, 0.7);
+  const understoryCrownMat = foliageMaterial(ft.canopyUnderstory, { tint: [0.96, 1.0, 0.9], translucency: 0.45, roughness: 0.66, hueSpread: 0.13, ao: [-1.4, 1.0, 0.28] });
   applyVertex(understoryCrownMat, { wind: { strength: 0.22, speed: 0.7, uniformSway: true, flutter: 0.06 } });
   buildCrownLayer('understory-crowns', understoryClusters, understoryCrownGeo, understoryCrownMat, understoryTrunkLayer);
 
@@ -1196,6 +1229,7 @@ export function createVegetation(ctx) {
       radialCards(() => bentCard(1.5, 4.8, 0.55, 5, 0.35), 8, { startTilt: 1.05, tiltJitter: 0.35, yawJitter: 0.5, seed: 8 }),
       radialCards(() => bentCard(1.3, 4.0, 0.3, 4, 0.3), 4, { startTilt: 1.55, tiltJitter: 0.3, yawJitter: 0.8, seed: 9, lift: -0.2 }),
     ]),
+    0.6,
     0.55
   );
   const frondMat = foliageMaterial(textures.palmFrond, { translucency: 0.4, roughness: 0.6, tint: [0.78, 0.9, 0.68], hueSpread: 0.08 });
@@ -1230,7 +1264,8 @@ export function createVegetation(ctx) {
       radialCards(() => bentCard(1.5, 1.5, 0.35, 3), 5, { startTilt: 0.55, tiltJitter: 0.4, yawJitter: 0.7, seed: 17, lift: 0.1 }),
       radialCards(() => bentCard(1.7, 1.7, 0.55, 3), 7, { startTilt: 1.2, tiltJitter: 0.45, yawJitter: 0.6, seed: 18, lift: -0.05 }),
     ]),
-    0.6
+    0.62,
+    0.55
   );
   const fanPlacements = scatter({
     count: 360,
@@ -1359,7 +1394,7 @@ export function createVegetation(ctx) {
   applyVertex(culmMat, { wind: { strength: 0.42, speed: 0.55, heightRef: 10, heightPow: 1.9 } });
   const culms = new THREE.InstancedMesh(culmGeo, culmMat, Math.max(1, bambooCulms.length));
   culms.name = 'bamboo-culms';
-  const bambooLeafGeo = prepareFoliage(crossedCards(1.9, 1.4, 2), 0.6);
+  const bambooLeafGeo = prepareFoliage(crossedCards(1.9, 1.4, 2), 0.62, 0.5);
   const bambooLeafMat = foliageMaterial(ft.bambooLeaf, { translucency: 0.4, roughness: 0.6, tint: [0.86, 0.96, 0.76], hueSpread: 0.12 });
   applyVertex(bambooLeafMat, { wind: { strength: 0.42, speed: 0.55, uniformSway: true, flutter: 0.08 } });
   const bambooLeaves = new THREE.InstancedMesh(bambooLeafGeo, bambooLeafMat, Math.max(1, bambooCulms.length * 3));
@@ -1408,7 +1443,7 @@ export function createVegetation(ctx) {
 
   // ---------- tree ferns (ravine) ----------
   const treeFernTrunkGeo = curvedCylinder({ radiusTop: 0.14, radiusBottom: 0.22, height: 2.6, radial: 6, rings: 3, lean: 0.2, ridge: 0.08, ridgeFreq: 7, uvV: 1.4 });
-  const treeFernCrownGeo = prepareFoliage(radialCards(() => bentCard(1.1, 2.6, 0.78, 4, 0.2), 8, { startTilt: 1.0, tiltJitter: 0.4, yawJitter: 0.5, seed: 31 }), 0.6);
+  const treeFernCrownGeo = prepareFoliage(radialCards(() => bentCard(1.1, 2.6, 0.78, 4, 0.2), 8, { startTilt: 1.0, tiltJitter: 0.4, yawJitter: 0.5, seed: 31 }), 0.62, 0.5);
   const treeFernPlacements = scatter({
     count: 240,
     seed: 221,
@@ -1422,7 +1457,7 @@ export function createVegetation(ctx) {
     maxTries: 60000,
   });
   const treeFernTrunkMat = barkMaterial(ft.treeFernBark, ft.treeFernBarkNormal, barkNoise, textures.moss, { mossHeight: 1.5, mossStrength: 0.7, gradientHeight: 3, normalScale: 0.9 });
-  const treeFernCrownMat = foliageMaterial(ft.treeFernFrond, { translucency: 0.75, roughness: 0.7, tint: [0.95, 1.0, 0.9] });
+  const treeFernCrownMat = foliageMaterial(ft.treeFernFrond, { translucency: 0.6, roughness: 0.7, tint: [0.95, 1.0, 0.9] });
   applyVertex(treeFernCrownMat, { wind: { strength: 0.2, speed: 0.9, heightRef: 2.6, heightPow: 1.2, flutter: 0.04 } });
   const treeFernTrunks = new THREE.InstancedMesh(treeFernTrunkGeo, treeFernTrunkMat, Math.max(1, treeFernPlacements.length));
   const treeFernCrowns = new THREE.InstancedMesh(treeFernCrownGeo, treeFernCrownMat, Math.max(1, treeFernPlacements.length));
@@ -1461,7 +1496,7 @@ export function createVegetation(ctx) {
   const heliconiaGeoBase = crossedCards(1.3, 2.6, 2);
   heliconiaGeoBase.translate(0, 1.3, 0);
   const heliconiaGeo = prepareFoliage(heliconiaGeoBase, 0.7);
-  const heliconiaMat = foliageMaterial(ft.heliconia, { translucency: 0.5, roughness: 0.6, fade: [90, 120], hueSpread: 0.06 });
+  const heliconiaMat = foliageMaterial(ft.heliconia, { translucency: 0.5, roughness: 0.6, fade: [90, 120], hueSpread: 0.06, ao: [0, 1.6, 0.35] });
   const heliconiaInst = instanceStream(520);
   applyVertex(heliconiaMat, { wind: { strength: 0.1, speed: 1.1, heightRef: 2.4, flutter: 0.03 }, fade: [90, 120], inst: heliconiaInst });
   buildSimple({
@@ -1483,8 +1518,8 @@ export function createVegetation(ctx) {
   });
 
   // ---------- taro / elephant ear ----------
-  const taroGeo = prepareFoliage(radialCards(() => bentCard(1.45, 2.1, 0.45, 3, 0.1), 5, { startTilt: 0.6, tiltJitter: 0.5, yawJitter: 0.6, seed: 19 }), 0.6);
-  const taroMat = foliageMaterial(ft.taro, { translucency: 0.7, roughness: 0.45, fade: [110, 140], tint: [0.95, 1, 0.95] });
+  const taroGeo = prepareFoliage(radialCards(() => bentCard(1.45, 2.1, 0.45, 3, 0.1), 5, { startTilt: 0.6, tiltJitter: 0.5, yawJitter: 0.6, seed: 19 }), 0.62, 0.4);
+  const taroMat = foliageMaterial(ft.taro, { translucency: 0.6, roughness: 0.45, fade: [110, 140], tint: [0.95, 1, 0.95], ao: [0, 1.3, 0.3] });
   const taroInst = instanceStream(640);
   applyVertex(taroMat, { wind: { strength: 0.12, speed: 0.9, heightRef: 2.0, flutter: 0.04 }, fade: [110, 140], inst: taroInst });
   buildSimple({
@@ -1510,8 +1545,8 @@ export function createVegetation(ctx) {
   });
 
   // ---------- philodendron clusters ----------
-  const philoGeo = prepareFoliage(radialCards(() => bentCard(0.95, 1.5, 0.5, 3, 0.1), 6, { startTilt: 0.7, tiltJitter: 0.5, seed: 23 }), 0.62);
-  const philoMat = foliageMaterial(ft.philodendron, { translucency: 0.55, roughness: 0.42, fade: [100, 130], tint: [0.95, 1.0, 0.98] });
+  const philoGeo = prepareFoliage(radialCards(() => bentCard(0.95, 1.5, 0.5, 3, 0.1), 6, { startTilt: 0.7, tiltJitter: 0.5, seed: 23 }), 0.64, 0.45);
+  const philoMat = foliageMaterial(ft.philodendron, { translucency: 0.5, roughness: 0.42, fade: [100, 130], tint: [0.95, 1.0, 0.98], ao: [0, 1.0, 0.3] });
   const philoInst = instanceStream(700);
   applyVertex(philoMat, { wind: { strength: 0.08, speed: 1.0, heightRef: 1.4, flutter: 0.03 }, fade: [100, 130], inst: philoInst });
   buildSimple({
@@ -1539,9 +1574,9 @@ export function createVegetation(ctx) {
   });
 
   // ---------- bushes / shrubs ----------
-  const bushGeo = prepareFoliage(crossedCards(2.2, 1.7, 3, true), 0.66);
+  const bushGeo = prepareFoliage(crossedCards(2.2, 1.7, 3, true), 0.72, 0.7);
   bushGeo.translate(0, 0.72, 0);
-  const bushMat = foliageMaterial(ft.bush, { translucency: 0.5, roughness: 0.7, fade: [105, 135], hueSpread: 0.12 });
+  const bushMat = foliageMaterial(ft.bush, { translucency: 0.45, roughness: 0.7, fade: [105, 135], hueSpread: 0.12, ao: [0, 1.4, 0.4] });
   const bushInst = instanceStream(3800);
   applyVertex(bushMat, { wind: { strength: 0.12, speed: 0.9, heightRef: 1.8, heightPow: 1.3, flutter: 0.04 }, fade: [105, 135], inst: bushInst });
   buildSimple({
@@ -1560,7 +1595,7 @@ export function createVegetation(ctx) {
         const bank = s.ny < 0.75 ? 0.35 : 0; // hardy shrubs hold the steeper banks
         const shore = s.water > 0.4 && s.h < 3 ? 0.5 : 0; // thickets down to the waterline
         // 0.42 baseline: shade-tolerant shrubs keep the deep-canopy understory from reading empty
-        return Math.min(1, (0.42 + edge * 0.6 + bank + shore + s.cliff * 0.6) * (0.35 + 0.65 * clump(x, z, 0.045, -0.3, 0.45, clumpB)) * (1 - s.zone.ravine * 0.5));
+        return Math.min(1, (0.42 + edge * 0.6 + bank + shore + s.cliff * 0.9) * (0.35 + 0.65 * clump(x, z, 0.045, -0.3, 0.45, clumpB)) * (1 - s.zone.ravine * 0.5));
       },
       spacing: { hash: plantHash, dist: 1.5, radius: 0.4 },
       maxTries: 120000,
@@ -1573,8 +1608,8 @@ export function createVegetation(ctx) {
   });
 
   // ---------- banana ----------
-  const bananaGeo = prepareFoliage(radialCards(() => bentCard(1.5, 3.0, 0.6, 4, 0.2), 6, { startTilt: 0.55, tiltJitter: 0.5, seed: 13 }), 0.6);
-  const bananaMat = foliageMaterial(textures.bananaLeaf, { translucency: 0.75, roughness: 0.5, fade: [120, 150] });
+  const bananaGeo = prepareFoliage(radialCards(() => bentCard(1.5, 3.0, 0.6, 4, 0.2), 6, { startTilt: 0.55, tiltJitter: 0.5, seed: 13 }), 0.62, 0.4);
+  const bananaMat = foliageMaterial(textures.bananaLeaf, { translucency: 0.65, roughness: 0.5, fade: [120, 150], ao: [0, 1.8, 0.3] });
   const bananaInst = instanceStream(620);
   applyVertex(bananaMat, { wind: { strength: 0.16, speed: 1.0, heightRef: 2.6, flutter: 0.05 }, fade: [120, 150], inst: bananaInst });
   buildSimple({
@@ -1599,8 +1634,8 @@ export function createVegetation(ctx) {
   });
 
   // ---------- ferns (two sizes) ----------
-  const fernGeo = prepareFoliage(radialCards(() => bentCard(0.95, 1.6, 0.55, 3, 0.15), 6, { startTilt: 0.8, tiltJitter: 0.4, seed: 11 }), 0.6);
-  const fernMat = foliageMaterial(textures.fern, { translucency: 0.7, roughness: 0.72, fade: [105, 135] });
+  const fernGeo = prepareFoliage(radialCards(() => bentCard(0.95, 1.6, 0.55, 3, 0.15), 6, { startTilt: 0.8, tiltJitter: 0.4, seed: 11 }), 0.64, 0.5);
+  const fernMat = foliageMaterial(textures.fern, { translucency: 0.6, roughness: 0.72, fade: [105, 135], ao: [0, 0.9, 0.35] });
   const fernInst = instanceStream(2000);
   applyVertex(fernMat, { wind: { strength: 0.09, speed: 1.4, heightRef: 1.3, flutter: 0.03 }, fade: [105, 135], inst: fernInst });
   buildSimple({
@@ -1617,7 +1652,7 @@ export function createVegetation(ctx) {
         const shade = s.canopy >= 0.22 ? s.canopy * (0.6 + s.zone.terrace * 0.9) : 0;
         const ravine = s.zone.ravine * 0.9; // the ravine floor has no canopy field but stays damp and shaded
         const bank = s.ny < 0.7 ? 0.5 : 0;
-        const w = shade + ravine + bank + s.cliff * 0.8;
+        const w = shade + ravine + bank + s.cliff * 1.2;
         if (w < 0.15) return 0;
         return Math.min(1, w * (0.35 + 0.65 * clump(x, z, 0.05, -0.3, 0.4, clumpC)));
       },
@@ -1628,8 +1663,8 @@ export function createVegetation(ctx) {
     align: 0.6,
     inst: fernInst,
   });
-  const fernSmallGeo = prepareFoliage(radialCards(() => bentCard(0.6, 0.95, 0.6, 2, 0.15), 5, { startTilt: 0.9, tiltJitter: 0.4, seed: 29 }), 0.62);
-  const fernSmallMat = foliageMaterial(ft.fernB, { translucency: 0.7, roughness: 0.72, fade: [70, 95], hueSpread: 0.13 });
+  const fernSmallGeo = prepareFoliage(radialCards(() => bentCard(0.6, 0.95, 0.6, 2, 0.15), 5, { startTilt: 0.9, tiltJitter: 0.4, seed: 29 }), 0.64, 0.5);
+  const fernSmallMat = foliageMaterial(ft.fernB, { translucency: 0.6, roughness: 0.72, fade: [70, 95], hueSpread: 0.13, ao: [0, 0.6, 0.35] });
   const fernSmallInst = instanceStream(4000);
   applyVertex(fernSmallMat, { wind: { strength: 0.06, speed: 1.6, heightRef: 0.9, flutter: 0.03 }, fade: [70, 95], inst: fernSmallInst });
   buildSimple({
@@ -1645,7 +1680,7 @@ export function createVegetation(ctx) {
         if (!treeClear(x, z, 0.4)) return 0;
         if (s.canopy < 0.12 && s.zone.ravine < 0.3 && s.cliff < 0.3) return 0;
         const bank = s.ny < 0.7 ? 0.4 : 0;
-        return Math.min(1, (0.2 + s.canopy + bank + s.zone.ravine * 0.6 + s.cliff * 0.7) * (0.4 + 0.6 * clump(x, z, 0.09, -0.3, 0.4, clumpA)));
+        return Math.min(1, (0.2 + s.canopy + bank + s.zone.ravine * 0.6 + s.cliff * 1.0) * (0.4 + 0.6 * clump(x, z, 0.09, -0.3, 0.4, clumpA)));
       },
       maxTries: 90000,
     }),
@@ -1735,7 +1770,7 @@ export function createVegetation(ctx) {
   grassGeoBase.translate(0, 0.4, 0);
   const grassGeo = prepareFoliage(grassGeoBase, 0.78);
   // olive tint so blades sit in the ground's grass albedo instead of glowing lime above it
-  const grassMat = foliageMaterial(textures.grassBlade, { translucency: 0.35, roughness: 0.8, fade: [55, 75], hueSpread: 0.1, valueSpread: 0.18, tint: [0.78, 0.86, 0.6] });
+  const grassMat = foliageMaterial(textures.grassBlade, { translucency: 0.35, roughness: 0.8, fade: [55, 75], hueSpread: 0.1, valueSpread: 0.18, tint: [0.7, 0.8, 0.52], ao: [0, 0.65, 0.5] });
   const grassInst = instanceStream(34000);
   applyVertex(grassMat, { wind: { strength: 0.14, speed: 1.7, heightRef: 0.8, flutter: 0.05 }, fade: [55, 75], inst: grassInst });
   buildSimple({
@@ -1768,7 +1803,7 @@ export function createVegetation(ctx) {
   const tallGrassGeoBase = crossedCards(1.4, 1.75, 3);
   tallGrassGeoBase.translate(0, 0.82, 0);
   const tallGrassGeo = prepareFoliage(tallGrassGeoBase, 0.75);
-  const tallGrassMat = foliageMaterial(ft.tallGrass, { translucency: 0.5, roughness: 0.78, fade: [80, 110], hueSpread: 0.08, valueSpread: 0.16, tint: [0.9, 0.95, 0.8] });
+  const tallGrassMat = foliageMaterial(ft.tallGrass, { translucency: 0.5, roughness: 0.78, fade: [80, 110], hueSpread: 0.08, valueSpread: 0.16, tint: [0.8, 0.88, 0.66], ao: [0, 1.3, 0.45] });
   const tallGrassInst = instanceStream(4200);
   applyVertex(tallGrassMat, { wind: { strength: 0.24, speed: 1.3, heightRef: 1.6, heightPow: 1.3, flutter: 0.06 }, fade: [80, 110], inst: tallGrassInst });
   buildSimple({
@@ -1799,7 +1834,7 @@ export function createVegetation(ctx) {
   const reedGeoBase = crossedCards(0.8, 1.9, 2);
   reedGeoBase.translate(0, 0.9, 0);
   const reedGeo = prepareFoliage(reedGeoBase, 0.75);
-  const reedMat = foliageMaterial(ft.reed, { translucency: 0.6, roughness: 0.75, fade: [90, 120], hueSpread: 0.07 });
+  const reedMat = foliageMaterial(ft.reed, { translucency: 0.5, roughness: 0.75, fade: [90, 120], hueSpread: 0.07, ao: [0, 1.3, 0.4] });
   const reedInst = instanceStream(1500);
   applyVertex(reedMat, { wind: { strength: 0.2, speed: 1.2, heightRef: 1.8, heightPow: 1.5, flutter: 0.04 }, fade: [90, 120], inst: reedInst });
   buildSimple({
@@ -1826,8 +1861,8 @@ export function createVegetation(ctx) {
 
   const seedlingGeoBase = crossedCards(0.7, 0.55, 2);
   seedlingGeoBase.translate(0, 0.26, 0);
-  const seedlingGeo = prepareFoliage(seedlingGeoBase, 0.75);
-  const seedlingMat = foliageMaterial(ft.seedling, { translucency: 0.6, roughness: 0.7, fade: [45, 65], hueSpread: 0.12 });
+  const seedlingGeo = prepareFoliage(seedlingGeoBase, 0.75, 0.3);
+  const seedlingMat = foliageMaterial(ft.seedling, { translucency: 0.5, roughness: 0.7, fade: [45, 65], hueSpread: 0.12, ao: [0, 0.45, 0.4] });
   const seedlingInst = instanceStream(6400);
   applyVertex(seedlingMat, { wind: { strength: 0.04, speed: 1.5, heightRef: 0.5, flutter: 0.02 }, fade: [45, 65], inst: seedlingInst });
   buildSimple({
