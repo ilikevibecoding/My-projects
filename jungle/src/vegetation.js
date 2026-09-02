@@ -233,13 +233,13 @@ function instanceStream(count) {
 // from the clump's centre by `spherical`, so a crown / bush shades like a
 // rounded volume — lit on the sun side, darker on the far side — instead of
 // every card receiving the same flat light.
-function prepareFoliage(geometry, upFactor = 0.7, spherical = 0) {
+function prepareFoliage(geometry, upFactor = 0.7, spherical = 0, centerFrac = 0.35) {
   const normal = geometry.attributes.normal;
   const pos = geometry.attributes.position;
   geometry.computeBoundingBox();
   const bb = geometry.boundingBox;
   const cx = (bb.min.x + bb.max.x) * 0.5;
-  const cy = bb.min.y + (bb.max.y - bb.min.y) * 0.35; // centre sits low: the underside is the shaded part
+  const cy = bb.min.y + (bb.max.y - bb.min.y) * centerFrac; // centre sits low: the underside is the shaded part
   const cz = (bb.min.z + bb.max.z) * 0.5;
   for (let i = 0; i < normal.count; i += 1) {
     let tx = 0;
@@ -349,6 +349,31 @@ function crownCluster(type, w, h) {
     p.translate(0, y, 0);
     return p;
   };
+  // Octagonal fan whose rim sags below the centre: the big top layer of a
+  // crown reads as a shallow dome from the side (curved silhouette, drooping
+  // fringe) instead of a razor-edged plate. 8 tris instead of 2, so only the
+  // widest cap of each crown type uses it.
+  const dome = (size, y, sag, tiltX = 0, tiltZ = 0) => {
+    const r = size * 0.5;
+    const positions = [0, 0, 0];
+    const uvs = [0.5, 0.5];
+    const indices = [];
+    for (let i = 0; i < 8; i += 1) {
+      const a = (i / 8) * TAU + Math.PI / 8;
+      positions.push(Math.cos(a) * r, -sag, Math.sin(a) * r);
+      uvs.push(0.5 + Math.cos(a) * 0.5, 0.5 + Math.sin(a) * 0.5);
+      indices.push(0, 1 + ((i + 1) % 8), 1 + i);
+    }
+    const p = new THREE.BufferGeometry();
+    p.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    p.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    p.setIndex(indices);
+    p.computeVertexNormals();
+    p.rotateX(tiltX);
+    p.rotateZ(tiltZ);
+    p.translate(0, y, 0);
+    return p;
+  };
   const vertical = (pw, ph, yaw, y = 0) => {
     const p = new THREE.PlaneGeometry(pw, ph);
     p.rotateY(yaw);
@@ -357,18 +382,20 @@ function crownCluster(type, w, h) {
   };
   switch (type) {
     case 'umbrella':
-      parts.push(cap(w * 1.3, h * 0.3, 0.08), cap(w * 0.9, h * 0.02, -0.1, 0.12));
-      parts.push(vertical(w * 0.95, h * 0.7, 0, -h * 0.1), vertical(w * 0.95, h * 0.7, Math.PI / 2, -h * 0.1));
+      // flat-topped species: one domed top layer, a tilted second layer that
+      // crosses it (edges never run parallel), and three side cards for body
+      parts.push(dome(w * 1.3, h * 0.36, h * 0.24, 0.1, 0.05), cap(w * 0.9, h * 0.04, -0.2, 0.3));
+      parts.push(vertical(w * 0.9, h * 0.82, 0.2, -h * 0.08), vertical(w * 0.9, h * 0.82, 0.2 + Math.PI / 3, -h * 0.08), vertical(w * 0.9, h * 0.82, 0.2 + (2 * Math.PI) / 3, -h * 0.08));
       break;
     case 'layered':
-      parts.push(cap(w * 1.15, -h * 0.28, 0.1), cap(w * 0.85, h * 0.04, -0.08, 0.06), cap(w * 0.55, h * 0.32, 0.05));
+      parts.push(dome(w * 1.15, -h * 0.2, h * 0.16, 0.1, -0.06), cap(w * 0.85, h * 0.06, -0.14, 0.18), cap(w * 0.55, h * 0.32, 0.1, -0.15));
       parts.push(vertical(w * 0.8, h * 0.95, 0.3), vertical(w * 0.8, h * 0.95, 0.3 + Math.PI / 2));
       break;
     case 'sparse':
       parts.push(vertical(w, h, 0), vertical(w, h, Math.PI / 2), cap(w * 0.8, h * 0.15, 0.25));
       break;
     case 'wide':
-      parts.push(cap(w * 1.4, h * 0.25, 0.06), cap(w * 1.0, -h * 0.05, -0.08, 0.1));
+      parts.push(dome(w * 1.4, h * 0.32, h * 0.22, 0.06, 0.04), cap(w * 1.0, -h * 0.05, -0.16, 0.22));
       parts.push(vertical(w, h * 0.75, 0, -h * 0.05), vertical(w, h * 0.75, Math.PI / 3, -h * 0.05), vertical(w, h * 0.75, (2 * Math.PI) / 3, -h * 0.05));
       break;
     case 'round':
@@ -1034,7 +1061,7 @@ export function createVegetation(ctx) {
     return register(mesh, { castShadow, gate: gateFromOwners(clusters, ownerLayer.maxCount) });
   }
 
-  const emergentCrownGeo = prepareFoliage(crownCluster('wide', 10.5, 6.2), 0.7, 0.75);
+  const emergentCrownGeo = prepareFoliage(crownCluster('wide', 10.5, 6.2), 0.7, 0.6, 0.28);
   const emergentCrownMat = foliageMaterial(ft.canopyEmergent, { tint: [0.9, 1.0, 0.88], translucency: 0.4, roughness: 0.68, ao: [-2.6, 1.6, 0.3] });
   applyVertex(emergentCrownMat, { wind: { strength: 0.45, speed: 0.4, uniformSway: true, flutter: 0.05 } });
   buildCrownLayer('emergent-crowns', emergentClusters, emergentCrownGeo, emergentCrownMat, emergentTrunkLayer);
@@ -1110,20 +1137,22 @@ export function createVegetation(ctx) {
       }
       local.forEach((c) => {
         const [wx, wy, wz] = treeToWorld(tree, c.x + (rng() - 0.5) * 0.7, c.y + (rng() - 0.5) * 0.6, c.z + (rng() - 0.5) * 0.7);
-        mediumClusters[variant].push({ x: wx, y: wy, z: wz, s: c.cs * s * (0.9 + rng() * 0.25), owner: i, tilt: (rng() - 0.5) * (variant === 1 ? 0.15 : 0.35) });
+        mediumClusters[variant].push({ x: wx, y: wy, z: wz, s: c.cs * s * (0.9 + rng() * 0.25), owner: i, tilt: (rng() - 0.5) * (variant === 1 ? 0.24 : 0.35) });
       });
     });
     if (mediumPlacements.length === 0) setMatrix(mediumTrunks, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
   }
   const mediumTrunkLayer = register(mediumTrunks, { castShadow: true });
 
+  // cap-heavy species get a softer, lower-centred shading proxy so their wide
+  // top layers don't split into a lit half and a black half
   const mediumCrownSpecs = [
-    { name: 'canopy-round', type: 'round', map: ft.canopyA, w: 8.0, h: 5.8, tint: [1, 1, 1] },
-    { name: 'canopy-umbrella', type: 'umbrella', map: ft.canopyB, w: 7.6, h: 5.2, tint: [0.94, 1.0, 0.96] },
-    { name: 'canopy-layered', type: 'layered', map: ft.canopyC, w: 7.4, h: 6.0, tint: [1.0, 1.0, 0.9] },
+    { name: 'canopy-round', type: 'round', map: ft.canopyA, w: 8.0, h: 5.8, tint: [1, 1, 1], spherical: 0.75, center: 0.35 },
+    { name: 'canopy-umbrella', type: 'umbrella', map: ft.canopyB, w: 7.6, h: 5.2, tint: [0.94, 1.0, 0.96], spherical: 0.55, center: 0.22 },
+    { name: 'canopy-layered', type: 'layered', map: ft.canopyC, w: 7.4, h: 6.0, tint: [1.0, 1.0, 0.9], spherical: 0.65, center: 0.3 },
   ];
   mediumCrownSpecs.forEach((spec, v) => {
-    const geo = prepareFoliage(crownCluster(spec.type, spec.w, spec.h), 0.7, 0.75);
+    const geo = prepareFoliage(crownCluster(spec.type, spec.w, spec.h), 0.7, spec.spherical, spec.center);
     const mat = foliageMaterial(spec.map, { tint: spec.tint, translucency: 0.45, roughness: 0.7, hueSpread: 0.14, ao: [-spec.h * 0.45, spec.h * 0.25, 0.3] });
     applyVertex(mat, { wind: { strength: 0.38 + v * 0.03, speed: 0.48 - v * 0.03, uniformSway: true, flutter: 0.06 } });
     buildCrownLayer(spec.name, mediumClusters[v], geo, mat, mediumTrunkLayer);
@@ -1259,10 +1288,13 @@ export function createVegetation(ctx) {
   const fanTrunkGeo = curvedCylinder({ radiusTop: 0.1, radiusBottom: 0.17, height: 1.9, radial: 6, rings: 3, lean: 0.25, ridge: 0.1, ridgeFreq: 9, uvV: 1.6 });
   // rosette in two tiers: inner fans held up, outer fans drooping — reads as a
   // ball of fans from every angle instead of a flat disc
+  // three tiers (rising / spreading / drooping) with wide tilt spread: the head
+  // stays a rounded rosette from eye level instead of collapsing into a disc
   const fanCrownGeo = prepareFoliage(
     mergeGeometries([
-      radialCards(() => bentCard(1.5, 1.5, 0.35, 3), 5, { startTilt: 0.55, tiltJitter: 0.4, yawJitter: 0.7, seed: 17, lift: 0.1 }),
-      radialCards(() => bentCard(1.7, 1.7, 0.55, 3), 7, { startTilt: 1.2, tiltJitter: 0.45, yawJitter: 0.6, seed: 18, lift: -0.05 }),
+      radialCards(() => bentCard(1.5, 1.5, 0.35, 3), 4, { startTilt: 0.45, tiltJitter: 0.5, yawJitter: 0.8, seed: 17, lift: 0.12 }),
+      radialCards(() => bentCard(1.7, 1.7, 0.5, 3), 5, { startTilt: 1.0, tiltJitter: 0.5, yawJitter: 0.7, seed: 18 }),
+      radialCards(() => bentCard(1.6, 1.6, 0.6, 3), 4, { startTilt: 1.5, tiltJitter: 0.35, yawJitter: 0.8, seed: 20, lift: -0.1 }),
     ]),
     0.62,
     0.55
