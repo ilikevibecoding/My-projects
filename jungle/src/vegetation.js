@@ -355,6 +355,33 @@ function crossedCards(width, height, cards = 2, horizontalCap = false) {
   return merged;
 }
 
+// Shrub: cards fanned around the axis but each pushed off-centre, tilted and
+// scaled a little differently, plus two counter-tilted caps. Crossed cards
+// meeting on one axis show a dark seam from every angle; this never lines up.
+function shrubCluster(width, height, cards = 5, seed = 71) {
+  const random = mulberry32(seed);
+  const parts = [];
+  for (let i = 0; i < cards; i += 1) {
+    const s = 0.72 + random() * 0.36;
+    const plane = new THREE.PlaneGeometry(width * s, height * (0.85 + random() * 0.3));
+    plane.rotateX((random() - 0.5) * 0.5);
+    plane.rotateZ((random() - 0.5) * 0.4);
+    plane.rotateY((i / cards) * Math.PI + (random() - 0.5) * 0.5);
+    plane.translate((random() - 0.5) * width * 0.34, (random() - 0.5) * height * 0.2, (random() - 0.5) * width * 0.34);
+    parts.push(plane);
+  }
+  for (const [tiltX, tiltZ, dy] of [[0.42, 0.18, 0.18], [-0.38, -0.24, 0.26]]) {
+    const cap = new THREE.PlaneGeometry(width * 0.78, width * 0.78);
+    cap.rotateX(-Math.PI / 2 + tiltX);
+    cap.rotateZ(tiltZ);
+    cap.translate(0, height * dy, 0);
+    parts.push(cap);
+  }
+  const merged = mergeGeometries(parts);
+  parts.forEach((p) => p.dispose());
+  return merged;
+}
+
 // Crown "puff" geometries — several silhouettes so a forest never reads as
 // rows of the same broccoli.
 function crownCluster(type, w, h) {
@@ -1519,7 +1546,7 @@ export function createVegetation(ctx) {
   const culms = new THREE.InstancedMesh(culmGeo, culmMat, Math.max(1, bambooCulms.length));
   culms.name = 'bamboo-culms';
   const bambooLeafGeo = prepareFoliage(crossedCards(1.9, 1.4, 2), 0.62, 0.5);
-  const bambooLeafMat = foliageMaterial(ft.bambooLeaf, { translucency: 0.4, roughness: 0.6, tint: [0.86, 0.96, 0.76], hueSpread: 0.12 });
+  const bambooLeafMat = foliageMaterial(ft.bambooLeaf, { translucency: 0.4, roughness: 0.72, tint: [0.74, 0.86, 0.64], hueSpread: 0.12 });
   applyVertex(bambooLeafMat, { wind: { strength: 0.42, speed: 0.55, uniformSway: true, flutter: 0.08 } });
   const bambooLeaves = new THREE.InstancedMesh(bambooLeafGeo, bambooLeafMat, Math.max(1, bambooCulms.length * 3));
   bambooLeaves.name = 'bamboo-leaves';
@@ -1699,7 +1726,7 @@ export function createVegetation(ctx) {
   });
 
   // ---------- bushes / shrubs ----------
-  const bushGeo = prepareFoliage(crossedCards(2.2, 1.7, 3, true), 0.72, 0.7);
+  const bushGeo = prepareFoliage(shrubCluster(2.2, 1.7, 5), 0.72, 0.7);
   bushGeo.translate(0, 0.72, 0);
   const bushMat = foliageMaterial(ft.bush, { translucency: 0.45, roughness: 0.7, fade: [105, 135], hueSpread: 0.12, ao: [0, 1.4, 0.4] });
   const bushInst = instanceStream(3800);

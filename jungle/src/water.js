@@ -1066,10 +1066,15 @@ export function createWater(ctx) {
     if (reflectionNode) {
       refl = reflectionNode.rgb;
     } else {
-      // cheap sky-gradient reflection for Low/Medium
+      // cheap analytic reflection for Low/Medium: a sky gradient, with the
+      // near-horizontal rays hitting the treeline that rings every bank — a
+      // sky-only fake left the lagoon an opaque turquoise sheet
       const reflectDir = reflect(viewDir.negate(), nFull);
       const upness = clamp(reflectDir.y, 0, 1);
       refl = mix(vec3(0.7, 0.8, 0.78), vec3(0.32, 0.55, 0.85), pow(upness, 0.6));
+      const treeline = smoothstep(0.3, 0.06, reflectDir.y);
+      const canopyTone = mix(vec3(0.06, 0.14, 0.08), vec3(0.16, 0.3, 0.14), texture(noiseTex, xz.mul(0.04)).r);
+      refl = mix(refl, canopyTone, treeline.mul(0.85));
     }
     refl = refl.mul(vec3(0.78, 0.86, 0.9));
     // soft knee: keep tree reflections crisp (they sit below the knee), but
