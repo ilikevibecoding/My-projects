@@ -212,6 +212,18 @@ async function init() {
 
   applyQuality(ctx.qualityName);
 
+  // Build every material's pipeline for the main camera while the loading
+  // screen is still up, instead of stalling the first frames after it drops.
+  // Pure scheduling: the same pipelines are compiled either way.
+  ctx.hud.setLoading(0.985, 'compiling shaders');
+  await nextFrame();
+  ctx.culler.update();
+  try {
+    await renderer.compileAsync(ctx.scene, ctx.camera);
+  } catch (error) {
+    console.warn('shader precompile skipped', error);
+  }
+
   ctx.hud.onQualityChange((name) => applyQuality(name));
   ctx.hud.setMuted(true);
   ctx.hud.onMuteToggle(() => {
