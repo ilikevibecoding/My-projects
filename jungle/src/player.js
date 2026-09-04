@@ -185,8 +185,12 @@ export function createPlayer(ctx) {
     for (const mesh of ctx.vegetation?.meshes ?? []) {
       const radius = TRUNK_RADII[mesh.name];
       if (!radius) continue;
-      for (let i = 0; i < mesh.instanceMatrix.count; i += 1) {
-        mesh.getMatrixAt(i, m);
+      // the instance culler repacks mesh.instanceMatrix to the visible set, so
+      // read the original (full, index-stable) matrices it keeps for us
+      const source = ctx.culler?.sourceMatrices?.(mesh) ?? mesh.instanceMatrix.array;
+      const total = Math.floor(source.length / 16);
+      for (let i = 0; i < total; i += 1) {
+        m.fromArray(source, i * 16);
         m.decompose(p, q, s);
         if (s.x < 0.01) continue;
         const key = `${Math.floor(p.x / COLLIDER_CELL)},${Math.floor(p.z / COLLIDER_CELL)}`;
@@ -200,6 +204,9 @@ export function createPlayer(ctx) {
     }
   }
   // Push the feet out of any trunk they overlap; returns true when it moved us.
+  // "instance k is live" is the quality density prefix in the ORIGINAL indexing —
+  // the culler exposes it; mesh.count is the packed visible count after culling
+  const liveCountOf = (mesh) => ctx.culler?.activeCount?.(mesh) ?? mesh.count;
   function resolveTrunks(pos, vel, bodyRadius) {
     if (!colliderHash) buildColliders();
     const cx = Math.floor(pos.x / COLLIDER_CELL);
@@ -210,7 +217,7 @@ export function createPlayer(ctx) {
         const cell = colliderHash.get(`${cx + dx},${cz + dz}`);
         if (!cell) continue;
         for (const c of cell) {
-          if (c.index >= c.mesh.count) continue;
+          if (c.index >= liveCountOf(c.mesh)) continue;
           const ox = pos.x - c.x;
           const oz = pos.z - c.z;
           const minDist = c.r + bodyRadius;

@@ -745,8 +745,12 @@ export function createParticles(ctx) {
       if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
       const trunkTop = mesh.geometry.boundingBox.max.y;
       const list = [];
-      for (let i = 0; i < mesh.instanceMatrix.count; i += 1) {
-        mesh.getMatrixAt(i, m);
+      // original (index-stable) matrices: the instance culler repacks the GPU
+      // array to the visible set, so it keeps the full copy for readers like us
+      const source = ctx.culler?.sourceMatrices?.(mesh) ?? mesh.instanceMatrix.array;
+      const total = Math.floor(source.length / 16);
+      for (let i = 0; i < total; i += 1) {
+        m.fromArray(source, i * 16);
         m.decompose(p, q, s);
         if (s.y < 0.01) continue;
         list.push({ x: p.x, y: p.y, z: p.z, crownY: p.y + trunkTop * s.y * 0.92, crownR: spec.crownR * s.x });
@@ -755,7 +759,9 @@ export function createParticles(ctx) {
       trees.push(...list);
     }
   }
-  const activeTrees = () => treeLayers.reduce((n, l) => n + Math.min(l.list.length, l.mesh.count), 0);
+  // live prefix in the original indexing (quality density), not the packed count
+  const liveCountOf = (mesh) => ctx.culler?.activeCount?.(mesh) ?? mesh.count;
+  const activeTrees = () => treeLayers.reduce((n, l) => n + Math.min(l.list.length, liveCountOf(l.mesh)), 0);
   debug.trees = trees;
   debug.trunks = treeLayers[0]?.mesh ?? null;
   const nearCache = { x: NaN, z: NaN, count: -1, list: [], close: [] };
@@ -769,7 +775,7 @@ export function createParticles(ctx) {
     const list = [];
     const close = [];
     for (const layer of treeLayers) {
-      const n = Math.min(layer.list.length, layer.mesh.count);
+      const n = Math.min(layer.list.length, liveCountOf(layer.mesh));
       for (let i = 0; i < n; i += 1) {
         const tr = layer.list[i];
         const d = Math.hypot(tr.x - x, tr.z - z);

@@ -203,7 +203,9 @@ export function createAudio(ctx) {
     let found = false;
     for (const mesh of ctx.vegetation?.meshes ?? []) {
       const w = weights[mesh.name];
-      const arr = mesh.instanceMatrix?.array;
+      // the culler repacks mesh.instanceMatrix to the visible set; use the
+      // original full matrices it keeps (all placements, as before)
+      const arr = ctx.culler?.sourceMatrices?.(mesh) ?? mesh.instanceMatrix?.array;
       if (!w || !arr) {
         continue;
       }
