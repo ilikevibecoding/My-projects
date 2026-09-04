@@ -80,3 +80,38 @@ screenshots from fixed viewpoints and a scripted walk/jump/swim run:
     guitar-string lianas) were fixed in this pass
 11. **Polish** — off-axis shrub clusters, muted fungi, warmer shaded rock,
     analytic treeline reflection for the low presets
+
+## Performance pass (pixel-identical)
+
+After the feedback round the build was optimised under one rule: the rendered
+output must stay byte-identical. Every change was checked with a headless
+harness that pins the clock, camera, film grain and AO noise, renders eight
+fixed views (plus one underwater) and diffs every pixel against the
+pre-optimisation build — 0 differing pixels on all views on every preset.
+Live status and numbers: `progress.html`.
+
+- **Instance culling** (`src/instance-culler.js`) — the ~100 000 plant, prop
+  and landmark instances used to be drawn in full, for the whole 400 m map, in
+  the shadow, reflection and main passes. Each layer now keeps its instance
+  data in 16 m cells and repacks its GPU buffers to the instances that can
+  reach a pixel in any pass (main frustum with a margin, the water's mirror
+  frustum, the sun's shadow footprint, never beyond a layer's distance fade),
+  in original order, with per-instance looks keyed off a stable id. Small
+  layers' matrices no longer re-upload every draw (storage buffer on WebGPU).
+- **Terrain and water tiling** — the terrain is 36 frustum-culled index tiles
+  over one vertex buffer; water quads provably hidden under land are dropped
+  and the rest is chunked; the surface renders in one pass.
+- **Near-grass and ground props** — packed only inside the view frustum;
+  props no longer fly through the scene while fading (a pre-existing bug).
+- **Render passes** — depth-only shadow maps (no colour clears), the god-ray
+  gather skipped whenever the sun is off screen, lean render targets, no
+  redundant canvas MSAA.
+- **Load** — bit-identical texture generation speedups, an IndexedDB cache of
+  generated pixel data (warm visits skip painting), worker-pool painting on
+  cold visits, the module graph preloaded, shaders precompiled during the
+  loading screen.
+
+Per frame at High this is 15–67 % fewer triangles depending on the view
+(e.g. overlook 7.0 M → 2.3 M), ~20 MB/frame less redundant buffer traffic,
+16 MiB/frame fewer clears, and a texture step of ~1 s cold / ~0.3 s warm
+instead of ~2.6 s.
