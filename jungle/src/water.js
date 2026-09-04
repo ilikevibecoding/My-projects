@@ -1429,6 +1429,12 @@ export function createWater(ctx) {
       side: THREE.DoubleSide,
       depthWrite: true,
     });
+    // A double-sided transparent material is normally drawn twice (back faces,
+    // then front faces) so both can blend in order where they overlap. The
+    // surface is a height field of centimetre waves: from above only front
+    // faces are visible, from underwater only back faces, so both faces never
+    // share a pixel and one pass renders the same image with half the draws.
+    material.forceSinglePass = true;
 
     // ---- vertex: Gerstner displacement + plunge heave, all analytic ----
     const wv = waveFieldNode(positionGeometry.xz);
