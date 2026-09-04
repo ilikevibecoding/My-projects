@@ -852,6 +852,8 @@ export function createGrass(ctx) {
     density: 0,
     exactHeights: ground.exact,
     trunks: trunkCount,
+    cullFrustum: true, // testing hook: false packs the whole disc as before
+    culledCells: 0,
   };
   let densityScale = 0.8;
   let lodDist = [16, 33];
@@ -867,16 +869,65 @@ export function createGrass(ctx) {
 
   const thinFactor = (d) => 1 - (1 - uThinMin.value) * sstep(uNearFull.value, uRadius.value, d);
 
+  // View culling of the live disc. The grass is on the ground-cover layer (the
+  // water's mirror camera never draws it) and casts no shadow, so only the main
+  // camera can see a tuft: cells outside a widened main frustum are left out
+  // of the packed buffers. The margin (extra half-angle + tuft reach) covers
+  // wind, the camera push and small turns; a larger turn triggers a refill.
+  const FRUSTUM_MARGIN_DEG = 7;
+  const TUFT_REACH = 2.5; // metres a blade tip can reach beyond the cell footprint
+  const REFILL_TURN = Math.cos((2.5 * Math.PI) / 180);
+  const cullFrustum = new THREE.Frustum();
+  const cullMatrix = new THREE.Matrix4();
+  const cullCamera = new THREE.PerspectiveCamera();
+  const cullBox = new THREE.Box3();
+  const camDir = new THREE.Vector3();
+  const lastDir = new THREE.Vector3(NaN, NaN, NaN);
+  function updateCullFrustum(camera) {
+    cullCamera.fov = Math.min(170, camera.fov + FRUSTUM_MARGIN_DEG * 2);
+    cullCamera.aspect = camera.aspect;
+    cullCamera.near = camera.near;
+    cullCamera.far = camera.far;
+    cullCamera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+    cullMatrix.copy(camera.matrixWorld).invert().premultiply(cullCamera.projectionMatrix);
+    cullFrustum.setFromProjectionMatrix(cullMatrix);
+  }
+  function cellVisible(cell) {
+    if (cell.yMin === undefined) {
+      let yMin = Infinity;
+      let yMax = -Infinity;
+      const data = cell.data;
+      for (let i = 0; i < cell.count; i += 1) {
+        const y = data[i * TUFT_STRIDE + 1];
+        if (y < yMin) yMin = y;
+        if (y > yMax) yMax = y;
+      }
+      cell.yMin = yMin === Infinity ? 0 : yMin;
+      cell.yMax = yMax === -Infinity ? 0 : yMax;
+    }
+    cullBox.min.set(cell.x0 - TUFT_REACH, cell.yMin - TUFT_REACH, cell.z0 - TUFT_REACH);
+    cullBox.max.set(cell.x1 + TUFT_REACH, cell.yMax + TUFT_REACH, cell.z1 + TUFT_REACH);
+    return cullFrustum.intersectsBox(cullBox);
+  }
+
   function refill(camX, camZ) {
     const tr = performance.now();
     counts[0] = 0;
     counts[1] = 0;
     counts[2] = 0;
     let overflow = 0;
+    let culledCells = 0;
     const [L0, L1] = lodDist;
+    const useFrustum = stats.cullFrustum && Boolean(ctx.camera);
+    if (useFrustum) updateCullFrustum(ctx.camera);
     for (const cell of live) {
       const nLive = Math.min(cell.count, Math.round(cell.count * densityScale));
       if (nLive === 0) continue;
+      if (useFrustum && !cellVisible(cell)) {
+        culledCells += 1;
+        continue;
+      }
       const ddx = Math.max(cell.x0 - camX, 0, camX - cell.x1);
       const ddz = Math.max(cell.z0 - camZ, 0, camZ - cell.z1);
       const f = thinFactor(Math.sqrt(ddx * ddx + ddz * ddz)) + 0.03;
@@ -936,10 +987,12 @@ export function createGrass(ctx) {
     stats.triangles = tris;
     stats.drawCalls = calls;
     stats.overflow = overflow;
+    stats.culledCells = culledCells;
     stats.refills += 1;
     stats.lastRefillMs = performance.now() - tr;
     lastRefillX = camX;
     lastRefillZ = camZ;
+    if (ctx.camera) lastDir.copy(ctx.camera.getWorldDirection(camDir));
     dirty = false;
   }
 
@@ -1010,7 +1063,9 @@ export function createGrass(ctx) {
     }
     initialised = true;
     const moved = Math.hypot(camX - lastRefillX, camZ - lastRefillZ) > REFILL_MOVE;
-    if (dirty || built > 0 || moved || live.length !== prevLive) {
+    // a turn past the frustum margin needs a repack as much as a step does
+    const turned = stats.cullFrustum && ctx.camera && ctx.camera.getWorldDirection(camDir).dot(lastDir) < REFILL_TURN;
+    if (dirty || built > 0 || moved || turned || live.length !== prevLive) {
       refill(camX, camZ);
       if (pending > 0) dirty = true; // finish streaming next frame
     }
