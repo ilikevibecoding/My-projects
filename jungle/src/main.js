@@ -80,7 +80,12 @@ async function init() {
   try {
     renderer = new THREE.WebGPURenderer({
       canvas: ctx.canvas,
-      antialias: true,
+      // The scene is rendered into the post pipeline's own 4x MSAA target; the
+      // only thing ever drawn to the canvas is the final full-screen quad, and
+      // every canvas sample of a pixel gets that quad's one fragment value, so
+      // a multisampled canvas resolved to exactly the same image while costing
+      // 4x canvas storage and a resolve per frame.
+      antialias: false,
       forceWebGL: isWebGLForced(),
     });
     await renderer.init();
