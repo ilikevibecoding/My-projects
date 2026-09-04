@@ -2471,6 +2471,9 @@ export function createLandmarks(ctx) {
       inst.array.set([giant.x, giant.baseY, giant.z, 0], i * 4); // wind anchor = tree base (x, y, z, yaw)
     });
     register(crown, { castShadow: true, name: 'lm-giant-crown' });
+    // the vegetation crown material keys its per-tuft randoms off the culler's
+    // stable id attribute, so the kapok's tufts go through the culler as well
+    ctx.culler?.register(crown, { stream: inst, inReflection: true, castShadow: true });
   }
 
   // ---- hanging vine cards (giant tree lianas, ruins overgrowth, ravine arches) ----

@@ -17,6 +17,7 @@ import { createWater } from './water.js';
 import { createParticles } from './particles.js';
 import { createPost } from './post.js';
 import { createAudio } from './audio.js';
+import { createInstanceCuller } from './instance-culler.js';
 
 const ctx = {
   renderer: null,
@@ -144,6 +145,10 @@ async function init() {
   ctx.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1600);
   ctx.camera.position.set(WORLD.spawn.x, 4, WORLD.spawn.z);
   ctx.scene.add(ctx.camera);
+
+  // instanced layers register here as they are built; each frame it compacts
+  // their buffers to the instances that can reach a pixel in any pass
+  ctx.culler = createInstanceCuller(ctx);
 
   // ---------- build the world ----------
   ctx.textures = await loadStep(0.1, 'painting textures', () => createAllTexturesWithNormals());
@@ -288,6 +293,7 @@ async function init() {
     for (const updatable of ctx.updatables) {
       updatable.update(dt, ctx.time);
     }
+    ctx.culler.update(); // after the camera and the shadow focus have moved
     document.body.classList.toggle('is-underwater', ctx.player.headUnderwater);
     pollPlaces(dt);
 

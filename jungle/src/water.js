@@ -2333,6 +2333,10 @@ export function createWater(ctx) {
     ripple,
     update,
     applyQuality,
+    // the instance culler adds the mirror camera's frustum while this is on
+    get reflectionEnabled() {
+      return reflection.target.visible;
+    },
     // analytic wave field shared with the CPU side
     waveHeightAt,
     shoreDistance: shoreDistanceJs,

@@ -22,7 +22,6 @@ import {
   cos,
   float,
   hash,
-  instanceIndex,
   mix,
   texture,
   smoothstep,
@@ -31,8 +30,9 @@ import {
   dot,
   cross,
   uv,
-  instancedBufferAttribute,
   attribute,
+  instancedArray,
+  instanceIndex,
   normalGeometry,
   normalViewGeometry,
   positionViewDirection,
@@ -41,8 +41,18 @@ import { WORLD } from './config.js';
 import { mulberry32, createFbm2D, smoothstep as sstep, clamp as clampJs, lerp } from './noise.js';
 import { createFoliageTextures, leafAtlasCell } from './foliage-textures.js';
 import { GRASS_DISC_FADE } from './grass.js';
+import { INSTANCE_ID_ATTRIBUTE } from './instance-culler.js';
 
 const TAU = Math.PI * 2;
+// Stable per-instance id (the original instance index). The instance culler
+// compacts each layer's buffers to the visible set every time the view moves,
+// so instanceIndex no longer identifies a plant; every per-plant random
+// (tint, bark phase, wind jitter) hashes this attribute instead, which the
+// culler carries along with the matrices. Same integers, same hashes. The
+// attribute reaches the fragment stage as an interpolated float (instanceIndex
+// travelled as a flat uint), so it is rounded back to the exact integer before
+// hash() truncates it.
+const instanceId = attribute(INSTANCE_ID_ATTRIBUTE, 'float').add(0.5).floor();
 const WIND_HEADING = 0.7; // radians — dominant wind direction on the xz plane
 // Small ground cover lives on its own render layer (enabled on the main camera)
 // so secondary passes — the water's planar reflection — can leave it out.
@@ -96,10 +106,10 @@ function windDisplacement({
   // they must not key off instanceIndex), else from the instance index
   const jitter = anchor
     ? sin(wp.x.mul(12.9898).add(wp.z.mul(78.233))).mul(43758.5453).fract()
-    : hash(instanceIndex);
+    : hash(instanceId);
   const jitterB = anchor
     ? sin(wp.x.mul(39.346).add(wp.z.mul(11.135))).mul(24634.6345).fract()
-    : hash(instanceIndex.add(77));
+    : hash(instanceId.add(77));
   const phase = wp.x.mul(phaseScale).add(wp.z.mul(phaseScale * 0.77)).add(jitter.mul(0.7));
   const t = time.mul(speed).add(phase);
   const gust = sin(t).add(sin(t.mul(1.71).add(1.3)).mul(0.5)).add(sin(t.mul(3.13).add(2.2)).mul(0.27));
@@ -166,6 +176,11 @@ function windDisplacement({
 // face, and up close the shell is dense enough on its own. Both LODs are
 // always in the one draw call.
 function applyVertex(material, { wind = null, fade = null, fadeIn = null, inst = null, lod = null } = {}) {
+  // the instance culler reads these to skip instances the shader would collapse
+  // anyway, and to carry the anchor stream along when it compacts a layer
+  if (inst) material.userData.stream = inst;
+  if (fade) material.userData.fadeEnd = fade[1];
+  if (fadeIn) material.userData.fadeInStart = fadeIn[0];
   let pos = positionLocal;
   if (wind) {
     pos = pos.add(windDisplacement(inst ? { ...wind, anchor: inst.node.xyz, yaw: inst.node.w } : wind));
@@ -202,8 +217,8 @@ function hueRotate(color, angle) {
 }
 
 function perInstanceTint(hueSpread, valueSpread, tint) {
-  const rA = hash(instanceIndex.add(123));
-  const rB = hash(instanceIndex.add(321));
+  const rA = hash(instanceId.add(123));
+  const rB = hash(instanceId.add(321));
   const value = mix(float(1 - valueSpread), float(1 + valueSpread), rA);
   const hueAngle = rB.sub(0.5).mul(2 * hueSpread);
   return { value, hueAngle, tint: vec3(tint[0], tint[1], tint[2]) };
@@ -270,6 +285,8 @@ function foliageMaterial(map, {
   material.colorNode = color;
 
   let alpha = mapColor.a;
+  if (fade) material.userData.fadeEnd = fade[1];
+  if (fadeIn) material.userData.fadeInStart = fadeIn[0];
   if (fade || fadeIn) {
     const dist = positionWorld.sub(cameraPosition).length();
     if (fade) alpha = alpha.mul(smoothstep(fade[0], fade[1], dist).oneMinus());
@@ -314,10 +331,10 @@ function barkMaterial(map, normalTex, noiseTex, mossTex, {
   hueSpread = 0.06,
 } = {}) {
   const material = new THREE.MeshStandardNodeMaterial({ map, roughness, metalness: 0 });
-  const value = mix(float(1 - valueSpread), float(1 + valueSpread), hash(instanceIndex.add(11)));
-  const hueAngle = hash(instanceIndex.add(29)).sub(0.5).mul(2 * hueSpread);
+  const value = mix(float(1 - valueSpread), float(1 + valueSpread), hash(instanceId.add(11)));
+  const hueAngle = hash(instanceId.add(29)).sub(0.5).mul(2 * hueSpread);
   // per-instance V offset: neighbouring trunks no longer share ring phase
-  const bark = texture(map, uv().add(vec2(0, hash(instanceIndex.add(5)))));
+  const bark = texture(map, uv().add(vec2(0, hash(instanceId.add(5)))));
   const y = positionGeometry.y; // pre-instance height above the trunk base (m at scale 1)
   const heightMix = smoothstep(0.0, gradientHeight, y);
   let color = hueRotate(bark.rgb, hueAngle).mul(mix(vec3(baseTint[0], baseTint[1], baseTint[2]), vec3(1 + lighten, 1 + lighten, 1 + lighten), heightMix));
@@ -330,18 +347,25 @@ function barkMaterial(map, normalTex, noiseTex, mossTex, {
   // faint sky bounce so the shaded side of a trunk keeps its colour under the
   // canopy instead of dropping to black
   material.emissiveNode = color.mul(vec3(0.05, 0.06, 0.07));
-  material.normalNode = normalMap(texture(normalTex, uv().add(vec2(0, hash(instanceIndex.add(5))))).rgb, vec2(normalScale));
+  material.normalNode = normalMap(texture(normalTex, uv().add(vec2(0, hash(instanceId.add(5))))).rgb, vec2(normalScale));
   material.roughnessNode = mix(float(roughness), float(0.98), mossMask);
   return material;
 }
 
 // Per-instance vec4 stream (world anchor x, y, z, yaw) read by the vertex
 // stage for distance LOD / fade and for world-anchored wind.
+// Read through a storage buffer rather than a vertex attribute: on WebGPU a
+// layer with more than 1000 instances already spends four of the eight vertex
+// buffer slots on the instance matrix columns, and position + normal + uv +
+// the culler's id attribute take the other four. A storage read costs a bind
+// group entry instead (the WebGL 2 backend emulates it the same way it does
+// the small layers' instance matrices).
 function instanceStream(count) {
   const array = new Float32Array(count * 4);
-  const attribute = new THREE.InstancedBufferAttribute(array, 4);
-  attribute.setUsage(THREE.StaticDrawUsage);
-  return { array, attribute, node: instancedBufferAttribute(attribute, 'vec4') };
+  const storage = instancedArray(array, 'vec4');
+  const attribute = storage.value;
+  attribute.setUsage(THREE.DynamicDrawUsage);
+  return { array, attribute, node: storage.element(instanceIndex) };
 }
 
 // =====================================================================
@@ -1290,6 +1314,19 @@ export function createVegetation(ctx) {
     meshes.push(mesh);
     const layer = { mesh, maxCount: mesh.count, densityKey, gate };
     layers.push(layer);
+    // hand the layer to the instance culler: it compacts the buffers to the
+    // visible set per view and keeps the density prefix rule below
+    const ud = mesh.material.userData;
+    ctx.culler?.register(mesh, {
+      maxCount: mesh.count,
+      gate,
+      densityKey,
+      stream: ud.stream ?? null,
+      fadeEnd: ud.fadeEnd ?? null,
+      fadeInStart: ud.fadeInStart ?? null,
+      inReflection: densityKey !== 'grass',
+      castShadow,
+    });
     return layer;
   }
   // Float64 so a gate that lands exactly on a preset density compares the same
@@ -2761,6 +2798,7 @@ export function createVegetation(ctx) {
     }
     let culled = 0;
     for (const { mesh } of layers) {
+      ctx.culler?.beginEdit(mesh); // edits address the original instance order
       const arr = mesh.instanceMatrix.array;
       let touched = false;
       for (let i = 0; i < mesh.instanceMatrix.count; i += 1) {
@@ -2780,7 +2818,10 @@ export function createVegetation(ctx) {
           }
         }
       }
-      if (touched) mesh.instanceMatrix.needsUpdate = true;
+      if (touched) {
+        mesh.instanceMatrix.needsUpdate = true;
+        ctx.culler?.refresh(mesh);
+      }
     }
     return culled;
   }

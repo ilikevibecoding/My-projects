@@ -20,8 +20,8 @@ import {
   uniform,
   varying,
   attribute,
-  instancedBufferAttribute,
   instanceIndex,
+  instancedArray,
   hash,
   cameraPosition,
   cameraViewMatrix,
@@ -610,12 +610,17 @@ function birdGeometry() {
 // TSL helpers
 // =====================================================================
 
-// Per-instance vec4 stream (InstancedBufferAttribute + TSL attribute node).
+// Per-instance vec4 stream, read through a storage buffer indexed by the
+// instance id. A vertex attribute would cost one of WebGPU's eight vertex
+// buffer slots each; the birds (position + rotation + animation + two more
+// streams on top of position / normal / uv / aPart) were nine and never
+// compiled there. Storage reads bind instead of stream in — same values.
 function instanceStream(count, dynamic = false) {
   const array = new Float32Array(count * 4);
-  const attribute = new THREE.InstancedBufferAttribute(array, 4);
+  const storage = instancedArray(array, 'vec4');
+  const attribute = storage.value;
   attribute.setUsage(dynamic ? THREE.DynamicDrawUsage : THREE.StaticDrawUsage);
-  const node = instancedBufferAttribute(attribute, 'vec4');
+  const node = storage.element(instanceIndex);
   return {
     array,
     attribute,

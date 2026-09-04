@@ -331,6 +331,22 @@ export function createSky(ctx) {
     sunDirection,
     update,
     applyQuality,
+    // Ground footprint (axis-aligned box, centre + half-extent) that can hold
+    // a caster contributing to this frame's shadow maps — for the instance
+    // culler. Conservative: the light-space box is tilted by the sun's
+    // elevation (1/sin widens it along the azimuth) and a caster of height h
+    // shadows up to h·cot(elevation) sideways; the cascades on Ultra fit the
+    // camera frustum out to maxFar with the light margin behind it.
+    shadowRegion() {
+      if (!shadowState.enabled || !sun.castShadow) return null;
+      const el = THREE.MathUtils.degToRad(WORLD.sunElevation);
+      const heightShift = 36 / Math.tan(el); // tallest emergent ≈ 36 m
+      if (shadowState.cascades > 0) {
+        const eye = ctx.player ? ctx.player.position : camera.position;
+        return { x: eye.x, z: eye.z, extent: 150 + 40 + heightShift };
+      }
+      return { x: focus.x, z: focus.z, extent: shadowState.extent / Math.sin(el) + heightShift };
+    },
     // debug / tuning hooks
     _atmosphere: atmosphere,
     _shadowState: shadowState,

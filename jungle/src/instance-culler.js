@@ -1,0 +1,428 @@
+// Instance compaction for map-spanning InstancedMesh layers.
+//
+// Every plant layer is one InstancedMesh whose instances cover the whole 400 m
+// map, drawn with frustumCulled = false — so the shadow pass, the water
+// reflection pass and the main pass each processed all ~100 k instances every
+// frame, most of them behind the camera or collapsed to zero-area triangles by
+// their distance fade. This module keeps the full instance data on the CPU,
+// sorts it into 16 m ground cells, and whenever the view changes rewrites each
+// layer's GPU buffers with only the instances that can contribute to a pixel
+// in any pass this frame:
+//
+//   * main camera frustum (widened by a margin so small turns need no repack),
+//   * the water's mirror-camera frustum while planar reflections are on
+//     (layers on the ground-cover layer are excluded from that pass anyway),
+//   * the sun's shadow box for shadow-casting layers,
+//   * and never beyond the layer's distance fade, which in the shaders scales
+//     the geometry to a point / drives alpha to zero — identical output.
+//
+// Visuals are unchanged: per-instance appearance is keyed off a stable id
+// attribute (`aId`, the original instance index) instead of instanceIndex, the
+// quality-density prefix rule (instance k live while k < round(max·density),
+// or gate[k] <= density) is applied per cell, and instances keep their
+// ascending original order inside the packed buffer.
+
+import * as THREE from 'three/webgpu';
+import { WORLD } from './config.js';
+
+export const INSTANCE_ID_ATTRIBUTE = 'aId';
+
+const CELL = 16;
+const FOV_MARGIN_DEG = 7; // extra half-angle on the main / mirror frusta
+const SWAY_MARGIN = 2.5; // metres of wind / flutter displacement a card can reach
+const SHADOW_MARGIN = 14; // shadow focus drifts with the look direction between repacks
+const REPACK_MOVE = 1.2; // metres of camera travel before repacking
+const REPACK_TURN = Math.cos(THREE.MathUtils.degToRad(2.5)); // ~2.5° of look change
+
+const _box = new THREE.Box3();
+const _frustum = new THREE.Frustum();
+const _mirrorFrustum = new THREE.Frustum();
+const _mat = new THREE.Matrix4();
+const _mirrorCam = new THREE.PerspectiveCamera();
+const _wideCam = new THREE.PerspectiveCamera();
+const _reflect = new THREE.Matrix4();
+const _pos = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _mirrorPos = new THREE.Vector3();
+
+function upperBound(arr, value, hi) {
+  let lo = 0;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid] <= value) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+// Give an InstancedMesh its own BufferGeometry object (sharing every vertex
+// buffer and the index with the source) so per-mesh instanced attributes can
+// be attached even when several meshes draw the same geometry.
+export function ownGeometry(mesh) {
+  const src = mesh.geometry;
+  if (src.userData.ownedBy === mesh) return src;
+  const geo = new THREE.BufferGeometry();
+  for (const [name, attribute] of Object.entries(src.attributes)) {
+    geo.setAttribute(name, attribute);
+  }
+  if (src.index) geo.setIndex(src.index);
+  for (const group of src.groups) geo.addGroup(group.start, group.count, group.materialIndex);
+  geo.boundingSphere = src.boundingSphere ? src.boundingSphere.clone() : null;
+  geo.boundingBox = src.boundingBox ? src.boundingBox.clone() : null;
+  geo.userData.ownedBy = mesh;
+  geo.userData.source = src;
+  mesh.geometry = geo;
+  return geo;
+}
+
+// Attach the stable per-instance id attribute (original index) to a mesh.
+export function attachInstanceIds(mesh) {
+  const geo = ownGeometry(mesh);
+  if (geo.getAttribute(INSTANCE_ID_ATTRIBUTE)) return geo.getAttribute(INSTANCE_ID_ATTRIBUTE);
+  const n = mesh.instanceMatrix.count;
+  const ids = new Float32Array(n);
+  for (let i = 0; i < n; i += 1) ids[i] = i;
+  const attribute = new THREE.InstancedBufferAttribute(ids, 1);
+  attribute.setUsage(THREE.DynamicDrawUsage);
+  geo.setAttribute(INSTANCE_ID_ATTRIBUTE, attribute);
+  return attribute;
+}
+
+export function createInstanceCuller(ctx) {
+  const layers = [];
+  const half = WORLD.size / 2;
+  const cellsPerSide = Math.ceil(WORLD.size / CELL) + 2; // one ring of slack each side
+  const state = {
+    camX: NaN,
+    camY: NaN,
+    camZ: NaN,
+    dirX: NaN,
+    dirY: NaN,
+    dirZ: NaN,
+    reflection: null,
+    shadowKey: '',
+    densityKey: '',
+    force: true,
+    repacks: 0,
+    lastMs: 0,
+    visibleInstances: 0,
+    totalInstances: 0,
+    debugAll: false, // testing: pack every live instance (no view culling)
+    fullUpload: false, // testing: upload whole buffers instead of the packed prefix
+  };
+
+  // ---------------------------------------------------------------------
+  // registration: snapshot the full instance data of a layer into cells
+  // ---------------------------------------------------------------------
+  function register(mesh, {
+    maxCount = mesh.instanceMatrix.count,
+    gate = null, // ascending Float64Array of density thresholds (attachment layers)
+    densityKey = 'vegetation', // ctx.quality[densityKey + 'Density'] gates the live prefix
+    stream = null, // { array: Float32Array(count*4), attribute: InstancedBufferAttribute } written per instance
+    fadeEnd = null, // metres from the render camera past which the shaders collapse the instance
+    fadeInStart = null, // metres before which the shaders collapse the instance (far-only fillers)
+    inReflection = true, // false for ground-cover layers the mirror camera never draws
+    castShadow = mesh.castShadow,
+    radius = null, // geometry bounding radius at scale 1 (defaults to the geometry's sphere)
+  } = {}) {
+    const idAttr = attachInstanceIds(mesh);
+    const layer = {
+      mesh,
+      maxCount,
+      gate,
+      densityKey,
+      stream,
+      idAttr,
+      fadeEnd,
+      fadeInStart,
+      inReflection,
+      castShadow,
+      radius,
+      cells: null,
+      matrices: null,
+      streamData: null,
+      activeCount: maxCount,
+      live: 0,
+    };
+    layers.push(layer);
+    return layer;
+  }
+
+  function snapshot(layer) {
+    const { mesh, maxCount } = layer;
+    const src = mesh.instanceMatrix.array;
+    const matrices = new Float32Array(maxCount * 16);
+    matrices.set(src.subarray(0, maxCount * 16));
+    layer.matrices = matrices;
+    if (layer.stream) {
+      layer.streamData = new Float32Array(maxCount * 4);
+      layer.streamData.set(layer.stream.array.subarray(0, maxCount * 4));
+    }
+    const geo = mesh.geometry;
+    if (!geo.boundingSphere) geo.computeBoundingSphere();
+    const baseRadius = layer.radius ?? (geo.boundingSphere ? geo.boundingSphere.radius : 2);
+    const baseCenterY = geo.boundingSphere ? geo.boundingSphere.center.y : 0;
+
+    // bucket the instances by ground cell; keep ascending index order per cell
+    const cellIndex = new Int32Array(maxCount);
+    const counts = new Map();
+    let kept = 0;
+    for (let i = 0; i < maxCount; i += 1) {
+      const o = i * 16;
+      const sx = Math.hypot(src[o], src[o + 1], src[o + 2]);
+      const sy = Math.hypot(src[o + 4], src[o + 5], src[o + 6]);
+      const sz = Math.hypot(src[o + 8], src[o + 9], src[o + 10]);
+      if (sx + sy + sz < 1e-6) {
+        cellIndex[i] = -1; // culled (zero matrix): can never produce a pixel
+        continue;
+      }
+      const cx = Math.min(cellsPerSide - 1, Math.max(0, Math.floor((src[o + 12] + half) / CELL) + 1));
+      const cz = Math.min(cellsPerSide - 1, Math.max(0, Math.floor((src[o + 14] + half) / CELL) + 1));
+      const key = cz * cellsPerSide + cx;
+      cellIndex[i] = key;
+      counts.set(key, (counts.get(key) || 0) + 1);
+      kept += 1;
+    }
+    const cells = [];
+    const byKey = new Map();
+    for (const [key, count] of counts) {
+      const cell = {
+        key,
+        count,
+        indices: new Int32Array(count),
+        matrices: new Float32Array(count * 16),
+        stream: layer.streamData ? new Float32Array(count * 4) : null,
+        ids: new Float32Array(count),
+        fill: 0,
+        minX: Infinity,
+        minY: Infinity,
+        minZ: Infinity,
+        maxX: -Infinity,
+        maxY: -Infinity,
+        maxZ: -Infinity,
+        // world-space centre / radius for the distance tests
+        cx: 0,
+        cy: 0,
+        cz: 0,
+        cr: 0,
+      };
+      cells.push(cell);
+      byKey.set(key, cell);
+    }
+    for (let i = 0; i < maxCount; i += 1) {
+      const key = cellIndex[i];
+      if (key < 0) continue;
+      const cell = byKey.get(key);
+      const k = cell.fill;
+      cell.indices[k] = i;
+      cell.matrices.set(matrices.subarray(i * 16, i * 16 + 16), k * 16);
+      if (cell.stream) cell.stream.set(layer.streamData.subarray(i * 4, i * 4 + 4), k * 4);
+      cell.ids[k] = i;
+      cell.fill += 1;
+      const o = i * 16;
+      const s = Math.max(Math.hypot(src[o], src[o + 1], src[o + 2]), Math.hypot(src[o + 4], src[o + 5], src[o + 6]), Math.hypot(src[o + 8], src[o + 9], src[o + 10]));
+      const r = baseRadius * s + SWAY_MARGIN;
+      const x = src[o + 12];
+      const y = src[o + 13] + baseCenterY * s;
+      const z = src[o + 14];
+      if (x - r < cell.minX) cell.minX = x - r;
+      if (x + r > cell.maxX) cell.maxX = x + r;
+      if (y - r < cell.minY) cell.minY = y - r;
+      if (y + r > cell.maxY) cell.maxY = y + r;
+      if (z - r < cell.minZ) cell.minZ = z - r;
+      if (z + r > cell.maxZ) cell.maxZ = z + r;
+    }
+    for (const cell of cells) {
+      cell.cx = (cell.minX + cell.maxX) * 0.5;
+      cell.cy = (cell.minY + cell.maxY) * 0.5;
+      cell.cz = (cell.minZ + cell.maxZ) * 0.5;
+      cell.cr = Math.hypot(cell.maxX - cell.minX, cell.maxY - cell.minY, cell.maxZ - cell.minZ) * 0.5;
+    }
+    layer.cells = cells;
+    state.totalInstances += kept;
+  }
+
+  // CPU-side edits of a layer's instance data (e.g. a post-hoc cull zeroing
+  // some matrices) must address the ORIGINAL indexing: call beginEdit() first
+  // — it restores the full data into the GPU arrays if they were compacted —
+  // edit, then refresh() so the next update snapshots the edited data.
+  function beginEdit(mesh) {
+    const layer = layers.find((l) => l.mesh === mesh);
+    if (layer && layer.cells) {
+      layer.mesh.instanceMatrix.array.set(layer.matrices);
+      if (layer.stream) layer.stream.array.set(layer.streamData);
+      layer.cells = null;
+    }
+  }
+  function refresh(mesh) {
+    const layer = layers.find((l) => l.mesh === mesh);
+    if (layer) {
+      layer.cells = null;
+      state.force = true;
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // per-frame: decide whether the view changed enough, then repack
+  // ---------------------------------------------------------------------
+  function activeCountFor(layer) {
+    const preset = ctx.quality;
+    if (!preset) return layer.maxCount;
+    const density = layer.densityKey === 'grass' ? preset.grassDensity : preset.vegetationDensity;
+    const n = layer.gate ? upperBound(layer.gate, density + 1e-9, layer.gate.length) : Math.round(layer.maxCount * density);
+    return Math.max(1, Math.min(layer.maxCount, n));
+  }
+
+  function shadowBounds() {
+    const sky = ctx.sky;
+    if (!sky?.shadowRegion) return null;
+    return sky.shadowRegion(); // { x, z, extent } or null when shadows are off
+  }
+
+  function update() {
+    const camera = ctx.camera;
+    if (!camera) return;
+    for (const layer of layers) if (!layer.cells) snapshot(layer);
+
+    camera.getWorldPosition(_pos);
+    camera.getWorldDirection(_dir);
+    const reflection = Boolean(ctx.water?.reflectionEnabled);
+    const shadow = shadowBounds();
+    const shadowKey = shadow ? `${Math.round(shadow.x / 4)},${Math.round(shadow.z / 4)},${shadow.extent}` : '';
+    const preset = ctx.quality;
+    const densityKey = preset ? `${preset.vegetationDensity}/${preset.grassDensity}` : '';
+
+    const moved = Math.hypot(_pos.x - state.camX, _pos.y - state.camY, _pos.z - state.camZ);
+    const turned = _dir.x * state.dirX + _dir.y * state.dirY + _dir.z * state.dirZ;
+    const projectionKey = `${camera.fov}|${camera.aspect}|${camera.near}|${camera.far}`;
+    if (
+      !state.force &&
+      moved < REPACK_MOVE &&
+      turned > REPACK_TURN &&
+      reflection === state.reflection &&
+      shadowKey === state.shadowKey &&
+      densityKey === state.densityKey &&
+      projectionKey === state.projectionKey
+    ) {
+      return;
+    }
+    const t0 = performance.now();
+    state.force = false;
+    state.camX = _pos.x;
+    state.camY = _pos.y;
+    state.camZ = _pos.z;
+    state.dirX = _dir.x;
+    state.dirY = _dir.y;
+    state.dirZ = _dir.z;
+    state.reflection = reflection;
+    state.shadowKey = shadowKey;
+    state.densityKey = densityKey;
+    state.projectionKey = projectionKey;
+
+    // widened main frustum
+    _wideCam.fov = Math.min(170, camera.fov + FOV_MARGIN_DEG * 2);
+    _wideCam.aspect = camera.aspect;
+    _wideCam.near = camera.near;
+    _wideCam.far = camera.far;
+    _wideCam.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+    _mat.copy(camera.matrixWorld).invert();
+    _frustum.setFromProjectionMatrix(_mat.premultiply(_wideCam.projectionMatrix));
+
+    // mirror-camera frustum (planar reflection across y = waterLevel)
+    if (reflection) {
+      const wl = WORLD.waterLevel;
+      _reflect.set(1, 0, 0, 0, 0, -1, 0, 2 * wl, 0, 0, 1, 0, 0, 0, 0, 1);
+      _mirrorCam.matrixWorld.multiplyMatrices(_reflect, camera.matrixWorld);
+      _mirrorCam.matrixWorldInverse.copy(_mirrorCam.matrixWorld).invert();
+      _mirrorPos.set(_pos.x, 2 * wl - _pos.y, _pos.z);
+      _mat.copy(_mirrorCam.matrixWorldInverse);
+      _mirrorFrustum.setFromProjectionMatrix(_mat.premultiply(_wideCam.projectionMatrix));
+    }
+
+    let visible = 0;
+    for (const layer of layers) {
+      const activeCount = activeCountFor(layer);
+      const useMirror = reflection && layer.inReflection;
+      const useShadow = Boolean(shadow) && layer.castShadow;
+      const fadeEnd = layer.fadeEnd;
+      const fadeInStart = layer.fadeInStart;
+      const matArr = layer.mesh.instanceMatrix.array;
+      const streamArr = layer.stream ? layer.stream.array : null;
+      const idArr = layer.idAttr.array;
+      let cursor = 0;
+      for (const cell of layer.cells) {
+        // density prefix: how many of this cell's instances are live
+        const n = cell.indices[cell.count - 1] < activeCount ? cell.count : upperBound(cell.indices, activeCount - 1, cell.count);
+        if (n === 0) continue;
+        _box.min.set(cell.minX, cell.minY, cell.minZ);
+        _box.max.set(cell.maxX, cell.maxY, cell.maxZ);
+
+        // distance fade: nearest / farthest approach of the cell to the eye(s)
+        let dMin = Infinity;
+        let dMax = 0;
+        if (fadeEnd !== null || fadeInStart !== null) {
+          const d = Math.hypot(cell.cx - _pos.x, cell.cy - _pos.y, cell.cz - _pos.z);
+          dMin = Math.max(0, d - cell.cr);
+          dMax = d + cell.cr;
+          if (useMirror) {
+            const dm = Math.hypot(cell.cx - _mirrorPos.x, cell.cy - _mirrorPos.y, cell.cz - _mirrorPos.z);
+            dMin = Math.min(dMin, Math.max(0, dm - cell.cr));
+            dMax = Math.max(dMax, dm + cell.cr);
+          }
+          if (!state.debugAll && fadeEnd !== null && dMin >= fadeEnd) continue;
+          if (!state.debugAll && fadeInStart !== null && dMax <= fadeInStart) continue;
+        }
+
+        let inView = state.debugAll || _frustum.intersectsBox(_box);
+        if (!inView && useMirror) inView = _mirrorFrustum.intersectsBox(_box);
+        if (!inView && useShadow) {
+          const e = shadow.extent + SHADOW_MARGIN;
+          inView = cell.maxX >= shadow.x - e && cell.minX <= shadow.x + e && cell.maxZ >= shadow.z - e && cell.minZ <= shadow.z + e;
+        }
+        if (!inView) continue;
+
+        matArr.set(n === cell.count ? cell.matrices : cell.matrices.subarray(0, n * 16), cursor * 16);
+        if (streamArr) streamArr.set(n === cell.count ? cell.stream : cell.stream.subarray(0, n * 4), cursor * 4);
+        idArr.set(n === cell.count ? cell.ids : cell.ids.subarray(0, n), cursor);
+        cursor += n;
+      }
+      if (cursor === 0) {
+        // keep one degenerate instance so the draw stays valid
+        matArr.fill(0, 0, 16);
+        if (streamArr) streamArr.fill(0, 0, 4);
+        idArr[0] = 0;
+        cursor = 1;
+      }
+      layer.live = cursor;
+      visible += cursor;
+      const mesh = layer.mesh;
+      mesh.count = cursor;
+      const im = mesh.instanceMatrix;
+      if (!state.fullUpload) { im.clearUpdateRanges(); im.addUpdateRange(0, cursor * 16); }
+      im.needsUpdate = true;
+      if (layer.stream) {
+        const sa = layer.stream.attribute;
+        if (!state.fullUpload) { sa.clearUpdateRanges(); sa.addUpdateRange(0, cursor * 4); }
+        sa.needsUpdate = true;
+      }
+      if (!state.fullUpload) { layer.idAttr.clearUpdateRanges(); layer.idAttr.addUpdateRange(0, cursor); }
+      layer.idAttr.needsUpdate = true;
+    }
+    state.visibleInstances = visible;
+    state.repacks += 1;
+    state.lastMs = performance.now() - t0;
+  }
+
+  return {
+    register,
+    beginEdit,
+    refresh,
+    update,
+    layers,
+    stats: state,
+    forceRepack() {
+      state.force = true;
+    },
+  };
+}

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jungle — performance pass progress</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 32px 20px 64px; font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #0e130f; color: #dfe7d9; max-width: 900px; margin-inline: auto; }
+  h1 { font-size: 22px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 4px; }
+  .sub { color: #8fa58a; margin-bottom: 28px; }
+  h2 { font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: #a7d18f; margin: 32px 0 10px; }
+  a { color: #9fe07a; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #22301f; vertical-align: top; }
+  th { color: #8fa58a; font-weight: 600; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .ok { color: #9fe07a; } .wip { color: #f0c86a; } .todo { color: #8fa58a; }
+  code { background: #172017; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .note { background: #131b13; border: 1px solid #22301f; border-radius: 8px; padding: 12px 14px; }
+  ul { padding-left: 20px; }
+</style>
+</head>
+<body>
+<h1>Jungle — performance pass</h1>
+<div class="sub">Goal: as fast and light as possible with pixel-identical output. This page is updated with every push to the work-in-progress branch.</div>
+
+<div class="note">
+  <strong>Live builds</strong><br />
+  Work in progress (updates on every push): <a href="./index.html">index.html on this branch</a><br />
+  Stable branch: <a href="https://raw.githack.com/ilikevibecoding/My-projects/cursor/jungle-biome-graphics-9c35/jungle/index.html">cursor/jungle-biome-graphics-9c35</a><br />
+  <small>githack shows an "Open the page" interstitial on the first visit — click it.</small>
+</div>
+
+<h2>How it is measured</h2>
+<ul>
+  <li><strong>Identity:</strong> a headless harness pins the clock, camera, film grain and the AO denoise noise, renders 8 fixed views, and diffs every pixel against frames from the pre-optimisation build. Target: 0 differing pixels.</li>
+  <li><strong>Work per frame:</strong> triangles and draw calls submitted per frame (all passes), from <code>renderer.info</code>, at the same 8 views.</li>
+  <li><strong>GPU proxy:</strong> software-rendered (SwiftShader) frame time at 480×270 — no GPU in the build environment, so this stands in for relative GPU cost.</li>
+</ul>
+
+<h2>Baseline (before this pass)</h2>
+<table>
+  <tr><th>Metric</th><th>High preset, spawn view</th></tr>
+  <tr><td>Triangles submitted per frame (shadow + reflection + main)</td><td>6.92 M</td></tr>
+  <tr><td>Draw calls per frame</td><td>207–279</td></tr>
+  <tr><td>Instances submitted per frame (vegetation)</td><td>~55 000 (all of them, every pass, no culling)</td></tr>
+  <tr><td>SwiftShader frame time, 480×270</td><td>2 332 ms</td></tr>
+  <tr><td>Main-thread JS per frame (all system updates)</td><td>&lt; 1 ms</td></tr>
+  <tr><td>Load to first frame (this VM, headless)</td><td>~31 s (textures 2.6 s, vegetation build 4.3 s, ground props 0.7 s, plus shader compiles)</td></tr>
+</table>
+
+<h2>Where the frame goes (baseline)</h2>
+<ul>
+  <li>Vegetation drawn three times per frame (shadow map, water reflection, main) over the whole 400 m map: ~50 % of the frame.</li>
+  <li>Water reflection pass (a second full scene render) + the water shader: ~35 %.</li>
+  <li>Shadow pass + soft-shadow sampling in every lit material: ~30 %.</li>
+  <li>Post-processing (GTAO, denoise, bloom, god rays, FXAA, grade): ~6 %.</li>
+  <li>JS on the main thread: negligible; three.js draw submission ~0.07 ms per draw call.</li>
+</ul>
+
+<h2>Steps</h2>
+<table>
+  <tr><th>#</th><th>Change</th><th>Status</th><th>Effect</th></tr>
+  <tr><td>0</td><td>Deterministic frames: seed the AO denoise noise (was <code>Math.random</code> per page load), build the pixel-diff harness</td><td class="ok">done</td><td>8/8 views byte-identical run to run</td></tr>
+  <tr><td>1</td><td>Instance culling: every plant layer keeps its full instance data on the CPU in 16 m cells and repacks its GPU buffers to the visible set (main frustum ∪ mirror frustum ∪ shadow box, never beyond the distance fade) when the view moves; per-plant looks keyed off a stable id attribute instead of <code>instanceIndex</code></td><td class="wip">in progress</td><td>55 163 → ~10 500 instances per frame at the clearing (−81 %). 5 of 8 views pixel-identical; tracking down a remaining difference in 3 views (a stale-buffer / ordering effect after a repack, not a culled plant)</td></tr>
+  <tr><td>2</td><td>Terrain mesh and water grid split into frustum-culled tiles</td><td class="todo">next</td><td></td></tr>
+  <tr><td>3</td><td>Reflection pass: only what the mirror camera can see; shadow pass: only the shadow box</td><td class="todo">planned</td><td></td></tr>
+  <tr><td>4</td><td>Load time: cache generated textures / placements, parallelise generation</td><td class="todo">planned</td><td></td></tr>
+</table>
+
+<h2>Log</h2>
+<ul id="log">
+  <li>2026-09-04 05:40 — WebGPU: the culler's id attribute pushed the big plant layers to 9 vertex buffers (WebGPU allows 8; a layer over 1000 instances spends 4 on its matrix columns). Moved the wind-anchor streams — and the particle streams, whose birds were already at 9 and had never compiled on WebGPU — onto storage buffers. Every pipeline validates on WebGPU again, High and Ultra.</li>
+  <li>2026-09-04 — baseline profiled; identity harness built and verified deterministic; instance culler written and wired into vegetation, the kapok crown, sky (shadow footprint) and water (reflection flag). Culled build compiles on WebGPU and WebGL 2 with zero console errors.</li>
+</ul>
+</body>
+</html>
