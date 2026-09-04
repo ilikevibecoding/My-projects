@@ -3,11 +3,28 @@
 // on a canvas with a seeded RNG; albedo maps are sRGB, alpha-tested cards are
 // non-repeating, tiling maps (culms, ropes) repeat.
 
-import * as THREE from 'three/webgpu';
 import { mulberry32 } from './noise.js';
-import { createBarkTexture, createCanopyTexture, createFernTexture, createNormalFromCanvas } from './textures.js';
+import { WORLD } from './config.js';
+import { createBarkTexture, createCanopyTexture, createFernTexture, createNormalFromCanvas, textureStandIn } from './textures.js';
+import { createGenCache, registerWorkerPaint, restoreTexture, restoreTextureSet, snapshotTexture, storeTextureSet } from './gen-cache.js';
+
+// Like textures.js, this module also paints inside workers on a first visit,
+// where the import map (and so three.js) is out of reach: the stand-in
+// describes the textures and the page thread rebuilds the real ones.
+const THREE = await import('three/webgpu').catch(() => textureStandIn());
+
+// Painted pixels persisted across visits (see gen-cache.js). The leaf-cluster
+// atlases are cached per parameter set (the kapok crown in landmarks.js asks
+// for the same atlas as the emergent trees); everything else as one set.
+const foliageCache = createGenCache({
+  name: 'foliage',
+  sources: [import.meta.url, new URL('./textures.js', import.meta.url).href, new URL('./noise.js', import.meta.url).href],
+  salt: `seed=${WORLD.seed}`,
+});
+const clusterMemo = new Map();
 
 function makeCanvas(width, height = width) {
+  if (typeof document === 'undefined') return new OffscreenCanvas(width, height);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -294,7 +311,29 @@ function paintLeafCluster(ctx, random, {
 // cell by where they sit in the crown (see vegetation.js `shellCrown`), so the
 // outside of a crown shows sunlit tufts and the underside / interior shows
 // the dark ones — the single strongest depth cue a card crown can give.
-export function createLeafClusterTexture({
+export function createLeafClusterTexture(options = {}) {
+  const params = leafClusterParams(options);
+  const cacheKey = `leafCluster/${leafClusterKey(params)}`;
+  const cached = clusterMemo.get(cacheKey) || foliageCache.peek(cacheKey);
+  if (cached) {
+    const restored = restoreTexture(cached);
+    if (restored) {
+      clusterMemo.set(cacheKey, cached);
+      foliageCache.info.restored += 1;
+      return restored;
+    }
+  }
+  const texture = paintLeafClusterTexture(params);
+  const snapshot = snapshotTexture(texture);
+  if (snapshot) {
+    clusterMemo.set(cacheKey, snapshot);
+    foliageCache.put(cacheKey, snapshot);
+  }
+  return texture;
+}
+
+// The full parameter set of a leaf-cluster atlas with its defaults applied.
+function leafClusterParams({
   seed = 1,
   size = 512,
   count = 900,
@@ -310,6 +349,107 @@ export function createLeafClusterTexture({
   depth = 0.55,
   rim = 0.22,
 } = {}) {
+  return { seed, size, count, lenRange, aspect, palettes, radiusPow, squash, shape, highlight, edgeWobble, atlas, depth, rim };
+}
+
+// The painted pixels are a function of these parameters alone (radiusPow is
+// accepted but not read by paintLeafCluster, so it is left out of the key).
+function leafClusterKey({ seed, size, count, lenRange, aspect, palettes, squash, shape, highlight, edgeWobble, atlas, depth, rim }) {
+  return JSON.stringify([seed, size, count, lenRange, aspect, palettes, squash, shape, highlight, edgeWobble, atlas, depth, rim]);
+}
+
+// The atlases the jungle uses, by name. createFoliageTextures paints them
+// all (landmarks.js asks for the emergent one again for the kapok crown);
+// the list also tells the painting workers what to prepare on a first visit.
+const LEAF_CLUSTER_PRESETS = {
+  // tree crowns — dense clusters (few see-through holes) so the canopy closes
+  // into a continuous sea from the vistas; three distinct palettes so
+  // neighbouring trees read as different species
+  // Every crown map is a 2 × 2 atlas (lit A / lit B / shaded / warm) — the
+  // shell crowns pick the cell per card. Cards are ~1.5–3 m, so the leaves
+  // are drawn large enough to still read as leaves from under the tree.
+  canopyEmergent: {
+    seed: 5101,
+    count: 1500,
+    lenRange: [12, 24],
+    shape: 'small',
+    palettes: [['#1f4a1a', '#33722a'], ['#1d5222', '#3a8334'], ['#26561a', '#45852c'], ['#2a5f22', '#4c8f36']],
+    radiusPow: 0.85,
+    highlight: 0.12,
+    edgeWobble: 0.3,
+    atlas: 2,
+  },
+  // A: mid green, oval leaves
+  canopyA: {
+    seed: 5111,
+    count: 720,
+    lenRange: [22, 44],
+    // a touch olive: under direct sun the lit tops otherwise lean lime
+    palettes: [['#2e6424', '#4c9038'], ['#367130', '#589e44'], ['#2a5b22', '#48883a'], ['#32682a', '#509540']],
+    radiusPow: 0.8,
+    highlight: 0.12,
+    edgeWobble: 0.34,
+    atlas: 2,
+  },
+  // B: darker blue-green, rounder leaves (umbrella crowns)
+  canopyB: {
+    seed: 5122,
+    count: 560,
+    lenRange: [26, 48],
+    shape: 'round',
+    palettes: [['#1c5228', '#327d3a'], ['#215a2b', '#3c8b45'], ['#184a20', '#2d7433'], ['#205530', '#388546']],
+    radiusPow: 0.8,
+    highlight: 0.1,
+    edgeWobble: 0.32,
+    atlas: 2,
+  },
+  // C: fine olive foliage (layered crowns) — small leaves read as a different
+  // texture scale from A/B
+  canopyC: {
+    seed: 5202,
+    count: 1300,
+    lenRange: [13, 26],
+    shape: 'small',
+    palettes: [['#3a6b22', '#5c9236'], ['#456f24', '#6d9c3a'], ['#2f5f1d', '#4f8a2e'], ['#3c7024', '#649a38']],
+    radiusPow: 0.8,
+    highlight: 0.09,
+    edgeWobble: 0.3,
+    atlas: 2,
+  },
+  canopyUnderstory: {
+    seed: 5303,
+    count: 300,
+    lenRange: [34, 66],
+    aspect: 0.5,
+    palettes: [['#2f6e22', '#4f9a35'], ['#377a28', '#5da63c'], ['#2a5f1f', '#458c2f'], ['#33702a', '#5aa040']],
+    radiusPow: 0.72,
+    squash: 0.85,
+    highlight: 0.1,
+    edgeWobble: 0.4,
+    atlas: 2,
+  },
+  // bush: dense rounded cluster of mid-size leaves (createBushTexture)
+  bush: {
+    seed: 3606,
+    size: 512,
+    count: 700,
+    lenRange: [22, 40],
+    shape: 'round',
+    palettes: [['#2f6d21', '#4a9a30'], ['#3a7f28', '#63b13f'], ['#2b5e1d', '#4f9633'], ['#4c8f2c', '#79c04a']],
+    // thinner toward the rim and lobed, so shrubs read as sprays of branches
+    // rather than the green cubes the old disc gave on a 2.2 × 1.7 m card
+    radiusPow: 0.86,
+    squash: 0.88,
+    highlight: 0.12,
+    edgeWobble: 0.3,
+  },
+};
+
+// Measured paint time of each atlas (ms) — the worker pool starts the
+// heaviest first.
+const LEAF_CLUSTER_WEIGHTS = { canopyEmergent: 750, canopyA: 400, canopyB: 220, canopyC: 270, canopyUnderstory: 190, bush: 60 };
+
+function paintLeafClusterTexture({ seed, size, count, lenRange, aspect, palettes, radiusPow, squash, shape, highlight, edgeWobble, atlas, depth, rim }) {
   const random = mulberry32(seed);
   const base = { size, count, lenRange, aspect, palettes, radiusPow, squash, shape, highlight, edgeWobble, depth, rim };
   if (atlas <= 1) {
@@ -604,21 +744,8 @@ export function createPhilodendronTexture(seed = 3505) {
 }
 
 // Bush: dense rounded cluster of mid-size leaves.
-export function createBushTexture(seed = 3606) {
-  return createLeafClusterTexture({
-    seed,
-    size: 512,
-    count: 700,
-    lenRange: [22, 40],
-    shape: 'round',
-    palettes: [['#2f6d21', '#4a9a30'], ['#3a7f28', '#63b13f'], ['#2b5e1d', '#4f9633'], ['#4c8f2c', '#79c04a']],
-    // thinner toward the rim and lobed, so shrubs read as sprays of branches
-    // rather than the green cubes the old disc gave on a 2.2 × 1.7 m card
-    radiusPow: 0.86,
-    squash: 0.88,
-    highlight: 0.12,
-    edgeWobble: 0.3,
-  });
+export function createBushTexture(seed = LEAF_CLUSTER_PRESETS.bush.seed) {
+  return createLeafClusterTexture({ ...LEAF_CLUSTER_PRESETS.bush, seed });
 }
 
 // ---------- flowers ----------
@@ -1082,75 +1209,10 @@ export function createVineTexture(seed = 4616) {
   return texture;
 }
 
-export function createFoliageTextures() {
-  const set = {
-    // tree crowns — dense clusters (few see-through holes) so the canopy closes
-    // into a continuous sea from the vistas; three distinct palettes so
-    // neighbouring trees read as different species
-    // Every crown map is a 2 × 2 atlas (lit A / lit B / shaded / warm) — the
-    // shell crowns pick the cell per card. Cards are ~1.5–3 m, so the leaves
-    // are drawn large enough to still read as leaves from under the tree.
-    canopyEmergent: createLeafClusterTexture({
-      seed: 5101,
-      count: 1500,
-      lenRange: [12, 24],
-      shape: 'small',
-      palettes: [['#1f4a1a', '#33722a'], ['#1d5222', '#3a8334'], ['#26561a', '#45852c'], ['#2a5f22', '#4c8f36']],
-      radiusPow: 0.85,
-      highlight: 0.12,
-      edgeWobble: 0.3,
-      atlas: 2,
-    }),
-    // A: mid green, oval leaves
-    canopyA: createLeafClusterTexture({
-      seed: 5111,
-      count: 720,
-      lenRange: [22, 44],
-      // a touch olive: under direct sun the lit tops otherwise lean lime
-      palettes: [['#2e6424', '#4c9038'], ['#367130', '#589e44'], ['#2a5b22', '#48883a'], ['#32682a', '#509540']],
-      radiusPow: 0.8,
-      highlight: 0.12,
-      edgeWobble: 0.34,
-      atlas: 2,
-    }),
-    // B: darker blue-green, rounder leaves (umbrella crowns)
-    canopyB: createLeafClusterTexture({
-      seed: 5122,
-      count: 560,
-      lenRange: [26, 48],
-      shape: 'round',
-      palettes: [['#1c5228', '#327d3a'], ['#215a2b', '#3c8b45'], ['#184a20', '#2d7433'], ['#205530', '#388546']],
-      radiusPow: 0.8,
-      highlight: 0.1,
-      edgeWobble: 0.32,
-      atlas: 2,
-    }),
-    // C: fine olive foliage (layered crowns) — small leaves read as a different
-    // texture scale from A/B
-    canopyC: createLeafClusterTexture({
-      seed: 5202,
-      count: 1300,
-      lenRange: [13, 26],
-      shape: 'small',
-      palettes: [['#3a6b22', '#5c9236'], ['#456f24', '#6d9c3a'], ['#2f5f1d', '#4f8a2e'], ['#3c7024', '#649a38']],
-      radiusPow: 0.8,
-      highlight: 0.09,
-      edgeWobble: 0.3,
-      atlas: 2,
-    }),
-    canopyUnderstory: createLeafClusterTexture({
-      seed: 5303,
-      count: 300,
-      lenRange: [34, 66],
-      aspect: 0.5,
-      palettes: [['#2f6e22', '#4f9a35'], ['#377a28', '#5da63c'], ['#2a5f1f', '#458c2f'], ['#33702a', '#5aa040']],
-      radiusPow: 0.72,
-      squash: 0.85,
-      highlight: 0.1,
-      edgeWobble: 0.4,
-      atlas: 2,
-    }),
-    bush: createBushTexture(),
+// Everything in the foliage set that is not a leaf-cluster atlas: painted
+// as one unit and cached as the set `set/*`.
+function paintFoliageSet() {
+  const painted = {
     // stems / trunks
     bambooCulm: createBambooCulmTexture(),
     bambooLeaf: createBambooLeafTexture(),
@@ -1181,10 +1243,55 @@ export function createFoliageTextures() {
     liana: createLianaTexture(),
     vine: createVineTexture(),
   };
-  set.emergentBarkNormal = createNormalFromCanvas(set.emergentBark, 2.8, 1);
-  set.canopyBarkNormal = createNormalFromCanvas(set.canopyBark, 3.0, 1);
-  set.understoryBarkNormal = createNormalFromCanvas(set.understoryBark, 2.4, 1);
-  set.treeFernBarkNormal = createNormalFromCanvas(set.treeFernBark, 2.6, 1);
-  set.bambooNormal = createNormalFromCanvas(set.bambooCulm, 1.6, 1);
-  return set;
+  painted.emergentBarkNormal = createNormalFromCanvas(painted.emergentBark, 2.8, 1);
+  painted.canopyBarkNormal = createNormalFromCanvas(painted.canopyBark, 3.0, 1);
+  painted.understoryBarkNormal = createNormalFromCanvas(painted.understoryBark, 2.4, 1);
+  painted.treeFernBarkNormal = createNormalFromCanvas(painted.treeFernBark, 2.6, 1);
+  painted.bambooNormal = createNormalFromCanvas(painted.bambooCulm, 1.6, 1);
+  return painted;
+}
+
+// Worker entry (see gen-cache.js): 'set' paints the set above, any other name
+// one leaf-cluster preset keyed the way createLeafClusterTexture looks it up.
+export function paintFoliageSlice(name) {
+  if (name === 'set') return paintFoliageSet();
+  const params = leafClusterParams(LEAF_CLUSTER_PRESETS[name]);
+  return { [leafClusterKey(params)]: paintLeafClusterTexture(params) };
+}
+
+// First visit: the atlases and the set paint in parallel workers alongside
+// the ground tiles (textures.js awaits the pool before the world is built),
+// so by the time vegetation asks, the records are already in the cache.
+registerWorkerPaint({
+  cache: foliageCache,
+  prefix: 'leafCluster',
+  manifest: false,
+  keys: Object.values(LEAF_CLUSTER_PRESETS).map((preset) => leafClusterKey(leafClusterParams(preset))),
+  jobs: Object.keys(LEAF_CLUSTER_PRESETS).map((name) => ({ moduleUrl: import.meta.url, fn: 'paintFoliageSlice', args: [name], weight: LEAF_CLUSTER_WEIGHTS[name] })),
+});
+registerWorkerPaint({
+  cache: foliageCache,
+  prefix: 'set',
+  manifest: true,
+  jobs: [{ moduleUrl: import.meta.url, fn: 'paintFoliageSlice', args: ['set'], weight: 500 }],
+});
+
+export function createFoliageTextures() {
+  // the atlases cache themselves per parameter set (landmarks.js shares the
+  // emergent one); the rest of the set is stored and restored as one unit
+  const set = {
+    canopyEmergent: createLeafClusterTexture(LEAF_CLUSTER_PRESETS.canopyEmergent),
+    canopyA: createLeafClusterTexture(LEAF_CLUSTER_PRESETS.canopyA),
+    canopyB: createLeafClusterTexture(LEAF_CLUSTER_PRESETS.canopyB),
+    canopyC: createLeafClusterTexture(LEAF_CLUSTER_PRESETS.canopyC),
+    canopyUnderstory: createLeafClusterTexture(LEAF_CLUSTER_PRESETS.canopyUnderstory),
+    bush: createBushTexture(),
+  };
+  const restored = restoreTextureSet(foliageCache, 'set');
+  if (restored) {
+    return Object.assign(set, restored);
+  }
+  const painted = paintFoliageSet();
+  storeTextureSet(foliageCache, 'set', painted);
+  return Object.assign(set, painted);
 }

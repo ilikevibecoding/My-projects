@@ -1,9 +1,91 @@
 // Procedural canvas textures — every texture in the jungle is painted in code.
 
-import * as THREE from 'three/webgpu';
 import { mulberry32 } from './noise.js';
+import { WORLD } from './config.js';
+import { createGenCache, paintRegisteredInWorkers, registerWorkerPaint, restoreTextureSet, storeTextureSet } from './gen-cache.js';
+
+// three.js resolves through the page's import map, which a Worker does not
+// inherit. This module also runs inside painting workers (gen-cache.js), where
+// only the canvases and the texture *descriptions* matter, so there the import
+// fails and a stand-in with three's texture defaults and constants is used;
+// the page thread turns the worker's pixels back into real textures.
+const THREE = await import('three/webgpu').catch(() => textureStandIn());
+
+// Painted pixels of the whole set, persisted across visits (see gen-cache.js).
+// Opened at import time so the records are in memory before the world is
+// built; keyed by this module's source, the RNG source and the world seed.
+const textureCache = createGenCache({
+  name: 'textures',
+  sources: [import.meta.url, new URL('./noise.js', import.meta.url).href],
+  salt: `seed=${WORLD.seed}`,
+});
+
+// Minimal Texture / CanvasTexture / DataTexture with three r184's defaults
+// (Texture, DataTexture and CanvasTexture constructors) — just enough for
+// gen-cache's snapshotTexture to describe a painted texture in a worker.
+export function textureStandIn() {
+  class Texture {
+    constructor(image) {
+      this.isTexture = true;
+      this.image = image;
+      this.name = '';
+      this.mapping = 300;
+      this.wrapS = 1001;
+      this.wrapT = 1001;
+      this.magFilter = 1006;
+      this.minFilter = 1008;
+      this.anisotropy = 1;
+      this.format = 1023;
+      this.internalFormat = null;
+      this.type = 1009;
+      this.generateMipmaps = true;
+      this.premultiplyAlpha = false;
+      this.flipY = true;
+      this.unpackAlignment = 4;
+      this.colorSpace = '';
+      this.userData = {};
+    }
+
+    set needsUpdate(value) {
+      this.version = (this.version || 0) + (value ? 1 : 0);
+    }
+  }
+  class CanvasTexture extends Texture {
+    constructor(canvas) {
+      super(canvas);
+      this.isCanvasTexture = true;
+      this.needsUpdate = true;
+    }
+  }
+  class DataTexture extends Texture {
+    constructor(data = null, width = 1, height = 1, format = 1023, type = 1009) {
+      super({ data, width, height });
+      this.isDataTexture = true;
+      this.format = format;
+      this.type = type;
+      this.magFilter = 1003;
+      this.minFilter = 1003;
+      this.generateMipmaps = false;
+      this.flipY = false;
+      this.unpackAlignment = 1;
+    }
+  }
+  return {
+    CanvasTexture,
+    DataTexture,
+    SRGBColorSpace: 'srgb',
+    NoColorSpace: '',
+    RepeatWrapping: 1000,
+    ClampToEdgeWrapping: 1001,
+    LinearFilter: 1006,
+    LinearMipmapLinearFilter: 1008,
+    RGBAFormat: 1023,
+    UnsignedByteType: 1009,
+  };
+}
 
 function makeCanvas(width, height = width) {
+  if (typeof document === 'undefined') return new OffscreenCanvas(width, height);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -39,9 +121,14 @@ function heightTexture(canvas) {
 // counts. A 2D canvas stores premultiplied pixels — alpha < 1 would corrupt
 // the colour — so the pair is uploaded as a DataTexture instead, rows
 // reversed to match the flipY orientation of every CanvasTexture tile.
-function packAlphaTexture(colorCanvas, alphaField, { srgb = true } = {}) {
+//
+// `pixels` may pass the canvas' RGBA bytes when the caller already holds them
+// (bakeCavity returns the ImageData it wrote back; every pixel of these tiles
+// is opaque, so the canvas stores exactly those bytes and a second
+// getImageData would return the same array).
+function packAlphaTexture(colorCanvas, alphaField, { srgb = true, pixels = null } = {}) {
   const size = colorCanvas.width;
-  const src = colorCanvas.getContext('2d').getImageData(0, 0, size, size).data;
+  const src = pixels || colorCanvas.getContext('2d').getImageData(0, 0, size, size).data;
   const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y += 1) {
     const srcRow = (size - 1 - y) * size;
@@ -123,7 +210,57 @@ function heightInk(amount) {
   return amount >= 0 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`;
 }
 
-// Separable wrap-around box blur of a float field (running sums, O(n)).
+// Bit-exact replicas of V8's Math.hypot (builtins/math.tq): the largest
+// magnitude normalises the terms, which are Kahan-summed in argument order,
+// then sqrt(sum) * max. Every step is a plain IEEE double operation, so a JS
+// transcription yields the same double — but inlined in a hot loop instead of
+// a builtin call that allocates a temporary array per invocation (the Voronoi
+// fields and the normal maps spent most of their time in it).
+function hypot2(a, b) {
+  a = a < 0 ? -a : a;
+  b = b < 0 ? -b : b;
+  const max = a > b ? a : b;
+  if (max === 0) return 0;
+  let n = a / max;
+  let summand = n * n - 0;
+  let preliminary = 0 + summand;
+  const compensation = (preliminary - 0) - summand;
+  const sum = preliminary;
+  n = b / max;
+  summand = n * n - compensation;
+  preliminary = sum + summand;
+  return Math.sqrt(preliminary) * max;
+}
+
+function hypot3(a, b, c) {
+  a = a < 0 ? -a : a;
+  b = b < 0 ? -b : b;
+  c = c < 0 ? -c : c;
+  let max = a;
+  if (b > max) max = b;
+  if (c > max) max = c;
+  if (max === 0) return 0;
+  let n = a / max;
+  let summand = n * n - 0;
+  let preliminary = 0 + summand;
+  let compensation = (preliminary - 0) - summand;
+  let sum = preliminary;
+  n = b / max;
+  summand = n * n - compensation;
+  preliminary = sum + summand;
+  compensation = (preliminary - sum) - summand;
+  sum = preliminary;
+  n = c / max;
+  summand = n * n - compensation;
+  preliminary = sum + summand;
+  return Math.sqrt(preliminary) * max;
+}
+
+// Separable wrap-around box blur of a float field (running sums, O(n)). The
+// column pass keeps one running sum per column and sweeps rows, so the memory
+// access is sequential; each column still sees exactly the same sequence of
+// additions and subtractions as a column-at-a-time sweep would, so the
+// float results are unchanged.
 function blurField(field, size, radius) {
   const tmp = new Float32Array(size * size);
   const inv = 1 / (radius * 2 + 1);
@@ -131,19 +268,36 @@ function blurField(field, size, radius) {
     const row = y * size;
     let sum = 0;
     for (let k = -radius; k <= radius; k += 1) sum += field[row + ((k + size) % size)];
+    let add = (radius + 1) % size; // (x + radius + 1) wrapped
+    let sub = (size - radius) % size; // (x - radius) wrapped
     for (let x = 0; x < size; x += 1) {
       tmp[row + x] = sum * inv;
-      sum += field[row + ((x + radius + 1) % size)] - field[row + ((x - radius + size) % size)];
+      sum += field[row + add] - field[row + sub];
+      add += 1;
+      if (add === size) add = 0;
+      sub += 1;
+      if (sub === size) sub = 0;
     }
   }
   const out = new Float32Array(size * size);
-  for (let x = 0; x < size; x += 1) {
-    let sum = 0;
-    for (let k = -radius; k <= radius; k += 1) sum += tmp[((k + size) % size) * size + x];
-    for (let y = 0; y < size; y += 1) {
-      out[y * size + x] = sum * inv;
-      sum += tmp[((y + radius + 1) % size) * size + x] - tmp[((y - radius + size) % size) * size + x];
+  const sums = new Float64Array(size);
+  for (let k = -radius; k <= radius; k += 1) {
+    const row = ((k + size) % size) * size;
+    for (let x = 0; x < size; x += 1) sums[x] += tmp[row + x];
+  }
+  let addRow = ((radius + 1) % size) * size;
+  let subRow = ((size - radius) % size) * size;
+  const end = size * size;
+  for (let y = 0; y < size; y += 1) {
+    const row = y * size;
+    for (let x = 0; x < size; x += 1) {
+      out[row + x] = sums[x] * inv;
+      sums[x] += tmp[addRow + x] - tmp[subRow + x];
     }
+    addRow += size;
+    if (addRow === end) addRow = 0;
+    subRow += size;
+    if (subRow === end) subRow = 0;
   }
   return out;
 }
@@ -175,6 +329,7 @@ function writeHeights(canvas, heights) {
 // blurred neighbourhood (crevices, the soil around a pebble, cracks) darken;
 // tiny ridges get a faint lift. Direction-free, so it never fights the
 // dynamic light — it reads as damp dirt collecting in the low spots.
+// Returns the ImageData written back (see packAlphaTexture).
 function bakeCavity(colorCanvas, heights, radius, strength) {
   const size = colorCanvas.width;
   const ctx = colorCanvas.getContext('2d');
@@ -190,6 +345,7 @@ function bakeCavity(colorCanvas, heights, radius, strength) {
     data[o + 2] = Math.min(255, data[o + 2] * shade);
   }
   ctx.putImageData(image, 0, 0);
+  return image;
 }
 
 const smooth01 = (t) => {
@@ -572,6 +728,11 @@ export function createSandTexture() {
 function tileableFbm(size, seed, { octaves = 5, baseCells = 4, gain = 0.5, contrast = 1.5 } = {}) {
   const random = mulberry32(seed);
   const out = new Float32Array(size * size);
+  // per-column lattice index pair + fade weight, computed once per octave
+  // instead of once per pixel (the same operations on the same inputs)
+  const i0s = new Int32Array(size);
+  const i1s = new Int32Array(size);
+  const sus = new Float64Array(size);
   let amp = 1;
   let cells = baseCells;
   let norm = 0;
@@ -579,25 +740,34 @@ function tileableFbm(size, seed, { octaves = 5, baseCells = 4, gain = 0.5, contr
     const lattice = new Float32Array(cells * cells);
     for (let i = 0; i < lattice.length; i += 1) lattice[i] = random();
     const scale = cells / size;
+    for (let x = 0; x < size; x += 1) {
+      const u = x * scale;
+      const i0 = Math.floor(u);
+      const fu = u - i0;
+      i0s[x] = i0;
+      i1s[x] = (i0 + 1) % cells;
+      sus[x] = fu * fu * fu * (fu * (fu * 6 - 15) + 10);
+    }
     for (let y = 0; y < size; y += 1) {
       const v = y * scale;
       const j0 = Math.floor(v);
       const j1 = (j0 + 1) % cells;
       const fv = v - j0;
       const sv = fv * fv * fv * (fv * (fv * 6 - 15) + 10);
+      const row0 = j0 * cells;
+      const row1 = j1 * cells;
+      const row = y * size;
       for (let x = 0; x < size; x += 1) {
-        const u = x * scale;
-        const i0 = Math.floor(u);
-        const i1 = (i0 + 1) % cells;
-        const fu = u - i0;
-        const su = fu * fu * fu * (fu * (fu * 6 - 15) + 10);
-        const a = lattice[j0 * cells + i0];
-        const b = lattice[j0 * cells + i1];
-        const c = lattice[j1 * cells + i0];
-        const d = lattice[j1 * cells + i1];
+        const i0 = i0s[x];
+        const i1 = i1s[x];
+        const su = sus[x];
+        const a = lattice[row0 + i0];
+        const b = lattice[row0 + i1];
+        const c = lattice[row1 + i0];
+        const d = lattice[row1 + i1];
         const top = a + (b - a) * su;
         const bottom = c + (d - c) * su;
-        out[y * size + x] += amp * (top + (bottom - top) * sv);
+        out[row + x] += amp * (top + (bottom - top) * sv);
       }
     }
     norm += amp;
@@ -626,34 +796,88 @@ function voronoiField(size, cells, seed, jitter = 0.95) {
   const f2 = new Float32Array(size * size);
   const id = new Uint16Array(size * size);
   const scale = cells / size;
+  // per-column: the pixel's u, and for each of the 3 neighbour columns the
+  // wrapped cell index and the tile offset that moves the seed next to the pixel
+  const us = new Float64Array(size);
+  const iis = new Int32Array(size * 3);
+  const offs = new Int32Array(size * 3);
+  for (let x = 0; x < size; x += 1) {
+    const u = x * scale;
+    const ci = Math.floor(u);
+    us[x] = u;
+    for (let di = -1; di <= 1; di += 1) {
+      const ii = (ci + di + cells) % cells;
+      iis[x * 3 + di + 1] = ii;
+      offs[x * 3 + di + 1] = ci + di - ii;
+    }
+  }
+  const rowK = new Int32Array(3);
+  const rowOff = new Int32Array(3);
+  // per-pixel scratch for the 9 candidates
+  const cdx = new Float64Array(9);
+  const cdy = new Float64Array(9);
+  const cq = new Float64Array(9);
+  const ck = new Int32Array(9);
+  // The distance of every candidate used to go through Math.hypot. Its
+  // relative rounding error is a few ulp, so two candidates whose squared
+  // distances differ by more than this margin are ordered identically by
+  // hypot; only candidates within the margin of the second-smallest squared
+  // distance can be one of the two nearest and need the exact hypot.
+  const MARGIN = 1 + 1e-9;
   for (let y = 0; y < size; y += 1) {
     const v = y * scale;
     const cj = Math.floor(v);
+    for (let dj = -1; dj <= 1; dj += 1) {
+      const jj = (cj + dj + cells) % cells;
+      rowK[dj + 1] = jj * cells;
+      rowOff[dj + 1] = cj + dj - jj;
+    }
+    const rowP = y * size;
     for (let x = 0; x < size; x += 1) {
-      const u = x * scale;
-      const ci = Math.floor(u);
-      let best = Infinity;
-      let second = Infinity;
-      let bestId = 0;
-      for (let dj = -1; dj <= 1; dj += 1) {
-        const jj = (cj + dj + cells) % cells;
-        for (let di = -1; di <= 1; di += 1) {
-          const ii = (ci + di + cells) % cells;
-          const k = jj * cells + ii;
+      const u = us[x];
+      const x3 = x * 3;
+      let q1 = Infinity;
+      let q2 = Infinity;
+      let n = 0;
+      // same neighbour order as before (row-major) so ties resolve identically
+      for (let dj = 0; dj < 3; dj += 1) {
+        const kRow = rowK[dj];
+        const oy = rowOff[dj];
+        for (let di = 0; di < 3; di += 1) {
+          const k = kRow + iis[x3 + di];
           // seed position in the (possibly wrapped) neighbour cell
-          const sx = seeds[k * 2] + (ci + di - ii);
-          const sy = seeds[k * 2 + 1] + (cj + dj - jj);
-          const d = Math.hypot(u - sx, v - sy);
-          if (d < best) {
-            second = best;
-            best = d;
-            bestId = k;
-          } else if (d < second) {
-            second = d;
+          const dx = u - (seeds[k * 2] + offs[x3 + di]);
+          const dy = v - (seeds[k * 2 + 1] + oy);
+          const q = dx * dx + dy * dy;
+          cdx[n] = dx;
+          cdy[n] = dy;
+          cq[n] = q;
+          ck[n] = k;
+          n += 1;
+          if (q < q1) {
+            q2 = q1;
+            q1 = q;
+          } else if (q < q2) {
+            q2 = q;
           }
         }
       }
-      const p = y * size + x;
+      const limit = q2 * MARGIN;
+      let best = Infinity;
+      let second = Infinity;
+      let bestId = 0;
+      for (let i = 0; i < 9; i += 1) {
+        if (cq[i] > limit) continue;
+        const d = hypot2(cdx[i], cdy[i]);
+        if (d < best) {
+          second = best;
+          best = d;
+          bestId = ck[i];
+        } else if (d < second) {
+          second = d;
+        }
+      }
+      const p = rowP + x;
       f1[p] = best;
       f2[p] = second;
       id[p] = bestId;
@@ -1033,9 +1257,9 @@ export function createDirtTextureSet(size = 1024) {
   speckle(cc, random, Math.round(3200 * s * s), 1.0 * s, 0.18, ['#a89070', '#3a2a1c', '#907858', '#b8a484']);
 
   const heights = readHeights(heightCanvas);
-  bakeCavity(colorCanvas, heights, Math.round(4 * s), 1.6);
+  const shaded = bakeCavity(colorCanvas, heights, Math.round(4 * s), 1.6);
   // height rides in the albedo's alpha (color.a) — see packAlphaTexture
-  return { color: packAlphaTexture(colorCanvas, heights), height: heightTexture(heightCanvas), heights, size };
+  return { color: packAlphaTexture(colorCanvas, heights, { pixels: shaded.data }), height: heightTexture(heightCanvas), heights, size };
 }
 
 export function createDirtTexture() {
@@ -1130,8 +1354,8 @@ export function createLitterTextureSet(size = 1024) {
   }
 
   const heights = readHeights(heightCanvas);
-  bakeCavity(colorCanvas, heights, Math.round(3 * s), 1.4);
-  return { color: packAlphaTexture(colorCanvas, heights), height: heightTexture(heightCanvas), heights, size };
+  const shaded = bakeCavity(colorCanvas, heights, Math.round(3 * s), 1.4);
+  return { color: packAlphaTexture(colorCanvas, heights, { pixels: shaded.data }), height: heightTexture(heightCanvas), heights, size };
 }
 
 export function createLitterTexture() {
@@ -1186,31 +1410,41 @@ export function createNormalFromHeights(heights, size, strength = 4.0, blur = 1)
   const canvas = makeCanvas(size);
   const ctx = canvas.getContext('2d');
   const out = ctx.createImageData(size, size);
-  for (let y = 0; y < size; y += 1) {
-    const yD = ((y - 1 + size) % size) * size;
-    const yU = ((y + 1) % size) * size;
-    const row = y * size;
-    for (let x = 0; x < size; x += 1) {
-      const xL = (x - 1 + size) % size;
-      const xR = (x + 1) % size;
-      let nx = (field[row + xL] - field[row + xR]) * strength;
-      let ny = (field[yD + x] - field[yU + x]) * strength;
-      let nz = 1;
-      const len = Math.hypot(nx, ny, nz);
-      nx /= len;
-      ny /= len;
-      nz /= len;
-      const o = (row + x) * 4;
-      out.data[o] = Math.round((nx * 0.5 + 0.5) * 255);
-      out.data[o + 1] = Math.round((ny * 0.5 + 0.5) * 255);
-      out.data[o + 2] = Math.round((nz * 0.5 + 0.5) * 255);
-      out.data[o + 3] = 255;
-    }
-  }
+  writeNormals(out.data, field, size, strength);
   ctx.putImageData(out, 0, 0);
   const texture = toTexture(canvas, { srgb: false });
   texture.colorSpace = THREE.NoColorSpace;
   return texture;
+}
+
+// Shared inner loop of the two normal-map builders: wrap-around central
+// differences of `field`, normalised with the Math.hypot replica, packed to
+// RGB bytes.
+function writeNormals(data, field, size, strength) {
+  for (let y = 0; y < size; y += 1) {
+    const yD = ((y - 1 + size) % size) * size;
+    const yU = ((y + 1) % size) * size;
+    const row = y * size;
+    let xL = size - 1;
+    let xR = 1;
+    for (let x = 0; x < size; x += 1) {
+      let nx = (field[row + xL] - field[row + xR]) * strength;
+      let ny = (field[yD + x] - field[yU + x]) * strength;
+      let nz = 1;
+      const len = hypot3(nx, ny, nz);
+      nx /= len;
+      ny /= len;
+      nz /= len;
+      const o = (row + x) * 4;
+      data[o] = Math.round((nx * 0.5 + 0.5) * 255);
+      data[o + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+      data[o + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+      data[o + 3] = 255;
+      xL = x;
+      xR += 1;
+      if (xR === size) xR = 0;
+    }
+  }
 }
 
 // Derive a tangent-space normal map from the luminance of an albedo canvas
@@ -1225,18 +1459,31 @@ export function createNormalFromCanvas(sourceTexture, strength = 2.0, blur = 1) 
   for (let i = 0; i < size * size; i += 1) {
     heights[i] = (src[i * 4] * 0.299 + src[i * 4 + 1] * 0.587 + src[i * 4 + 2] * 0.114) / 255;
   }
-  // small box blur so the normals aren't pixel-noisy
+  // small box blur so the normals aren't pixel-noisy — the nine taps are
+  // summed in the same row-major order as a nested dy/dx loop
   for (let pass = 0; pass < blur; pass += 1) {
     const copy = heights.slice();
     for (let y = 0; y < size; y += 1) {
+      const rD = ((y - 1 + size) % size) * size;
+      const r0 = y * size;
+      const rU = ((y + 1) % size) * size;
+      let xL = size - 1;
+      let xR = 1;
       for (let x = 0; x < size; x += 1) {
         let sum = 0;
-        for (let dy = -1; dy <= 1; dy += 1) {
-          for (let dx = -1; dx <= 1; dx += 1) {
-            sum += copy[((y + dy + size) % size) * size + ((x + dx + size) % size)];
-          }
-        }
-        heights[y * size + x] = sum / 9;
+        sum += copy[rD + xL];
+        sum += copy[rD + x];
+        sum += copy[rD + xR];
+        sum += copy[r0 + xL];
+        sum += copy[r0 + x];
+        sum += copy[r0 + xR];
+        sum += copy[rU + xL];
+        sum += copy[rU + x];
+        sum += copy[rU + xR];
+        heights[r0 + x] = sum / 9;
+        xL = x;
+        xR += 1;
+        if (xR === size) xR = 0;
       }
     }
   }
@@ -1244,26 +1491,7 @@ export function createNormalFromCanvas(sourceTexture, strength = 2.0, blur = 1) 
   const canvas = makeCanvas(size);
   const ctx = canvas.getContext('2d');
   const out = ctx.createImageData(size, size);
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const hL = heights[y * size + ((x - 1 + size) % size)];
-      const hR = heights[y * size + ((x + 1) % size)];
-      const hD = heights[((y - 1 + size) % size) * size + x];
-      const hU = heights[((y + 1) % size) * size + x];
-      let nx = (hL - hR) * strength;
-      let ny = (hD - hU) * strength;
-      let nz = 1;
-      const len = Math.hypot(nx, ny, nz);
-      nx /= len;
-      ny /= len;
-      nz /= len;
-      const o = (y * size + x) * 4;
-      out.data[o] = Math.round((nx * 0.5 + 0.5) * 255);
-      out.data[o + 1] = Math.round((ny * 0.5 + 0.5) * 255);
-      out.data[o + 2] = Math.round((nz * 0.5 + 0.5) * 255);
-      out.data[o + 3] = 255;
-    }
-  }
+  writeNormals(out.data, heights, size, strength);
   ctx.putImageData(out, 0, 0);
   const texture = toTexture(canvas, { srgb: false });
   texture.colorSpace = THREE.NoColorSpace;
@@ -1850,35 +2078,103 @@ export function createAllTextures({ grass = null } = {}) {
   };
 }
 
-// Full texture set including derived normal maps (call once at startup).
-export function createAllTexturesWithNormals() {
-  const t0 = performance.now();
-  // ground tiles are painted as albedo + height pairs; the grass set built by
-  // createAllTextures is replaced here so the normal comes from real relief
-  const grass = createGrassTextureSet();
-  const dirt = createDirtTextureSet();
-  const litter = createLitterTextureSet();
-  const textures = createAllTextures({ grass: grass.color });
-  textures.grassHeight = grass.height;
-  textures.dirt = dirt.color;
-  textures.dirtHeight = dirt.height;
-  textures.litter = litter.color;
-  textures.litterHeight = litter.height;
+// Keys of the full set in their historical insertion order (createAllTextures
+// first, then the ground-tile pairs, the leaf card and the normal maps).
+const ALL_TEXTURE_KEYS = [
+  'grass', 'sand', 'rock', 'moss', 'noise', 'bark', 'palmBark', 'canopy', 'canopyB', 'bananaLeaf', 'palmFrond', 'fern',
+  'grassBlade', 'flower', 'flowerB', 'vine', 'softSprite', 'butterfly', 'butterflyB', 'caustics',
+  'grassHeight', 'dirt', 'dirtHeight', 'litter', 'litterHeight', 'leafCard',
+  'rockNormal', 'sandNormal', 'dirtNormal', 'litterNormal', 'grassNormal', 'barkNormal', 'palmBarkNormal',
+];
+
+// The set is painted in four independent slices (every generator seeds its
+// own RNG and paints its own canvases, so the slices do not interact): the
+// three 1024² ground tiles with their normal maps, and everything else.
+const TEXTURE_SLICES = ['dirt', 'grass', 'litter', 'misc'];
+
+// One ground tile: albedo + height pair and the normal derived from the height
+// field, with the anisotropy the set gives the ground tiles.
+function paintGroundSlice(kind) {
+  const set = kind === 'grass' ? createGrassTextureSet() : kind === 'dirt' ? createDirtTextureSet() : createLitterTextureSet();
+  const strength = kind === 'grass' ? 4.0 : kind === 'dirt' ? 7.0 : 6.0;
+  const normal = createNormalFromHeights(set.heights, set.size, strength, 1);
+  set.color.anisotropy = 4;
+  set.height.anisotropy = 4;
+  normal.anisotropy = 4;
+  return { [kind]: set.color, [`${kind}Height`]: set.height, [`${kind}Normal`]: normal };
+}
+
+// Everything that is not a ground tile: createAllTextures minus the grass
+// (supplied by its own slice), the leaf card and the canvas-derived normals.
+function paintMiscSlice() {
+  const textures = createAllTextures({ grass: { placeholder: true } });
+  delete textures.grass;
   textures.leafCard = createLeafCardTexture(7373);
-  for (const key of ['grass', 'dirt', 'litter', 'grassHeight', 'dirtHeight', 'litterHeight']) {
-    textures[key].anisotropy = 4;
-  }
   // the rock ships its own height field (plate bevels, not just crack grooves)
   textures.rockNormal = createNormalFromCanvas(textures.rock.userData.height || textures.rock, 9.0, 1);
   textures.sandNormal = createNormalFromCanvas(textures.sand, 1.4, 1);
-  textures.dirtNormal = createNormalFromHeights(dirt.heights, dirt.size, 7.0, 1);
-  textures.litterNormal = createNormalFromHeights(litter.heights, litter.size, 6.0, 1);
-  textures.grassNormal = createNormalFromHeights(grass.heights, grass.size, 4.0, 1);
-  textures.dirtNormal.anisotropy = 4;
-  textures.litterNormal.anisotropy = 4;
-  textures.grassNormal.anisotropy = 4;
   textures.barkNormal = createNormalFromCanvas(textures.bark, 3.0, 1);
   textures.palmBarkNormal = createNormalFromCanvas(textures.palmBark, 3.0, 1);
+  return textures;
+}
+
+// Worker entry (see gen-cache.js): paint one slice.
+export function paintTextureSlice(name) {
+  return name === 'misc' ? paintMiscSlice() : paintGroundSlice(name);
+}
+
+function assembleTextureSet(parts) {
+  const merged = Object.assign({}, ...parts);
+  const textures = {};
+  for (const key of ALL_TEXTURE_KEYS) {
+    if (!merged[key]) throw new Error(`[textures] slice output is missing ${key}`);
+    textures[key] = merged[key];
+  }
+  return textures;
+}
+
+// Paint the whole set on this thread.
+function paintAllTexturesWithNormals() {
+  const t0 = performance.now();
+  // ground tiles are painted as albedo + height pairs so the normal comes from
+  // real relief; the misc slice carries the rest
+  const textures = assembleTextureSet(TEXTURE_SLICES.map(paintTextureSlice));
   console.info(`[textures] ground tiles + normals painted in ${(performance.now() - t0).toFixed(0)} ms`);
+  return textures;
+}
+
+// On a first visit the four slices paint in parallel workers (see gen-cache.js)
+// and land in the cache as the stored set `all/*`. Weights: measured ms.
+registerWorkerPaint({
+  cache: textureCache,
+  prefix: 'all',
+  manifest: ALL_TEXTURE_KEYS,
+  jobs: TEXTURE_SLICES.map((slice) => ({
+    moduleUrl: import.meta.url,
+    fn: 'paintTextureSlice',
+    args: [slice],
+    weight: slice === 'dirt' ? 1600 : slice === 'litter' ? 800 : slice === 'grass' ? 750 : 700,
+  })),
+});
+
+// Full texture set including derived normal maps (call once at startup).
+//   * repeat visit: rebuilt from the cached pixel bytes of the previous visit
+//     (same texture classes, bytes and sampling state);
+//   * first visit: every registered cold set (this one and the foliage
+//     atlases) is painted in parallel workers — OffscreenCanvas rasterises
+//     identically to a page canvas — and restored here from those pixels, or
+//     painted on this thread when workers are unavailable; the bytes are
+//     queued for storage either way.
+export async function createAllTexturesWithNormals() {
+  const t0 = performance.now();
+  const workers = await paintRegisteredInWorkers();
+  const restored = restoreTextureSet(textureCache, 'all');
+  if (restored) {
+    const how = workers.sets.includes('textures/all') ? `painted by workers in ${workers.ms} ms` : 'restored from cache';
+    console.info(`[textures] ${Object.keys(restored).length} tiles ${how}, ready in ${(performance.now() - t0).toFixed(0)} ms`);
+    return restored;
+  }
+  const textures = paintAllTexturesWithNormals();
+  storeTextureSet(textureCache, 'all', textures);
   return textures;
 }
