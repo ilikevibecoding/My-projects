@@ -2800,11 +2800,11 @@ export function createVegetation(ctx) {
       }
     }
     let culled = 0;
-    for (const { mesh } of layers) {
+    for (const { mesh, maxCount } of layers) {
       ctx.culler?.beginEdit(mesh); // edits address the original instance order
-      const arr = mesh.instanceMatrix.array;
+      const arr = mesh.instanceMatrix.array; // may be padded past maxCount by the culler
       let touched = false;
-      for (let i = 0; i < mesh.instanceMatrix.count; i += 1) {
+      for (let i = 0; i < maxCount; i += 1) {
         const o = i * 16;
         const x = arr[o + 12];
         const z = arr[o + 14];

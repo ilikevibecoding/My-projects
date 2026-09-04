@@ -816,8 +816,12 @@ export function createGrass(ctx) {
     const cap = CAPACITY[lod];
     const baseAttr = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
     const paramAttr = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
-    baseAttr.setUsage(THREE.DynamicDrawUsage);
-    paramAttr.setUsage(THREE.DynamicDrawUsage);
+    // Static usage: three.js re-uploads a dynamic attribute whole on every
+    // render call (measured 2.9 MB / 20 uploads per frame at a still camera);
+    // the refill bumps the version and sets the packed update range itself,
+    // so a static buffer uploads exactly once per refill
+    baseAttr.setUsage(THREE.StaticDrawUsage);
+    paramAttr.setUsage(THREE.StaticDrawUsage);
     geo.setAttribute('iBase', baseAttr);
     geo.setAttribute('iParam', paramAttr);
     geo.instanceCount = 0;
