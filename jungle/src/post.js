@@ -35,11 +35,36 @@ import {
   convertToTexture,
   rtt,
   screenSize,
+  texture,
 } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { fxaa } from 'three/addons/tsl/display/FXAANode.js';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
 import { denoise } from 'three/addons/tsl/display/DenoiseNode.js';
+import { SimplexNoise } from 'three/addons/math/SimplexNoise.js';
+import { mulberry32 } from './noise.js';
+
+// DenoiseNode seeds its 64² blue-noise tile from Math.random, so the AO
+// denoise pattern was a different realization on every page load. Same
+// construction, seeded, so a frame is reproducible run to run.
+function createDenoiseNoise(seed = 4242, size = 64) {
+  const simplex = new SimplexNoise({ random: mulberry32(seed) });
+  const data = new Uint8Array(size * size * 4);
+  for (let i = 0; i < size; i += 1) {
+    for (let j = 0; j < size; j += 1) {
+      const o = (i * size + j) * 4;
+      data[o] = (simplex.noise(i, j) * 0.5 + 0.5) * 255;
+      data[o + 1] = (simplex.noise(i + size, j) * 0.5 + 0.5) * 255;
+      data[o + 2] = (simplex.noise(i, j + size) * 0.5 + 0.5) * 255;
+      data[o + 3] = (simplex.noise(i + size, j + size) * 0.5 + 0.5) * 255;
+    }
+  }
+  const tex = new THREE.DataTexture(data, size, size);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
 
 export function createPost(ctx) {
   const { renderer, scene, camera } = ctx;
@@ -89,6 +114,7 @@ export function createPost(ctx) {
   aoPass.scale.value = 1.0;
   aoPass.samples.value = 16;
   const aoDenoised = denoise(aoPass.getTextureNode(), sceneDepth, sceneNormal, camera);
+  aoDenoised.noiseNode = texture(createDenoiseNoise());
   aoDenoised.lumaPhi.value = 6;
   aoDenoised.depthPhi.value = 2.5;
   aoDenoised.normalPhi.value = 4;
