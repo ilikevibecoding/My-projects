@@ -182,6 +182,7 @@ export function createInstanceCuller(ctx) {
       castShadow,
       radius,
       cells: null,
+      cellOf: null,
       matrices: null,
       streamData: null,
       activeCount: maxCount,
@@ -207,7 +208,9 @@ export function createInstanceCuller(ctx) {
     const baseRadius = layer.radius ?? (geo.boundingSphere ? geo.boundingSphere.radius : 2);
     const baseCenterY = geo.boundingSphere ? geo.boundingSphere.center.y : 0;
 
-    // bucket the instances by ground cell; keep ascending index order per cell
+    // bucket the instances by ground cell (ascending index order per cell); a
+    // cell only carries its index list and bounds — the packed buffers are
+    // filled from `layer.matrices` in original index order
     const cellIndex = new Int32Array(maxCount);
     const counts = new Map();
     let kept = 0;
@@ -234,10 +237,8 @@ export function createInstanceCuller(ctx) {
         key,
         count,
         indices: new Int32Array(count),
-        matrices: new Float32Array(count * 16),
-        stream: layer.streamData ? new Float32Array(count * 4) : null,
-        ids: new Float32Array(count),
         fill: 0,
+        visible: false,
         minX: Infinity,
         minY: Infinity,
         minZ: Infinity,
@@ -253,15 +254,14 @@ export function createInstanceCuller(ctx) {
       cells.push(cell);
       byKey.set(key, cell);
     }
+    const cellOf = new Int32Array(maxCount).fill(-1);
+    cells.forEach((cell, index) => { cell.index = index; });
     for (let i = 0; i < maxCount; i += 1) {
       const key = cellIndex[i];
       if (key < 0) continue;
       const cell = byKey.get(key);
-      const k = cell.fill;
-      cell.indices[k] = i;
-      cell.matrices.set(matrices.subarray(i * 16, i * 16 + 16), k * 16);
-      if (cell.stream) cell.stream.set(layer.streamData.subarray(i * 4, i * 4 + 4), k * 4);
-      cell.ids[k] = i;
+      cellOf[i] = cell.index;
+      cell.indices[cell.fill] = i;
       cell.fill += 1;
       const o = i * 16;
       const s = Math.max(Math.hypot(src[o], src[o + 1], src[o + 2]), Math.hypot(src[o + 4], src[o + 5], src[o + 6]), Math.hypot(src[o + 8], src[o + 9], src[o + 10]));
@@ -283,6 +283,7 @@ export function createInstanceCuller(ctx) {
       cell.cr = Math.hypot(cell.maxX - cell.minX, cell.maxY - cell.minY, cell.maxZ - cell.minZ) * 0.5;
     }
     layer.cells = cells;
+    layer.cellOf = cellOf;
     layer.kept = kept;
     state.totalInstances = layers.reduce((sum, l) => sum + (l.kept || 0), 0);
   }
@@ -407,10 +408,11 @@ export function createInstanceCuller(ctx) {
       const streamArr = layer.stream ? layer.stream.array : null;
       const idArr = layer.idAttr.array;
       let cursor = 0;
+      let anyVisible = false;
       for (const cell of layer.cells) {
-        // density prefix: how many of this cell's instances are live
-        const n = cell.indices[cell.count - 1] < activeCount ? cell.count : upperBound(cell.indices, activeCount - 1, cell.count);
-        if (n === 0) continue;
+        cell.visible = false;
+        // density prefix: skip cells with no live instance at all
+        if (cell.indices[0] >= activeCount) continue;
         _box.min.set(cell.minX, cell.minY, cell.minZ);
         _box.max.set(cell.maxX, cell.maxY, cell.maxZ);
 
@@ -437,11 +439,36 @@ export function createInstanceCuller(ctx) {
           inView = cell.maxX >= shadow.x - e && cell.minX <= shadow.x + e && cell.maxZ >= shadow.z - e && cell.minZ <= shadow.z + e;
         }
         if (!inView) continue;
-
-        matArr.set(n === cell.count ? cell.matrices : cell.matrices.subarray(0, n * 16), cursor * 16);
-        if (streamArr) streamArr.set(n === cell.count ? cell.stream : cell.stream.subarray(0, n * 4), cursor * 4);
-        idArr.set(n === cell.count ? cell.ids : cell.ids.subarray(0, n), cursor);
-        cursor += n;
+        cell.visible = true;
+        anyVisible = true;
+      }
+      // Copy in ORIGINAL index order (not cell order) so the draw order inside
+      // the packed buffer is the pre-culler order: with alpha-tested cards the
+      // depth test resolves exact ties by primitive order, and a different
+      // order flips those pixels. One linear pass over the live prefix; the
+      // copies are plain loops (no subarray views → no garbage per repack).
+      if (anyVisible) {
+        const cells = layer.cells;
+        const cellOf = layer.cellOf;
+        const src = layer.matrices;
+        const srcStream = layer.streamData;
+        for (let i = 0; i < activeCount; i += 1) {
+          const ci = cellOf[i];
+          if (ci < 0 || !cells[ci].visible) continue;
+          const so = i * 16;
+          const doff = cursor * 16;
+          for (let k = 0; k < 16; k += 1) matArr[doff + k] = src[so + k];
+          if (streamArr) {
+            const s4 = i * 4;
+            const d4 = cursor * 4;
+            streamArr[d4] = srcStream[s4];
+            streamArr[d4 + 1] = srcStream[s4 + 1];
+            streamArr[d4 + 2] = srcStream[s4 + 2];
+            streamArr[d4 + 3] = srcStream[s4 + 3];
+          }
+          idArr[cursor] = i;
+          cursor += 1;
+        }
       }
       if (cursor === 0) {
         // keep one degenerate instance so the draw stays valid
