@@ -1062,7 +1062,7 @@ function createField(terrain) {
       const x = -half + ix * step;
       const o = iz * n + ix;
       heights[o] = terrain.sampleHeight(x, z);
-      canopy[o] = terrain.canopyDensity(x, z);
+      canopy[o] = terrain.canopyDensity(x, z, heights[o]);
     }
   }
   function sampleGrid(arr, x, z) {
@@ -1200,13 +1200,64 @@ export function createVegetation(ctx) {
       r: 9,
     });
   }
-  function keepOutDistance(x, z) {
-    let best = Infinity;
+  // Candidate lists per 8 m ground cell: a shape whose nearest possible
+  // approach to the cell is farther than the surface every point of the cell
+  // is guaranteed to reach (its farthest approach to the nearest disc) can
+  // never be the minimum there, so it is left out. The minimum over the
+  // remaining shapes is the same number the full scan produces.
+  const KEEP_CELL = 8;
+  const keepN = Math.ceil(WORLD.size / KEEP_CELL) + 2;
+  const keepOrigin = -half - KEEP_CELL;
+  const keepCells = new Array(keepN * keepN);
+  const capsuleBox = (c) => ({ minX: Math.min(c.ax, c.bx) - c.r, maxX: Math.max(c.ax, c.bx) + c.r, minZ: Math.min(c.az, c.bz) - c.r, maxZ: Math.max(c.az, c.bz) + c.r });
+  const keepCapsuleBoxes = keepCapsules.map(capsuleBox);
+  function keepCandidates(cx, cz) {
+    const x0 = keepOrigin + cx * KEEP_CELL;
+    const z0 = keepOrigin + cz * KEEP_CELL;
+    const x1 = x0 + KEEP_CELL;
+    const z1 = z0 + KEEP_CELL;
+    // farthest any point of the cell can be from each disc's surface: the
+    // cell's guaranteed upper bound on the minimum
+    let bound = Infinity;
     for (const d of keepDiscs) {
+      const fx = Math.max(Math.abs(d.x - x0), Math.abs(d.x - x1));
+      const fz = Math.max(Math.abs(d.z - z0), Math.abs(d.z - z1));
+      const far = Math.hypot(fx, fz) - d.r;
+      if (far < bound) bound = far;
+    }
+    const discs = [];
+    const capsules = [];
+    for (const d of keepDiscs) {
+      const nx = d.x < x0 ? x0 - d.x : d.x > x1 ? d.x - x1 : 0;
+      const nz = d.z < z0 ? z0 - d.z : d.z > z1 ? d.z - z1 : 0;
+      if (Math.hypot(nx, nz) - d.r <= bound) discs.push(d);
+    }
+    keepCapsules.forEach((c, i) => {
+      const b = keepCapsuleBoxes[i]; // capsule surface lies inside this box
+      const nx = b.maxX < x0 ? x0 - b.maxX : b.minX > x1 ? b.minX - x1 : 0;
+      const nz = b.maxZ < z0 ? z0 - b.maxZ : b.minZ > z1 ? b.minZ - z1 : 0;
+      if (Math.hypot(nx, nz) <= bound) capsules.push(c);
+    });
+    return { discs, capsules };
+  }
+  function keepOutDistance(x, z) {
+    let discs = keepDiscs;
+    let capsules = keepCapsules;
+    const cx = Math.floor((x - keepOrigin) / KEEP_CELL);
+    const cz = Math.floor((z - keepOrigin) / KEEP_CELL);
+    if (cx >= 0 && cz >= 0 && cx < keepN && cz < keepN) {
+      const k = cz * keepN + cx;
+      let cell = keepCells[k];
+      if (!cell) cell = keepCells[k] = keepCandidates(cx, cz);
+      discs = cell.discs;
+      capsules = cell.capsules;
+    }
+    let best = Infinity;
+    for (const d of discs) {
       const dd = Math.hypot(x - d.x, z - d.z) - d.r;
       if (dd < best) best = dd;
     }
-    for (const c of keepCapsules) {
+    for (const c of capsules) {
       const vx = c.bx - c.ax;
       const vz = c.bz - c.az;
       const t = clampJs(((x - c.ax) * vx + (z - c.az) * vz) / (vx * vx + vz * vz || 1e-6), 0, 1);

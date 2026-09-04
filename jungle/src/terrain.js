@@ -54,22 +54,54 @@ function distToSegment(px, pz, ax, az, bx, bz) {
   return Math.sqrt(dx * dx + dz * dz);
 }
 
+// Trail segments flattened once, with their bounding boxes: a segment whose
+// box is at least `best` away cannot beat the running minimum, so it is
+// skipped — the minimum (and every value derived from it) is unchanged.
+const TRAIL_SEGMENTS = (() => {
+  const segs = [];
+  for (const trail of WORLD.trails) {
+    for (let i = 0; i < trail.length - 1; i += 1) {
+      const [ax, az] = trail[i];
+      const [bx, bz] = trail[i + 1];
+      segs.push({ ax, az, bx, bz, minX: Math.min(ax, bx), maxX: Math.max(ax, bx), minZ: Math.min(az, bz), maxZ: Math.max(az, bz) });
+    }
+  }
+  return segs;
+})();
+function boxDistanceLowerBound(x, z, s) {
+  const dx = x < s.minX ? s.minX - x : x > s.maxX ? x - s.maxX : 0;
+  const dz = z < s.minZ ? s.minZ - z : z > s.maxZ ? z - s.maxZ : 0;
+  return Math.max(dx, dz); // Chebyshev ≤ Euclidean: a valid lower bound
+}
+
 // Distance (m) to the nearest authored trail center line.
 export function trailDistance(x, z) {
   let best = Infinity;
-  for (const trail of WORLD.trails) {
-    for (let i = 0; i < trail.length - 1; i += 1) {
-      const d = distToSegment(x, z, trail[i][0], trail[i][1], trail[i + 1][0], trail[i + 1][1]);
-      if (d < best) {
-        best = d;
-      }
+  for (const s of TRAIL_SEGMENTS) {
+    if (boxDistanceLowerBound(x, z, s) >= best) continue;
+    const d = distToSegment(x, z, s.ax, s.az, s.bx, s.bz);
+    if (d < best) {
+      best = d;
     }
   }
   return best;
 }
 
+// 1 on the trail centre line → 0 at the verge. Past the verge the mask is
+// exactly 0 whatever the distance, so the search stops caring about segments
+// that cannot come closer than the verge.
 export function trailMask(x, z) {
-  return 1 - smoothstepJs(WORLD.trailHalfWidth, WORLD.trailHalfWidth + 2.6, trailDistance(x, z));
+  const cap = WORLD.trailHalfWidth + 2.6;
+  let best = Infinity;
+  for (const s of TRAIL_SEGMENTS) {
+    const bound = boxDistanceLowerBound(x, z, s);
+    if (bound >= best || bound >= cap) continue;
+    const d = distToSegment(x, z, s.ax, s.az, s.bx, s.bz);
+    if (d < best) {
+      best = d;
+    }
+  }
+  return 1 - smoothstepJs(WORLD.trailHalfWidth, cap, best);
 }
 
 // Angular warp so authored features are never perfect circles: the radius
@@ -81,8 +113,16 @@ function angularWarp(x, z, cx, cz, amount = 0.12) {
   return 1 + amount * (0.55 * Math.sin(2 * a + ph) + 0.35 * Math.sin(3 * a - 1.3 + ph * 0.7) + 0.25 * Math.sin(5 * a + 2.1 - ph));
 }
 
+// |warp - 1| ≤ 1.15 · amount (the three harmonics' weights sum to 1.15), so a
+// point farther than outer · (1 + 1.15 · amount) is beyond `outer` under any
+// warp and the mask is exactly 0 — likewise exactly 1 well inside `inner` —
+// without evaluating the warp.
+const WARP_SLACK = 1.15 * 0.12 + 0.002;
 function radialMask(x, z, cx, cz, inner, outer) {
-  const d = Math.hypot(x - cx, z - cz) / angularWarp(x, z, cx, cz);
+  const r = Math.hypot(x - cx, z - cz);
+  if (r >= outer * (1 + WARP_SLACK)) return 0;
+  if (r <= inner * (1 - WARP_SLACK)) return 1;
+  const d = r / angularWarp(x, z, cx, cz);
   return 1 - smoothstepJs(inner, outer, d);
 }
 
@@ -99,18 +139,24 @@ export function waterProximity(x, z) {
   return p;
 }
 
+// The ravine zone weight on its own (the height sampler needs only this one).
+function ravineZone(x, z) {
+  const { ravine } = WORLD;
+  const ravineCenter = ravine.x + Math.sin(z * 0.03) * ravine.wiggle;
+  const ravineZ = smoothstepJs(ravine.zFrom, ravine.zFrom + 30, z) * (1 - smoothstepJs(ravine.zTo - 30, ravine.zTo, z));
+  return (1 - smoothstepJs(ravine.halfWidth * 0.25, ravine.halfWidth, Math.abs(x - ravineCenter))) * ravineZ;
+}
+
 // Soft 0..1 weights describing which authored zone a point belongs to.
 export function zonesAt(x, z) {
-  const { ridge, overlook, ravine, terraces, clearing, ruins } = WORLD;
+  const { ridge, overlook, terraces, clearing, ruins } = WORLD;
   const ridgeCenter = ridge.x + Math.sin(z * 0.02) * 10;
   const dxr = x - ridgeCenter;
   const ridgeW = dxr < 0 ? ridge.halfWidthWest : ridge.halfWidthEast;
   const ridgeZ = smoothstepJs(ridge.zFrom, ridge.zFrom + 40, z) * (1 - smoothstepJs(ridge.zTo - 40, ridge.zTo, z));
   const ridgeProfile = (1 - smoothstepJs(0, ridgeW, Math.abs(dxr))) * ridgeZ;
 
-  const ravineCenter = ravine.x + Math.sin(z * 0.03) * ravine.wiggle;
-  const ravineZ = smoothstepJs(ravine.zFrom, ravine.zFrom + 30, z) * (1 - smoothstepJs(ravine.zTo - 30, ravine.zTo, z));
-  const ravineProfile = (1 - smoothstepJs(ravine.halfWidth * 0.25, ravine.halfWidth, Math.abs(x - ravineCenter))) * ravineZ;
+  const ravineProfile = ravineZone(x, z);
 
   const half = WORLD.size / 2;
   const edge = Math.max(Math.abs(x), Math.abs(z)) / half;
@@ -144,7 +190,8 @@ export function createHeightSampler() {
     // --- irregular raised rim so the map edge reads as deep hills, never a cliff edge ---
     const edge = Math.max(Math.abs(x), Math.abs(z)) / half;
     const rimShift = rimNoise(x * 0.018, z * 0.018) * 0.1;
-    h += smoothstepJs(0.62 + rimShift, 1.0, edge) * (WORLD.rimHeight + rimNoise(x * 0.03 + 5, z * 0.03) * 7);
+    const rimW = smoothstepJs(0.62 + rimShift, 1.0, edge);
+    if (rimW !== 0) h += rimW * (WORLD.rimHeight + rimNoise(x * 0.03 + 5, z * 0.03) * 7);
 
     // --- north cliff massif behind the lagoon (the waterfall wall) ---
     const dxL = x - lagoon.x;
@@ -156,12 +203,14 @@ export function createHeightSampler() {
     const notch = 1 - smoothstepJs(26, 6, Math.abs(x - WORLD.waterfallX)) * 0.32;
     const cliff = cliffRamp * cliffFar * northness;
     h += cliff * WORLD.cliffHeight * notch;
-    h += cliff * crags(x * 0.05, z * 0.05) * 3.6;
+    // (every `h += w * noise * k` below is skipped when w is exactly 0: the
+    // product is then ±0 and h + ±0 is h, bit for bit)
+    if (cliff !== 0) h += cliff * crags(x * 0.05, z * 0.05) * 3.6;
     // ledges and buttresses on the wall itself: strongest mid-ramp where the
     // face is steepest (4t(1-t) of the ramp), so the plateau and the shore stay smooth
     const tRamp = clampJs((distL - (WORLD.lagoonRadius - 4)) / 34, 0, 1);
     const faceN = 4 * tRamp * (1 - tRamp) * cliffFar * northness;
-    h += faceN * (crags(x * 0.22 + 2.3, z * 0.22) * 1.7 + crags(x * 0.42, z * 0.42 + 6.1) * 0.55);
+    if (faceN !== 0) h += faceN * (crags(x * 0.22 + 2.3, z * 0.22) * 1.7 + crags(x * 0.42, z * 0.42 + 6.1) * 0.55);
 
     // --- east ridge: steep craggy west face toward the lagoon, gentle east back ---
     const ridgeCenter = ridge.x + Math.sin(z * 0.02) * 10;
@@ -169,12 +218,13 @@ export function createHeightSampler() {
     const ridgeW = dxr < 0 ? ridge.halfWidthWest : ridge.halfWidthEast;
     const ridgeZ = smoothstepJs(ridge.zFrom, ridge.zFrom + 40, z) * (1 - smoothstepJs(ridge.zTo - 40, ridge.zTo, z));
     const ridgeProfile = Math.pow(1 - smoothstepJs(0, ridgeW, Math.abs(dxr)), 1.35) * ridgeZ;
-    h += ridgeProfile * ridge.height * (1 + crags(x * 0.03, z * 0.03) * 0.22);
+    if (ridgeProfile !== 0) h += ridgeProfile * ridge.height * (1 + crags(x * 0.03, z * 0.03) * 0.22);
     // rocky crags on the west face, plus tighter ledges where the face is steepest
     const westFace = (dxr < 0 ? 1 : 0.3) * ridgeZ;
-    h += smoothstepJs(0.25, 0.7, ridgeProfile) * westFace * crags(x * 0.09, z * 0.09) * 2.2;
+    const westCrag = smoothstepJs(0.25, 0.7, ridgeProfile) * westFace;
+    if (westCrag !== 0) h += westCrag * crags(x * 0.09, z * 0.09) * 2.2;
     const faceR = smoothstepJs(0.12, 0.4, ridgeProfile) * (1 - smoothstepJs(0.6, 0.92, ridgeProfile)) * westFace;
-    h += faceR * crags(x * 0.24 + 4.7, z * 0.24 - 2.2) * 1.3;
+    if (faceR !== 0) h += faceR * crags(x * 0.24 + 4.7, z * 0.24 - 2.2) * 1.3;
 
     // --- west ravine: a shaded gully with steep sides ---
     const ravineCenter = ravine.x + Math.sin(z * 0.03) * ravine.wiggle;
@@ -183,7 +233,7 @@ export function createHeightSampler() {
     h -= gully * ravine.depth;
     // broken rock on the gully walls (mid-slope only; the floor stays walkable)
     const faceV = 4 * gully * (1 - gully) * ravineZ;
-    h += faceV * crags(x * 0.3 + 8.5, z * 0.3 + 3.3) * 0.8;
+    if (faceV !== 0) h += faceV * crags(x * 0.3 + 8.5, z * 0.3 + 3.3) * 0.8;
     // raised lips either side of the gully
     const lip = smoothstepJs(ravine.halfWidth * 0.6, ravine.halfWidth * 1.1, Math.abs(x - ravineCenter))
       * (1 - smoothstepJs(ravine.halfWidth * 1.3, ravine.halfWidth * 2.4, Math.abs(x - ravineCenter))) * ravineZ;
@@ -219,10 +269,14 @@ export function createHeightSampler() {
     // --- lagoon bowl (waterline sits near the outer radius so it reads full) ---
     // the bowl radius breathes with bearing so the shoreline is a bay with
     // points and coves rather than a compass circle
-    const distLw = distL / angularWarp(x, z, lagoon.x, lagoon.z, 0.085);
-    const shore = smoothstepJs(WORLD.lagoonRadius + 7, WORLD.lagoonRadius - 5, distLw);
-    const bowlDepth = -4.8 - 1.6 * smoothstepJs(WORLD.lagoonRadius * 0.7, 0, distLw);
-    h = lerp(h, bowlDepth, shore);
+    // beyond (R + 7) · (1 + 1.15 · 0.085) the warped distance exceeds R + 7 for
+    // any bearing, `shore` is exactly 0 and the lerp leaves h untouched
+    if (distL < (WORLD.lagoonRadius + 7) * (1 + 1.15 * 0.085 + 0.002)) {
+      const distLw = distL / angularWarp(x, z, lagoon.x, lagoon.z, 0.085);
+      const shore = smoothstepJs(WORLD.lagoonRadius + 7, WORLD.lagoonRadius - 5, distLw);
+      const bowlDepth = -4.8 - 1.6 * smoothstepJs(WORLD.lagoonRadius * 0.7, 0, distLw);
+      h = lerp(h, bowlDepth, shore);
+    }
 
     // --- river channel heading south out of the lagoon ---
     if (z > lagoon.z) {
@@ -257,9 +311,9 @@ export function createHeightSampler() {
       h = lerp(h, crestHeight + 0.2, top);
     }
     // ravine floors must stay dry (never dip to the water plane)
-    const zone = zonesAt(x, z);
-    if (zone.ravine > 0.01) {
-      h = Math.max(h, lerp(h, 0.9, zone.ravine));
+    const ravine = ravineZone(x, z);
+    if (ravine > 0.01) {
+      h = Math.max(h, lerp(h, 0.9, ravine));
     }
     return h;
   }
@@ -272,8 +326,8 @@ export function createHeightSampler() {
 export function createCanopyDensitySampler(sampleHeight) {
   const forest = createFbm2D(WORLD.seed + 99, { octaves: 3 });
   const forestFine = createFbm2D(WORLD.seed + 123, { octaves: 2 });
-  return function canopyDensity(x, z) {
-    const h = sampleHeight(x, z);
+  // `h` may be passed by callers that already sampled the height at (x, z)
+  return function canopyDensity(x, z, h = sampleHeight(x, z)) {
     if (h < 0.7) {
       return 0;
     }
@@ -320,7 +374,7 @@ function bakeControlMap(sampleHeight, canopyDensity) {
       // not the binary mask, so the shader can tell the trodden core from the
       // edges; trailMask() itself stays the placement rule for plants
       data[o] = Math.round((1 - smoothstepJs(0, WORLD.trailHalfWidth + 2.6, trailDistance(x, z))) * 255);
-      data[o + 1] = Math.round(canopyDensity(x, z) * 255);
+      data[o + 1] = Math.round(canopyDensity(x, z, h) * 255);
       data[o + 2] = Math.round(cavity * 255);
       data[o + 3] = Math.round(waterProximity(x, z) * 255);
     }
