@@ -76,6 +76,9 @@ export function ownGeometry(mesh) {
 }
 
 // Attach the stable per-instance id attribute (original index) to a mesh.
+// Static usage on purpose: a static attribute is uploaded once per version
+// bump, using its update range (the packed prefix); a dynamic one would be
+// re-uploaded whole by every pass of every frame.
 export function attachInstanceIds(mesh) {
   const geo = ownGeometry(mesh);
   if (geo.getAttribute(INSTANCE_ID_ATTRIBUTE)) return geo.getAttribute(INSTANCE_ID_ATTRIBUTE);
@@ -83,9 +86,47 @@ export function attachInstanceIds(mesh) {
   const ids = new Float32Array(n);
   for (let i = 0; i < n; i += 1) ids[i] = i;
   const attribute = new THREE.InstancedBufferAttribute(ids, 1);
-  attribute.setUsage(THREE.DynamicDrawUsage);
   geo.setAttribute(INSTANCE_ID_ATTRIBUTE, attribute);
   return attribute;
+}
+
+// three.js reads an InstancedMesh's matrices through an InstanceNode that
+// wraps `instanceMatrix.array` in its own InstancedInterleavedBuffer (one per
+// compiled shader: main material, shadow material, …). The node copies the
+// attribute's version and update ranges into that buffer in its per-frame
+// `update()`, which the renderer runs AFTER the geometry upload of the same
+// render — so the GPU matrices would lag the repack by one scene render while
+// `count`, the id attribute and the anchor stream are already the new pack.
+// Sync the wrapping buffers right after packing, so the very next upload
+// carries the packed prefix. One pass over the compiled shader states per
+// repack: Map<instanceMatrix attribute, [wrapping buffers]>. Small layers
+// whose matrices fit a uniform buffer have no wrapping buffer (that path is
+// re-uploaded whole every render) and need nothing.
+function collectInstanceMatrixBuffers(renderer) {
+  const map = new Map();
+  const cache = renderer?._nodes?.nodeBuilderCache;
+  if (!cache) return map;
+  for (const state of cache.values()) {
+    const nodes = state.updateNodes;
+    if (!nodes) continue;
+    for (const node of nodes) {
+      if (!node.instanceMatrix || !node.buffer) continue;
+      let list = map.get(node.instanceMatrix);
+      if (!list) map.set(node.instanceMatrix, (list = []));
+      list.push(node.buffer);
+    }
+  }
+  return map;
+}
+function syncInstanceMatrixBuffers(bufferMap, instanceMatrix, floatCount) {
+  const buffers = bufferMap.get(instanceMatrix);
+  if (!buffers) return 0;
+  for (const buffer of buffers) {
+    buffer.version = instanceMatrix.version;
+    buffer.clearUpdateRanges();
+    buffer.addUpdateRange(0, floatCount);
+  }
+  return buffers.length;
 }
 
 export function createInstanceCuller(ctx) {
@@ -96,6 +137,7 @@ export function createInstanceCuller(ctx) {
     camX: NaN,
     camY: NaN,
     camZ: NaN,
+    fov: Infinity, // fov the current pack was built for (Infinity until the first pack)
     dirX: NaN,
     dirY: NaN,
     dirZ: NaN,
@@ -107,6 +149,7 @@ export function createInstanceCuller(ctx) {
     lastMs: 0,
     visibleInstances: 0,
     totalInstances: 0,
+    syncedBuffers: 0, // InstanceNode matrix buffers re-synced (diagnostics)
     debugAll: false, // testing: pack every live instance (no view culling)
     fullUpload: false, // testing: upload whole buffers instead of the packed prefix
   };
@@ -143,6 +186,7 @@ export function createInstanceCuller(ctx) {
       streamData: null,
       activeCount: maxCount,
       live: 0,
+      kept: 0, // non-degenerate instances in the snapshot
     };
     layers.push(layer);
     return layer;
@@ -239,7 +283,8 @@ export function createInstanceCuller(ctx) {
       cell.cr = Math.hypot(cell.maxX - cell.minX, cell.maxY - cell.minY, cell.maxZ - cell.minZ) * 0.5;
     }
     layer.cells = cells;
-    state.totalInstances += kept;
+    layer.kept = kept;
+    state.totalInstances = layers.reduce((sum, l) => sum + (l.kept || 0), 0);
   }
 
   // CPU-side edits of a layer's instance data (e.g. a post-hoc cull zeroing
@@ -294,11 +339,20 @@ export function createInstanceCuller(ctx) {
 
     const moved = Math.hypot(_pos.x - state.camX, _pos.y - state.camY, _pos.z - state.camZ);
     const turned = _dir.x * state.dirX + _dir.y * state.dirY + _dir.z * state.dirZ;
-    const projectionKey = `${camera.fov}|${camera.aspect}|${camera.near}|${camera.far}`;
+    // The FOV is deliberately NOT part of the key: sprinting eases the player
+    // camera from 70° to 76° and re-targets it from the running speed, so it
+    // changes by a hair on most frames while running, and keying on it made
+    // the culler repack every one of those frames (a visible hitch). The
+    // widened frustum below is packed at fov + 2·margin, so a view that has
+    // grown by less than the margin is still fully covered; only growth
+    // beyond it forces a repack.
+    const projectionKey = `${camera.aspect}|${camera.near}|${camera.far}`;
+    const fovGrew = camera.fov > state.fov + FOV_MARGIN_DEG;
     if (
       !state.force &&
       moved < REPACK_MOVE &&
       turned > REPACK_TURN &&
+      !fovGrew &&
       reflection === state.reflection &&
       shadowKey === state.shadowKey &&
       densityKey === state.densityKey &&
@@ -314,6 +368,7 @@ export function createInstanceCuller(ctx) {
     state.dirX = _dir.x;
     state.dirY = _dir.y;
     state.dirZ = _dir.z;
+    state.fov = camera.fov;
     state.reflection = reflection;
     state.shadowKey = shadowKey;
     state.densityKey = densityKey;
@@ -341,6 +396,7 @@ export function createInstanceCuller(ctx) {
     }
 
     let visible = 0;
+    const matrixBuffers = collectInstanceMatrixBuffers(ctx.renderer);
     for (const layer of layers) {
       const activeCount = activeCountFor(layer);
       const useMirror = reflection && layer.inReflection;
@@ -399,14 +455,19 @@ export function createInstanceCuller(ctx) {
       const mesh = layer.mesh;
       mesh.count = cursor;
       const im = mesh.instanceMatrix;
-      if (!state.fullUpload) { im.clearUpdateRanges(); im.addUpdateRange(0, cursor * 16); }
+      const matFloats = state.fullUpload ? im.array.length : cursor * 16;
+      im.clearUpdateRanges();
+      im.addUpdateRange(0, matFloats);
       im.needsUpdate = true;
+      state.syncedBuffers += syncInstanceMatrixBuffers(matrixBuffers, im, matFloats);
       if (layer.stream) {
         const sa = layer.stream.attribute;
-        if (!state.fullUpload) { sa.clearUpdateRanges(); sa.addUpdateRange(0, cursor * 4); }
+        sa.clearUpdateRanges();
+        sa.addUpdateRange(0, state.fullUpload ? sa.array.length : cursor * 4);
         sa.needsUpdate = true;
       }
-      if (!state.fullUpload) { layer.idAttr.clearUpdateRanges(); layer.idAttr.addUpdateRange(0, cursor); }
+      layer.idAttr.clearUpdateRanges();
+      layer.idAttr.addUpdateRange(0, state.fullUpload ? layer.idAttr.array.length : cursor);
       layer.idAttr.needsUpdate = true;
     }
     state.visibleInstances = visible;
@@ -414,11 +475,28 @@ export function createInstanceCuller(ctx) {
     state.lastMs = performance.now() - t0;
   }
 
+  // `mesh.count` is now the packed (visible) count, no longer the quality
+  // density prefix. Modules that reason about "instance k is live" in the
+  // original indexing (player trunk collision, particles' tree list, audio's
+  // canopy grid) should use these instead of mesh.count / instanceMatrix.array.
+  function activeCount(mesh) {
+    const layer = layers.find((l) => l.mesh === mesh);
+    return layer ? activeCountFor(layer) : mesh.count;
+  }
+  function sourceMatrices(mesh) {
+    const layer = layers.find((l) => l.mesh === mesh);
+    if (!layer) return mesh.instanceMatrix.array;
+    if (!layer.cells) snapshot(layer);
+    return layer.matrices;
+  }
+
   return {
     register,
     beginEdit,
     refresh,
     update,
+    activeCount,
+    sourceMatrices,
     layers,
     stats: state,
     forceRepack() {

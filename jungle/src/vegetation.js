@@ -358,13 +358,15 @@ function barkMaterial(map, normalTex, noiseTex, mossTex, {
 // layer with more than 1000 instances already spends four of the eight vertex
 // buffer slots on the instance matrix columns, and position + normal + uv +
 // the culler's id attribute take the other four. A storage read costs a bind
-// group entry instead (the WebGL 2 backend emulates it the same way it does
-// the small layers' instance matrices).
+// group entry instead (the WebGL 2 backend turns it back into an instanced
+// vertex attribute). Static usage: the culler bumps the version and sets the
+// packed prefix as the update range whenever it rewrites the stream, and a
+// static attribute is uploaded exactly once per version — a dynamic one is
+// re-uploaded whole by every pass of every frame.
 function instanceStream(count) {
   const array = new Float32Array(count * 4);
   const storage = instancedArray(array, 'vec4');
   const attribute = storage.value;
-  attribute.setUsage(THREE.DynamicDrawUsage);
   return { array, attribute, node: storage.element(instanceIndex) };
 }
 
