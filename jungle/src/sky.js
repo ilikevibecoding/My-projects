@@ -25,6 +25,7 @@ import {
 } from 'three/tsl';
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 import { CSMShadowNode } from 'three/addons/csm/CSMShadowNode.js';
+import { SHADOW_ONLY_LAYER } from './instance-culler.js';
 import { WORLD } from './config.js';
 
 // ---------- depth-only shadow maps ----------
@@ -243,6 +244,12 @@ export function createSky(ctx) {
     shadow.normalBias = 0.05;
     shadow.radius = 3;
     const cam = shadow.camera;
+    // An explicit layer mask (anything beyond bit 0) makes the shadow render
+    // use this camera's layers instead of the render camera's: the default
+    // layer plus the culler's shadow-only partners. Cascade cameras are
+    // cloned from this one, so they inherit it.
+    cam.layers.set(0);
+    cam.layers.enable(SHADOW_ONLY_LAYER);
     cam.near = 1;
     cam.far = 320;
     cam.left = -shadowState.extent;

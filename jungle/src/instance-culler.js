@@ -28,9 +28,11 @@ import * as THREE from 'three/webgpu';
 import { WORLD } from './config.js';
 
 export const INSTANCE_ID_ATTRIBUTE = 'aId';
+// Object layer of the shadow-pass partner meshes: only the shadow cameras
+// enable it (sky.js), so the main and mirror cameras never see them.
+export const SHADOW_ONLY_LAYER = 2;
 // per-geometry vec4 anchor stream (x, y, z, yaw) some owners hand in as `stream`
 export const ANCHOR_ATTRIBUTE = 'aAnchor';
-
 
 const CELL = 16;
 const FOV_MARGIN_DEG = 7; // extra half-angle on the main / mirror frusta
@@ -40,6 +42,11 @@ const REPACK_MOVE = 1.2; // metres of camera travel before repacking
 // a far-LOD partner mesh takes instances at least this far past the owner's
 // lodFar, so they stay past it until the next repack
 const LOD_MARGIN = REPACK_MOVE + 0.5;
+// A caster only matters if its shadow can land on something in view: its cell
+// box swept along the (fixed) sun direction down to the lowest ground on the
+// map must meet the view or mirror frustum. Slack for PCF taps, normal bias
+// and the camera travel between repacks.
+const CASTER_SLACK = 1 + REPACK_MOVE;
 // Splitting a layer across two draws changes which of two same-layer fragments
 // wins an exact depth tie (the depth test falls back on primitive order). Two
 // fragments can only tie when they are the same point in space to within the
@@ -60,6 +67,8 @@ const _reflect = new THREE.Matrix4();
 const _pos = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _mirrorPos = new THREE.Vector3();
+const _sweep = new THREE.Box3();
+const _light = new THREE.Vector3(); // direction light travels (sun → scene)
 
 function upperBound(arr, value, hi) {
   let lo = 0;
@@ -79,6 +88,9 @@ export function ownGeometry(mesh) {
   if (src.userData.ownedBy === mesh) return src;
   const geo = new THREE.BufferGeometry();
   for (const [name, attribute] of Object.entries(src.attributes)) {
+    // per-mesh instanced attributes of another mesh's own geometry (a partner
+    // mesh built from it) must not be shared — the culler writes them per mesh
+    if (name === INSTANCE_ID_ATTRIBUTE || name === ANCHOR_ATTRIBUTE) continue;
     geo.setAttribute(name, attribute);
   }
   if (src.index) geo.setIndex(src.index);
@@ -202,6 +214,9 @@ function syncInstanceMatrixBuffers(bufferMap, instanceMatrix, floatCount) {
 
 export function createInstanceCuller(ctx) {
   const layers = [];
+  // shadow casters get a shadow-pass partner mesh (see register); off only
+  // when the shadow cameras cannot be given SHADOW_ONLY_LAYER
+  const shadowSplit = ctx.shadowSplit !== false;
   const half = WORLD.size / 2;
   const cellsPerSide = Math.ceil(WORLD.size / CELL) + 2; // one ring of slack each side
   const state = {
@@ -218,7 +233,8 @@ export function createInstanceCuller(ctx) {
     force: true,
     repacks: 0,
     lastMs: 0,
-    visibleInstances: 0,
+    visibleInstances: 0, // packed into the view meshes (main + far)
+    shadowInstances: 0, // packed into the shadow partners
     totalInstances: 0,
     syncedBuffers: 0, // InstanceNode matrix buffers re-synced (diagnostics)
     debugAll: false, // testing: pack every live instance (no view culling)
@@ -275,6 +291,37 @@ export function createInstanceCuller(ctx) {
       farMesh.count = 1; // one zero matrix until the first pack
       far = { mesh: farMesh, idAttr: attachInstanceIds(farMesh), streamAttr: farStream, distSq: (lodFar + LOD_MARGIN) ** 2, sway, live: 0 };
     }
+    // Shadow-pass partner: a mesh on SHADOW_ONLY_LAYER with the same geometry
+    // and material that holds exactly the instances inside the shadow box, so
+    // the shadow render no longer processes the whole view set (most of it
+    // outside the shadow frustum) and the view passes no longer process the
+    // casters behind the camera. A depth-only pass has no order dependence
+    // (equal depths resolve to the same value whichever fragment wins), so
+    // moving casters to their own draw cannot change a shadow-map texel. The
+    // view meshes stop casting; the partner casts.
+    let shadowPartner = null;
+    if (castShadow && shadowSplit) {
+      const partner = new THREE.InstancedMesh(mesh.geometry, mesh.material, maxCount);
+      partner.name = `${mesh.name}-shadow`;
+      if (ctx.isWebGPU) useStorageMatrices(partner);
+      else padInstanceMatrices(partner);
+      const partnerStream = stream ? new THREE.InstancedBufferAttribute(new Float32Array(maxCount * 4), 4) : null;
+      if (partnerStream) {
+        partnerStream.setUsage(THREE.StaticDrawUsage);
+        attachStream(partner, { attribute: partnerStream });
+      }
+      partner.layers.set(SHADOW_ONLY_LAYER);
+      partner.castShadow = true;
+      partner.receiveShadow = false;
+      partner.frustumCulled = false;
+      partner.renderOrder = mesh.renderOrder;
+      partner.count = 1;
+      shadowPartner = { mesh: partner, idAttr: attachInstanceIds(partner), streamAttr: partnerStream, live: 0 };
+      mesh.castShadow = false;
+      if (farMesh) farMesh.castShadow = false;
+      const parent = mesh.parent ?? ctx.scene;
+      parent.add(partner);
+    }
     const layer = {
       mesh,
       maxCount,
@@ -288,6 +335,7 @@ export function createInstanceCuller(ctx) {
       castShadow,
       radius,
       far,
+      shadowPartner,
       cells: null,
       cellOf: null,
       matrices: null,
@@ -485,6 +533,43 @@ export function createInstanceCuller(ctx) {
     return sky.shadowRegion(); // { x, z, extent } or null when shadows are off
   }
 
+  // lowest receiver height on the map (terrain sampled on a coarse grid, with
+  // slack): where a shadow sweep can stop
+  let groundMin = null;
+  function lowestGround() {
+    if (groundMin !== null) return groundMin;
+    const sample = ctx.terrain?.sampleHeight;
+    let min = Math.min(WORLD.waterLevel, 0);
+    if (sample) {
+      const step = 4;
+      for (let x = -half; x <= half; x += step) {
+        for (let z = -half; z <= half; z += step) {
+          const h = sample(x, z);
+          if (h < min) min = h;
+        }
+      }
+    } else {
+      min = -60;
+    }
+    groundMin = min - 4;
+    return groundMin;
+  }
+
+  // Does the shadow this cell can cast reach anything in view? The swept box
+  // is the cell box unioned with its translation along the light direction
+  // far enough for its top to reach the lowest ground; conservative.
+  function casterMatters(cell, useMirror) {
+    const ly = _light.y;
+    if (ly >= -1e-3) return true; // sun at / below the horizon: no bound
+    const t = (cell.maxY - lowestGround()) / -ly;
+    const dx = _light.x * t;
+    const dz = _light.z * t;
+    _sweep.min.set(Math.min(cell.minX, cell.minX + dx) - CASTER_SLACK, lowestGround() - CASTER_SLACK, Math.min(cell.minZ, cell.minZ + dz) - CASTER_SLACK);
+    _sweep.max.set(Math.max(cell.maxX, cell.maxX + dx) + CASTER_SLACK, cell.maxY + CASTER_SLACK, Math.max(cell.maxZ, cell.maxZ + dz) + CASTER_SLACK);
+    if (_frustum.intersectsBox(_sweep)) return true;
+    return useMirror && _mirrorFrustum.intersectsBox(_sweep);
+  }
+
   // Which drawn instances of a far-LOD layer go to the far (core cards) draw.
   // Eligible: anchor farther than lodFar + LOD_MARGIN from the render camera —
   // the same measure as the shaders' LOD, so the shell cards are provably
@@ -602,7 +687,12 @@ export function createInstanceCuller(ctx) {
       _mirrorFrustum.setFromProjectionMatrix(_mat.premultiply(_wideCam.projectionMatrix));
     }
 
+    const sunDir = ctx.sky?.sunDirection;
+    if (sunDir) _light.copy(sunDir).negate();
+    else _light.set(0, 1, 0); // unknown sun: casterMatters() keeps every caster
+
     let visible = 0;
+    let shadowInstances = 0;
     const matrixBuffers = collectInstanceMatrixBuffers(ctx.renderer);
     for (const layer of layers) {
       const activeCount = activeCountFor(layer);
@@ -618,15 +708,23 @@ export function createInstanceCuller(ctx) {
       const farStream = far ? far.streamAttr.array : null;
       const farIds = far ? far.idAttr.array : null;
       const farDistSq = far ? far.distSq : Infinity;
+      const shadowPartner = layer.shadowPartner;
+      const spMat = shadowPartner ? shadowPartner.mesh.instanceMatrix.array : null;
+      const spStream = shadowPartner?.streamAttr ? shadowPartner.streamAttr.array : null;
+      const spIds = shadowPartner ? shadowPartner.idAttr.array : null;
       let cursor = 0;
       let cursorFar = 0;
+      let cursorShadow = 0;
       let anyVisible = false;
+      let anyShadow = false;
       for (const cell of layer.cells) {
-        cell.visible = false;
+        cell.visible = false; // view passes (main / mirror) — or any pass when the layer has no shadow partner
+        cell.shadow = false; // shadow pass (partner mesh)
         // density prefix: skip cells with no live instance at all
         if (cell.indices[0] >= activeCount) continue;
-        _box.min.set(cell.minX, cell.minY, cell.minZ);
-        _box.max.set(cell.maxX, cell.maxY, cell.maxZ);
+        // the camera travels up to REPACK_MOVE before the next pack
+        _box.min.set(cell.minX - REPACK_MOVE, cell.minY - REPACK_MOVE, cell.minZ - REPACK_MOVE);
+        _box.max.set(cell.maxX + REPACK_MOVE, cell.maxY + REPACK_MOVE, cell.maxZ + REPACK_MOVE);
 
         // distance fade: nearest / farthest approach of the cell to the eye(s)
         let dMin = Infinity;
@@ -646,9 +744,16 @@ export function createInstanceCuller(ctx) {
 
         let inView = state.debugAll || _frustum.intersectsBox(_box);
         if (!inView && useMirror) inView = _mirrorFrustum.intersectsBox(_box);
-        if (!inView && useShadow) {
+        let inShadow = false;
+        if (useShadow && (shadowPartner || !inView)) {
           const e = shadow.extent + SHADOW_MARGIN;
-          inView = cell.maxX >= shadow.x - e && cell.minX <= shadow.x + e && cell.maxZ >= shadow.z - e && cell.minZ <= shadow.z + e;
+          inShadow = state.debugAll || (cell.maxX >= shadow.x - e && cell.minX <= shadow.x + e && cell.maxZ >= shadow.z - e && cell.minZ <= shadow.z + e && casterMatters(cell, useMirror));
+        }
+        if (shadowPartner) {
+          cell.shadow = inShadow;
+          if (inShadow) anyShadow = true;
+        } else if (inShadow) {
+          inView = true; // no partner: the one mesh serves every pass
         }
         if (!inView) continue;
         cell.visible = true;
@@ -659,18 +764,35 @@ export function createInstanceCuller(ctx) {
       // depth test resolves exact ties by primitive order, and a different
       // order flips those pixels. One linear pass over the live prefix; the
       // copies are plain loops (no subarray views → no garbage per repack).
-      if (anyVisible) {
+      if (anyVisible || anyShadow) {
         const cells = layer.cells;
         const cellOf = layer.cellOf;
         const src = layer.matrices;
         const srcStream = layer.streamData;
-        const farFlag = far ? selectFar(layer, activeCount, farDistSq) : null;
+        const farFlag = far && anyVisible ? selectFar(layer, activeCount, farDistSq) : null;
         for (let i = 0; i < activeCount; i += 1) {
           const ci = cellOf[i];
-          if (ci < 0 || !cells[ci].visible) continue;
+          if (ci < 0) continue;
+          const cell = cells[ci];
+          if (cell.shadow) {
+            const so = i * 16;
+            const po = cursorShadow * 16;
+            for (let k = 0; k < 16; k += 1) spMat[po + k] = src[so + k];
+            if (spStream) {
+              const s4 = i * 4;
+              const p4 = cursorShadow * 4;
+              spStream[p4] = srcStream[s4];
+              spStream[p4 + 1] = srcStream[s4 + 1];
+              spStream[p4 + 2] = srcStream[s4 + 2];
+              spStream[p4 + 3] = srcStream[s4 + 3];
+            }
+            spIds[cursorShadow] = i;
+            cursorShadow += 1;
+          }
+          if (!cell.visible) continue;
           const so = i * 16;
           const s4 = i * 4;
-          if (far) {
+          if (farFlag) {
             if (farFlag[i] === 1) {
               const fo = cursorFar * 16;
               for (let k = 0; k < 16; k += 1) farMat[fo + k] = src[so + k];
@@ -723,6 +845,32 @@ export function createInstanceCuller(ctx) {
       layer.idAttr.clearUpdateRanges();
       layer.idAttr.addUpdateRange(0, state.fullUpload ? layer.idAttr.array.length : cursor);
       layer.idAttr.needsUpdate = true;
+      if (shadowPartner) {
+        if (cursorShadow === 0) {
+          spMat.fill(0, 0, 16);
+          if (spStream) spStream.fill(0, 0, 4);
+          spIds[0] = 0;
+          cursorShadow = 1;
+        }
+        shadowPartner.live = cursorShadow;
+        shadowInstances += cursorShadow;
+        shadowPartner.mesh.count = cursorShadow;
+        const pim = shadowPartner.mesh.instanceMatrix;
+        const pFloats = state.fullUpload ? pim.array.length : cursorShadow * 16;
+        pim.clearUpdateRanges();
+        pim.addUpdateRange(0, pFloats);
+        pim.needsUpdate = true;
+        state.syncedBuffers += syncInstanceMatrixBuffers(matrixBuffers, pim, pFloats);
+        if (spStream) {
+          const psa = shadowPartner.streamAttr;
+          psa.clearUpdateRanges();
+          psa.addUpdateRange(0, state.fullUpload ? psa.array.length : cursorShadow * 4);
+          psa.needsUpdate = true;
+        }
+        shadowPartner.idAttr.clearUpdateRanges();
+        shadowPartner.idAttr.addUpdateRange(0, state.fullUpload ? shadowPartner.idAttr.array.length : cursorShadow);
+        shadowPartner.idAttr.needsUpdate = true;
+      }
       if (far) {
         if (cursorFar === 0) {
           farMat.fill(0, 0, 16);
@@ -749,6 +897,7 @@ export function createInstanceCuller(ctx) {
       }
     }
     state.visibleInstances = visible;
+    state.shadowInstances = shadowInstances;
     state.repacks += 1;
     state.lastMs = performance.now() - t0;
   }
