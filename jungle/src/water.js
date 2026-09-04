@@ -1800,11 +1800,73 @@ export function createWater(ctx) {
   }
 
   // ---------------- water surface geometry ----------------
-  // One indexed grid, one draw call, two densities: 0.625 m cells wherever the
-  // plane can actually be seen (inside the fitted shoreline plus a margin, or
-  // over any terrain below the waterline) and 5 m cells elsewhere, where the
-  // terrain hides it. Fine and coarse blocks only meet under dry land, so
-  // their T-junctions can never show.
+  // One indexed grid, two densities: 0.625 m cells wherever the plane can
+  // actually be seen (inside the fitted shoreline plus a margin, or over any
+  // terrain below the waterline) and 5 m cells elsewhere, where the terrain
+  // hides it. Fine and coarse blocks only meet under dry land, so their
+  // T-junctions can never show.
+  //
+  // Two reductions on top of that, both pixel-exact:
+  //  * a quad is DROPPED when the rendered terrain mesh is provably above the
+  //    highest point the displaced surface can reach anywhere over it
+  //    (SURFACE_RISE, derived below from the shader's own wave terms) plus a
+  //    depth-buffer safety margin. The camera is always above the terrain, so
+  //    the ray to any such fragment crosses the (opaque, drawn first) terrain
+  //    surface at least SURFACE_DEPTH_SAFETY metres nearer: the fragment fails
+  //    the depth test in every frame and never produced a pixel;
+  //  * the remaining quads are grouped into CHUNK_BLOCKS-wide chunks that
+  //    share the vertex attributes and the material, each a Mesh with a tight
+  //    bounding sphere so the renderer frustum-culls them (the single grid was
+  //    frustumCulled = false). The material's reflection render and the
+  //    refraction framebuffer copy are NodeUpdateType.RENDER nodes, i.e. they
+  //    run once per renderer.render() however many chunks share the material.
+  //
+  // Vertex displacement bound (positionNode in buildSurfaceMaterial):
+  //   y: Σ WAVES amp (damp ≤ 1)  +  RUNUP.amp (pow(...)·smoothstep ≤ 1)
+  //      +  plunge heave Σ_impacts (0.085 + 0.05)·w  (env ≤ w);
+  //   xz: Σ WAVES horiz (Gerstner offset, damp ≤ 1).
+  const SURFACE_RISE = WAVE_AMP_TOTAL + RUNUP.amp + impacts.reduce((a, u) => a + (0.085 + 0.05) * u.value.w, 0);
+  const SURFACE_SPREAD = WAVES.reduce((a, w) => a + w.horiz, 0);
+  // 24-bit depth at the far end of the map resolves ~0.2 m; keep 1 m of it
+  const SURFACE_DEPTH_SAFETY = 1.0;
+  // 50 m chunks: a view submits ~10 of them (each is two draws, the material is
+  // double-sided) for ~46 k of the 142 k triangles; 40 m chunks buy ~2 k more
+  // triangles for ~4 more chunks
+  const CHUNK_BLOCKS = 10;
+
+  // Rendered terrain height field: the shared grid the terrain tiles draw
+  // (piecewise linear between the grid vertices), so a min over the vertices
+  // of every cell touching a rectangle bounds the drawn surface over it.
+  function terrainMeshGrid() {
+    const pos = terrain?.mesh?.geometry?.attributes?.position;
+    const segs = WORLD.terrainSegments;
+    const n = segs + 1;
+    const h2 = WORLD.size / 2;
+    if (!pos || pos.count !== n * n || pos.itemSize !== 3) return null;
+    if (Math.abs(pos.getX(0) + h2) > 1e-3 || Math.abs(pos.getZ(0) + h2) > 1e-3) return null;
+    if (Math.abs(pos.getX(n - 1) - h2) > 1e-3 || Math.abs(pos.getZ(n * n - 1) - h2) > 1e-3) return null;
+    const arr = pos.array;
+    const stepM = WORLD.size / segs;
+    // lowest drawn terrain over [x0,x1]×[z0,z1]; -Infinity when the rectangle
+    // leaves the grid (nothing is proven there)
+    return function minHeightOver(x0, z0, x1, z1) {
+      const gx0 = Math.floor((x0 + h2) / stepM);
+      const gz0 = Math.floor((z0 + h2) / stepM);
+      const gx1 = Math.ceil((x1 + h2) / stepM);
+      const gz1 = Math.ceil((z1 + h2) / stepM);
+      if (gx0 < 0 || gz0 < 0 || gx1 > segs || gz1 > segs) return -Infinity;
+      let m = Infinity;
+      for (let iz = gz0; iz <= gz1; iz += 1) {
+        const row = iz * n;
+        for (let ix = gx0; ix <= gx1; ix += 1) {
+          const y = arr[(row + ix) * 3 + 1];
+          if (y < m) m = y;
+        }
+      }
+      return m;
+    };
+  }
+
   function buildSurfaceGeometry() {
     const BLOCK = 5;
     const SUB = 8;
@@ -1815,7 +1877,6 @@ export function createWater(ctx) {
     const positions = [];
     const normals = [];
     const uvs = [];
-    const index = [];
     const vert = (ix, iz) => {
       const key = ix * (fineN + 1) + iz;
       let idx = vertexIndex.get(key);
@@ -1828,12 +1889,45 @@ export function createWater(ctx) {
       }
       return idx;
     };
-    const quad = (ix0, iz0, ix1, iz1) => {
+    const minTerrainOver = terrainMeshGrid();
+    const hideLevel = WORLD.waterLevel + SURFACE_RISE + SURFACE_DEPTH_SAFETY;
+    const chunkN = Math.ceil(blocks / CHUNK_BLOCKS);
+    const chunks = [];
+    // fine quads go to the CHUNK_BLOCKS grid cell they lie in; the few coarse
+    // quads that survive the drop (low ground; ~1.4 k triangles all told)
+    // share one extra chunk instead of turning every grid cell they touch
+    // into a draw call
+    for (let i = 0; i < chunkN * chunkN + 1; i += 1) {
+      chunks.push({ index: [], ix0: Infinity, iz0: Infinity, ix1: -Infinity, iz1: -Infinity, quads: 0 });
+    }
+    const coarseChunk = chunks[chunkN * chunkN];
+    const stats = { fineKept: 0, fineDropped: 0, coarseKept: 0, coarseDropped: 0 };
+    // (vertices are created for every quad, dropped or not, so the attribute
+    // buffers are exactly the single-grid ones)
+    const quad = (ix0, iz0, ix1, iz1, fine) => {
       const a = vert(ix0, iz0);
       const b = vert(ix1, iz0);
       const c = vert(ix0, iz1);
       const d = vert(ix1, iz1);
-      index.push(a, c, b, b, c, d);
+      const x0 = -half + (ix0 / fineN) * WORLD.size;
+      const z0 = -half + (iz0 / fineN) * WORLD.size;
+      const x1 = -half + (ix1 / fineN) * WORLD.size;
+      const z1 = -half + (iz1 / fineN) * WORLD.size;
+      if (minTerrainOver) {
+        const lowestGround = minTerrainOver(x0 - SURFACE_SPREAD, z0 - SURFACE_SPREAD, x1 + SURFACE_SPREAD, z1 + SURFACE_SPREAD);
+        if (lowestGround >= hideLevel) {
+          stats[fine ? 'fineDropped' : 'coarseDropped'] += 1;
+          return;
+        }
+      }
+      stats[fine ? 'fineKept' : 'coarseKept'] += 1;
+      const chunk = fine ? chunks[Math.floor(iz0 / (SUB * CHUNK_BLOCKS)) * chunkN + Math.floor(ix0 / (SUB * CHUNK_BLOCKS))] : coarseChunk;
+      chunk.index.push(a, c, b, b, c, d);
+      chunk.quads += 1;
+      if (ix0 < chunk.ix0) chunk.ix0 = ix0;
+      if (iz0 < chunk.iz0) chunk.iz0 = iz0;
+      if (ix1 > chunk.ix1) chunk.ix1 = ix1;
+      if (iz1 > chunk.iz1) chunk.iz1 = iz1;
     };
     const probes = [[0, 0], [1, 0], [0, 1], [1, 1], [0.5, 0.5], [0.5, 0], [0, 0.5], [1, 0.5], [0.5, 1]];
     const isFine = (bx, bz) => {
@@ -1854,24 +1948,46 @@ export function createWater(ctx) {
           fineBlocks += 1;
           for (let j = 0; j < SUB; j += 1) {
             for (let i = 0; i < SUB; i += 1) {
-              quad(ix0 + i, iz0 + j, ix0 + i + 1, iz0 + j + 1);
+              quad(ix0 + i, iz0 + j, ix0 + i + 1, iz0 + j + 1, true);
             }
           }
         } else {
-          quad(ix0, iz0, ix0 + SUB, iz0 + SUB);
+          quad(ix0, iz0, ix0 + SUB, iz0 + SUB, false);
         }
       }
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geo.setIndex(index);
-    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), WORLD.size);
-    geo.userData.fineBlocks = fineBlocks;
-    return geo;
+    const positionAttr = new THREE.Float32BufferAttribute(positions, 3);
+    const normalAttr = new THREE.Float32BufferAttribute(normals, 3);
+    const uvAttr = new THREE.Float32BufferAttribute(uvs, 2);
+    // the transparent pass sorts by geometry.boundingSphere's projected centre:
+    // every chunk keeps the single grid's sphere there (same sort key as
+    // before); culling reads the per-object sphere set on the Mesh
+    const sortSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), WORLD.size);
+    const pad = Math.hypot(SURFACE_RISE, SURFACE_SPREAD);
+    const geometries = [];
+    let triangles = 0;
+    for (const chunk of chunks) {
+      if (chunk.quads === 0) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', positionAttr);
+      geo.setAttribute('normal', normalAttr);
+      geo.setAttribute('uv', uvAttr);
+      geo.setIndex(chunk.index);
+      geo.boundingSphere = sortSphere.clone();
+      const x0 = -half + (chunk.ix0 / fineN) * WORLD.size;
+      const z0 = -half + (chunk.iz0 / fineN) * WORLD.size;
+      const x1 = -half + (chunk.ix1 / fineN) * WORLD.size;
+      const z1 = -half + (chunk.iz1 / fineN) * WORLD.size;
+      // local space (the mesh sits at y = waterLevel), inflated by the largest
+      // displacement the vertex stage can apply
+      const box = new THREE.Box3(new THREE.Vector3(x0, 0, z0), new THREE.Vector3(x1, 0, z1)).expandByScalar(pad);
+      geo.boundingBox = box;
+      geometries.push({ geometry: geo, cullSphere: box.getBoundingSphere(new THREE.Sphere()) });
+      triangles += chunk.index.length / 3;
+    }
+    return { geometries, fineBlocks, triangles, quads: stats };
   }
-  const surfaceGeo = buildSurfaceGeometry();
+  const surfaceBuild = buildSurfaceGeometry();
 
   // planar reflection target (only rendered on High/Ultra); its uv is
   // distorted inside buildSurfaceMaterial with the surface slope
@@ -1889,11 +2005,20 @@ export function createWater(ctx) {
   const materialWithReflection = buildSurfaceMaterial({ reflectionNode: reflection, refraction: true });
   const materialCheap = buildSurfaceMaterial({ reflectionNode: null, refraction: true });
 
-  const surface = new THREE.Mesh(surfaceGeo, materialWithReflection);
+  // one Mesh per chunk, all sharing the attributes and the material; the first
+  // is "the surface" other code and the debug scripts look up by name, the
+  // rest are its children (so hiding / moving it takes every chunk along)
+  const surfaceChunks = surfaceBuild.geometries.map(({ geometry, cullSphere }, i) => {
+    const chunk = new THREE.Mesh(geometry, materialWithReflection);
+    chunk.boundingSphere = cullSphere;
+    chunk.frustumCulled = true;
+    chunk.renderOrder = 2;
+    chunk.name = i === 0 ? 'water-surface' : `water-surface-chunk-${i}`;
+    return chunk;
+  });
+  const surface = surfaceChunks[0];
   surface.position.y = WORLD.waterLevel;
-  surface.renderOrder = 2;
-  surface.name = 'water-surface';
-  surface.frustumCulled = false;
+  for (let i = 1; i < surfaceChunks.length; i += 1) surface.add(surfaceChunks[i]);
   scene.add(surface);
 
   // ---------------- waterfall mesh (one draw: back sheet, front sheet, spray, haze, side fall) ----------------
@@ -2311,7 +2436,7 @@ export function createWater(ctx) {
 
   function applyQuality(preset) {
     const useReflection = preset.planarReflection;
-    surface.material = useReflection ? materialWithReflection : materialCheap;
+    for (const chunk of surfaceChunks) chunk.material = useReflection ? materialWithReflection : materialCheap;
     reflection.target.visible = useReflection;
     reflection.resolutionScale = preset.reflectionSize >= 1024 ? 0.75 : 0.5;
     ripple.resize(preset.rippleSimSize || 256);
@@ -2353,6 +2478,14 @@ export function createWater(ctx) {
     wakes: wakeUniforms,
     lilies,
     reeds,
-    stats: { fineBlocks: surfaceGeo.userData.fineBlocks, triangles: surfaceGeo.index.count / 3 },
+    surfaceChunks,
+    stats: {
+      fineBlocks: surfaceBuild.fineBlocks,
+      triangles: surfaceBuild.triangles,
+      chunks: surfaceChunks.length,
+      quads: surfaceBuild.quads,
+      surfaceRise: SURFACE_RISE,
+      surfaceSpread: SURFACE_SPREAD,
+    },
   };
 }

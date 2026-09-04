@@ -31,6 +31,12 @@ import { createFbm2D, smoothstep as smoothstepJs, clamp as clampJs, lerp } from 
 // sides only touch the other's exports inside functions, never at load time
 import { swashNode } from './water.js';
 
+// The terrain grid is drawn as TERRAIN_TILES × TERRAIN_TILES frustum-culled
+// tiles sharing one vertex buffer (see createTerrain). 6×6 (~67 m tiles):
+// the main + reflection passes submit ~220 k of the 590 k triangles the single
+// mesh cost, at ~26 draws; 8×8 saves only ~20 k more for 18 further draws.
+const TERRAIN_TILES = 6;
+
 // River center line: winding path heading south (+z) out of the lagoon.
 export function riverCenterX(z) {
   return Math.sin(z * 0.024) * 16 + Math.sin(z * 0.061 + 1.7) * 7;
@@ -684,10 +690,75 @@ export function createTerrain(ctx) {
     .sub(dirtCavity.mul(trailBlend).mul(0.12))
     .add(rockMask.mul(0.02));
 
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.receiveShadow = true;
-  mesh.castShadow = false;
+  // ---------- tiling ----------
+  // The grid is one 295 k-triangle mesh that spans the whole map, so three.js
+  // never frustum-culls it: every pass (main, planar reflection) shades all of
+  // it. Split only the INDEX into an N×N grid of tiles that share the very same
+  // vertex attributes (position / normal / uv, in grid order) and the same
+  // material, each tile carrying a tight bounding sphere for culling. The
+  // triangles are copied from the PlaneGeometry index verbatim (same vertex
+  // ids, same winding), so the rasterised result is identical.
+  const TILES = TERRAIN_TILES;
+  const gridX1 = segments + 1;
+  const srcIndex = geometry.index.array;
+  // sort key: the renderer orders opaque objects by the projected centre of
+  // geometry.boundingSphere. Every tile keeps the full grid's sphere there so
+  // the tiles sit exactly where the single mesh sat in the render order (with
+  // depth-tied pixels — trunks and boulders meeting the ground — resolved the
+  // same way); culling uses the per-object sphere instead (Frustum reads
+  // object.boundingSphere first when the property exists).
+  geometry.computeBoundingSphere();
+  const sortSphere = geometry.boundingSphere;
+  const posArr = positions.array;
+  const tiles = [];
+  const tileBox = new THREE.Box3();
+  const tileV = new THREE.Vector3();
+  for (let tz = 0; tz < TILES; tz += 1) {
+    const iy0 = Math.floor((tz * segments) / TILES);
+    const iy1 = Math.floor(((tz + 1) * segments) / TILES);
+    for (let tx = 0; tx < TILES; tx += 1) {
+      const ix0 = Math.floor((tx * segments) / TILES);
+      const ix1 = Math.floor(((tx + 1) * segments) / TILES);
+      const quads = (ix1 - ix0) * (iy1 - iy0);
+      const tileIndex = new Uint32Array(quads * 6);
+      let o = 0;
+      for (let iy = iy0; iy < iy1; iy += 1) {
+        const rowStart = (iy * segments + ix0) * 6;
+        tileIndex.set(srcIndex.subarray(rowStart, rowStart + (ix1 - ix0) * 6), o);
+        o += (ix1 - ix0) * 6;
+      }
+      tileBox.makeEmpty();
+      for (let iy = iy0; iy <= iy1; iy += 1) {
+        for (let ix = ix0; ix <= ix1; ix += 1) {
+          const v = (iy * gridX1 + ix) * 3;
+          tileV.set(posArr[v], posArr[v + 1], posArr[v + 2]);
+          tileBox.expandByPoint(tileV);
+        }
+      }
+      const tileGeo = new THREE.BufferGeometry();
+      for (const name of Object.keys(geometry.attributes)) {
+        tileGeo.setAttribute(name, geometry.attributes[name]);
+      }
+      tileGeo.setIndex(new THREE.BufferAttribute(tileIndex, 1));
+      tileGeo.boundingBox = tileBox.clone();
+      tileGeo.boundingSphere = sortSphere.clone();
+      const tile = new THREE.Mesh(tileGeo, material);
+      tile.boundingSphere = tileBox.getBoundingSphere(new THREE.Sphere());
+      tile.receiveShadow = true;
+      tile.castShadow = false;
+      tile.frustumCulled = true;
+      tiles.push(tile);
+    }
+  }
+  // the first tile is the object other modules know as "the terrain mesh":
+  // its geometry exposes the whole shared grid (grass.js reads exact heights
+  // from it) and hiding it hides every tile
+  const mesh = tiles[0];
   mesh.name = 'terrain';
+  for (let i = 1; i < tiles.length; i += 1) {
+    tiles[i].name = `terrain-tile-${i}`;
+    mesh.add(tiles[i]);
+  }
 
   // ---------- collision / placement helpers ----------
   const normalA = new THREE.Vector3();
@@ -704,6 +775,7 @@ export function createTerrain(ctx) {
 
   return {
     mesh,
+    tiles,
     sampleHeight,
     sampleNormal,
     canopyDensity,
