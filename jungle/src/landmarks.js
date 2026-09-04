@@ -2652,7 +2652,10 @@ export function createLandmarks(ctx) {
       }
     }
     for (const tex of ownTextures) {
-      tex.anisotropy = preset.anisotropy;
+      if (tex.anisotropy !== preset.anisotropy) {
+        tex.anisotropy = preset.anisotropy;
+        tex.needsUpdate = true; // samplers only refresh on a version bump
+      }
     }
   }
 

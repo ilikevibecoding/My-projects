@@ -2763,8 +2763,12 @@ export function createVegetation(ctx) {
       layer.mesh.count = Math.max(1, Math.min(layer.maxCount, n));
     }
     for (const mesh of meshes) {
-      if (mesh.material.map) {
-        mesh.material.map.anisotropy = preset.anisotropy;
+      const map = mesh.material.map;
+      // a sampler only refreshes on a version bump, so an anisotropy change
+      // that is not flagged stays at whatever the first render used
+      if (map && map.anisotropy !== preset.anisotropy) {
+        map.anisotropy = preset.anisotropy;
+        map.needsUpdate = true;
       }
     }
   }

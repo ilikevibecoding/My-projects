@@ -1089,7 +1089,11 @@ export function createGrass(ctx) {
     uFadeStart.value = liveRadius * 0.78;
     uFadeEnd.value = liveRadius * 0.97;
     lodDist = [14 + 5 * density, 28 + 8 * density];
-    atlas.anisotropy = preset?.anisotropy ?? 4;
+    const aniso = preset?.anisotropy ?? 4;
+    if (atlas.anisotropy !== aniso) {
+      atlas.anisotropy = aniso;
+      atlas.needsUpdate = true; // samplers only refresh on a version bump
+    }
     stats.radius = liveRadius;
     stats.density = densityScale;
     dirty = true;

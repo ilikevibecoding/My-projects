@@ -815,7 +815,11 @@ export function createGroundDetail(ctx) {
       layer.mesh.count = Math.max(1, Math.min(layer.maxCount, Math.round(layer.maxCount * density)));
     }
     for (const mesh of meshes) {
-      if (mesh.material.map) mesh.material.map.anisotropy = preset.anisotropy;
+      const map = mesh.material.map;
+      if (map && map.anisotropy !== preset.anisotropy) {
+        map.anisotropy = preset.anisotropy;
+        map.needsUpdate = true; // samplers only refresh on a version bump
+      }
     }
   }
 

@@ -2455,7 +2455,10 @@ export function createWater(ctx) {
     lilies.count = Math.max(1, Math.round(lilySpots.length * density));
     reeds.count = Math.max(1, Math.round(reedSpots.length * density));
     for (const tex of ownTextures) {
-      tex.anisotropy = preset.anisotropy;
+      if (tex.anisotropy !== preset.anisotropy) {
+        tex.anisotropy = preset.anisotropy;
+        tex.needsUpdate = true; // samplers only refresh on a version bump
+      }
     }
   }
 

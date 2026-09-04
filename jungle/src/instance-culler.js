@@ -105,6 +105,22 @@ export function padInstanceMatrices(mesh) {
   return padded;
 }
 
+// WebGPU variant of the above: as a StorageInstancedBufferAttribute the same
+// array is read from one storage buffer shared by every shader variant of the
+// mesh (three's isStorageMatrix path) — no padding, no per-node copies (the
+// padded attribute path keeps ~65 KB per node variant per layer, ~25 MB in all)
+// and uploaded once per repack via its update range. WebGL 2 cannot bind it
+// (see above), so it keeps the padding.
+export function useStorageMatrices(mesh) {
+  const current = mesh.instanceMatrix;
+  if (!current || current.isStorageInstancedBufferAttribute || current.count > UNIFORM_MATRIX_LIMIT) return current;
+  const storage = new THREE.StorageInstancedBufferAttribute(current.array, 16);
+  storage.setUsage(current.usage);
+  storage.version = current.version;
+  mesh.instanceMatrix = storage;
+  return storage;
+}
+
 // Attach the stable per-instance id attribute (original index) to a mesh.
 // Static usage on purpose: a static attribute is uploaded once per version
 // bump, using its update range (the packed prefix); a dynamic one would be
@@ -207,7 +223,8 @@ export function createInstanceCuller(ctx) {
   } = {}) {
     const existing = layers.find((l) => l.mesh === mesh);
     if (existing) return existing;
-    padInstanceMatrices(mesh);
+    if (ctx.isWebGPU) useStorageMatrices(mesh);
+    else padInstanceMatrices(mesh);
     const idAttr = attachInstanceIds(mesh);
     const layer = {
       mesh,
