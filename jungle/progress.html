@@ -84,6 +84,7 @@
 
 <h2>Log</h2>
 <ul id="log">
+  <li>2026-09-04 19:40 — Culler identity agent landed: 0 px on 8 views × 4 presets (Low/Medium/High/Ultra). Small layers' instance matrices padded onto the vertex-attribute path (2.25 MB → 0.27 MB of per-frame uploads); near-grass buffers static (−2.9 MB/frame of redundant uploads). Shaders now precompile in batches during the loading screen so the first frames don't stall.</li>
   <li>2026-09-04 18:30 — Terrain/water tiling agent landed (6×6 terrain tiles, 50 m water chunks, hidden water quads dropped: −13.5 % triangles on average, −21 % at the overlook). Water surface now rendered in one pass (half its draws). Small layers' instance matrices are storage buffers on WebGPU. Full identity pass: 8/8 views + underwater 0 px. Before/after table above.</li>
   <li>2026-09-04 13:40 — Load-time and render-pass audit agents landed (see steps 4 and 5). Fixed a regression of mine in the twig material and the last of the ground-prop "flung" bugs (crossed-twig collapse). Reference baseline being recaptured for the full identity pass.</li>
   <li>2026-09-04 12:20 — Ground-detail/landmarks agent landed. Found and fixed a genuine pre-existing visual bug (fading ground props flying through the scene; stretched stones) — very likely part of the "glitches while moving". The reference build used for identity carries the same two-line fix; baselines being recaptured.</li>
