@@ -1317,7 +1317,8 @@ export function createVegetation(ctx) {
     const layer = { mesh, maxCount: mesh.count, densityKey, gate };
     layers.push(layer);
     // hand the layer to the instance culler: it compacts the buffers to the
-    // visible set per view and keeps the density prefix rule below
+    // visible set per view and applies the same density prefix rule as
+    // applyQuality below (gate / round(max · density) of densityKey)
     const ud = mesh.material.userData;
     ctx.culler?.register(mesh, {
       maxCount: mesh.count,

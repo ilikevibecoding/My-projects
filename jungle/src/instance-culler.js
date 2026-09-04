@@ -19,8 +19,10 @@
 // Visuals are unchanged: per-instance appearance is keyed off a stable id
 // attribute (`aId`, the original instance index) instead of instanceIndex, the
 // quality-density prefix rule (instance k live while k < round(max·density),
-// or gate[k] <= density) is applied per cell, and instances keep their
-// ascending original order inside the packed buffer.
+// or gate[k] <= density — the same rule the owner's applyQuality writes to
+// mesh.count) is applied per cell, and the packed buffer keeps the instances
+// in their ascending original order, so every depth tie between two cards
+// resolves exactly as it did in the full buffer.
 
 import * as THREE from 'three/webgpu';
 import { WORLD } from './config.js';
@@ -157,10 +159,17 @@ export function createInstanceCuller(ctx) {
   // ---------------------------------------------------------------------
   // registration: snapshot the full instance data of a layer into cells
   // ---------------------------------------------------------------------
+  // The live prefix (which instances the preset draws) is derived here with the
+  // owner's own rule — `gate` (attachment layers) or round(max · density) of
+  // the named preset density — because the culler owns `mesh.count` once a
+  // layer is registered (owners skip culled meshes in applyQuality). A layer
+  // registered with neither is never thinned: that is what every authored
+  // layer (landmarks) means, and thinning it silently by the vegetation
+  // density would drop its tufts — and their shadow — on the low presets.
   function register(mesh, {
     maxCount = mesh.instanceMatrix.count,
     gate = null, // ascending Float64Array of density thresholds (attachment layers)
-    densityKey = 'vegetation', // ctx.quality[densityKey + 'Density'] gates the live prefix
+    densityKey = null, // 'vegetation' | 'grass': ctx.quality[densityKey + 'Density'] gates the live prefix
     stream = null, // { array: Float32Array(count*4), attribute: InstancedBufferAttribute } written per instance
     fadeEnd = null, // metres from the render camera past which the shaders collapse the instance
     fadeInStart = null, // metres before which the shaders collapse the instance (far-only fillers)
@@ -168,6 +177,8 @@ export function createInstanceCuller(ctx) {
     castShadow = mesh.castShadow,
     radius = null, // geometry bounding radius at scale 1 (defaults to the geometry's sphere)
   } = {}) {
+    const existing = layers.find((l) => l.mesh === mesh);
+    if (existing) return existing;
     const idAttr = attachInstanceIds(mesh);
     const layer = {
       mesh,
@@ -185,8 +196,7 @@ export function createInstanceCuller(ctx) {
       cellOf: null,
       matrices: null,
       streamData: null,
-      activeCount: maxCount,
-      live: 0,
+      live: 0, // packed (drawn) count
       kept: 0, // non-degenerate instances in the snapshot
     };
     layers.push(layer);
@@ -313,7 +323,7 @@ export function createInstanceCuller(ctx) {
   // ---------------------------------------------------------------------
   function activeCountFor(layer) {
     const preset = ctx.quality;
-    if (!preset) return layer.maxCount;
+    if (!preset || (!layer.gate && !layer.densityKey)) return layer.maxCount;
     const density = layer.densityKey === 'grass' ? preset.grassDensity : preset.vegetationDensity;
     const n = layer.gate ? upperBound(layer.gate, density + 1e-9, layer.gate.length) : Math.round(layer.maxCount * density);
     return Math.max(1, Math.min(layer.maxCount, n));
