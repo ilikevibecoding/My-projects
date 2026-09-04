@@ -28,12 +28,26 @@ import * as THREE from 'three/webgpu';
 import { WORLD } from './config.js';
 
 export const INSTANCE_ID_ATTRIBUTE = 'aId';
+// per-geometry vec4 anchor stream (x, y, z, yaw) some owners hand in as `stream`
+export const ANCHOR_ATTRIBUTE = 'aAnchor';
+
 
 const CELL = 16;
 const FOV_MARGIN_DEG = 7; // extra half-angle on the main / mirror frusta
 const SWAY_MARGIN = 2.5; // metres of wind / flutter displacement a card can reach
 const SHADOW_MARGIN = 14; // shadow focus drifts with the look direction between repacks
 const REPACK_MOVE = 1.2; // metres of camera travel before repacking
+// a far-LOD partner mesh takes instances at least this far past the owner's
+// lodFar, so they stay past it until the next repack
+const LOD_MARGIN = REPACK_MOVE + 0.5;
+// Splitting a layer across two draws changes which of two same-layer fragments
+// wins an exact depth tie (the depth test falls back on primitive order). Two
+// fragments can only tie when they are the same point in space to within the
+// depth quantum and one sample footprint (≤ 1.2 m at 300 m for a 360-row
+// frame; finer for any real display), so two instances can only tie when their
+// wind-inflated bounding spheres come within TIE_SLACK of each other — a
+// camera-independent, purely spatial condition.
+const TIE_SLACK = 2.5; // metres
 const REPACK_TURN = Math.cos(THREE.MathUtils.degToRad(2.5)); // ~2.5° of look change
 
 const _box = new THREE.Box3();
@@ -136,6 +150,17 @@ export function attachInstanceIds(mesh) {
   return attribute;
 }
 
+// Owners whose anchor stream is a plain instanced attribute (vegetation) get
+// it attached to the mesh's own geometry under ANCHOR_ATTRIBUTE, so one
+// material's `attribute('aAnchor')` reads each mesh's own buffer. Storage
+// streams (ground detail, particles) are bound by the material itself.
+function attachStream(mesh, stream) {
+  const attr = stream?.attribute;
+  if (!attr || !attr.isInstancedBufferAttribute || attr.isStorageInstancedBufferAttribute) return;
+  const geo = ownGeometry(mesh);
+  if (geo.getAttribute(ANCHOR_ATTRIBUTE) !== attr) geo.setAttribute(ANCHOR_ATTRIBUTE, attr);
+}
+
 // three.js reads an InstancedMesh's matrices through an InstanceNode that
 // wraps `instanceMatrix.array` in its own InstancedInterleavedBuffer (one per
 // compiled shader: main material, shadow material, …). The node copies the
@@ -220,12 +245,36 @@ export function createInstanceCuller(ctx) {
     inReflection = true, // false for ground-cover layers the mirror camera never draws
     castShadow = mesh.castShadow,
     radius = null, // geometry bounding radius at scale 1 (defaults to the geometry's sphere)
+    lodFar = null, // metres from the render camera past which the shaders draw only the core cards
+    farMesh = null, // InstancedMesh (core-cards geometry, same material) that draws the instances past lodFar
+    sway = SWAY_MARGIN, // bound on the shaders' wind displacement in geometry units (far-LOD tie test)
   } = {}) {
     const existing = layers.find((l) => l.mesh === mesh);
     if (existing) return existing;
     if (ctx.isWebGPU) useStorageMatrices(mesh);
     else padInstanceMatrices(mesh);
     const idAttr = attachInstanceIds(mesh);
+    attachStream(mesh, stream);
+    // Far-LOD partner: the same instances, split by distance at pack time. Past
+    // `lodFar` the shader has collapsed every shell card to zero area, so the
+    // core-cards-only geometry produces the identical image for a fraction of
+    // the vertices; instances within LOD_MARGIN of the cut stay on the full
+    // mesh, where either LOD renders correctly, so a repack is never late.
+    let far = null;
+    if (farMesh && stream && lodFar !== null) {
+      if (ctx.isWebGPU) useStorageMatrices(farMesh);
+      else padInstanceMatrices(farMesh);
+      const farStream = new THREE.InstancedBufferAttribute(new Float32Array(maxCount * 4), 4);
+      farStream.setUsage(THREE.StaticDrawUsage);
+      attachStream(farMesh, { attribute: farStream });
+      farMesh.frustumCulled = false;
+      farMesh.castShadow = castShadow;
+      farMesh.receiveShadow = mesh.receiveShadow;
+      farMesh.layers.mask = mesh.layers.mask;
+      farMesh.renderOrder = mesh.renderOrder;
+      farMesh.count = 1; // one zero matrix until the first pack
+      far = { mesh: farMesh, idAttr: attachInstanceIds(farMesh), streamAttr: farStream, distSq: (lodFar + LOD_MARGIN) ** 2, sway, live: 0 };
+    }
     const layer = {
       mesh,
       maxCount,
@@ -238,11 +287,12 @@ export function createInstanceCuller(ctx) {
       inReflection,
       castShadow,
       radius,
+      far,
       cells: null,
       cellOf: null,
       matrices: null,
       streamData: null,
-      live: 0, // packed (drawn) count
+      live: 0, // packed (drawn) count on the main mesh
       kept: 0, // non-degenerate instances in the snapshot
     };
     layers.push(layer);
@@ -270,11 +320,25 @@ export function createInstanceCuller(ctx) {
     const cellIndex = new Int32Array(maxCount);
     const counts = new Map();
     let kept = 0;
+    // far-LOD layers: world bounding sphere per instance (centre xyz, radius
+    // incl. wind sway) for the tie test in selectFar()
+    const spheres = layer.far ? new Float32Array(maxCount * 4) : null;
+    const gc = geo.boundingSphere ? geo.boundingSphere.center : null;
+    const sphereRadius = layer.far ? (geo.boundingSphere ? geo.boundingSphere.radius : baseRadius) + layer.far.sway : 0;
     for (let i = 0; i < maxCount; i += 1) {
       const o = i * 16;
       const sx = Math.hypot(src[o], src[o + 1], src[o + 2]);
       const sy = Math.hypot(src[o + 4], src[o + 5], src[o + 6]);
       const sz = Math.hypot(src[o + 8], src[o + 9], src[o + 10]);
+      if (spheres) {
+        const cx = gc ? gc.x : 0;
+        const cy = gc ? gc.y : 0;
+        const cz = gc ? gc.z : 0;
+        spheres[i * 4] = src[o] * cx + src[o + 4] * cy + src[o + 8] * cz + src[o + 12];
+        spheres[i * 4 + 1] = src[o + 1] * cx + src[o + 5] * cy + src[o + 9] * cz + src[o + 13];
+        spheres[i * 4 + 2] = src[o + 2] * cx + src[o + 6] * cy + src[o + 10] * cz + src[o + 14];
+        spheres[i * 4 + 3] = sphereRadius * Math.max(sx, sy, sz);
+      }
       if (sx + sy + sz < 1e-6) {
         cellIndex[i] = -1; // culled (zero matrix): can never produce a pixel
         continue;
@@ -341,6 +405,46 @@ export function createInstanceCuller(ctx) {
     layer.cells = cells;
     layer.cellOf = cellOf;
     layer.kept = kept;
+    if (spheres) {
+      layer.spheres = spheres;
+      layer.farState = new Uint8Array(maxCount);
+      layer.farQueue = new Int32Array(maxCount);
+      // adjacency (CSR) of instances whose inflated spheres come within
+      // TIE_SLACK: the pairs that could ever share a depth value at a sample
+      const degree = new Int32Array(maxCount);
+      const pairs = [];
+      for (let i = 0; i < maxCount; i += 1) {
+        if (cellIndex[i] < 0) continue;
+        const a = i * 4;
+        for (let j = i + 1; j < maxCount; j += 1) {
+          if (cellIndex[j] < 0) continue;
+          const b = j * 4;
+          const dx = spheres[a] - spheres[b];
+          const dy = spheres[a + 1] - spheres[b + 1];
+          const dz = spheres[a + 2] - spheres[b + 2];
+          const reach = spheres[a + 3] + spheres[b + 3] + TIE_SLACK;
+          if (dx * dx + dy * dy + dz * dz < reach * reach) {
+            pairs.push(i, j);
+            degree[i] += 1;
+            degree[j] += 1;
+          }
+        }
+      }
+      const adjStart = new Int32Array(maxCount + 1);
+      for (let i = 0; i < maxCount; i += 1) adjStart[i + 1] = adjStart[i] + degree[i];
+      const adj = new Int32Array(pairs.length);
+      const fill = adjStart.slice(0, maxCount);
+      for (let k = 0; k < pairs.length; k += 2) {
+        const i = pairs[k];
+        const j = pairs[k + 1];
+        adj[fill[i]] = j;
+        fill[i] += 1;
+        adj[fill[j]] = i;
+        fill[j] += 1;
+      }
+      layer.adjStart = adjStart;
+      layer.adj = adj;
+    }
     state.totalInstances = layers.reduce((sum, l) => sum + (l.kept || 0), 0);
   }
 
@@ -379,6 +483,52 @@ export function createInstanceCuller(ctx) {
     const sky = ctx.sky;
     if (!sky?.shadowRegion) return null;
     return sky.shadowRegion(); // { x, z, extent } or null when shadows are off
+  }
+
+  // Which drawn instances of a far-LOD layer go to the far (core cards) draw.
+  // Eligible: anchor farther than lodFar + LOD_MARGIN from the render camera —
+  // the same measure as the shaders' LOD, so the shell cards are provably
+  // zero-area for the instance until the next repack. Chosen: the eligible
+  // instances not connected, through the sphere-intersection graph of the
+  // drawn instances, to any non-eligible one — so no fragment of the far draw
+  // can ever tie in depth with a fragment of the near draw, and the primitive
+  // order the depth test falls back on for exact ties is never consulted
+  // across the split. A flood fill from the near seeds over drawn neighbours.
+  function selectFar(layer, activeCount, farDistSq) {
+    const { cells, cellOf, streamData: stream, farState: state, farQueue: queue, adjStart, adj } = layer;
+    let head = 0;
+    let tail = 0;
+    for (let i = 0; i < activeCount; i += 1) {
+      const ci = cellOf[i];
+      if (ci < 0 || !cells[ci].visible) {
+        state[i] = 0; // not drawn: cannot tie with anything
+        continue;
+      }
+      const s4 = i * 4;
+      const ax = stream[s4] - _pos.x;
+      const ay = stream[s4 + 1] - _pos.y;
+      const az = stream[s4 + 2] - _pos.z;
+      if (ax * ax + ay * ay + az * az > farDistSq) {
+        state[i] = 1; // far candidate
+      } else {
+        state[i] = 2; // near seed
+        queue[tail] = i;
+        tail += 1;
+      }
+    }
+    while (head < tail) {
+      const j = queue[head];
+      head += 1;
+      for (let k = adjStart[j]; k < adjStart[j + 1]; k += 1) {
+        const n = adj[k];
+        if (n < activeCount && state[n] === 1) {
+          state[n] = 2;
+          queue[tail] = n;
+          tail += 1;
+        }
+      }
+    }
+    return state; // 1 = far draw
   }
 
   function update() {
@@ -463,7 +613,13 @@ export function createInstanceCuller(ctx) {
       const matArr = layer.mesh.instanceMatrix.array;
       const streamArr = layer.stream ? layer.stream.array : null;
       const idArr = layer.idAttr.array;
+      const far = layer.far;
+      const farMat = far ? far.mesh.instanceMatrix.array : null;
+      const farStream = far ? far.streamAttr.array : null;
+      const farIds = far ? far.idAttr.array : null;
+      const farDistSq = far ? far.distSq : Infinity;
       let cursor = 0;
+      let cursorFar = 0;
       let anyVisible = false;
       for (const cell of layer.cells) {
         cell.visible = false;
@@ -508,14 +664,29 @@ export function createInstanceCuller(ctx) {
         const cellOf = layer.cellOf;
         const src = layer.matrices;
         const srcStream = layer.streamData;
+        const farFlag = far ? selectFar(layer, activeCount, farDistSq) : null;
         for (let i = 0; i < activeCount; i += 1) {
           const ci = cellOf[i];
           if (ci < 0 || !cells[ci].visible) continue;
           const so = i * 16;
+          const s4 = i * 4;
+          if (far) {
+            if (farFlag[i] === 1) {
+              const fo = cursorFar * 16;
+              for (let k = 0; k < 16; k += 1) farMat[fo + k] = src[so + k];
+              const f4 = cursorFar * 4;
+              farStream[f4] = srcStream[s4];
+              farStream[f4 + 1] = srcStream[s4 + 1];
+              farStream[f4 + 2] = srcStream[s4 + 2];
+              farStream[f4 + 3] = srcStream[s4 + 3];
+              farIds[cursorFar] = i;
+              cursorFar += 1;
+              continue;
+            }
+          }
           const doff = cursor * 16;
           for (let k = 0; k < 16; k += 1) matArr[doff + k] = src[so + k];
           if (streamArr) {
-            const s4 = i * 4;
             const d4 = cursor * 4;
             streamArr[d4] = srcStream[s4];
             streamArr[d4 + 1] = srcStream[s4 + 1];
@@ -552,6 +723,30 @@ export function createInstanceCuller(ctx) {
       layer.idAttr.clearUpdateRanges();
       layer.idAttr.addUpdateRange(0, state.fullUpload ? layer.idAttr.array.length : cursor);
       layer.idAttr.needsUpdate = true;
+      if (far) {
+        if (cursorFar === 0) {
+          farMat.fill(0, 0, 16);
+          farStream.fill(0, 0, 4);
+          farIds[0] = 0;
+          cursorFar = 1;
+        }
+        far.live = cursorFar;
+        visible += cursorFar;
+        far.mesh.count = cursorFar;
+        const fim = far.mesh.instanceMatrix;
+        const farFloats = state.fullUpload ? fim.array.length : cursorFar * 16;
+        fim.clearUpdateRanges();
+        fim.addUpdateRange(0, farFloats);
+        fim.needsUpdate = true;
+        state.syncedBuffers += syncInstanceMatrixBuffers(matrixBuffers, fim, farFloats);
+        const fsa = far.streamAttr;
+        fsa.clearUpdateRanges();
+        fsa.addUpdateRange(0, state.fullUpload ? fsa.array.length : cursorFar * 4);
+        fsa.needsUpdate = true;
+        far.idAttr.clearUpdateRanges();
+        far.idAttr.addUpdateRange(0, state.fullUpload ? far.idAttr.array.length : cursorFar);
+        far.idAttr.needsUpdate = true;
+      }
     }
     state.visibleInstances = visible;
     state.repacks += 1;

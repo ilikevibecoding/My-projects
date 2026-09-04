@@ -31,8 +31,6 @@ import {
   cross,
   uv,
   attribute,
-  instancedArray,
-  instanceIndex,
   normalGeometry,
   normalViewGeometry,
   positionViewDirection,
@@ -41,7 +39,7 @@ import { WORLD } from './config.js';
 import { mulberry32, createFbm2D, smoothstep as sstep, clamp as clampJs, lerp } from './noise.js';
 import { createFoliageTextures, leafAtlasCell } from './foliage-textures.js';
 import { GRASS_DISC_FADE } from './grass.js';
-import { INSTANCE_ID_ATTRIBUTE } from './instance-culler.js';
+import { INSTANCE_ID_ATTRIBUTE, ANCHOR_ATTRIBUTE, ownGeometry } from './instance-culler.js';
 
 const TAU = Math.PI * 2;
 // Stable per-instance id (the original instance index). The instance culler
@@ -53,6 +51,8 @@ const TAU = Math.PI * 2;
 // travelled as a flat uint), so it is rounded back to the exact integer before
 // hash() truncates it.
 const instanceId = attribute(INSTANCE_ID_ATTRIBUTE, 'float').add(0.5).floor();
+// world anchor (x, y, z, yaw) of the instance from the culler-managed stream attribute
+const anchorNode = attribute(ANCHOR_ATTRIBUTE, 'vec4');
 const WIND_HEADING = 0.7; // radians — dominant wind direction on the xz plane
 // Small ground cover lives on its own render layer (enabled on the main camera)
 // so secondary passes — the water's planar reflection — can leave it out.
@@ -179,6 +179,12 @@ function applyVertex(material, { wind = null, fade = null, fadeIn = null, inst =
   // the instance culler reads these to skip instances the shader would collapse
   // anyway, and to carry the anchor stream along when it compacts a layer
   if (inst) material.userData.stream = inst;
+  if (lod) material.userData.lodFar = lod.far; // beyond it every shell card is zero-area
+  // bound on the wind displacement in geometry units (gust ≤ 1.77, envelope
+  // and height factor ≤ 1, card bob ≤ 1.45·|normal + 0.4·up|), for the culler
+  material.userData.swayBound = wind
+    ? (wind.strength ?? 0.16) * 1.77 + (wind.flutter ?? 0) * 1.06 + (wind.cardFlutter ?? 0) * 1.45 * 1.4
+    : 0;
   if (fade) material.userData.fadeEnd = fade[1];
   if (fadeIn) material.userData.fadeInStart = fadeIn[0];
   let pos = positionLocal;
@@ -353,21 +359,20 @@ function barkMaterial(map, normalTex, noiseTex, mossTex, {
 }
 
 // Per-instance vec4 stream (world anchor x, y, z, yaw) read by the vertex
-// stage for distance LOD / fade and for world-anchored wind.
-// Read through a storage buffer rather than a vertex attribute: on WebGPU a
-// layer with more than 1000 instances already spends four of the eight vertex
-// buffer slots on the instance matrix columns, and position + normal + uv +
-// the culler's id attribute take the other four. A storage read costs a bind
-// group entry instead (the WebGL 2 backend turns it back into an instanced
-// vertex attribute). Static usage: the culler bumps the version and sets the
-// packed prefix as the update range whenever it rewrites the stream, and a
-// static attribute is uploaded exactly once per version — a dynamic one is
-// re-uploaded whole by every pass of every frame.
+// stage for distance LOD / fade and for world-anchored wind. It is a
+// per-geometry instanced attribute: the culler attaches it to each mesh's own
+// geometry under ANCHOR_ATTRIBUTE and compacts it with the matrices, so one
+// material can drive several meshes — the near / far LOD pair of a crown layer
+// (a storage-buffer stream would bind a single buffer to the material). It fits
+// the WebGPU vertex-buffer budget because the instance matrix is one buffer
+// (storage on WebGPU, interleaved on WebGL 2). Static usage: the culler bumps
+// the version and sets the packed prefix as the update range whenever it
+// rewrites the stream, so it is uploaded exactly once per repack.
 function instanceStream(count) {
   const array = new Float32Array(count * 4);
-  const storage = instancedArray(array, 'vec4');
-  const attribute = storage.value;
-  return { array, attribute, node: storage.element(instanceIndex) };
+  const attribute = new THREE.InstancedBufferAttribute(array, 4);
+  attribute.setUsage(THREE.StaticDrawUsage);
+  return { array, attribute, node: anchorNode };
 }
 
 // =====================================================================
@@ -1128,6 +1133,7 @@ export function createVegetation(ctx) {
   const upVec = new THREE.Vector3(0, 1, 0);
   const meshes = [];
   const layers = [];
+  const farMeshes = []; // core-cards LOD partners of the crown layers (culler-routed)
 
   // shared spacing registries
   const treeHash = new SpatialHash(6); // big + understory trees (x, z, trunk radius)
@@ -1304,7 +1310,7 @@ export function createVegetation(ctx) {
   // exactly when its owner tree (index k of a layer with maxCount m, active
   // while k < round(m * density)) is still drawn. Lets crowns / vines / orchids
   // follow their trees through applyQuality, even across several owner layers.
-  function register(mesh, { castShadow = false, densityKey = 'vegetation', gate = null } = {}) {
+  function register(mesh, { castShadow = false, densityKey = 'vegetation', gate = null, farMesh = null } = {}) {
     mesh.instanceMatrix.needsUpdate = true;
     mesh.castShadow = castShadow;
     mesh.receiveShadow = true;
@@ -1313,6 +1319,7 @@ export function createVegetation(ctx) {
       mesh.layers.set(GROUND_COVER_LAYER);
     }
     scene.add(mesh);
+    if (farMesh) scene.add(farMesh); // sorts right after its near mesh (same material, next object id)
     meshes.push(mesh);
     const layer = { mesh, maxCount: mesh.count, densityKey, gate };
     layers.push(layer);
@@ -1320,16 +1327,23 @@ export function createVegetation(ctx) {
     // visible set per view and applies the same density prefix rule as
     // applyQuality below (gate / round(max · density) of densityKey)
     const ud = mesh.material.userData;
-    ctx.culler?.register(mesh, {
-      maxCount: mesh.count,
-      gate,
-      densityKey,
-      stream: ud.stream ?? null,
-      fadeEnd: ud.fadeEnd ?? null,
-      fadeInStart: ud.fadeInStart ?? null,
-      inReflection: densityKey !== 'grass',
-      castShadow,
-    });
+    if (ctx.culler) {
+      ctx.culler.register(mesh, {
+        maxCount: mesh.count,
+        gate,
+        densityKey,
+        stream: ud.stream ?? null,
+        fadeEnd: ud.fadeEnd ?? null,
+        fadeInStart: ud.fadeInStart ?? null,
+        inReflection: densityKey !== 'grass',
+        castShadow,
+        lodFar: ud.lodFar ?? null,
+        farMesh,
+        sway: ud.swayBound ?? undefined,
+      });
+    } else if (ud.stream) {
+      ownGeometry(mesh).setAttribute(ANCHOR_ATTRIBUTE, ud.stream.attribute);
+    }
     return layer;
   }
   // Float64 so a gate that lands exactly on a preset density compares the same
@@ -1432,8 +1446,13 @@ export function createVegetation(ctx) {
   // One crown per tree, sharing the tree's exact instance transform so the
   // crown blobs sit on the limb tips of the trunk geometry they were authored
   // around. `crownOrigin` is the crown-space centre in trunk space.
+  // Past the material's `lod.far` the shell cards are all zero-area and only
+  // the core cards draw, so a second mesh with just those cards (same material,
+  // its own anchor / id / matrix buffers) renders far crowns identically for
+  // ~6 triangles instead of a few hundred; the culler routes instances to it.
   function buildCrownLayer(name, crowns, geometry, material, ownerLayer, inst, { castShadow = true } = {}) {
-    const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, crowns.length));
+    const count = Math.max(1, crowns.length);
+    const mesh = new THREE.InstancedMesh(geometry, material, count);
     mesh.name = name;
     crowns.forEach((c, i) => {
       setMatrix(mesh, i, c.x, c.y, c.z, 0, c.yaw, 0, c.sx, c.sy, c.sz);
@@ -1442,7 +1461,62 @@ export function createVegetation(ctx) {
       writeAnchor(inst, i, c.ax, c.ay, c.az, c.yaw);
     });
     if (crowns.length === 0) setMatrix(mesh, 0, 0, -50, 0, 0, 0, 0, 0.001, 0.001, 0.001);
-    return register(mesh, { castShadow, gate: gateFromOwners(crowns, ownerLayer.maxCount) });
+    let farMesh = null;
+    const coreGeo = material.userData.lodFar !== undefined && ctx.culler ? coreOnlyGeometry(geometry) : null;
+    if (coreGeo) {
+      farMesh = new THREE.InstancedMesh(coreGeo, material, count);
+      farMesh.name = `${name}-far`;
+      farMesh.castShadow = castShadow;
+      farMesh.receiveShadow = true;
+      farMesh.frustumCulled = false;
+      farMeshes.push(farMesh);
+    }
+    return register(mesh, { castShadow, gate: gateFromOwners(crowns, ownerLayer.maxCount), farMesh });
+  }
+  // The triangles of `geometry` whose vertices are all core cards (cardData.x =
+  // 1), with the vertex data copied verbatim so they rasterise identically.
+  function coreOnlyGeometry(geometry) {
+    const card = geometry.getAttribute('cardData');
+    const position = geometry.getAttribute('position');
+    if (!card || !position) return null;
+    const index = geometry.index;
+    const triCount = (index ? index.count : position.count) / 3;
+    const remap = new Int32Array(position.count).fill(-1);
+    const keep = [];
+    const newIndex = [];
+    for (let t = 0; t < triCount; t += 1) {
+      const a = index ? index.getX(t * 3) : t * 3;
+      const b = index ? index.getX(t * 3 + 1) : t * 3 + 1;
+      const c = index ? index.getX(t * 3 + 2) : t * 3 + 2;
+      if (card.getX(a) < 0.5 || card.getX(b) < 0.5 || card.getX(c) < 0.5) continue;
+      for (const v of [a, b, c]) {
+        if (remap[v] < 0) {
+          remap[v] = keep.length;
+          keep.push(v);
+        }
+        newIndex.push(remap[v]);
+      }
+    }
+    if (keep.length === 0) return null;
+    const core = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(geometry.attributes)) {
+      const size = attr.itemSize;
+      const out = new attr.array.constructor(keep.length * size);
+      for (let i = 0; i < keep.length; i += 1) {
+        const so = keep[i] * size;
+        const doff = i * size;
+        for (let k = 0; k < size; k += 1) out[doff + k] = attr.array[so + k];
+      }
+      core.setAttribute(name, new THREE.BufferAttribute(out, size, attr.normalized));
+    }
+    core.setIndex(newIndex);
+    // The renderer sorts draws by the projected depth of the geometry's
+    // bounding-sphere centre; the far draw must sort exactly where its near
+    // mesh does (equal z, next object id) so the order relative to every other
+    // layer — and with it the outcome of exact depth ties — is unchanged.
+    if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+    core.boundingSphere = geometry.boundingSphere.clone();
+    return core;
   }
   // world placement of a tree's crown instance (crown origin transformed like the trunk)
   function crownInstance(tree, origin, owner) {
@@ -2835,6 +2909,7 @@ export function createVegetation(ctx) {
 
   return {
     meshes,
+    farMeshes,
     layers,
     stats,
     applyQuality,
