@@ -28,6 +28,44 @@
         }
       }
     </script>
+    <!--
+      Preload the whole module graph up front. Without these the browser only
+      discovers each import after parsing its parent, so the 1 MB three.js
+      build sat behind a chain of round trips (main.js → module → three/webgpu
+      → three.core) before a single line of setup could run.
+    -->
+    <link rel="modulepreload" href="./lib/three.webgpu.min.js" />
+    <link rel="modulepreload" href="./lib/three.core.min.js" />
+    <link rel="modulepreload" href="./lib/three.tsl.min.js" />
+    <link rel="modulepreload" href="./lib/addons/csm/CSMFrustum.js" />
+    <link rel="modulepreload" href="./lib/addons/csm/CSMShadowNode.js" />
+    <link rel="modulepreload" href="./lib/addons/math/SimplexNoise.js" />
+    <link rel="modulepreload" href="./lib/addons/objects/SkyMesh.js" />
+    <link rel="modulepreload" href="./lib/addons/tsl/display/BloomNode.js" />
+    <link rel="modulepreload" href="./lib/addons/tsl/display/DenoiseNode.js" />
+    <link rel="modulepreload" href="./lib/addons/tsl/display/FXAANode.js" />
+    <link rel="modulepreload" href="./lib/addons/tsl/display/GTAONode.js" />
+    <link rel="modulepreload" href="./lib/addons/utils/BufferGeometryUtils.js" />
+    <link rel="modulepreload" href="./src/main.js" />
+    <link rel="modulepreload" href="./src/config.js" />
+    <link rel="modulepreload" href="./src/noise.js" />
+    <link rel="modulepreload" href="./src/hud.js" />
+    <link rel="modulepreload" href="./src/textures.js" />
+    <link rel="modulepreload" href="./src/terrain.js" />
+    <link rel="modulepreload" href="./src/backdrop.js" />
+    <link rel="modulepreload" href="./src/sky.js" />
+    <link rel="modulepreload" href="./src/input.js" />
+    <link rel="modulepreload" href="./src/player.js" />
+    <link rel="modulepreload" href="./src/vegetation.js" />
+    <link rel="modulepreload" href="./src/foliage-textures.js" />
+    <link rel="modulepreload" href="./src/grass.js" />
+    <link rel="modulepreload" href="./src/ground-detail.js" />
+    <link rel="modulepreload" href="./src/landmarks.js" />
+    <link rel="modulepreload" href="./src/water.js" />
+    <link rel="modulepreload" href="./src/particles.js" />
+    <link rel="modulepreload" href="./src/post.js" />
+    <link rel="modulepreload" href="./src/audio.js" />
+    <link rel="modulepreload" href="./src/instance-culler.js" />
   </head>
   <body>
     <canvas id="scene" aria-label="Jungle biome 3D environment"></canvas>
