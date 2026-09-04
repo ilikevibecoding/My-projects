@@ -36,7 +36,6 @@ import {
   abs,
   pow,
   hash,
-  instanceIndex,
   uv,
   attribute,
   length,
@@ -47,9 +46,19 @@ import { createNormalFromCanvas } from './textures.js';
 // the kapok's crown reuses the shell-tuft toolkit of the emergent trees
 import { shellCrown, foliageMaterial as tuftMaterial, applyVertex as applyTuftVertex, instanceStream } from './vegetation.js';
 import { createLeafClusterTexture } from './foliage-textures.js';
+import { INSTANCE_ID_ATTRIBUTE, attachInstanceIds } from './instance-culler.js';
 
 const TAU = Math.PI * 2;
 const NONE = -Infinity;
+// Stable per-instance id for the layers the instance culler compacts (their
+// instanceIndex no longer identifies an instance). Interpolated float, rounded
+// back to the exact integer before hash() truncates it.
+const instanceId = attribute(INSTANCE_ID_ATTRIBUTE, 'float').add(0.5).floor();
+// Static merged pieces that stand more than this far apart never share a
+// pixel at the same depth, so they can be drawn as separate frustum-culled
+// chunks without changing which fragment wins a depth tie.
+const CHUNK_GAP = 1.0;
+const CHUNK_CELL = 48; // m — nearby pieces are merged into one chunk per cell
 
 // Dead emergent on the cliff top east of the falls (skyline landmark from
 // spawn / the lagoon shore). Belongs in config as WORLD.sentinelSnag.
@@ -1002,12 +1011,12 @@ export function createLandmarks(ctx) {
   const mushroomMaterial = new THREE.MeshStandardNodeMaterial({ roughness: 0.75, metalness: 0 });
   {
     const f = uv().x;
-    const bands = sin(f.mul(19).add(hash(instanceIndex).mul(6))).mul(0.5).add(0.5);
+    const bands = sin(f.mul(19).add(hash(instanceId).mul(6))).mul(0.5).add(0.5);
     const capColor = mix(vec3(0.72, 0.42, 0.16), vec3(0.34, 0.19, 0.09), smoothstep(0.35, 0.65, bands));
     const rim = smoothstep(0.86, 1.0, f);
     const top = mix(capColor, vec3(0.9, 0.82, 0.55), rim);
     const under = vec3(0.86, 0.8, 0.62);
-    const tint = mix(float(0.8), float(1.15), hash(instanceIndex.add(9)));
+    const tint = mix(float(0.8), float(1.15), hash(instanceId.add(9)));
     mushroomMaterial.colorNode = mix(under, top, uv().y).mul(tint);
   }
 
@@ -1020,19 +1029,19 @@ export function createLandmarks(ctx) {
       metalness: 0,
       alphaTest: 0.45,
     });
-    const brightness = mix(float(1 - tintSpread), float(1 + tintSpread), hash(instanceIndex.add(123))).mul(lift);
-    const greenShift = mix(float(1 - tintSpread * 0.5), float(1 + tintSpread * 0.5), hash(instanceIndex.add(321)));
+    const brightness = mix(float(1 - tintSpread), float(1 + tintSpread), hash(instanceId.add(123))).mul(lift);
+    const greenShift = mix(float(1 - tintSpread * 0.5), float(1 + tintSpread * 0.5), hash(instanceId.add(321)));
     const mapColor = texture(map);
     material.colorNode = mapColor.rgb.mul(vec3(brightness, brightness.mul(greenShift), brightness));
     material.opacityNode = mapColor.a;
     if (wind) {
-      const phase = hash(instanceIndex).mul(TAU);
+      const phase = hash(instanceId).mul(TAU);
       const t = time.mul(wind.speed).add(phase);
       const gust = sin(t).add(sin(t.mul(1.71).add(1.3)).mul(0.5)).add(sin(t.mul(3.13).add(2.2)).mul(0.27));
       // hanging cards: the free end (uv.y = 0) swings, the pivot (uv.y = 1) stays put
       const factor = wind.hangFromTop ? uv().y.oneMinus().clamp(0, 1).pow(1.5) : float(1);
       const sway = gust.mul(wind.strength).mul(factor);
-      const dir = hash(instanceIndex.add(77)).mul(TAU);
+      const dir = hash(instanceId.add(77)).mul(TAU);
       material.positionNode = positionLocal.add(vec3(sway.mul(cos(dir)), 0, sway.mul(sin(dir))));
     }
     return material;
@@ -1100,7 +1109,21 @@ export function createLandmarks(ctx) {
   }
 
   // ------------------------------------------------------------ helpers
-  function register(mesh, { castShadow = false, cull = true, name }) {
+  // Density gates for the instance culler (instance k is live while the preset
+  // density >= gate[k]). Landmarks are authored, so nearly every layer stays
+  // complete on every preset; only the fungi / epiphytes thin below Medium.
+  const alwaysLive = (count) => new Float64Array(Math.max(1, count)); // all zeros
+  const thinnedBelowHalf = (count) => {
+    const n = Math.max(1, count);
+    const keep = Math.max(1, Math.round(n * 0.4));
+    return Float64Array.from({ length: n }, (_, k) => (k < keep ? 0 : 0.5));
+  };
+  const culledMeshes = new Set(); // InstancedMeshes whose draw count the culler owns
+
+  // `culler`: hand a map-spanning InstancedMesh to the instance culler, which
+  // packs the instances that can reach a pixel in any pass (main / mirror
+  // frusta, sun shadow footprint) into the buffer prefix per view.
+  function register(mesh, { castShadow = false, cull = true, name, culler = null }) {
     mesh.name = name;
     mesh.castShadow = castShadow;
     mesh.receiveShadow = true;
@@ -1119,7 +1142,70 @@ export function createLandmarks(ctx) {
     stats.pieces[name] = { instances, triangles: Math.round(tris * instances) };
     stats.triangles += Math.round(tris * instances);
     stats.drawCalls += 1;
+    if (culler && mesh.isInstancedMesh) {
+      if (ctx.culler) {
+        ctx.culler.register(mesh, {
+          maxCount: mesh.count,
+          gate: culler.gate ?? alwaysLive(mesh.count),
+          densityKey: 'vegetation',
+          stream: culler.stream ?? null,
+          fadeEnd: culler.fadeEnd ?? null,
+          inReflection: true, // default render layer: the water's mirror camera draws landmarks
+          castShadow,
+        });
+        culledMeshes.add(mesh);
+      } else {
+        attachInstanceIds(mesh); // the materials still read the id attribute
+      }
+    }
     return mesh;
+  }
+
+  // Split a set of world-space geometries into a few merged chunks, each with
+  // its own bounding sphere so whole-mesh frustum culling works on pieces that
+  // together span the map. Pieces whose (padded) boxes touch always share a
+  // chunk and keep their original order inside it, so every depth tie between
+  // two pieces resolves exactly as it did in the single merged mesh.
+  function chunkGeometries(parts) {
+    const n = parts.length;
+    const boxes = parts.map((g) => {
+      g.computeBoundingBox();
+      return g.boundingBox;
+    });
+    const parent = Int32Array.from({ length: n }, (_, i) => i);
+    const find = (i) => {
+      while (parent[i] !== i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
+    };
+    const union = (a, b) => {
+      const ra = find(a);
+      const rb = find(b);
+      if (ra !== rb) parent[Math.max(ra, rb)] = Math.min(ra, rb);
+    };
+    const cellOf = new Map();
+    for (let i = 0; i < n; i += 1) {
+      const b = boxes[i];
+      const key = `${Math.floor((b.min.x + b.max.x) * 0.5 / CHUNK_CELL)},${Math.floor((b.min.z + b.max.z) * 0.5 / CHUNK_CELL)}`;
+      if (cellOf.has(key)) union(i, cellOf.get(key));
+      else cellOf.set(key, i);
+      for (let j = 0; j < i; j += 1) {
+        const a = boxes[j];
+        if (a.min.x - CHUNK_GAP <= b.max.x && a.max.x + CHUNK_GAP >= b.min.x
+          && a.min.y - CHUNK_GAP <= b.max.y && a.max.y + CHUNK_GAP >= b.min.y
+          && a.min.z - CHUNK_GAP <= b.max.z && a.max.z + CHUNK_GAP >= b.min.z) union(i, j);
+      }
+    }
+    const groups = new Map();
+    for (let i = 0; i < n; i += 1) {
+      const root = find(i);
+      if (!groups.has(root)) groups.set(root, []);
+      groups.get(root).push(parts[i]); // ascending i: original order preserved
+    }
+    // chunk order follows the first piece of each group
+    return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([, group]) => mergeGeometries(group));
   }
 
   // Align local +y with the terrain normal, then yaw. Writes dummy.quaternion.
@@ -2066,7 +2152,7 @@ export function createLandmarks(ctx) {
         mushroomSpots.push({ x: px, y: py, z: pz, yaw: Math.atan2(-nz, nx), s: 0.14 + random() * 0.2 });
       }
     });
-    register(logMesh, { castShadow: true, cull: false, name: 'lm-logs' });
+    register(logMesh, { castShadow: true, cull: false, name: 'lm-logs', culler: {} });
   }
 
   // ============================================================ 4. ravine root arches
@@ -2306,7 +2392,7 @@ export function createLandmarks(ctx) {
         dummy.updateMatrix();
         boulders.setMatrixAt(i, dummy.matrix);
       });
-      register(boulders, { castShadow: true, cull: false, name: `lm-boulders-${variant}` });
+      register(boulders, { castShadow: true, cull: false, name: `lm-boulders-${variant}`, culler: {} });
     });
 
     const monoGeo = monolithGeometry(WORLD.seed + 6);
@@ -2355,7 +2441,7 @@ export function createLandmarks(ctx) {
       dummy.updateMatrix();
       lanterns.setMatrixAt(i, dummy.matrix);
     });
-    register(lanterns, { castShadow: false, cull: false, name: 'lm-waymarkers' });
+    register(lanterns, { castShadow: false, cull: false, name: 'lm-waymarkers', culler: {} });
 
     // ---- rope-and-post railing along the overlook's cliff edge ----
     const ox = WORLD.overlook.x;
@@ -2403,12 +2489,18 @@ export function createLandmarks(ctx) {
   buildRocks();
   buildTrailDressing();
 
-  // ---- static bark mesh: roots, stumps, arches, posts ----
+  // ---- static bark meshes: roots, stumps, arches, posts ----
+  // One chunk per set piece (or per 48 m cell) instead of one map-spanning
+  // mesh, so the ones behind the camera / outside the shadow box are culled.
+  // Vertices stay in world space and every chunk sits at the origin: the
+  // render list sorts them exactly where the single mesh used to be.
   {
-    const merged = mergeGeometries(barkStatic);
+    const chunks = chunkGeometries(barkStatic);
     barkStatic.forEach((g) => g.dispose());
-    const mesh = new THREE.Mesh(merged, barkMaterial);
-    register(mesh, { castShadow: true, cull: false, name: 'lm-roots' });
+    chunks.forEach((geometry, k) => {
+      const mesh = new THREE.Mesh(geometry, barkMaterial);
+      register(mesh, { castShadow: true, cull: true, name: `lm-roots-${k}` });
+    });
   }
 
   // ---- ruins blocks + drums ----
@@ -2470,10 +2562,10 @@ export function createLandmarks(ctx) {
       crown.setMatrixAt(i, dummy.matrix);
       inst.array.set([giant.x, giant.baseY, giant.z, 0], i * 4); // wind anchor = tree base (x, y, z, yaw)
     });
-    register(crown, { castShadow: true, name: 'lm-giant-crown' });
     // the vegetation crown material keys its per-tuft randoms off the culler's
     // stable id attribute, so the kapok's tufts go through the culler as well
-    ctx.culler?.register(crown, { stream: inst, inReflection: true, castShadow: true });
+    // (with an all-live gate: the crown is never thinned by the presets)
+    register(crown, { castShadow: true, name: 'lm-giant-crown', culler: { stream: inst } });
   }
 
   // ---- hanging vine cards (giant tree lianas, ruins overgrowth, ravine arches) ----
@@ -2491,7 +2583,7 @@ export function createLandmarks(ctx) {
       dummy.updateMatrix();
       vines.setMatrixAt(i, dummy.matrix);
     });
-    register(vines, { castShadow: false, cull: false, name: 'lm-vines' });
+    register(vines, { castShadow: false, cull: false, name: 'lm-vines', culler: {} });
   }
 
   // ---- epiphyte ferns (limbs, ruin cracks) ----
@@ -2522,7 +2614,7 @@ export function createLandmarks(ctx) {
       dummy.updateMatrix();
       ferns.setMatrixAt(i, dummy.matrix);
     });
-    register(ferns, { castShadow: false, cull: false, name: 'lm-epiphytes' });
+    register(ferns, { castShadow: false, cull: false, name: 'lm-epiphytes', culler: { gate: thinnedBelowHalf(ferns.count) } });
   }
 
   // ---- shelf mushrooms ----
@@ -2537,7 +2629,7 @@ export function createLandmarks(ctx) {
       dummy.updateMatrix();
       mushrooms.setMatrixAt(i, dummy.matrix);
     });
-    register(mushrooms, { castShadow: false, cull: false, name: 'lm-mushrooms' });
+    register(mushrooms, { castShadow: false, cull: false, name: 'lm-mushrooms', culler: { gate: thinnedBelowHalf(mushrooms.count) } });
   }
 
   // ------------------------------------------------------------ quality
@@ -2549,6 +2641,9 @@ export function createLandmarks(ctx) {
     const density = preset.vegetationDensity;
     for (const mesh of meshes) {
       if (!mesh.isInstancedMesh) continue;
+      // the culler owns the draw count of the layers it packs and applies the
+      // same gates (all live / thinned below Medium) on its next repack
+      if (culledMeshes.has(mesh)) continue;
       const max = instanceCounts.get(mesh);
       if (mesh.name === 'lm-mushrooms' || mesh.name === 'lm-epiphytes') {
         mesh.count = density < 0.5 ? Math.max(1, Math.round(max * 0.4)) : max;

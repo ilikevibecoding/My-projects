@@ -3,8 +3,13 @@
 // exposed roots arching across the path near trees, and still puddles in the
 // trail hollows. Six draw calls: five InstancedMeshes plus one merged puddle
 // mesh. Placement is deterministic through the terrain API; every instanced
-// layer collapses to its base point beyond ~60 m in the vertex stage
-// (analytic — no vertex-stage texture reads).
+// layer collapses to a point beyond ~60 m in the vertex stage (analytic — no
+// vertex-stage texture reads).
+//
+// The instanced layers go through the instance culler, which rewrites their
+// buffers per view with only the instances that can reach a pixel (inside a
+// frustum and closer than the 60 m collapse). Per-instance randoms therefore
+// key off the culler's stable id attribute rather than instanceIndex.
 
 import * as THREE from 'three/webgpu';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -22,7 +27,7 @@ import {
   smoothstep,
   hash,
   instanceIndex,
-  instancedBufferAttribute,
+  instancedArray,
   attribute,
   sin,
   cos,
@@ -36,17 +41,36 @@ import {
 } from 'three/tsl';
 import { WORLD } from './config.js';
 import { mulberry32, clamp as clampJs, smoothstep as sstep } from './noise.js';
+import { INSTANCE_ID_ATTRIBUTE, attachInstanceIds } from './instance-culler.js';
 
 const TAU = Math.PI * 2;
 const FADE = [46, 60];
 const UP = new THREE.Vector3(0, 1, 0);
+// three r184 applies the instance matrix AFTER material.positionNode, so the
+// vertex stage runs in geometry space: the distance collapse scales the
+// geometry toward its own origin (the instance pivot) and the stone lumpiness
+// scales about that origin too. (An earlier version mixed the world-space
+// base into geometry space, so a prop in the 46–60 m fade band rendered up to
+// scale·|base| away from where it stood, as a shrinking card flying through
+// the scene, and stones were stretched by amount·|base|.)
+// Stable per-instance id (the original instance index; the culler compacts
+// the buffers so instanceIndex no longer identifies an instance). The float
+// attribute reaches the fragment stage interpolated, so it is rounded back to
+// the exact integer before hash() truncates it — the same value instanceIndex
+// used to carry.
+const instanceId = attribute(INSTANCE_ID_ATTRIBUTE, 'float').add(0.5).floor();
 
 // Per-instance vec4 stream (base x, y, z, spare) for the distance collapse.
+// Read through a storage buffer rather than a vertex attribute: a layer with
+// more than 1000 instances already spends four of WebGPU's eight vertex
+// buffers on its matrix columns, and position + normal + uv + the culler's id
+// take the other four.
 function instanceStream(count) {
   const array = new Float32Array(count * 4);
-  const attr = new THREE.InstancedBufferAttribute(array, 4);
-  attr.setUsage(THREE.StaticDrawUsage);
-  return { array, attribute: attr, node: instancedBufferAttribute(attr, 'vec4') };
+  const storage = instancedArray(array, 'vec4');
+  const attr = storage.value;
+  attr.setUsage(THREE.DynamicDrawUsage);
+  return { array, attribute: attr, node: storage.element(instanceIndex) };
 }
 
 // Vertex stage: optional per-instance deformation, then collapse toward the
@@ -54,23 +78,32 @@ function instanceStream(count) {
 function applyVertex(material, inst, deform = null) {
   const base = inst.node.xyz;
   let pos = positionLocal;
-  if (deform) pos = deform(pos, base);
+  if (deform) pos = deform(pos);
   const dist = base.sub(cameraPosition).length();
   const keep = smoothstep(FADE[0], FADE[1], dist).oneMinus();
-  material.positionNode = mix(base, pos, keep);
+  // collapse toward the geometry origin: the instance matrix, applied after
+  // this node, puts that point exactly where the prop stands
+  material.positionNode = pos.mul(keep);
+  // the instance culler reads these: past fadeEnd every vertex sits on one
+  // point (zero-area triangles), and the stream must be compacted along
+  material.userData.stream = inst;
+  material.userData.fadeEnd = FADE[1];
+  material.userData.stretch = deform?.stretch ?? 0;
 }
 
 // Smooth per-instance radial lumpiness for stones: a few low-frequency sines
 // of the pre-instance position, scaled about the instance base.
 function lumpyDeform(amount) {
-  return (pos, base) => {
-    const ph = hash(instanceIndex.add(5)).mul(TAU);
+  const deform = (pos) => {
+    const ph = hash(instanceId.add(5)).mul(TAU);
     const pg = positionGeometry;
     const d = sin(pg.x.mul(5.3).add(ph)).mul(0.45)
       .add(sin(pg.z.mul(6.1).add(ph.mul(1.7)).add(pg.y.mul(2.0))).mul(0.35))
       .add(sin(pg.y.mul(4.7).add(ph.mul(0.6)).add(pg.x.mul(1.3))).mul(0.2));
-    return base.add(pos.sub(base).mul(d.mul(amount).add(1.0)));
+    return pos.mul(d.mul(amount).add(1.0)); // radial about the instance pivot
   };
+  deform.stretch = amount; // |d| <= 1: vertices move by at most amount·|pos|
+  return deform;
 }
 
 // ---------- geometry ----------
@@ -296,11 +329,35 @@ export function createGroundDetail(ctx) {
     mesh.name = name;
     mesh.castShadow = false;
     mesh.receiveShadow = true;
-    mesh.frustumCulled = false;
+    mesh.frustumCulled = false; // instances span the map; the culler packs per view
     mesh.instanceMatrix.needsUpdate = true;
     scene.add(mesh);
     meshes.push(mesh);
-    layers.push({ mesh, maxCount: mesh.count });
+    const layer = { mesh, maxCount: mesh.count, culled: Boolean(ctx.culler) };
+    layers.push(layer);
+    // hand the layer to the instance culler: it compacts the buffers to the
+    // instances inside the main / mirror frusta and closer than the collapse
+    // distance, and applies the same density prefix rule as applyQuality
+    const ud = mesh.material.userData;
+    if (ctx.culler) {
+      // per-instance reach in geometry units (times the instance scale): the
+      // geometry's own radius, stretched by the lumpiness at most
+      const geometry = mesh.geometry;
+      if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+      const geometryRadius = geometry.boundingSphere.radius + Math.abs(geometry.boundingSphere.center.y);
+      const stretch = ud.stretch ?? 0;
+      ctx.culler.register(mesh, {
+        maxCount: mesh.count,
+        densityKey: 'vegetation',
+        stream: ud.stream ?? null,
+        fadeEnd: ud.fadeEnd ?? null,
+        inReflection: true, // default render layer: the water's mirror camera draws these
+        castShadow: false,
+        radius: geometryRadius * (1 + stretch),
+      });
+    } else {
+      attachInstanceIds(mesh); // the materials still read the id attribute
+    }
   }
 
   // ---------- materials ----------
@@ -312,8 +369,8 @@ export function createGroundDetail(ctx) {
   function stoneMaterial(inst, { lump, warmth = 0.5 }) {
     const material = new THREE.MeshStandardNodeMaterial({ roughness: 0.82, metalness: 0 });
     applyVertex(material, inst, lumpyDeform(lump));
-    const hA = hash(instanceIndex.add(31));
-    const hB = hash(instanceIndex.add(57));
+    const hA = hash(instanceId.add(31));
+    const hB = hash(instanceId.add(57));
     const rockUv = positionGeometry.xz.mul(0.6).add(vec2(hA, hB));
     const rock = texture(rockTex, rockUv).rgb;
     // greys through warm browns, per stone; the buried half is dirt-stained
@@ -331,8 +388,8 @@ export function createGroundDetail(ctx) {
     if (variantCollapse) {
       // half the twigs are crossed pairs: the second stick collapses to the
       // base on the other half (degenerate triangles, no fragments)
-      const pick = smoothstep(0.49, 0.51, hash(instanceIndex.add(91))); // 1 on half the instances
-      const variant = attribute('variant', 'float');
+      const pick = smoothstep(0.49, 0.51, hash(instanceId.add(91))); // 1 on half the instances
+      const variant = attribute('variant', 'float'); // per-vertex: which stick a vertex belongs to
       const collapse = variant.mul(pick);
       applyVertex(material, inst, (pos, base) => {
         let p = deform ? deform(pos, base) : pos;
@@ -341,8 +398,8 @@ export function createGroundDetail(ctx) {
     } else {
       applyVertex(material, inst, deform);
     }
-    const hA = hash(instanceIndex.add(13));
-    const hB = hash(instanceIndex.add(29));
+    const hA = hash(instanceId.add(13));
+    const hB = hash(instanceId.add(29));
     const barkUv = uv().mul(vec2(uvScale[0], uvScale[1])).add(vec2(hA, hB.mul(0.5)));
     const col = texture(bark, barkUv).rgb;
     const value = mix(float(1 - valueSpread), float(1 + valueSpread), hA);
@@ -350,7 +407,7 @@ export function createGroundDetail(ctx) {
     if (bleach > 0) {
       // a share of the dead wood has weathered to silver-grey
       const grey = col.dot(vec3(0.33, 0.34, 0.33));
-      const bleached = smoothstep(1 - bleach, 1 - bleach + 0.08, hash(instanceIndex.add(73)));
+      const bleached = smoothstep(1 - bleach, 1 - bleach + 0.08, hash(instanceId.add(73)));
       color = mix(color, vec3(grey, grey, grey).mul(vec3(1.25, 1.2, 1.1)), bleached);
     }
     if (moss > 0) {
@@ -368,8 +425,8 @@ export function createGroundDetail(ctx) {
   function leafMaterial(inst) {
     const material = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0, alphaTest: 0.5, side: THREE.FrontSide });
     applyVertex(material, inst);
-    const hA = hash(instanceIndex.add(17));
-    const hB = hash(instanceIndex.add(41));
+    const hA = hash(instanceId.add(17));
+    const hB = hash(instanceId.add(41));
     const card = texture(textures.leafCard, uv());
     // warm/cool and value drift per clump so drifts of leaves read as many leaves
     const tint = mix(vec3(0.85, 0.8, 0.72), vec3(1.1, 1.0, 0.85), hA);
@@ -751,6 +808,9 @@ export function createGroundDetail(ctx) {
   function applyQuality(preset) {
     const density = preset.vegetationDensity ?? 1;
     for (const layer of layers) {
+      // the culler owns the draw count of the layers it packs and applies this
+      // same prefix rule (round(max · density)) per cell on its next repack
+      if (layer.culled) continue;
       layer.mesh.count = Math.max(1, Math.min(layer.maxCount, Math.round(layer.maxCount * density)));
     }
     for (const mesh of meshes) {
