@@ -218,10 +218,21 @@ async function init() {
   ctx.hud.setLoading(0.985, 'compiling shaders');
   await nextFrame();
   ctx.culler.update();
-  try {
-    await renderer.compileAsync(ctx.scene, ctx.camera);
-  } catch (error) {
-    console.warn('shader precompile skipped', error);
+  // in small batches with a frame between them: creating every pipeline in
+  // one burst is hard on software WebGPU devices and on low-end machines
+  const compileBatch = [];
+  ctx.scene.traverse((object) => {
+    if (object.isMesh && object.visible) compileBatch.push(object);
+  });
+  for (let i = 0; i < compileBatch.length; i += 6) {
+    try {
+      await Promise.all(compileBatch.slice(i, i + 6).map((object) => renderer.compileAsync(object, ctx.camera, ctx.scene)));
+    } catch (error) {
+      console.warn('shader precompile skipped', error);
+      break;
+    }
+    ctx.hud.setLoading(0.985 + (0.015 * i) / compileBatch.length, 'compiling shaders');
+    await nextFrame();
   }
 
   ctx.hud.onQualityChange((name) => applyQuality(name));
