@@ -391,9 +391,10 @@ export function createGroundDetail(ctx) {
       const pick = smoothstep(0.49, 0.51, hash(instanceId.add(91))); // 1 on half the instances
       const variant = attribute('variant', 'float'); // per-vertex: which stick a vertex belongs to
       const collapse = variant.mul(pick);
-      applyVertex(material, inst, (pos, base) => {
-        let p = deform ? deform(pos, base) : pos;
-        return mix(p, base, collapse);
+      applyVertex(material, inst, (pos) => {
+        const p = deform ? deform(pos) : pos;
+        // collapse the dropped stick onto the instance pivot (geometry origin)
+        return mix(p, vec3(0.0), collapse);
       });
     } else {
       applyVertex(material, inst, deform);
