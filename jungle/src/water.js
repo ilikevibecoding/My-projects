@@ -1917,6 +1917,7 @@ export function createWater(ctx) {
       chunks.push({ index: [], ix0: Infinity, iz0: Infinity, ix1: -Infinity, iz1: -Infinity, quads: 0 });
     }
     const coarseChunk = chunks[chunkN * chunkN];
+    const coarseQuads = []; // [x0, z0, x1, z1] of every kept coarse quad, for the reflection gate
     const stats = { fineKept: 0, fineDropped: 0, coarseKept: 0, coarseDropped: 0 };
     // (vertices are created for every quad, dropped or not, so the attribute
     // buffers are exactly the single-grid ones)
@@ -1937,6 +1938,7 @@ export function createWater(ctx) {
         }
       }
       stats[fine ? 'fineKept' : 'coarseKept'] += 1;
+      if (!fine) coarseQuads.push(x0, z0, x1, z1);
       const chunk = fine ? chunks[Math.floor(iz0 / (SUB * CHUNK_BLOCKS)) * chunkN + Math.floor(ix0 / (SUB * CHUNK_BLOCKS))] : coarseChunk;
       chunk.index.push(a, c, b, b, c, d);
       chunk.quads += 1;
@@ -1998,10 +2000,10 @@ export function createWater(ctx) {
       // displacement the vertex stage can apply
       const box = new THREE.Box3(new THREE.Vector3(x0, 0, z0), new THREE.Vector3(x1, 0, z1)).expandByScalar(pad);
       geo.boundingBox = box;
-      geometries.push({ geometry: geo, cullSphere: box.getBoundingSphere(new THREE.Sphere()) });
+      geometries.push({ geometry: geo, cullSphere: box.getBoundingSphere(new THREE.Sphere()), coarse: chunk === coarseChunk });
       triangles += chunk.index.length / 3;
     }
-    return { geometries, fineBlocks, triangles, quads: stats };
+    return { geometries, fineBlocks, triangles, quads: stats, coarseQuads, pad };
   }
   const surfaceBuild = buildSurfaceGeometry();
 
@@ -2011,6 +2013,16 @@ export function createWater(ctx) {
   reflection.target.rotateX(-Math.PI / 2);
   reflection.target.position.set(0, WORLD.waterLevel, 0);
   scene.add(reflection.target);
+  // The reflector renders its mirror view whenever a material that samples it
+  // is set up for a frame — it never looks at target.visible. Frames on which
+  // update() below has decided that no surface fragment can exist skip the
+  // mirror render (the texture keeps its last content, which nothing reads);
+  // only once a texture exists, so the material's binding is always valid.
+  {
+    const base = reflection.reflector;
+    const renderMirror = base.updateBefore.bind(base);
+    base.updateBefore = (frame) => (reflection.target.visible || !base.hasOutput ? renderMirror(frame) : false);
+  }
   if (ctx.camera) {
     // the mirror clones the main camera (and so its layer mask); tens of
     // thousands of ground-cover cards are unreadable in a rippled half-res
@@ -2024,9 +2036,10 @@ export function createWater(ctx) {
   // one Mesh per chunk, all sharing the attributes and the material; the first
   // is "the surface" other code and the debug scripts look up by name, the
   // rest are its children (so hiding / moving it takes every chunk along)
-  const surfaceChunks = surfaceBuild.geometries.map(({ geometry, cullSphere }, i) => {
+  const surfaceChunks = surfaceBuild.geometries.map(({ geometry, cullSphere, coarse }, i) => {
     const chunk = new THREE.Mesh(geometry, materialWithReflection);
     chunk.boundingSphere = cullSphere;
+    chunk.userData.coarse = coarse; // map-spanning box: the reflection gate tests its quads one by one
     chunk.frustumCulled = true;
     chunk.renderOrder = 2;
     chunk.name = i === 0 ? 'water-surface' : `water-surface-chunk-${i}`;
@@ -2395,6 +2408,8 @@ export function createWater(ctx) {
   });
 
   function update(dt, t) {
+    if (reflectionPreset && ctx.camera) reflection.target.visible = surfaceInView(ctx.camera);
+
     // waterfall churn — continuous random impulses along the impact lines
     ripple.addImpulse(
       mainFall.impact.x + (churnRandom() - 0.5) * mainHalfWidth * 1.6,
@@ -2455,8 +2470,40 @@ export function createWater(ctx) {
     leaves.instanceMatrix.needsUpdate = true;
   }
 
+  // The mirror render only feeds the surface material. Every surface chunk's
+  // box (inflated by the largest displacement the vertex stage can apply)
+  // contains all of its fragments' positions, so on a frame where no chunk box
+  // meets the render camera's frustum, no water fragment exists to read the
+  // reflection and the whole mirror pass can be skipped. Decided per frame,
+  // before the render, from the render camera's matrices.
+  let reflectionPreset = false;
+  const viewFrustum = new THREE.Frustum();
+  const viewProjection = new THREE.Matrix4();
+  const chunkBox = new THREE.Box3();
+  function surfaceInView(camera) {
+    camera.updateMatrixWorld();
+    viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    viewFrustum.setFromProjectionMatrix(viewProjection, camera.coordinateSystem);
+    for (const chunk of surfaceChunks) {
+      if (chunk.userData.coarse) continue;
+      chunk.updateWorldMatrix(true, false);
+      chunkBox.copy(chunk.geometry.boundingBox).applyMatrix4(chunk.matrixWorld);
+      if (viewFrustum.intersectsBox(chunkBox)) return true;
+    }
+    const q = surfaceBuild.coarseQuads;
+    const pad = surfaceBuild.pad;
+    const y = WORLD.waterLevel;
+    for (let i = 0; i < q.length; i += 4) {
+      chunkBox.min.set(q[i] - pad, y - pad, q[i + 1] - pad);
+      chunkBox.max.set(q[i + 2] + pad, y + pad, q[i + 3] + pad);
+      if (viewFrustum.intersectsBox(chunkBox)) return true;
+    }
+    return false;
+  }
+
   function applyQuality(preset) {
     const useReflection = preset.planarReflection;
+    reflectionPreset = useReflection;
     for (const chunk of surfaceChunks) chunk.material = useReflection ? materialWithReflection : materialCheap;
     reflection.target.visible = useReflection;
     reflection.resolutionScale = preset.reflectionSize >= 1024 ? 0.75 : 0.5;
