@@ -57,6 +57,7 @@ import { WORLD } from './config.js';
 import { mulberry32, createFbm2D, smoothstep as smoothstepJs, clamp as clampJs } from './noise.js';
 import { riverCenterX } from './terrain.js';
 import { GROUND_COVER_LAYER } from './vegetation.js';
+import { INSTANCE_ID_ATTRIBUTE, attachInstanceIds } from './instance-culler.js';
 
 const TAU = Math.PI * 2;
 
@@ -1085,6 +1086,12 @@ function makeRockGeometry(seed, { detail, scale, roughness, cuts, cutDepth }) {
     uvArr[i * 2 + 1] = pos.getY(i) * 0.5 + 0.5;
   }
   geo.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
+  // the oversized sphere keeps three's per-mesh culling out of the way (and
+  // its centre is what the draw sort keys on); the real reach goes to the
+  // instance culler
+  let reach = 0;
+  for (let i = 0; i < pos.count; i += 1) reach = Math.max(reach, Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i)));
+  geo.userData.radius = reach;
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 1000);
   return geo;
 }
@@ -1102,6 +1109,9 @@ function buildRockGeometries() {
 
 function buildRockMaterial(rockTex, noiseTex, rockNormalTex = null) {
   const material = new THREE.MeshStandardNodeMaterial({ roughness: 0.95, metalness: 0 });
+  // per-instance variation keys off the stable id attribute (the original
+  // instance index), not instanceIndex: the culler compacts the boulder layers
+  const rockId = attribute(INSTANCE_ID_ATTRIBUTE, 'float').add(0.5).floor();
 
   // triplanar rock albedo (world space, so instance scale never stretches it)
   const wp = positionWorld;
@@ -1122,7 +1132,7 @@ function buildRockMaterial(rockTex, noiseTex, rockNormalTex = null) {
   // cooler, slightly desaturated water-worn stone; per-instance tone spread
   const lum = dot(albedo, vec3(0.3, 0.59, 0.11));
   albedo = mix(albedo, vec3(lum), 0.3).mul(vec3(0.88, 0.9, 0.93));
-  albedo = albedo.mul(mix(float(0.78), float(1.2), hash(instanceIndex.add(5))));
+  albedo = albedo.mul(mix(float(0.78), float(1.2), hash(rockId.add(5))));
   // crevice darkening from a coarser triplanar noise sample (fragment stage)
   const crev = texture(noiseTex, wp.xz.mul(0.9).add(wp.y.mul(0.37))).b.mul(wn.y)
     .add(texture(noiseTex, wp.zy.mul(0.9).add(0.31)).b.mul(wn.x))
@@ -1136,7 +1146,7 @@ function buildRockMaterial(rockTex, noiseTex, rockNormalTex = null) {
   }
 
   // moss on the sunward tops of dry rocks
-  const mossNoise = texture(noiseTex, wp.xz.mul(0.35).add(hash(instanceIndex.add(9)))).r;
+  const mossNoise = texture(noiseTex, wp.xz.mul(0.35).add(hash(rockId.add(9)))).r;
   const moss = smoothstep(0.35, 0.9, n.y).mul(smoothstep(0.45, 0.72, mossNoise)).mul(smoothstep(-0.2, 0.6, wp.y));
   albedo = mix(albedo, vec3(0.2, 0.36, 0.12).mul(albedo.add(0.45)), moss.mul(0.8));
 
@@ -2202,6 +2212,11 @@ export function createWater(ctx) {
       mesh.frustumCulled = false;
       mesh.name = `boulders-${v}`;
       rocks.add(mesh);
+      // ~1000-1500 triangles per boulder in every pass: let the instance culler
+      // compact each variant to the instances a pass can see (never thinned by
+      // the quality presets — no gate, no density key)
+      if (ctx.culler) ctx.culler.register(mesh, { maxCount: mesh.count, castShadow: true, inReflection: true, radius: rockGeos[v].userData.radius });
+      else attachInstanceIds(mesh);
     });
   }
   scene.add(rocks);
