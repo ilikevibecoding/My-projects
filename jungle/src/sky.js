@@ -21,10 +21,79 @@ import {
   mix,
   clamp,
   select,
+  getShadowMaterial,
 } from 'three/tsl';
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 import { CSMShadowNode } from 'three/addons/csm/CSMShadowNode.js';
 import { WORLD } from './config.js';
+
+// ---------- depth-only shadow maps ----------
+// ShadowNode gives every shadow map an RGBA8 colour attachment and fills it
+// with (0,0,0,1) for every caster fragment, but the PCF filter only ever reads
+// the depth texture (the colour is consumed solely when
+// renderer.shadowMap.transmitted is on, which it is not). At 2048² that is
+// 16 MB cleared and written per map per frame; the three 4096² Ultra cascades
+// carry 192 MB. Same depth in, same shadow out:
+//   * the colour attachment becomes R8 (a quarter of the bytes)
+//   * it is no longer cleared (autoClearColor off for the shadow render only;
+//     the depth clear is untouched)
+//   * the shadow-pass material stops writing colour altogether (depth writes
+//     and alpha-test discards are unaffected by the colour mask).
+// The material is recreated by three after every dispose, so the flag is
+// (re)applied right before each shadow render.
+// The per-frame guard mirrors ShadowNode.updateBefore in r184, which renders
+// one shadow map per NodeFrame.frameId no matter how many cameras render the
+// scene in that frame (the water reflection renders it again with a mirrored
+// camera; nothing that casts a shadow is excluded from that view, so a second
+// map would be identical). Written out explicitly so a future three.js that
+// keys the guard per camera cannot silently double the shadow cost.
+class DepthOnlyShadowNode extends THREE.ShadowNode {
+  setupRenderTarget(shadow, builder) {
+    const target = super.setupRenderTarget(shadow, builder);
+    target.shadowMap.texture.format = THREE.RedFormat;
+    return target;
+  }
+
+  updateShadow(frame) {
+    const material = getShadowMaterial(this.light);
+    if (material.colorWrite) {
+      material.colorWrite = false;
+    }
+    super.updateShadow(frame);
+  }
+
+  renderShadow(frame) {
+    const { renderer } = frame;
+    const autoClearColor = renderer.autoClearColor;
+    renderer.autoClearColor = false;
+    super.renderShadow(frame);
+    renderer.autoClearColor = autoClearColor;
+  }
+
+  updateBefore(frame) {
+    const { shadow } = this;
+    if (!(shadow.needsUpdate || shadow.autoUpdate)) {
+      return;
+    }
+    if (this._renderedFrameId === frame.frameId) {
+      return;
+    }
+    this._renderedFrameId = frame.frameId;
+    this.updateShadow(frame);
+    if (this.shadowMap.depthTexture.version === this._depthVersionCached) {
+      shadow.needsUpdate = false;
+    }
+  }
+}
+
+// CSMShadowNode (r184) builds one plain ShadowNode per cascade in _init;
+// swap them for the depth-only flavour before the cascade TSL is assembled.
+class DepthOnlyCSMShadowNode extends CSMShadowNode {
+  _init(builder) {
+    super._init(builder);
+    this._shadowNodes = this._shadowNodes.map((node) => new DepthOnlyShadowNode(node.light, node.shadow));
+  }
+}
 
 export function createSky(ctx) {
   const { scene, camera } = ctx;
@@ -159,11 +228,12 @@ export function createSky(ctx) {
   const sunOffset = sunDirection.clone().multiplyScalar(150);
   const forward = new THREE.Vector3();
   const focus = new THREE.Vector3();
-  const lightBasis = new THREE.Matrix4();
-  const lightBasisInverse = new THREE.Matrix4();
   const lightSpaceFocus = new THREE.Vector3();
   const origin = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
+  // light-space basis for the texel snap: the sun never moves, so build it once
+  const lightBasis = new THREE.Matrix4().lookAt(sunOffset, origin, up);
+  const lightBasisInverse = lightBasis.clone().invert();
   let lastAspect = 0;
   let lastFov = 0;
 
@@ -182,6 +252,7 @@ export function createSky(ctx) {
     cam.updateProjectionMatrix();
   }
   configureShadow(sun.shadow);
+  sun.shadow.shadowNode = new DepthOnlyShadowNode(sun, sun.shadow);
 
   // Every lit material bakes the sun's shadow node into its shader, and the
   // renderer only rebuilds a material when its lights cache key changes. A
@@ -229,7 +300,7 @@ export function createSky(ctx) {
     if (count > 0) {
       // maxFar 150 m: the first cascade then spans ~0–24 m (≈3 cm texels at
       // 2048), the last one fades out where the distance haze takes over.
-      csm = new CSMShadowNode(sun, {
+      csm = new DepthOnlyCSMShadowNode(sun, {
         cascades: count,
         maxFar: 150,
         mode: 'practical',
@@ -237,6 +308,8 @@ export function createSky(ctx) {
       });
       csm.fade = true;
       sun.shadow.shadowNode = csm;
+    } else {
+      sun.shadow.shadowNode = new DepthOnlyShadowNode(sun, fresh);
     }
     sun.castShadow = shadowState.enabled;
 
@@ -286,8 +359,6 @@ export function createSky(ctx) {
     focus.set(eye.x, 0, eye.z).addScaledVector(forward, shadowState.lookAhead);
 
     // snap the frustum center to shadow-map texels in light space
-    lightBasis.lookAt(sunOffset, origin, up);
-    lightBasisInverse.copy(lightBasis).invert();
     lightSpaceFocus.copy(focus).applyMatrix4(lightBasisInverse);
     const texel = (shadowState.extent * 2) / sun.shadow.mapSize.width;
     lightSpaceFocus.x = Math.floor(lightSpaceFocus.x / texel) * texel;

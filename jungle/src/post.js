@@ -32,7 +32,6 @@ import {
   Fn,
   Loop,
   renderOutput,
-  convertToTexture,
   rtt,
   screenSize,
   texture,
@@ -66,6 +65,15 @@ function createDenoiseNoise(seed = 4242, size = 64) {
   return tex;
 }
 
+// Scene-pass multisampling. Must equal what `antialias: true` gives
+// renderer.samples (4): the value is part of the rendered output.
+const SCENE_MSAA_SAMPLES = 4;
+
+// Render-to-texture targets that are only ever filled by a full-screen quad.
+// RTTNode's default is { type: HalfFloatType } with a depth buffer; the quad
+// never needs depth testing, so the buffer only costs a clear and a write.
+const QUAD_RTT_OPTIONS = { type: THREE.HalfFloatType, depthBuffer: false };
+
 export function createPost(ctx) {
   const { renderer, scene, camera } = ctx;
 
@@ -79,7 +87,11 @@ export function createPost(ctx) {
   // stamped its quad normal into the G-buffer and GTAO darkened a square around
   // it. Depth-derived normals cannot be corrupted that way (and we save the
   // extra attachment write in every material).
-  const scenePass = pass(scene, camera);
+  // MSAA is pinned here (4 samples, what antialias:true gives the renderer)
+  // rather than inherited from renderer.samples: the only thing drawn to the
+  // canvas is the final full-screen quad, so the canvas itself does not need
+  // multisampling, and main.js can drop `antialias` without touching the scene.
+  const scenePass = pass(scene, camera, { samples: SCENE_MSAA_SAMPLES });
   const sceneColor = scenePass.getTextureNode('output');
   const sceneNormal = null;
   const sceneDepth = scenePass.getTextureNode('depth');
@@ -159,7 +171,14 @@ export function createPost(ctx) {
     const rays = accum.div(NUM_TAPS);
     return vec4(rays, rays, rays, 1);
   })();
-  const godRaysRTT = rtt(godRaysSource, 640, 360);
+  // Only .r is ever read (the source writes rays into all three channels), so
+  // the target is a single half-float channel; a full-screen quad needs no
+  // depth buffer. Same values, a quarter of the bytes, no depth clear/write.
+  const godRaysRTT = rtt(godRaysSource, 640, 360, {
+    type: THREE.HalfFloatType,
+    format: THREE.RedFormat,
+    depthBuffer: false,
+  });
   godRaysRTT.value.minFilter = THREE.LinearFilter;
   godRaysRTT.value.magFilter = THREE.LinearFilter;
 
@@ -235,8 +254,12 @@ export function createPost(ctx) {
       return vec4(clamp(color, 0.0, 1.0), 1);
     })();
 
-    const aaNode = useFxaa ? fxaa(graded) : graded;
-    const aaTex = convertToTexture(aaNode);
+    // FXAA and the finishing pass both need texture input, so the graded frame
+    // and the anti-aliased frame each go through a full-resolution RTT. Both
+    // are drawn by a screen quad: no depth buffer (the default RTT target
+    // allocates, clears and writes one every frame). Format/type unchanged.
+    const aaNode = useFxaa ? fxaa(rtt(graded, null, null, QUAD_RTT_OPTIONS)) : graded;
+    const aaTex = rtt(aaNode, null, null, QUAD_RTT_OPTIONS);
 
     // finishing pass: sharpen, edge chromatic aberration, grain, vignette
     const finish = Fn(() => {
@@ -363,17 +386,24 @@ export function createPost(ctx) {
     const facing = cameraForward.dot(ctx.sky.sunDirection);
     if (facing <= 0.05) {
       sunVisibility.value = 0;
-      return;
+    } else {
+      sunWorld.copy(ctx.sky.sunDirection).multiplyScalar(600).add(camera.position);
+      projected.copy(sunWorld).project(camera);
+      // full strength while the sun is on screen, fading over the next ~1.1 NDC
+      // units so an off-screen sun still throws shafts into the frame edge
+      const onScreenX = 1 - THREE.MathUtils.clamp(Math.abs(projected.x) - 0.9, 0, 1.3) / 1.3;
+      const onScreenY = 1 - THREE.MathUtils.clamp(Math.abs(projected.y) - 0.9, 0, 1.3) / 1.3;
+      sunVisibility.value = onScreenX * onScreenY * THREE.MathUtils.smoothstep(facing, 0.05, 0.3);
+      sunScreen.value.set(projected.x * 0.5 + 0.5, projected.y * 0.5 + 0.5);
     }
 
-    sunWorld.copy(ctx.sky.sunDirection).multiplyScalar(600).add(camera.position);
-    projected.copy(sunWorld).project(camera);
-    // full strength while the sun is on screen, fading over the next ~1.1 NDC
-    // units so an off-screen sun still throws shafts into the frame edge
-    const onScreenX = 1 - THREE.MathUtils.clamp(Math.abs(projected.x) - 0.9, 0, 1.3) / 1.3;
-    const onScreenY = 1 - THREE.MathUtils.clamp(Math.abs(projected.y) - 0.9, 0, 1.3) / 1.3;
-    sunVisibility.value = onScreenX * onScreenY * THREE.MathUtils.smoothstep(facing, 0.05, 0.3);
-    sunScreen.value.set(projected.x * 0.5 + 0.5, projected.y * 0.5 + 0.5);
+    // The composite scales the gathered rays by godRayStrength × sunVisibility.
+    // When that factor is exactly 0 (sun behind or well off screen — most of
+    // the time under the canopy) the 40-tap gather cannot reach a pixel: skip
+    // it. The RTT keeps its last, finite texture (× 0 = 0) and is re-rendered
+    // the moment the factor turns non-zero, before it is sampled again. The
+    // first fill and every resize still render (RTTNode.textureNeedsUpdate).
+    godRaysRTT.autoUpdate = sunVisibility.value > 0 && godRayStrength.value > 0;
   }
 
   function render() {
