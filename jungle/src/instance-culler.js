@@ -77,6 +77,34 @@ export function ownGeometry(mesh) {
   return geo;
 }
 
+// three.js reads an InstancedMesh's matrices two ways: a layer whose matrices
+// fit one uniform block (64 KiB → count <= 1024) gets a `buffer()` uniform
+// whose update() always reports a change, so the whole block was re-uploaded
+// for every render object of the mesh in every pass — ~2 MB per frame on High
+// for matrices that only change when the culler repacks; a bigger layer gets
+// an InstancedInterleavedBuffer read as four vec4 vertex attributes, uploaded
+// once per version bump using the update ranges (the packed prefix). Padding a
+// small layer's attribute past the limit puts it on the second path on both
+// backends (`mesh.count` still draws the real prefix; the padding rows are
+// zero matrices nothing ever reads). Same float32 mat4s, same shader math,
+// same pixels. Must run before the mesh's first render: the InstanceNode
+// captures the attribute object when the material is first built.
+// (A StorageInstancedBufferAttribute would be a storage binding on WebGPU but
+// becomes a `mat4` vertex attribute on WebGL 2, which three's GLSL builder
+// cannot bind — the WebGL build never finished loading with it.)
+const UNIFORM_MATRIX_LIMIT = 1024;
+export function padInstanceMatrices(mesh) {
+  const current = mesh.instanceMatrix;
+  if (!current || current.count > UNIFORM_MATRIX_LIMIT) return current;
+  const array = new Float32Array((UNIFORM_MATRIX_LIMIT + 1) * 16);
+  array.set(current.array.subarray(0, current.count * 16));
+  const padded = new THREE.InstancedBufferAttribute(array, 16);
+  padded.setUsage(current.usage);
+  padded.version = current.version;
+  mesh.instanceMatrix = padded;
+  return padded;
+}
+
 // Attach the stable per-instance id attribute (original index) to a mesh.
 // Static usage on purpose: a static attribute is uploaded once per version
 // bump, using its update range (the packed prefix); a dynamic one would be
@@ -179,6 +207,7 @@ export function createInstanceCuller(ctx) {
   } = {}) {
     const existing = layers.find((l) => l.mesh === mesh);
     if (existing) return existing;
+    padInstanceMatrices(mesh);
     const idAttr = attachInstanceIds(mesh);
     const layer = {
       mesh,
