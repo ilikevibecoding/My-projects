@@ -109,9 +109,28 @@ Live status and numbers: `progress.html`.
 - **Load** — bit-identical texture generation speedups, an IndexedDB cache of
   generated pixel data (warm visits skip painting), worker-pool painting on
   cold visits, the module graph preloaded, shaders precompiled during the
-  loading screen.
+  loading screen; the terrain height sampler skips every noise term whose
+  weight is exactly zero and resolves its feature masks without the angular
+  warp where they are provably 0 or 1, the trail search is bounded, and the
+  plant keep-out test looks only at the shapes that can be nearest in its
+  8 m cell — the same numbers, bit for bit, in half the time.
+- **Far-LOD crown draws** — beyond a crown's LOD distance only its three core
+  cards render, so each crown layer has a partner mesh with just those cards.
+  The culler routes an instance there only when it cannot share a depth value
+  with any near-drawn instance (their wind-inflated bounding spheres don't
+  meet), and the partner keeps the near mesh's bounding sphere so three's
+  depth sort leaves the draw order untouched.
+- **Per-pass instance sets** — shadow-casting layers draw their shadow-box
+  instances from a shadow-only partner mesh (a layer only the shadow cameras
+  see), casters whose swept shadow volume cannot reach the view are dropped,
+  and the view meshes no longer process casters behind the camera. The mirror
+  render is skipped on frames where no water surface can be in view.
 
-Per frame at High this is 15–67 % fewer triangles depending on the view
-(e.g. overlook 7.0 M → 2.3 M), ~20 MB/frame less redundant buffer traffic,
-16 MiB/frame fewer clears, and a texture step of ~1 s cold / ~0.3 s warm
-instead of ~2.6 s.
+Per frame at High this is 62–86 % fewer triangles depending on the view
+(spawn 6.92 M → 2.15 M, overlook 7.02 M → 1.15 M, looking up 7.03 M → 1.23 M),
+~20 MB/frame less redundant buffer traffic, 16 MiB/frame fewer clears, a
+software-rasterizer frame-time proxy 1.6–2.0× faster, and load to interactive
+about a third shorter. What remains is the shaded-pixel floor: post-processing
+(GTAO, bloom, god rays, FXAA), terrain fill, the 4× MSAA scene pass and the
+water shader are fixed by the pixels themselves — about half of the frame on
+the proxy — so the geometry side is at diminishing returns.
